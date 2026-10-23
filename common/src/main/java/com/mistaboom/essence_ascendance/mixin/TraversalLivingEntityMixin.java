@@ -13,7 +13,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LivingEntity.class)
 abstract class TraversalLivingEntityMixin {
+    //? if >=26.1.2
+    /*@Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)*/
+    //? if <26.1.2
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
+    //? if >=26.1.2
+    /*private void essenceAscendance$contactDamage(net.minecraft.server.level.ServerLevel level, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {*/
+    //? if <26.1.2
     private void essenceAscendance$contactDamage(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         if (TraversalService.protectsDamage((LivingEntity)(Object)this, source)) cir.setReturnValue(false);
     }
@@ -27,6 +33,9 @@ abstract class TraversalLivingEntityMixin {
         return original || TraversalService.canStandOnFluid((LivingEntity)(Object)this, fluid);
     }
     // NeoForge has an additional isInWater test inside its FluidType dispatch. Both calls must agree.
+    //? if >=26.1.2
+    /*@ModifyExpressionValue(method = "travelInFluid", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;isInWater()Z"))*/
+    //? if <26.1.2
     @ModifyExpressionValue(method = "travel", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;isInWater()Z"))
     private boolean essenceAscendance$nativeFluidTravel(boolean original) {
         return TraversalService.swimmingWater((LivingEntity)(Object)this, original);

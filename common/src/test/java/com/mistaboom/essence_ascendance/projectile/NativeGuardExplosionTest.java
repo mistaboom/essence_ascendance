@@ -7,6 +7,8 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Explosion;
+//? if >=26.1.2
+/*import net.minecraft.world.level.ServerExplosion;*/
 import net.minecraft.world.level.ExplosionDamageCalculator;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -31,8 +33,13 @@ public final class NativeGuardExplosionTest {
             @Override public Optional<Float> getBlockExplosionResistance(Explosion explosion, BlockGetter level,
                     BlockPos pos, BlockState block, FluidState fluid) { return Optional.of(100.0F); }
         };
+        //? if >=26.1.2
+        /*ServerExplosion explosion = new ServerExplosion(fixture.level, responsible, source, calculator, new Vec3(0, 0, -1), 2, false, Explosion.BlockInteraction.KEEP);*/
+        //? if <26.1.2
         Explosion explosion = new Explosion(fixture.level, responsible, source, calculator,
+                //? if <26.1.2
                 0, 0, -1, 2, false, Explosion.BlockInteraction.KEEP,
+                //? if <26.1.2
                 ParticleTypes.EXPLOSION, ParticleTypes.EXPLOSION_EMITTER, SoundEvents.GENERIC_EXPLODE);
         // explode() is actual native force calculation. finalizeExplosion is intentionally not called;
         // the fixture never constructs/opens a world or alters blocks.

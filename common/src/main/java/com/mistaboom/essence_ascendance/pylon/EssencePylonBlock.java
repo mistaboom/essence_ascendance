@@ -1,4 +1,5 @@
 package com.mistaboom.essence_ascendance.pylon;
+import com.mistaboom.essence_ascendance.network.PlayerMessageCompat;
 
 import com.mistaboom.essence_ascendance.network.EssencePylonNetworkService;
 import net.minecraft.core.BlockPos;
@@ -24,6 +25,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+//? if >=26.1.2
+/*import net.minecraft.world.level.block.state.properties.EnumProperty;*/
+//? if <26.1.2
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
@@ -38,6 +42,9 @@ import java.util.Map;
 public final class EssencePylonBlock extends Block implements EntityBlock {
     public static final BooleanProperty FOCUS_LIT = BooleanProperty.create("focus_lit");
     /** Direction from the attached base/support side toward the tower tip and Focus. */
+    //? if >=26.1.2
+    /*public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;*/
+    //? if <26.1.2
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     /** Quarter-turn twist around FACING; zero preserves the appearance of existing saves. */
     public static final IntegerProperty ROLL = IntegerProperty.create("roll", 0, 3);
@@ -196,7 +203,7 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
                 com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.openRestricted(serverPlayer, pylon);
                 return InteractionResult.CONSUME;
             }
-            player.displayClientMessage(
+            PlayerMessageCompat.send(player,
                     Component.translatable("message.essence_ascendance.pylon_private"),
                     true
             );
@@ -212,22 +219,38 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
         return InteractionResult.CONSUME;
     }
 
+    //? if <26.1.2
     @Override
+    //? if <26.1.2
     protected void onRemove(
+            //? if <26.1.2
             BlockState state,
+            //? if <26.1.2
             Level level,
+            //? if <26.1.2
             BlockPos pos,
+            //? if <26.1.2
             BlockState newState,
+            //? if <26.1.2
             boolean movedByPiston
+    //? if <26.1.2
     ) {
+        //? if <26.1.2
         if (!state.is(newState.getBlock())
+                //? if <26.1.2
                 && level.getBlockEntity(pos) instanceof EssencePylonBlockEntity pylon) {
+            //? if <26.1.2
             pylon.invalidateLinkedCrucible();
+            //? if <26.1.2
             if (!level.isClientSide) popResource(level, pos,
+                    //? if <26.1.2
                     com.mistaboom.essence_ascendance.machine.MachineProtection.takePickup(pylon));
+        //? if <26.1.2
         }
 
+        //? if <26.1.2
         super.onRemove(state, level, pos, newState, movedByPiston);
+    //? if <26.1.2
     }
     @Override protected java.util.List<ItemStack> getDrops(BlockState state,
             net.minecraft.world.level.storage.loot.LootParams.Builder params) { return java.util.List.of(); }

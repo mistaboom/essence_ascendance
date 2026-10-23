@@ -69,7 +69,11 @@ public final class ConsumableRecoveryService {
         if (previous != null && previous.player == player && previous.identity == source) return original.get();
         CONSUMPTION.set(frame);
         try {
+            //? if >=26.1.2
+            /*double foodBefore = AttunementGameplay.food(player);*/
             ItemStack result = original.get(); // native stack, container, effects, criteria and item callbacks
+            //? if >=26.1.2
+            /*if (frame.nutrition > 0) AttunementGameplay.foodRestored(player, foodBefore, frame.source);*/
             if (valid(player)) {
                 var context = SkillEffectRuntime.context(player);
                 if (frame.fullHunger && frame.nutrition > 0 && context.isEffective(SkillIds.METABOLIC_CONVERSION)) {

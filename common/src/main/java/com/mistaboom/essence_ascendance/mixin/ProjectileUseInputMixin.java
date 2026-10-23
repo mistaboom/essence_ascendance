@@ -42,6 +42,9 @@ public abstract class ProjectileUseInputMixin {
         if (ProjectileInterceptionService.startBlockAttack(player, action)) {
             // Preserve vanilla sequence acknowledgment after this call and undo client block-break prediction.
             // Packet positions are client supplied: correcting a prediction must not load a remote chunk.
+            //? if >=26.1.2
+            /*if (player.isWithinBlockInteractionRange(pos, 1.0) && player.level().hasChunkAt(pos))*/
+            //? if <26.1.2
             if (player.canInteractWithBlock(pos, 1.0) && player.level().hasChunkAt(pos))
                 player.connection.send(new ClientboundBlockUpdatePacket(player.level(), pos));
             return;
@@ -61,10 +64,17 @@ public abstract class ProjectileUseInputMixin {
     }
     @Inject(method = "handleInteract", at = @At("RETURN"))
     private void essenceAscendance$interaction(ServerboundInteractPacket packet, CallbackInfo ci) {
+        //? if >=26.1.2
+        /*ProjectileInterceptionService.used(player);*/
+        //? if <26.1.2
         packet.dispatch(new ServerboundInteractPacket.Handler() {
+            //? if <26.1.2
             @Override public void onInteraction(InteractionHand hand) { ProjectileInterceptionService.used(player); }
+            //? if <26.1.2
             @Override public void onInteraction(InteractionHand hand, Vec3 position) { ProjectileInterceptionService.used(player); }
+            //? if <26.1.2
             @Override public void onAttack() { }
+        //? if <26.1.2
         });
     }
 }

@@ -54,11 +54,16 @@ public final class PrimarySubstrateDiscovery {
         var settings = LatentOreWorldgen.settings();
         Cached cached = CACHE.get(level);
         if (cached != null && cached.settings() == settings) return cached.selection();
-        Selection result = discover(level.dimension().location(), level.getChunkSource().getGenerator(),
-                level.getMinBuildHeight(), level.getMaxBuildHeight(), settings);
+        //? if >=26.1.2
+        /*Selection result = discover(level.dimension().identifier(), level.getChunkSource().getGenerator(), level.getMinY(), level.getMaxY() + 1, settings);*/
+        //? if <26.1.2
+        Selection result = discover(level.dimension().location(), level.getChunkSource().getGenerator(), level.getMinBuildHeight(), level.getMaxBuildHeight(), settings);
         CACHE.put(level, new Cached(settings, result));
         var hosts = result.hosts().entrySet().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.getKey()) + " (" + entry.getValue() + ")").toList();
         EssenceAscendance.LOGGER.info("Latent Ore dimension={} selection={} status={} hosts={} reason={}",
+                //? if >=26.1.2
+                /*level.dimension().identifier(), result.overridden() ? "override" : "automatic",*/
+                //? if <26.1.2
                 level.dimension().location(), result.overridden() ? "override" : "automatic",
                 result.enabled() ? "enabled" : "excluded/skipped", hosts, result.reason());
         return result;

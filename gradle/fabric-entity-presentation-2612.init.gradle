@@ -1,0 +1,38 @@
+// Isolated real-world Fabric 26.1.2 player/arrow attachment probe. No production gate is changed.
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.path != ':fabric:26.1.2') return
+        def metadata = p.file('build/native-fixtures/entity-presentation-fabric-metadata')
+        def compile = p.tasks.register('compileEntityPresentationFixture2612', JavaCompile) {
+            dependsOn(p.tasks.named('classes'))
+            source(p.rootProject.file('gradle/native-fixtures/FabricEntityPresentationFixture2612.java'))
+            classpath = p.sourceSets.main.compileClasspath + p.sourceSets.main.output
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/entity-presentation-fabric-classes')
+            options.release = 25
+            javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+        }
+        def fixture = p.tasks.register('entityPresentationFixture2612Jar', Jar) {
+            dependsOn(compile)
+            archiveFileName = 'entity-presentation-fabric-fixture.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            from(compile.flatMap { it.destinationDirectory })
+            from(metadata)
+            doFirst {
+                metadata.mkdirs()
+                new File(metadata, 'fabric.mod.json').text = '''{"schemaVersion":1,"id":"essence_entity_presentation_test","version":"1","environment":"server","entrypoints":{"main":["com.mistaboom.essence_ascendance.fixture.FabricEntityPresentationFixture2612"]},"depends":{"essence_ascendance":"*"}}'''
+            }
+        }
+        p.tasks.named('runServer').configure { t ->
+            def testRun = p.file('build/native-fixtures/entity-presentation-fabric-run').canonicalFile
+            t.internalRunDir.set(testRun)
+            t.jvmArgs('-Dfabric.addMods=' + p.file('build/native-fixtures/entity-presentation-fabric-fixture.jar').canonicalPath)
+            t.dependsOn(fixture)
+            t.doFirst {
+                if (t.internalRunDir.asFile.get().canonicalFile != testRun)
+                    throw new GradleException('Unexpected Fabric presentation fixture directory')
+                testRun.mkdirs()
+                new File(testRun, 'eula.txt').text = 'eula=true\n'
+            }
+        }
+    }
+}

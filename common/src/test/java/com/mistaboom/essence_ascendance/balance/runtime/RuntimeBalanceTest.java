@@ -34,6 +34,9 @@ public final class RuntimeBalanceTest {
                     ==first.config().balanceProfile().defaultTierCaps().get(tier.id())*120,
                     "Pylon storage no longer follows the same expanded tier budget");
         var mining=first.config().equipmentBaselineConfig();
+        //? if >=26.1.2
+        /*check(mining.baselineFor(AscendanceTiers.LATENT).miningSpeed()==net.minecraft.world.item.ToolMaterial.IRON.speed(),*/
+        //? if <26.1.2
         check(mining.baselineFor(AscendanceTiers.LATENT).miningSpeed()==net.minecraft.world.item.Tiers.IRON.getSpeed(),
                 "Latent mining must already reach iron");
         verifyNativeChassis(first);
@@ -395,8 +398,12 @@ public final class RuntimeBalanceTest {
         var latent=runtime.config().equipmentBaselineConfig().baselineFor(AscendanceTiers.LATENT);
         check(latent.fullSetArmor()==15&&latent.fullSetToughness()==0&&latent.meleeDamage()==6&&latent.meleeAttackSpeed()==1.6,
                 "Latent armor and sword must start at the native iron chassis independent of pack strength");
+        //? if >=26.1.2
+        /*float nativeIronSpeed = net.minecraft.world.item.ToolMaterial.IRON.speed();*/
+        //? if <26.1.2
+        float nativeIronSpeed = net.minecraft.world.item.Tiers.IRON.getSpeed();
         check(latent.durability()==new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE).getMaxDamage()
-                        &&latent.miningSpeed()==net.minecraft.world.item.Tiers.IRON.getSpeed()&&latent.harvestLevel()==2,
+                        &&latent.miningSpeed()==nativeIronSpeed&&latent.harvestLevel()==2,
                 "Latent tools must start with native iron durability, speed and harvest access");
         check(latent.rangedDamage()==6&&latent.rangedAttackSpeed()==1,
                 "Latent bow must start at the native full-draw damage and cadence");

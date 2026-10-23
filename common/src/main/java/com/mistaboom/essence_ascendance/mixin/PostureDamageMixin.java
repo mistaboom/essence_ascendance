@@ -13,8 +13,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** One protected native boundary shared by Fabric and NeoForge, after initial validation, before any shield block. */
 @Mixin(LivingEntity.class)
 public abstract class PostureDamageMixin {
+    //? if >=26.1.2
+    /*@Inject(method="hurtServer", at=@At(value="INVOKE", target="Lnet/minecraft/world/entity/LivingEntity;applyItemBlocking(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)F"),*/
+    //? if <26.1.2
     @Inject(method="hurt", at=@At(value="INVOKE", target="Lnet/minecraft/world/entity/LivingEntity;isDamageSourceBlocked(Lnet/minecraft/world/damagesource/DamageSource;)Z"),
             cancellable=true, require=1, expect=1, allow=1)
+    //? if >=26.1.2
+    /*private void essenceAscendance$postureDodge(net.minecraft.server.level.ServerLevel level, DamageSource source, float amount, CallbackInfoReturnable<Boolean> result) {*/
+    //? if <26.1.2
     private void essenceAscendance$postureDodge(DamageSource source, float amount, CallbackInfoReturnable<Boolean> result) {
         if ((Object)this instanceof ServerPlayer player) {
             boolean spiritWalk = VitalityDeathDefianceService.blocksIncomingDamage(player, source);

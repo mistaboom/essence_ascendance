@@ -18,6 +18,9 @@ public abstract class AttunementMovementInputMixin {
     private void essenceAscendance$movementIntent(CallbackInfo ci) {
         LocalPlayer player = (LocalPlayer) (Object) this;
         if (!NetworkManager.canServerReceive(AttunementMovementIntentPayload.TYPE)) return;
+        //? if >=26.1.2
+        /*boolean active = player.input.getMoveVector().lengthSquared() > 0 || player.input.keyPresses.jump();*/
+        //? if <26.1.2
         boolean active = player.input.forwardImpulse != 0 || player.input.leftImpulse != 0 || player.input.jumping;
         if (active != essenceAscendance$lastIntent || active && (long) player.tickCount - essenceAscendance$lastIntentTick >= 5) {
             NetworkManager.sendToServer(new AttunementMovementIntentPayload(active));

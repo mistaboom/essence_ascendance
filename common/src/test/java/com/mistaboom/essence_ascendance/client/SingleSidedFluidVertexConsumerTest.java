@@ -123,10 +123,14 @@ public final class SingleSidedFluidVertexConsumerTest {
         private Vertex current;
         @Override public VertexConsumer addVertex(float x, float y, float z) { current = new Vertex(); current.x = x; current.y = y; current.z = z; vertices.add(current); return this; }
         @Override public VertexConsumer setColor(int r, int g, int b, int a) { current.red = r; current.green = g; current.blue = b; current.alpha = a; current.fields |= 1; return this; }
+        //? if >=26.1.2
+        /*@Override public VertexConsumer setColor(int argb) { return setColor(argb >>> 16 & 255, argb >>> 8 & 255, argb & 255, argb >>> 24 & 255); }*/
         @Override public VertexConsumer setUv(float u, float v) { current.u = u; current.v = v; current.fields |= 2; return this; }
         @Override public VertexConsumer setUv1(int u, int v) { current.overlayU = u; current.overlayV = v; current.fields |= 4; return this; }
         @Override public VertexConsumer setUv2(int u, int v) { current.lightU = u; current.lightV = v; current.fields |= 8; return this; }
         @Override public VertexConsumer setNormal(float x, float y, float z) { current.nx = x; current.ny = y; current.nz = z; current.fields |= 16; return this; }
+        //? if >=26.1.2
+        /*@Override public VertexConsumer setLineWidth(float width) { check(Float.isFinite(width) && width > 0, "Finite positive native line width"); return this; }*/
     }
 
     private static final class Vertex {

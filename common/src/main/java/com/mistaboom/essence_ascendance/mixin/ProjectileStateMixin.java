@@ -66,13 +66,46 @@ public abstract class ProjectileStateMixin implements ProjectileStateAccess, Pro
         }
     }
 
+    //? if >=26.1.2 {
+    /*
+    @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
+    private void essenceAscendance$save(net.minecraft.world.level.storage.ValueOutput tag, CallbackInfo ci) {
+        tag.putBoolean("EssenceProjectileSecondary", essenceAscendance$secondary);
+        if (essenceAscendance$projectileState != null) tag.store("EssenceProjectile", CompoundTag.CODEC, essenceAscendance$projectileState.save());
+        if (essenceAscendance$controlState != null) tag.store("EssenceProjectileControl", CompoundTag.CODEC, essenceAscendance$controlState.save());
+    }
+    *///?} else {
     @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
     private void essenceAscendance$save(CompoundTag tag, CallbackInfo ci) {
         tag.putBoolean("EssenceProjectileSecondary", essenceAscendance$secondary);
         if (essenceAscendance$projectileState != null) tag.put("EssenceProjectile", essenceAscendance$projectileState.save());
         if (essenceAscendance$controlState != null) tag.put("EssenceProjectileControl", essenceAscendance$controlState.save());
     }
+    //?}
 
+
+    //? if >=26.1.2 {
+    /*
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
+    private void essenceAscendance$load(net.minecraft.world.level.storage.ValueInput input, CallbackInfo ci) {
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("EssenceProjectileSecondary", input.getBooleanOr("EssenceProjectileSecondary", false));
+        input.read("EssenceProjectile", com.mojang.serialization.Codec.PASSTHROUGH).ifPresent(value -> tag.put("EssenceProjectile", CompoundTag.CODEC.parse(value).result().orElseGet(CompoundTag::new)));
+        input.read("EssenceProjectileControl", com.mojang.serialization.Codec.PASSTHROUGH).ifPresent(value -> tag.put("EssenceProjectileControl", CompoundTag.CODEC.parse(value).result().orElseGet(CompoundTag::new)));
+        essenceAscendance$projectileState = null;
+        essenceAscendance$controlState = null;
+        essenceAscendance$checked = true; // Never acquire a new loadout from a saved arrow.
+        essenceAscendance$secondary = tag.getBoolean("EssenceProjectileSecondary");
+        if (tag.contains("EssenceProjectileControl")) {
+            essenceAscendance$controlState = ProjectileControlState.load(tag.getCompound("EssenceProjectileControl"));
+            if (essenceAscendance$controlState == null) ((Projectile) (Object) this).discard();
+        }
+        if (tag.contains("EssenceProjectile")) {
+            essenceAscendance$projectileState = ProjectileState.load(tag.getCompound("EssenceProjectile"));
+            if (essenceAscendance$projectileState == null) ((Projectile) (Object) this).discard();
+        }
+    }
+    *///?} else {
     @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
     private void essenceAscendance$load(CompoundTag tag, CallbackInfo ci) {
         essenceAscendance$checked = true; // Never acquire a new loadout from a saved arrow.
@@ -86,4 +119,6 @@ public abstract class ProjectileStateMixin implements ProjectileStateAccess, Pro
             if (essenceAscendance$projectileState == null) ((Projectile) (Object) this).discard();
         }
     }
+    //?}
+
 }

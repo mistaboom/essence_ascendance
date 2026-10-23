@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.vitality;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import com.mistaboom.essence_ascendance.data.NbtVersionCompat;
 import java.util.UUID;
 
 /** Persisted obligations, not purchased power: refund, rank/config refresh and reconnect cannot forgive debt. */
@@ -24,7 +25,7 @@ public final class VitalityDamageLedger {
         for (var debt : delayed.snapshot()) {
             CompoundTag item = new CompoundTag();
             item.putString("source_type", debt.source().damageType());
-            if (debt.source().attacker() != null) item.putUUID("attacker", debt.source().attacker());
+            if (debt.source().attacker() != null) NbtVersionCompat.putUUID(item, "attacker", debt.source().attacker());
             item.putDouble("remaining", debt.remaining()); item.putInt("ticks", debt.ticks());
             debts.add(item);
         }

@@ -22,7 +22,11 @@ abstract class CasterUseInputMixin {
                                                        CallbackInfoReturnable<InteractionResult> cir) {
         var stack = player.getItemInHand(hand);
         if (localPlayerMode != GameType.SPECTATOR && stack.getItem() instanceof AscendanceCasterItem
-                && player.getCooldowns().isOnCooldown(stack.getItem())) {
+                && player.getCooldowns().isOnCooldown(
+                //? if >=26.1.2
+                /*stack)) {*/
+                //? if <26.1.2
+                stack.getItem())) {
             // No shot, animation or packet is generated. Releasing the button clears vanilla use state.
             player.startUsingItem(hand);
             cir.setReturnValue(InteractionResult.CONSUME);

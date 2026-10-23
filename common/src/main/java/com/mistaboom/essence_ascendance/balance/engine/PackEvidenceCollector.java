@@ -126,6 +126,9 @@ public final class PackEvidenceCollector {
                     CapabilityAxis.MAX_HEALTH, Attributes.MAX_HEALTH).forEach((axis, attribute) -> {
                 var fact = sink.get(ITEM, ref.itemId(), "axis." + axis.name());
                 if (fact != null && fact.origin() == EvidenceFact.Origin.OVERRIDE)
+                    //? if >=26.1.2
+                    /*nativeModifiers.remove(attribute.unwrapKey().orElseThrow().identifier().toString());*/
+                    //? if <26.1.2
                     nativeModifiers.remove(attribute.unwrapKey().orElseThrow().location().toString());
             });
             rows.add(new EquipmentReference(ref.itemId(), slot, ProgressionBand.ENTRY, axes, ref.capabilities(),
@@ -201,29 +204,53 @@ public final class PackEvidenceCollector {
     static EquipmentReference measureEquipment(ItemStack stack, ProgressionBand stage, boolean reachable) {
         Item item = stack.getItem();
         ItemAttributeModifiers attributes = stack.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
+        //? if <26.1.2
         if (attributes.modifiers().isEmpty()) attributes = item.getDefaultAttributeModifiers();
         Tool tool = stack.get(DataComponents.TOOL);
-        boolean known = item instanceof ArmorItem || item instanceof TieredItem || item instanceof BowItem || item instanceof CrossbowItem
-                || item instanceof TridentItem || item instanceof MaceItem || item instanceof ShieldItem || item instanceof ElytraItem;
+        //? if >=26.1.2
+        /*boolean armor = stack.has(DataComponents.EQUIPPABLE) && !stack.has(DataComponents.GLIDER) && (stack.is(ItemTags.HEAD_ARMOR) || stack.is(ItemTags.CHEST_ARMOR) || stack.is(ItemTags.LEG_ARMOR) || stack.is(ItemTags.FOOT_ARMOR) || attributes.modifiers().stream().anyMatch(modifier -> modifier.attribute().equals(Attributes.ARMOR) || modifier.attribute().equals(Attributes.ARMOR_TOUGHNESS)));*/
+        //? if <26.1.2
+        boolean armor = item instanceof ArmorItem;
+        //? if >=26.1.2
+        /*boolean glider = stack.has(DataComponents.GLIDER);*/
+        //? if <26.1.2
+        boolean glider = item instanceof ElytraItem;
+        //? if >=26.1.2
+        /*boolean shield = stack.has(DataComponents.BLOCKS_ATTACKS);*/
+        //? if <26.1.2
+        boolean shield = item instanceof ShieldItem;
+        //? if >=26.1.2
+        /*boolean known = armor || glider || shield || stack.has(DataComponents.WEAPON) || tool != null || item instanceof BowItem || item instanceof CrossbowItem || item instanceof TridentItem || item instanceof MaceItem;*/
+        //? if <26.1.2
+        boolean known = armor || item instanceof TieredItem || item instanceof BowItem || item instanceof CrossbowItem
+                //? if <26.1.2
+                || item instanceof TridentItem || item instanceof MaceItem || shield || glider;
         if (!known && attributes.modifiers().isEmpty() && tool == null) return null;
         String id = BuiltInRegistries.ITEM.getKey(item).toString();
         List<String> capabilities = new ArrayList<>(List.of(EquipmentReference.ESTIMATED_CATALOG_REFERENCE));
         Map<CapabilityAxis, Double> axes = new EnumMap<>(CapabilityAxis.class);
         String slot = "mainhand_melee"; EquipmentSlot equipmentSlot = EquipmentSlot.MAINHAND;
-        if (item instanceof ArmorItem armor) {
-            equipmentSlot = armor.getEquipmentSlot(); slot = equipmentSlot.getName();
+        if (armor) {
+            //? if >=26.1.2
+            /*equipmentSlot = stack.get(DataComponents.EQUIPPABLE).slot();*/
+            //? if <26.1.2
+            equipmentSlot = ((ArmorItem)item).getEquipmentSlot();
+            slot = equipmentSlot.getName();
             axes.put(CapabilityAxis.ARMOR, attribute(stack, Attributes.ARMOR, equipmentSlot, 0));
             axes.put(CapabilityAxis.TOUGHNESS, attribute(stack, Attributes.ARMOR_TOUGHNESS, equipmentSlot, 0));
-        } else if (item instanceof ElytraItem) {
+        } else if (glider) {
             equipmentSlot = EquipmentSlot.CHEST;
             slot = "chest"; axes.put(CapabilityAxis.GLIDING, 1.0); capabilities.add("gliding");
-        } else if (item instanceof ShieldItem) {
+        } else if (shield) {
             equipmentSlot = EquipmentSlot.OFFHAND;
             slot = "offhand"; axes.put(CapabilityAxis.BLOCKING, 1.0); capabilities.add("directional_blocking");
         } else {
             // A mining tool's attack attributes do not make it a weapon-family reference.
             // Functional declarations can explicitly identify dual-purpose weapons; enchant
             // compatibility alone does not prove their role.
+            //? if >=26.1.2
+            /*if (tool != null && !(stack.is(ItemTags.SWORDS) || item instanceof TridentItem || item instanceof MaceItem*/
+            //? if <26.1.2
             if (tool != null && !(item instanceof SwordItem || item instanceof TridentItem || item instanceof MaceItem
                     || stack.is(ItemTags.SWORDS) || stack.is(MELEE_WEAPONS))) slot = "mainhand_tool";
             double damage = attribute(stack, Attributes.ATTACK_DAMAGE, equipmentSlot, 1);
@@ -253,6 +280,9 @@ public final class PackEvidenceCollector {
             capabilities.add("declared_tool_rule_peak; effective speed remains block-specific");
         }
         axes.put(CapabilityAxis.DURABILITY, (double) stack.getMaxDamage());
+        //? if >=26.1.2
+        /*if (stack.has(DataComponents.ENCHANTABLE) && stack.get(DataComponents.ENCHANTABLE).value() > 0) capabilities.add("enchantable:" + stack.get(DataComponents.ENCHANTABLE).value());*/
+        //? if <26.1.2
         if (item.getEnchantmentValue() > 0) capabilities.add("enchantable:" + item.getEnchantmentValue());
         axes.put(CapabilityAxis.REACH, attribute(stack, Attributes.BLOCK_INTERACTION_RANGE, equipmentSlot, 4.5));
         double confidence = known ? .85 : .6;
@@ -263,10 +293,16 @@ public final class PackEvidenceCollector {
             throw new IllegalArgumentException("Invalid equipment axis " + axis.getKey() + " for " + id);
         Map<String, Map<String, NativeAttributeContribution.Modifier>> modifiers = new TreeMap<>();
         stack.forEachModifier(equipmentSlot, (holder, modifier) -> holder.unwrapKey().ifPresent(key ->
+                //? if >=26.1.2
+                /*modifiers.computeIfAbsent(key.identifier().toString(), ignored -> new TreeMap<>()).put(modifier.id().toString(),*/
+                //? if <26.1.2
                 modifiers.computeIfAbsent(key.location().toString(), ignored -> new TreeMap<>()).put(modifier.id().toString(),
                         new NativeAttributeContribution.Modifier(modifier.amount(), modifier.operation()))));
         Map<String, NativeAttributeContribution> contributions = new TreeMap<>();
         modifiers.forEach((attribute, values) -> contributions.put(attribute, new NativeAttributeContribution(values)));
+        //? if >=26.1.2
+        /*String healthAttribute = Attributes.MAX_HEALTH.unwrapKey().orElseThrow().identifier().toString();*/
+        //? if <26.1.2
         String healthAttribute = Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString();
         // Measured absence is a native no-op, not a scalar estimate of the player's base health.
         contributions.putIfAbsent(healthAttribute, NativeAttributeContribution.EMPTY);

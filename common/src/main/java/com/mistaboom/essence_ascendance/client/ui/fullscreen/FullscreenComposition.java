@@ -5,6 +5,9 @@ import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.client.ui.UiFocusController;
 import com.mistaboom.essence_ascendance.client.ui.UiOverlayStack;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
@@ -25,6 +28,9 @@ import java.util.function.Consumer;
 public final class FullscreenComposition {
     @FunctionalInterface
     public interface Renderer {
+        //? if >=26.1.2
+        /*void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick);*/
+        //? if <26.1.2
         void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick);
     }
 
@@ -37,7 +43,7 @@ public final class FullscreenComposition {
         default boolean key(int key, int scan, int modifiers) { return false; }
         /** Traverse a composite region's children before moving to the next host control. */
         default boolean focusStep(int direction) { return false; }
-        default boolean character(char character, int modifiers) { return false; }
+        default boolean character(int codepoint, int modifiers) { return false; }
         default void focused(boolean focused) { }
         /** Called when a page, overlay, resize or removed target invalidates capture. */
         default void cancel() { }
@@ -188,6 +194,9 @@ public final class FullscreenComposition {
         overlays = new UiOverlayStack(List.of());
     }
 
+    //? if >=26.1.2
+    /*public void renderBase(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
     public void renderBase(GuiGraphics graphics, Font font, int mouseX, int mouseY, float partialTick) {
         UiBounds screen = scene.frame().screen();
         graphics.fillGradient(screen.x(), screen.y(), screen.right(), screen.bottom(), scene.backgroundTop(), scene.backgroundBottom());
@@ -198,19 +207,37 @@ public final class FullscreenComposition {
         for (Control control : scene.controls()) renderControl(graphics, font, control, x, y);
     }
 
+    //? if >=26.1.2
+    /*public void renderOverlays(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
     public void renderOverlays(GuiGraphics graphics, Font font, int mouseX, int mouseY, float partialTick) {
         String pointerOwner = overlays.pointerOwner(mouseX, mouseY).map(UiOverlayStack.Layer::id).orElse(null);
         for (UiOverlayStack.Layer layer : overlays.renderingOrder()) {
             Overlay overlay = overlay(layer.id());
             int x = pointerOwner != null && !pointerOwner.equals(layer.id()) ? Integer.MIN_VALUE : mouseX;
             int y = x == Integer.MIN_VALUE ? Integer.MIN_VALUE : mouseY;
+            //? if >=26.1.2
+            /*graphics.nextStratum();*/
+            //? if <26.1.2
             graphics.flush();
+            //? if >=26.1.2
+            /*graphics.pose().pushMatrix();*/
+            //? if <26.1.2
             graphics.pose().pushPose();
+            //? if >=26.1.2
+            /*graphics.nextStratum();*/
+            //? if <26.1.2
             graphics.pose().translate(0, 0, layer.zOrder());
             try {
                 overlay.renderer().render(graphics, x, y, partialTick);
                 for (Control control : overlay.controls()) renderControl(graphics, font, control, x, y);
+                //? if >=26.1.2
+                /*graphics.nextStratum();*/
+                //? if <26.1.2
                 graphics.flush();
+            //? if >=26.1.2
+            /*} finally { graphics.pose().popMatrix(); }*/
+            //? if <26.1.2
             } finally { graphics.pose().popPose(); }
         }
     }
@@ -294,12 +321,15 @@ public final class FullscreenComposition {
         return primary != null && primary != input && primary.key(key, scan, modifiers);
     }
 
-    public boolean charTyped(char character, int modifiers) {
-        if (focusScope != null) { overlay(focusScope).input().character(character, modifiers); return true; }
+    public boolean charTyped(int codepoint, int modifiers) {
+        if (focusScope != null) { overlay(focusScope).input().character(codepoint, modifiers); return true; }
         Input input = input(focusedId());
-        return input != null && input.character(character, modifiers);
+        return input != null && input.character(codepoint, modifiers);
     }
 
+    //? if >=26.1.2
+    /*private void renderControl(GuiGraphicsExtractor graphics, Font font, Control control, int x, int y) {*/
+    //? if <26.1.2
     private void renderControl(GuiGraphics graphics, Font font, Control control, int x, int y) {
         FullscreenControls.button(graphics, font, control.bounds(), control.label(), control.enabled(), control.selected(),
                 control.bounds().contains(x, y), activeControls().contains(control) && keyboardFocused(control.id()),

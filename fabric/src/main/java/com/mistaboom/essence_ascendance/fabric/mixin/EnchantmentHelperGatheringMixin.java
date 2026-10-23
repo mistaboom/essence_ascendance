@@ -29,6 +29,9 @@ public abstract class EnchantmentHelperGatheringMixin {
     )
     private static void essenceAscendance$virtualItemFortuneLooting(
             Holder<Enchantment> enchantment,
+            //? if >=26.1.2
+            /*net.minecraft.world.item.ItemInstance stack,*/
+            //? if <26.1.2
             ItemStack stack,
             CallbackInfoReturnable<Integer> cir
     ) {

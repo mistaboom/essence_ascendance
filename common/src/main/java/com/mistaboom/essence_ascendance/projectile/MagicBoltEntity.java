@@ -2,6 +2,10 @@ package com.mistaboom.essence_ascendance.projectile;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueOutput;*/
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
@@ -33,20 +37,38 @@ public final class MagicBoltEntity extends Projectile {
     }
     @Override protected void onHitEntity(EntityHitResult hit) {
         if (level().isClientSide || !(getOwner() instanceof ServerPlayer owner)) return;
+        //? if >=26.1.2
+        /*DamageSource source = new DamageSource(level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)*/
+        //? if <26.1.2
         DamageSource source = new DamageSource(level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE)
+                //? if >=26.1.2
+                /*.getOrThrow(ProjectileContent.MAGIC_BOLT_DAMAGE), this, owner);*/
+                //? if <26.1.2
                 .getHolderOrThrow(ProjectileContent.MAGIC_BOLT_DAMAGE), this, owner);
         owner.setLastHurtMob(hit.getEntity());
         ProjectileRuntime.damage(hit.getEntity(), source, (float) launchDamage,
+                //? if >=26.1.2
+                /*amount -> hit.getEntity().hurtServer(owner.serverLevel(), source, amount));*/
+                //? if <26.1.2
                 amount -> hit.getEntity().hurt(source, amount));
     }
     @Override protected void onHitBlock(BlockHitResult hit) {
         // No native block callback: bolts cannot activate, destroy or modify terrain.
         setPos(hit.getLocation()); discard();
     }
+    //? if >=26.1.2
+    /*@Override protected void addAdditionalSaveData(ValueOutput tag) {*/
+    //? if <26.1.2
     @Override protected void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag); tag.putDouble("LaunchDamage", launchDamage);
     }
+    //? if >=26.1.2
+    /*@Override protected void readAdditionalSaveData(ValueInput tag) {*/
+    //? if <26.1.2
     @Override protected void readAdditionalSaveData(CompoundTag tag) {
+        //? if >=26.1.2
+        /*super.readAdditionalSaveData(tag); launchDamage = tag.getDoubleOr("LaunchDamage", 0.0); setNoGravity(true);*/
+        //? if <26.1.2
         super.readAdditionalSaveData(tag); launchDamage = tag.getDouble("LaunchDamage"); setNoGravity(true);
         if (!Double.isFinite(launchDamage) || launchDamage <= 0) discard();
     }

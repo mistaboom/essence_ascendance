@@ -14,6 +14,10 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.SubmitNodeCollector;*/
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.rendertype.RenderTypes;*/
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
@@ -98,11 +102,38 @@ public final class FocusVisuals {
         pose.popPose();
     }
 
+    //? if >=26.1.2 {
+    /*public static void submitItem(ItemStack stack, PoseStack pose, SubmitNodeCollector collector,
+                                  int light, int overlay, boolean foil) {
+        if (!EssenceFocusData.isFocusItem(stack)) return;
+        Context context = Context.generic(EssenceFocusData.tier(stack));
+        pose.pushPose();
+        pose.translate(0, -1, 0);
+        Vec3 center = center(context, 0);
+        pose.translate(center.x, center.y, center.z);
+        PylonRenderTransform.applyRotation(pose, context.frame());
+        pose.scale((float) (1.0 + (context.tier() == null ? 0 : context.tier().ordinal() * 0.012)),
+                (float) (1.0 + (context.tier() == null ? 0 : context.tier().ordinal() * 0.012)),
+                (float) (1.0 + (context.tier() == null ? 0 : context.tier().ordinal() * 0.012)));
+        pose.translate(-0.5, -1.5, -0.5);
+        int rgb = color(context.tier());
+        GEM.submit(pose, collector, luminousLight(light), overlay, rgb, 255, false);
+        int emission = context.tier() == null ? 66 : 76 + context.tier().ordinal() * 9;
+        GEM.submit(pose, collector, 0xF000F0, overlay, luminousColor(rgb), emission, true);
+        if (foil) GEM.submit(pose, collector, RenderTypes.entityGlint(), 0xF000F0,
+                overlay, 0xFFFFFF, 255);
+        pose.popPose();
+    }
+    *///? }
+
+    //? if >=26.1.2
+    /*public static void visitItemExtents(java.util.function.Consumer<org.joml.Vector3fc> consumer) { GEM.visitExtents(point -> consumer.accept(new org.joml.Vector3f(point.x(), point.y() - 1.0F, point.z()))); }*/
+
     public static void renderInstalled(Context context, Level level, BlockPos pos, float partialTick,
                                        PoseStack pose, MultiBufferSource buffers, int overlay) {
         if (!context.installed()) return;
         double age = level.getGameTime() + partialTick;
-        int light = LevelRenderer.getLightColor(level, pos.relative(context.axisDirection()));
+        int light = ClientLightCompat.packed(level, pos.relative(context.axisDirection()));
         renderGem(context, pose, buffers, light, overlay, age);
     }
 
@@ -115,7 +146,7 @@ public final class FocusVisuals {
         // ornament does not energize until the host has a machine link.
         if (!context.energized()) return;
 
-        double distance = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
+        double distance = ClientCameraCompat.position(Minecraft.getInstance().gameRenderer.getMainCamera())
                 .distanceTo(Vec3.atLowerCornerOf(pos).add(center(context, age)));
         float detail = (float) (1.0 - ProceduralMotion.smoothStep((distance - 16.0) / 8.0));
         double activity = context.active() ? Math.min(1.0, Math.log1p(context.ratePerSecond()) / 16.0) : 0.0;
@@ -190,8 +221,8 @@ public final class FocusVisuals {
                                              Vec3 center, double age, double phase,
                                              Ornament ornament, int rgb) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        Vector3f left = camera.getLeftVector();
-        Vector3f cameraUp = camera.getUpVector();
+        Vector3f left = ClientCameraCompat.left(camera);
+        Vector3f cameraUp = ClientCameraCompat.up(camera);
         Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());
         Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z());
         VertexConsumer planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);

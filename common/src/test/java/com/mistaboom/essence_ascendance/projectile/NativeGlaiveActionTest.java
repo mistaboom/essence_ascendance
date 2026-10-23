@@ -9,6 +9,8 @@ import com.mistaboom.essence_ascendance.skill.effect.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.stats.Stat;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
@@ -25,18 +27,45 @@ import static com.mistaboom.essence_ascendance.equipment.WeaponActionCollision.*
 /** Finite curved geometry plus real native hurt/defense/enchantment/attribution/wear and action lifecycle. No save/world. */
 public final class NativeGlaiveActionTest {
     private static int checks;
+    private static LivingEntity zombie(ServerLevel level) {
+        //? if >=26.1.2
+        /*return new net.minecraft.world.entity.monster.zombie.Zombie(EntityType.ZOMBIE, level);*/
+        //? if <26.1.2
+        return new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE, level);
+    }
+    private static long chunkPos(int x, int z) {
+        //? if >=26.1.2
+        /*return net.minecraft.world.level.ChunkPos.pack(x, z);*/
+        //? if <26.1.2
+        return net.minecraft.world.level.ChunkPos.asLong(x, z);
+    }
+    private static int selected(ServerPlayer player) {
+        //? if >=26.1.2
+        /*return player.getInventory().getSelectedSlot();*/
+        //? if <26.1.2
+        return player.getInventory().selected;
+    }
+    private static Holder<Enchantment> enchantment(ServerLevel level, ResourceKey<Enchantment> key) {
+        //? if >=26.1.2
+        /*return level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(key);*/
+        //? if <26.1.2
+        return level.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(key);
+    }
     public static void run() throws ReflectiveOperationException {
         geometry();
         swipeGeometry();
+        grazingSwipeCost();
         var f=new ProjectileNativeInterceptionTest.Fixture(ActionPlayer.class);
         NativeGuardOutcomeTest.registry(f);
         installEnchantments(f);
         try {
             timingAndInput(f);
+            rapidRestarts(f);
             movementBacklog(f);
             personalizedContent();
             aimedGrip(f);
             groundSwipe(f);
+            closeBlockRestarts(f);
             nativeContact(f);
             blockers(f);
             cancellation(f);
@@ -71,7 +100,7 @@ public final class NativeGlaiveActionTest {
                     f.level.memoryBlocks.put(new BlockPos(offset+3,y,4),Blocks.OAK_LOG.defaultBlockState());
                 }
                 for (int x:new int[]{-2,0,2}) {
-                    var zombie=new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE,f.level);
+                    var zombie=zombie(f.level);
                     zombie.setPos(offset+x,0,7);
                     zombie.getAttribute(Attributes.MAX_HEALTH).setBaseValue(1000); zombie.setHealth(1000);
                     f.level.entities.add(zombie);
@@ -120,7 +149,7 @@ public final class NativeGlaiveActionTest {
             // 16/64 are retained stress inputs, not supported gameplay ranges or restored perks.
             f.level.entities.removeIf(e->e!=f.player);
             for (double range:new double[]{10,16,30,64}) {
-                var distant=new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE,f.level);
+                var distant=zombie(f.level);
                 distant.setPos(0,0,range-.5); f.level.entities.add(distant);
                 var from=new Pose(new Vec3(0,1.62,0),-7.5,0,range);
                 var to=new Pose(new Vec3(.02,1.62,.01),7.5,1.5,range);
@@ -317,12 +346,19 @@ public final class NativeGlaiveActionTest {
         check(WeaponActionRuntime.attempt(f.player,false),"Floor-aimed swipe accepts");
         long started=System.nanoTime();
         var times=new ArrayList<Long>();
-        for(int i=0;i<5;i++) { long before=System.nanoTime(); tick(f); times.add((System.nanoTime()-before)/1_000_000); }
-        var floor=WeaponActionRuntime.snapshot(f.player);
-        check(floor.current().tipDistance()<5,"Floor contact shortens the finite blade");
+        WeaponActionRuntime.Snapshot floor=null;
+        // Leave one damaging tick after contact so the same action can respond to lifting clear.
+        int latestLiftTick=GlaiveTuning.SWIPE.extensionTicks()+GlaiveTuning.SWIPE.outwardTicks()-1;
+        for(int tick=1;tick<latestLiftTick && floor==null;tick++) {
+            long before=System.nanoTime(); tick(f); times.add((System.nanoTime()-before)/1_000_000);
+            var observed=WeaponActionRuntime.snapshot(f.player);
+            if(observed.phase()==WeaponActionRuntime.Phase.SWEEP
+                    && observed.physicalContact() && observed.current().tipDistance()<5) floor=observed;
+        }
+        check(floor!=null,"Floor contact shortens the finite blade during the faster swipe");
         f.player.setXRot(-20); WeaponActionRuntime.observeAim(f.player); tick(f);
         check(WeaponActionRuntime.snapshot(f.player).current().tipDistance()>9,"Swipe extends immediately after lifting clear of floor");
-        System.out.println("Glaive grounded swipe and lift: "+((System.nanoTime()-started)/1_000_000)+" ms for six authority ticks; floor ticks "+times);
+        System.out.println("Glaive grounded swipe and lift: "+((System.nanoTime()-started)/1_000_000)+" ms for "+(times.size()+1)+" authority ticks; floor ticks "+times);
         finish(f);
     }
     private static void swipeGeometry() {
@@ -376,6 +412,71 @@ public final class NativeGlaiveActionTest {
                 center.x+.00001,center.y+1e-10,center.z+.00001),Kind.ENTITY,null,false);
         contacts.clear(); swipe(border,adjacent,(p,m)->List.of(grazing),c->{contacts.add(c);return true;});
         check(contacts.size()==1,"World-border coordinate ULP terminates conservative event refinement without losing grazing contact");
+    }
+    /** A close face can stay tangent for the whole arc; it must not become millions of solver events. */
+    private static void grazingSwipeCost() {
+        var floor=new Candidate(new AABB(-32,-1,-32,32,0,32),Kind.BLOCK,null,true);
+        var overlap=new Candidate(new AABB(-31,-1,-32,32,0,31),Kind.BLOCK,null,true);
+        var allocations=allocationMeter();
+        for (String name:List.of("tangent","near miss","penetrating","tied faces")) {
+            double gap=switch(name) { case "near miss" -> 1e-7; case "penetrating" -> -1e-7; default -> 0; };
+            var from=new Pose(new Vec3(0,THICKNESS/2+gap,0),0,0,10,-60);
+            var to=from.withSweep(60);
+            var contacts=new ArrayList<Contact>();
+            int[] queries={0};
+            long before=allocated(allocations),started=System.nanoTime();
+            var result=swipe(from,to,(pose,motion)-> {
+                queries[0]++;
+                return name.equals("tied faces") ? List.of(floor,overlap):List.of(floor);
+            },contact->{ contacts.add(contact); return true; });
+            long elapsed=System.nanoTime()-started;
+            check(result.completed(),"Close-face "+name+" swipe completes its accepted arc");
+            check(queries[0]<=1024 && result.knots().size()<=4096,
+                    "Close-face "+name+" keeps scene and presentation work bounded: queries="+queries[0]+", knots="+result.knots().size());
+            check(contacts.stream().allMatch(c->c.obstacle().kind()==Kind.BLOCK),
+                    "Close-face "+name+" does not invent an entity contact");
+            if (!name.equals("near miss")) check(!contacts.isEmpty(),"Close-face "+name+" retains terrain contact");
+            double previous=-1;
+            for (var knot:result.knots()) {
+                check(knot.fraction()>=previous && knot.fraction()>=0 && knot.fraction()<=1
+                                && Double.isFinite(knot.pose().tipDistance()) && knot.pose().tipDistance()>=0
+                                && knot.pose().tipDistance()<=10,
+                        "Close-face "+name+" retains a finite chronological solved blade");
+                previous=knot.fraction();
+            }
+            System.out.println("Glaive close-face "+name+": "+(elapsed/1_000_000.0)+" ms, "
+                    +allocationDelta(allocations,before)+" allocated bytes, "+queries[0]+" scene queries, "
+                    +result.knots().size()+" solved knots (diagnostic, not a timing assertion)");
+        }
+    }
+    private static void closeBlockRestarts(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        var stack=equip(f,EquipmentTier.TRANSCENDENT);
+        for(int x=-2;x<=2;x++) for(int y=0;y<3;y++)
+            f.level.memoryBlocks.put(new BlockPos(x,y,1),Blocks.STONE.defaultBlockState());
+        var allocations=allocationMeter();
+        long before=allocated(allocations),started=System.nanoTime(),identity=-1;
+        int maximumKnots=0; boolean contacted=false;
+        for(int press=0;press<12;press++) {
+            check(WeaponActionRuntime.attempt(f.player,false),"Close-block fresh swipe replaces the preceding action before recovery");
+            var state=WeaponActionRuntime.snapshot(f.player);
+            check(state.actionId()>identity && state.mode()==WeaponActionRuntime.Mode.SWIPE
+                            && state.phase()==WeaponActionRuntime.Phase.EXTEND,
+                    "Close-block rapid press owns a fresh active swipe");
+            identity=state.actionId();
+            // Alternate the clicked face and a nearby edge while continuously replacing the action.
+            f.player.setYRot(press%2==0 ? -8:8); WeaponActionRuntime.observeAim(f.player);
+            tick(f); tick(f);
+            state=WeaponActionRuntime.snapshot(f.player);
+            contacted|=state.physicalContact(); maximumKnots=Math.max(maximumKnots,state.knots().size());
+            check(state.actionId()==identity && state.phase()!=WeaponActionRuntime.Phase.CANCELLED,
+                    "Close-block swipe keeps its accepted identity and does not freeze in cancellation");
+        }
+        finish(f);
+        check(contacted && maximumKnots<=4096 && stack.getDamageValue()==0,
+                "Close-block repeated swipes retain terrain collision, bounded poses and no entity wear");
+        System.out.println("Glaive close-block 12 rapid replacements: "+((System.nanoTime()-started)/1_000_000.0)
+                +" ms, "+allocationDelta(allocations,before)+" allocated bytes, max solved knots="+maximumKnots
+                +" (memory-world diagnostic, not a timing assertion)");
     }
     private static void geometry() {
         for (double range:new double[]{4,6,8,10,12,16,64}) {
@@ -442,7 +543,6 @@ public final class NativeGlaiveActionTest {
             equip(f,tier);
             check(WeaponActionRuntime.attempt(f.player,true),"Accept ready stab "+tier);
             long classifications=TwoHandedEquipmentPolicy.classifications();
-            check(!WeaponActionRuntime.attempt(f.player,true) && !WeaponActionRuntime.attempt(f.player,false),"Duplicate/mode overlap reject");
             check(f.player.getAttackStrengthScale(0)==0,"Native attack indicator starts empty");
             var accepted=WeaponActionRuntime.snapshot(f.player);
             equal(f.player.getCurrentItemAttackStrengthDelay(),accepted.readyAt()-accepted.acceptedAt(),"Native full-ready indicator uses action cadence");
@@ -460,7 +560,14 @@ public final class NativeGlaiveActionTest {
         check(!WeaponActionRuntime.input(f.player,true,1,f.level.tick-11,revision),"Old press is rejected");
         check(!WeaponActionRuntime.input(f.player,true,1,f.level.tick,revision),"Duplicate sequence cannot replay a rejected press");
         check(!WeaponActionRuntime.input(f.player,true,2,f.level.tick,revision-1),"Stale equipment intent rejected");
-        check(WeaponActionRuntime.input(f.player,true,3,f.level.tick,revision),"Fresh intent accepted");
+        long sentAt=f.level.tick;
+        check(WeaponActionRuntime.input(f.player,true,3,sentAt,revision),"Fresh intent accepted");
+        long firstIdentity=WeaponActionRuntime.snapshot(f.player).actionId();
+        check(!WeaponActionRuntime.input(f.player,true,4,sentAt-1,revision),
+                "A higher sequence cannot replay a press sent before the accepted input");
+        check(WeaponActionRuntime.input(f.player,true,5,sentAt,revision)
+                && WeaponActionRuntime.snapshot(f.player).actionId()>firstIdentity,
+                "Two distinct presses from one client tick restart with separate identities");
         f.player.setYRot(60); WeaponActionRuntime.observeAim(f.player);
         f.player.setYRot(0); WeaponActionRuntime.observeAim(f.player);
         tick(f);
@@ -473,12 +580,59 @@ public final class NativeGlaiveActionTest {
             check(packet.equals(com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.CODEC.decode(buffer)),"Renderer payload round-trips authoritative knots and timing");
         } finally { buffer.release(); }
         finish(f);
-        check(!WeaponActionRuntime.input(f.player,true,4,f.level.tick-1,revision),"A press sent before recovery cannot arrive later as a queued action");
+        check(!WeaponActionRuntime.input(f.player,true,6,f.level.tick-11,revision),
+                "An expired press cannot arrive later as an unintended action");
     }
     private static ActionPlayer target(ProjectileNativeInterceptionTest.Fixture f,double z) throws ReflectiveOperationException {
         var p=f.player(ActionPlayer.class,new Vec3(0,0,z),"glaive_contact");
         p.getAttribute(Attributes.MAX_HEALTH).setBaseValue(1000); p.setHealth(1000);
         return p;
+    }
+    private static void rapidRestarts(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        var stack=equip(f,EquipmentTier.LATENT);
+        var victim=target(f,3);
+        f.player.fallDistance=1; ProjectileNativeInterceptionTest.set(Entity.class,f.player,"onGround",false);
+        double base=WeaponActionDamage.snapshot(f.player).damage();
+        check(WeaponActionRuntime.attempt(f.player,false),"Initial swipe accepts before same-tick restart");
+        var swipe=WeaponActionRuntime.snapshot(f.player);
+        float early=swipe.readiness(WeaponActionRuntime.now(f.player)+.5F);
+        check(early<GlaiveTuning.STRONG_HIT_THRESHOLD && WeaponActionRuntime.attempt(f.player,true),
+                "A stab can replace a swipe before the strength meter fills");
+        var stab=WeaponActionRuntime.snapshot(f.player);
+        check(stab.actionId()>swipe.actionId() && stab.mode()==WeaponActionRuntime.Mode.STAB
+                && stab.phase()==WeaponActionRuntime.Phase.OUTWARD && f.player.getAttackStrengthScale(0)==0,
+                "Replacement owns a new action and restarts the native attack indicator");
+        tick(f);tick(f);tick(f);
+        float reduced=(float)base*(.2F+early*early*.8F)*.5F;
+        equal(1000-victim.getHealth(),reduced,
+                "Early replacement contact uses native 0.2 + 0.8 strength-squared damage without a critical bonus");
+        check(victim.calls==1 && stack.getDamageValue()==1,
+                "Replaced swipe cannot hit later; successful stab spends one wear event");
+        f.player.fallDistance=0; ProjectileNativeInterceptionTest.set(Entity.class,f.player,"onGround",true);
+        f.level.entities.remove(victim);
+
+        stack=equip(f,EquipmentTier.TRANSCENDENT);
+        var first=target(f,3);
+        check(WeaponActionRuntime.attempt(f.player,true),"First completed-contact stab accepts");
+        for(int i=0;i<GlaiveTuning.STAB.extensionTicks()+GlaiveTuning.STAB.outwardTicks()
+                && first.calls==0;i++) tick(f);
+        var retracting=WeaponActionRuntime.snapshot(f.player);
+        check(first.calls==1 && stack.getDamageValue()==1 && retracting.phase()==WeaponActionRuntime.Phase.RETRACT,
+                "First action has exactly one contact and wear event before replacement: calls="+first.calls
+                        +", wear="+stack.getDamageValue()+", phase="+retracting.phase()
+                        +", contact="+retracting.physicalContact());
+        f.level.entities.remove(first);
+        var second=target(f,5); second.setPos(-3,0,5);
+        check(WeaponActionRuntime.now(f.player)<retracting.readyAt() && WeaponActionRuntime.attempt(f.player,false),
+                "A swipe can replace a retracting stab before full strength");
+        var restarted=WeaponActionRuntime.snapshot(f.player);
+        check(restarted.actionId()>retracting.actionId() && restarted.mode()==WeaponActionRuntime.Mode.SWIPE
+                && restarted.phase()==WeaponActionRuntime.Phase.EXTEND,
+                "Second attack mode receives a fresh server identity without old retraction");
+        for(int i=0;i<GlaiveTuning.SWIPE.extensionTicks()+GlaiveTuning.SWIPE.outwardTicks();i++) tick(f);
+        check(first.calls==1 && second.calls==1 && stack.getDamageValue()==2,
+                "Replacement drops stale collision work while each successful action spends wear once");
+        f.level.entities.remove(second);
     }
     private static void movementBacklog(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         for (var tier : EquipmentTier.values()) for (boolean stab : new boolean[]{true, false}) {
@@ -494,16 +648,19 @@ public final class NativeGlaiveActionTest {
             }
             check(WeaponActionRuntime.snapshot(f.player).phase() == WeaponActionRuntime.Phase.CANCELLED,
                     "Excess movement backlog cancels before unbounded ordinary-range collision work");
-            check(!WeaponActionRuntime.attempt(f.player, !stab)
-                            && WeaponActionRuntime.snapshot(f.player).readyAt() == readyAt,
-                    "Backlog cancellation cannot refund recovery or queue the other attack mode");
+            long cancelledIdentity=WeaponActionRuntime.snapshot(f.player).actionId();
             tick(f);
             check(victim.calls == 0 && stack.getDamageValue() == 0,
                     "Discarded backlog cannot deal delayed damage or charge wear");
             f.level.entities.remove(victim);
+            check(WeaponActionRuntime.now(f.player)<readyAt && WeaponActionRuntime.attempt(f.player,!stab)
+                            && WeaponActionRuntime.snapshot(f.player).actionId()>cancelledIdentity
+                            && WeaponActionRuntime.snapshot(f.player).mode()==(stab
+                            ? WeaponActionRuntime.Mode.SWIPE:WeaponActionRuntime.Mode.STAB),
+                    "A fresh opposite press restarts safely before the old meter fills");
             finish(f);
             check(WeaponActionRuntime.attempt(f.player, stab),
-                    "An ordinary fresh press works after backlog cancellation and recovery");
+                    "An ordinary fresh press works after a restarted action finishes");
         }
         equip(f, EquipmentTier.LATENT);
         check(WeaponActionRuntime.attempt(f.player, true), "Per-tick budget probe starts a ready action");
@@ -561,10 +718,9 @@ public final class NativeGlaiveActionTest {
         f.level.entities.remove(target);
 
         stack=equip(f,EquipmentTier.LATENT); target=target(f,3);
-        var ench=f.level.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
-        stack.enchant(ench.getHolderOrThrow(Enchantments.SHARPNESS),5);
-        stack.enchant(ench.getHolderOrThrow(Enchantments.FIRE_ASPECT),2);
-        stack.enchant(ench.getHolderOrThrow(Enchantments.KNOCKBACK),2);
+        stack.enchant(enchantment(f.level,Enchantments.SHARPNESS),5);
+        stack.enchant(enchantment(f.level,Enchantments.FIRE_ASPECT),2);
+        stack.enchant(enchantment(f.level,Enchantments.KNOCKBACK),2);
         check(WeaponActionRuntime.attempt(f.player,true),"Enchanted stab accepts"); tick(f); tick(f); tick(f);
         check(1000-target.getHealth()>damage && target.isOnFire() && target.getDeltaMovement().horizontalDistance()>0,
                 "Real native Sharpness, Fire Aspect and Knockback hooks apply to custom contact");
@@ -581,11 +737,10 @@ public final class NativeGlaiveActionTest {
         check(WeaponActionRuntime.attempt(f.player,false),"Left click accepts authoritative swipe");
         var accepted=WeaponActionRuntime.snapshot(f.player);
         check(accepted.mode()==WeaponActionRuntime.Mode.SWIPE && accepted.phase()==WeaponActionRuntime.Phase.EXTEND,"Swipe starts in explicit extension phase");
-        check(!WeaponActionRuntime.attempt(f.player,true),"Alternating buttons cannot bypass accepted swipe");
-        tick(f); tick(f);
+        tick(f);
         check(first.calls==0 && second.calls==0 && WeaponActionRuntime.snapshot(f.player).phase()==WeaponActionRuntime.Phase.SWEEP,
-                "Extension is physical and non-damaging before the eight-tick arc");
-        for(int i=0;i<8;i++) tick(f);
+                "Short extension is physical and non-damaging before the strike arc");
+        for(int i=0;i<GlaiveTuning.SWIPE.outwardTicks();i++) tick(f);
         equal(1000-first.getHealth(),damage,"First swipe victim receives full resolved pre-defense damage");
         equal(1000-second.getHealth(),damage,"Additional swipe victim receives the same full resolved damage");
         check(first.calls==1 && second.calls==1 && order.equals(List.of(first,second)),"Full swipe contacts once per victim in physical order");
@@ -598,51 +753,57 @@ public final class NativeGlaiveActionTest {
 
         equip(f,EquipmentTier.TRANSCENDENT);
         // Real native zombies, actual oak collision shapes, and native armor/health writes.
-        var exposed=new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE,f.level); exposed.setPos(0,0,9); f.level.entities.add(exposed);
-        var behindLeft=new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE,f.level); behindLeft.setPos(-4,0,8); f.level.entities.add(behindLeft);
-        var behindRight=new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE,f.level); behindRight.setPos(4,0,8); f.level.entities.add(behindRight);
+        var exposed=zombie(f.level); exposed.setPos(0,0,9); f.level.entities.add(exposed);
+        var behindLeft=zombie(f.level); behindLeft.setPos(-4,0,8); f.level.entities.add(behindLeft);
+        var behindRight=zombie(f.level); behindRight.setPos(4,0,8); f.level.entities.add(behindRight);
         for(int y=0;y<4;y++) {
             f.level.memoryBlocks.put(new BlockPos(-3,y,4),Blocks.OAK_LOG.defaultBlockState());
             f.level.memoryBlocks.put(new BlockPos(2,y,4),Blocks.OAK_LOG.defaultBlockState());
         }
         check(WeaponActionRuntime.attempt(f.player,false),"Tree/gap swipe accepts");
-        for(int i=0;i<10;i++) tick(f);
+        for(int i=0;i<GlaiveTuning.SWIPE.extensionTicks()+GlaiveTuning.SWIPE.outwardTicks();i++) tick(f);
         check(exposed.getHealth()<20 && behindLeft.getHealth()==20 && behindRight.getHealth()==20,
                 "Exposed real zombie between oak trunks is hit; zombies behind either tree are protected");
         f.level.entities.remove(exposed);f.level.entities.remove(behindLeft);f.level.entities.remove(behindRight);
 
         equip(f,EquipmentTier.TRANSCENDENT); var immune=target(f,3); var behind=target(f,6);
         immune.getAbilities().invulnerable=true;
-        check(WeaponActionRuntime.attempt(f.player,false),"Immune/revisit swipe accepts"); tick(f);tick(f);
+        check(WeaponActionRuntime.attempt(f.player,false),"Immune/revisit swipe accepts"); tick(f);
         // Cancel built-in progress with deliberate free aim, holding this direction on both bodies.
-        for(int i=3;i<=7;i++) {
+        for(int i=2;i<6;i++) {
             f.player.setYRot((float)GlaiveTuning.swipeAngle(i)); tick(f);
         }
         check(immune.calls==1 && behind.calls==0,"Immune body remains nearest physical blocker throughout swipe");
         immune.getAbilities().invulnerable=false; immune.invulnerableTime=0;
         f.player.setYRot(150); WeaponActionRuntime.observeAim(f.player);
-        f.player.setYRot((float)GlaiveTuning.swipeAngle(8)); WeaponActionRuntime.observeAim(f.player); tick(f);
+        f.player.setYRot((float)GlaiveTuning.swipeAngle(6)); WeaponActionRuntime.observeAim(f.player); tick(f);
         check(immune.calls==1,"Camera turn and revisit cannot retry an initially immune contact");
         check(WeaponActionRuntime.snapshot(f.player).knots().stream().anyMatch(k->k.pose().yaw()>100),"Camera turning widens swipe with intermediate aim history");
         f.level.entities.remove(immune);f.level.entities.remove(behind);
 
         stack=equip(f,EquipmentTier.TRANSCENDENT); var contacted=target(f,3); var protectedTarget=target(f,6);
-        check(WeaponActionRuntime.attempt(f.player,false),"Successful body/revisit swipe accepts");tick(f);tick(f);
-        f.player.setYRot((float)GlaiveTuning.swipeAngle(3)); tick(f);
+        check(WeaponActionRuntime.attempt(f.player,false),"Successful body/revisit swipe accepts");tick(f);
+        f.player.setYRot((float)GlaiveTuning.swipeAngle(2)); tick(f);
         contacted.invulnerableTime=0;
-        for(int i=4;i<=8;i++) { f.player.setYRot((float)GlaiveTuning.swipeAngle(i)); tick(f); }
+        for(int i=3;i<=6;i++) { f.player.setYRot((float)GlaiveTuning.swipeAngle(i)); tick(f); }
         check(contacted.calls==1 && protectedTarget.calls==0,"Already-contacted living body remains a blocker after hurt immunity expires");
         long ready=WeaponActionRuntime.snapshot(f.player).readyAt();
+        long formerIdentity=WeaponActionRuntime.snapshot(f.player).actionId();
         f.player.setItemInHand(InteractionHand.MAIN_HAND,stack.copy());
         check(WeaponActionRuntime.snapshot(f.player).phase()==WeaponActionRuntime.Phase.CANCELLED
-                && !WeaponActionRuntime.attempt(f.player,true) && WeaponActionRuntime.snapshot(f.player).readyAt()==ready,
-                "Copy swap cancels swipe while retaining shared stab/swipe recovery");
+                && WeaponActionRuntime.now(f.player)<ready
+                && WeaponActionRuntime.attempt(f.player,true)
+                && WeaponActionRuntime.snapshot(f.player).actionId()>formerIdentity
+                && WeaponActionRuntime.snapshot(f.player).mode()==WeaponActionRuntime.Mode.STAB,
+                "Copy swap cancels stale swipe while a fresh stab restarts before full strength");
         f.level.entities.remove(contacted);f.level.entities.remove(protectedTarget);
 
         equip(f,EquipmentTier.TRANSCENDENT);
         // A complete trunk tests chronological shortening independently of a particular blade's grazing height.
         for (int y=0;y<4;y++) f.level.memoryBlocks.put(new BlockPos(0,y,4),Blocks.OAK_LOG.defaultBlockState());
-        check(WeaponActionRuntime.attempt(f.player,false),"Intermediate tree-pose swipe accepts");tick(f);tick(f);
+        check(WeaponActionRuntime.attempt(f.player,false),"Intermediate tree-pose swipe accepts");
+        // Enter the central strike arc before steering across the trunk; the faster opening arc stays outside it.
+        tick(f);tick(f);
         f.player.setYRot(-60);WeaponActionRuntime.observeAim(f.player);
         f.player.setYRot(0);WeaponActionRuntime.observeAim(f.player);tick(f);
         var poses=WeaponActionRuntime.snapshot(f.player);
@@ -665,7 +826,7 @@ public final class NativeGlaiveActionTest {
         stack=equip(f,EquipmentTier.TRANSCENDENT);var lethalFirst=target(f,5);lethalFirst.setPos(-3,0,5);lethalFirst.setHealth(1);
         var lethalSecond=target(f,7);lethalSecond.setPos(2,0,7);lethalSecond.setHealth(1);
         check(WeaponActionRuntime.attempt(f.player,false),"Native lethal multi-victim swipe accepts");
-        for(int i=0;i<10;i++)tick(f);
+        for(int i=0;i<GlaiveTuning.SWIPE.extensionTicks()+GlaiveTuning.SWIPE.outwardTicks();i++)tick(f);
         check(lethalFirst.deaths==1 && lethalSecond.deaths==1 && lethalFirst.deathOwner==f.player && lethalSecond.deathOwner==f.player,
                 "Executed swipe preserves ordinary native kill attribution for both contacts");
         check(stack.getDamageValue()==1,"Multi-kill swipe still charges original weapon once");
@@ -700,7 +861,7 @@ public final class NativeGlaiveActionTest {
                 "Long-range stab cannot pass through loaded collision terrain");
         f.level.memoryBlocks.remove(new BlockPos(-1,1,14));
         f.level.memoryBlocks.remove(new BlockPos(0,1,14));
-        f.level.unloadedMachineChunks.add(net.minecraft.world.level.ChunkPos.asLong(0,1));
+        f.level.unloadedMachineChunks.add(chunkPos(0,1));
         f.level.rejectMissingTerrainReads=true;
         try {
             check(WeaponActionFastCollision.stab(from.withSweep(0).withDistance(22),
@@ -733,7 +894,7 @@ public final class NativeGlaiveActionTest {
                 "Invulnerable entity is first physical blocker, never transparent");
         f.level.entities.remove(immune); f.level.entities.remove(victim);
         equip(f,EquipmentTier.TRANSCENDENT); f.player.setPos(0,0,13); victim=target(f,18);
-        f.level.unloadedMachineChunks.add(net.minecraft.world.level.ChunkPos.asLong(0,1));
+        f.level.unloadedMachineChunks.add(chunkPos(0,1));
         f.level.rejectMissingTerrainReads=true;
         check(WeaponActionRuntime.attempt(f.player,true),"Loaded-edge action accepts"); tick(f);
         check(WeaponActionRuntime.snapshot(f.player).physicalContact() && victim.getHealth()==1000,"Unknown chunk is opaque without loading terrain");
@@ -747,9 +908,9 @@ public final class NativeGlaiveActionTest {
         var replacement=original.copy(); f.player.setItemInHand(InteractionHand.MAIN_HAND,replacement);
         check(WeaponActionRuntime.snapshot(f.player).phase()==WeaponActionRuntime.Phase.CANCELLED,"Copy replacement cancels immediately between ticks");
         f.player.setItemInHand(InteractionHand.MAIN_HAND,original);
-        check(!WeaponActionRuntime.attempt(f.player,true) && WeaponActionRuntime.snapshot(f.player).readyAt()==ready,"Swap back preserves spent recovery");
+        check(WeaponActionRuntime.now(f.player)<ready && WeaponActionRuntime.attempt(f.player,true),
+                "Swap back permits a fresh low-strength press before the prior meter fills");
         check(replacement.getDamageValue()==0,"Replacement stack never receives old action wear");
-        finish(f); check(WeaponActionRuntime.attempt(f.player,true),"New press accepts after shared recovery");
         FracturedEquipmentData.markFractured(original); tick(f);
         check(WeaponActionRuntime.snapshot(f.player).phase()==WeaponActionRuntime.Phase.CANCELLED,"Fracture cancels accepted action");
         original=equip(f,EquipmentTier.LATENT); check(WeaponActionRuntime.attempt(f.player,true),"Offhand cancellation action accepts");
@@ -776,26 +937,28 @@ public final class NativeGlaiveActionTest {
         tick(f); check(WeaponActionRuntime.snapshot(f.player).phase()==WeaponActionRuntime.Phase.CANCELLED,"Dimension identity cancels action");
         ProjectileNativeInterceptionTest.set(net.minecraft.world.level.Level.class,f.level,"dimension",net.minecraft.world.level.Level.OVERWORLD);
         equip(f,EquipmentTier.LATENT); check(WeaponActionRuntime.attempt(f.player,true),"Logout cancellation action accepts");
-        WeaponActionRuntime.disconnected(f.player); check(!WeaponActionRuntime.attempt(f.player,true),"Logout preserves recovery for reconnect");
+        WeaponActionRuntime.disconnected(f.player);
+        check(WeaponActionRuntime.snapshot(f.player)==null && WeaponActionRuntime.attempt(f.player,true),
+                "Logout clears the old action and a fresh connection may start a new one");
         equip(f,EquipmentTier.LATENT); check(WeaponActionRuntime.attempt(f.player,true),"Death cancellation action accepts");
         f.player.setHealth(0); tick(f);
         check(WeaponActionRuntime.snapshot(f.player).phase()==WeaponActionRuntime.Phase.CANCELLED,"Dead attacker cannot continue accepted action");
         equip(f,EquipmentTier.LATENT);
         var oldTags=new HashMap<net.minecraft.tags.TagKey<Item>,List<Holder<Item>>>();
-        net.minecraft.core.registries.BuiltInRegistries.ITEM.getTags().forEach(t->oldTags.put(t.getFirst(),t.getSecond().stream().toList()));
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(net.minecraft.core.registries.BuiltInRegistries.ITEM));
         var tags=new HashMap<>(oldTags); tags.put(TwoHandedEquipmentPolicy.PASSIVE_OFFHAND,List.of(Items.TOTEM_OF_UNDYING.builtInRegistryHolder()));
-        net.minecraft.core.registries.BuiltInRegistries.ITEM.bindTags(tags); TwoHandedEquipmentPolicy.rulesChanged();
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(net.minecraft.core.registries.BuiltInRegistries.ITEM, tags); TwoHandedEquipmentPolicy.rulesChanged();
         try {
             f.player.setItemInHand(InteractionHand.OFF_HAND,new ItemStack(Items.TOTEM_OF_UNDYING));
             check(WeaponActionRuntime.attempt(f.player,true),"Compatible totem action accepts");
             long classifications=TwoHandedEquipmentPolicy.classifications();
             f.player.invulnerableTime=0;
-            check(f.player.hurt(f.player.damageSources().generic(),1000) && f.player.getOffhandItem().isEmpty(),"Native lethal hit consumes totem during outward action");
+            check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(f.player,f.player.damageSources().generic(),1000) && f.player.getOffhandItem().isEmpty(),"Native lethal hit consumes totem during outward action");
             tick(f);
             check(WeaponActionRuntime.snapshot(f.player).phase()==WeaponActionRuntime.Phase.OUTWARD
                     && TwoHandedEquipmentPolicy.classifications()==classifications,"Compatible-to-empty transition preserves action without classification");
         } finally {
-            net.minecraft.core.registries.BuiltInRegistries.ITEM.bindTags(oldTags); TwoHandedEquipmentPolicy.rulesChanged();
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(net.minecraft.core.registries.BuiltInRegistries.ITEM, oldTags); TwoHandedEquipmentPolicy.rulesChanged();
             f.player.removeAllEffects(); f.player.setAbsorptionAmount(0); f.player.invulnerableTime=0;
         }
     }
@@ -808,8 +971,7 @@ public final class NativeGlaiveActionTest {
         f.player.fallDistance=0; ProjectileNativeInterceptionTest.set(Entity.class,f.player,"onGround",true); f.level.entities.remove(target);
 
         stack=equip(f,EquipmentTier.LATENT); target=target(f,3);
-        var ench=f.level.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
-        stack.enchant(ench.getHolderOrThrow(Enchantments.SHARPNESS),5);
+        stack.enchant(enchantment(f.level,Enchantments.SHARPNESS),5);
         check(WeaponActionRuntime.attempt(f.player,true),"Snapshot-enchantment action accepts");
         stack.set(net.minecraft.core.component.DataComponents.ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
         tick(f); tick(f); tick(f);
@@ -817,7 +979,7 @@ public final class NativeGlaiveActionTest {
         f.level.entities.remove(target);
 
         stack=equip(f,EquipmentTier.LATENT);
-        for(int i=0;i<100;i++) WeaponActionDamage.wear(f.player,stack,f.player.getInventory().selected);
+        for(int i=0;i<100;i++) WeaponActionDamage.wear(f.player,stack,selected(f.player));
         int ordinary=stack.getDamageValue();
         var efficiencyStat=com.mistaboom.essence_ascendance.stat.EssenceStats.DURABILITY_EFFICIENCY;
         var playerData=f.saved.getPlayerData(f.player.getUUID());
@@ -825,17 +987,17 @@ public final class NativeGlaiveActionTest {
                 .getInvestmentCap(com.mistaboom.essence_ascendance.tier.AscendanceTiers.TRANSCENDENT,efficiencyStat));
         var efficient=new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()); EquipmentTierData.setTier(efficient,EquipmentTier.DORMANT);
         f.player.setItemInHand(InteractionHand.MAIN_HAND,efficient);
-        for(int i=0;i<100;i++) WeaponActionDamage.wear(f.player,efficient,f.player.getInventory().selected);
+        for(int i=0;i<100;i++) WeaponActionDamage.wear(f.player,efficient,selected(f.player));
         check(efficient.getDamageValue()<ordinary,"Glaive wear uses existing channeled durability-efficiency handling");
         playerData.setInvested(efficiencyStat,0);
         var enchanted=new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get());
-        enchanted.enchant(ench.getHolderOrThrow(Enchantments.UNBREAKING),3);
+        enchanted.enchant(enchantment(f.level,Enchantments.UNBREAKING),3);
         f.player.setItemInHand(InteractionHand.MAIN_HAND,enchanted);
-        for(int i=0;i<100;i++) WeaponActionDamage.wear(f.player,enchanted,f.player.getInventory().selected);
+        for(int i=0;i<100;i++) WeaponActionDamage.wear(f.player,enchanted,selected(f.player));
         check(enchanted.getDamageValue()>0 && enchanted.getDamageValue()<ordinary,"Shared native wear honors Unbreaking");
         enchanted.set(net.minecraft.core.component.DataComponents.ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
         enchanted.setDamageValue(enchanted.getMaxDamage()-1);
-        WeaponActionDamage.wear(f.player,enchanted,f.player.getInventory().selected);
+        WeaponActionDamage.wear(f.player,enchanted,selected(f.player));
         check(enchanted.getCount()==1 && FracturedEquipmentData.isFractured(enchanted),"Native successful-action wear retains artifact through fracture");
 
         stack=equip(f,EquipmentTier.DORMANT); target=target(f,3);
@@ -843,7 +1005,7 @@ public final class NativeGlaiveActionTest {
         var lootingStat=com.mistaboom.essence_ascendance.stat.EssenceStats.LOOTING;
         data.setInvested(lootingStat,com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().balanceProfile()
                 .getInvestmentCap(com.mistaboom.essence_ascendance.tier.AscendanceTiers.TRANSCENDENT,lootingStat));
-        stack.enchant(ench.getHolderOrThrow(Enchantments.LOOTING),2);
+        stack.enchant(enchantment(f.level,Enchantments.LOOTING),2);
         offense=WeaponActionDamage.snapshot(f.player);
         check(offense.looting()>2,"Accepted weapon captures native plus channeled Looting");
         stack.set(net.minecraft.core.component.DataComponents.ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
@@ -936,29 +1098,36 @@ public final class NativeGlaiveActionTest {
         charge.setDouble(chargeState,maximum);
         var first=target(f,3); var second=target(f,4); var third=target(f,5);
         WeaponActionDamage.hit(f.player,first,empty,1,true,new Vec3(0,0,1));
-        equal(charge.getDouble(chargeState),maximum,"Charge earned after acceptance cannot amplify or discharge the accepted action");
+        equal(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readDouble(charge, chargeState),maximum,"Charge earned after acceptance cannot amplify or discharge the accepted action");
         var full=WeaponActionDamage.snapshot(f.player);
         var modifier=full.skills().modifiers().get(SkillIds.STATIC_CHARGE);
         check(modifier.at(second,f.player.damageSources().playerAttack(f.player),true).flat()>0,"Full accepted charge captures its offensive bonus");
         double expected=full.skills().apply(second,f.player.damageSources().playerAttack(f.player),(float)full.damage(),true)*.5;
         var charged=WeaponActionDamage.hit(f.player,second,full,.5,true,new Vec3(0,0,1));
         equal(charged.loss(),expected,"Stab scalar scales the complete resolved direct hit, including captured flat skill damage");
-        equal(charge.getDouble(chargeState),0,"First successful accepted charge contact consumes native skill state");
+        equal(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readDouble(charge, chargeState),0,"First successful accepted charge contact consumes native skill state");
         charge.setDouble(chargeState,maximum);
         WeaponActionDamage.hit(f.player,third,full,1,false,new Vec3(0,0,1));
-        equal(charge.getDouble(chargeState),maximum,"Additional direct contacts cannot spend newly earned charge");
+        equal(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readDouble(charge, chargeState),maximum,"Additional direct contacts cannot spend newly earned charge");
         equal(modifier.at(third,f.player.damageSources().playerAttack(f.player),true).flat(),0,"Spent charge generation cannot replay on a later contact");
         f.level.entities.remove(first); f.level.entities.remove(second); f.level.entities.remove(third);
     }
     static final class ActionPlayer extends ServerPlayer {
         int calls,observedLooting,deaths; DamageSource lastSource; boolean secondary; ServerPlayer deathOwner; Runnable afterHurt;
         private ActionPlayer() { super(null,null,null,null); throw new AssertionError("Fixture only"); }
-        @Override public boolean hurt(DamageSource source,float amount) {
+        @Override
+        //? if >=26.1.2
+        /*public boolean hurtServer(ServerLevel nativeLevel, DamageSource source,float amount) {*/
+        //? if <26.1.2
+        public boolean hurt(DamageSource source,float amount) {
             calls++; lastSource=source; secondary=EquipmentDamageService.isSecondarySkillDamage();
             if(source.getEntity() instanceof ServerPlayer player && WeaponActionDamage.looting(player)!=null) {
-                var looting=level().registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.LOOTING);
+                var looting=enchantment((net.minecraft.server.level.ServerLevel) level(),Enchantments.LOOTING);
                 observedLooting=EnchantmentHelper.getEnchantmentLevel(looting,player);
             }
+            //? if >=26.1.2
+            /*boolean accepted=super.hurtServer(nativeLevel,source,amount);*/
+            //? if <26.1.2
             boolean accepted=super.hurt(source,amount);
             if(afterHurt!=null) afterHurt.run();
             return accepted;

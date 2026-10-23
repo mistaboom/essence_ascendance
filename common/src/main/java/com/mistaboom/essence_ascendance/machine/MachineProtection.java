@@ -5,6 +5,8 @@ import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+//? if >=26.1.2
+/*import net.minecraft.world.item.component.TypedEntityData;*/
 import net.minecraft.world.level.block.entity.BlockEntity;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 
@@ -21,10 +23,16 @@ public final class MachineProtection {
         if (!(entity instanceof BoundMachine machine) || entity.getLevel() == null
                 || entity.getLevel().isClientSide) return ItemStack.EMPTY;
         ItemStack pickup = new ItemStack(entity.getBlockState().getBlock());
+        //? if >=26.1.2
+        /*var data = entity.saveWithoutMetadata(entity.getLevel().registryAccess());*/
+        //? if <26.1.2
         var data = entity.saveWithFullMetadata(entity.getLevel().registryAccess());
         data.putBoolean("processing_enabled", false);
         data.remove("machine_binding"); data.remove("machine_link");
         data.remove("owner"); data.remove("owner_name");
+        //? if >=26.1.2
+        /*pickup.set(DataComponents.BLOCK_ENTITY_DATA, TypedEntityData.of(entity.getType(), data));*/
+        //? if <26.1.2
         pickup.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(data));
         if (!machine.machineBinding().claimPickup()) return ItemStack.EMPTY;
         // Snapshot publication owns all contents now. Empty the removed object to defeat secondary drop hooks.

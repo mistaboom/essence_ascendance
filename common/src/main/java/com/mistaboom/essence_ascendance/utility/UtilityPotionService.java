@@ -14,6 +14,9 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+//? if >=26.1.2
+/*import net.minecraft.world.item.ItemUseAnimation;*/
+//? if <26.1.2
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.alchemy.PotionContents;
 
@@ -38,6 +41,9 @@ public final class UtilityPotionService {
 
     public static ItemStack complete(ServerPlayer player, ItemStack source, Supplier<ItemStack> nativeUse) {
         PotionContents contents = source.get(DataComponents.POTION_CONTENTS);
+        //? if >=26.1.2
+        /*if (contents == null || source.getUseAnimation() != ItemUseAnimation.DRINK) return nativeUse.get();*/
+        //? if <26.1.2
         if (contents == null || source.getUseAnimation() != UseAnim.DRINK) return nativeUse.get();
         Frame previous = ACTIVE.get();
         ACTIVE.set(new Frame(player, contents));

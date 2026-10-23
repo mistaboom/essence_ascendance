@@ -1,5 +1,24 @@
 # Adaptive Latent Ore
 
+## Minecraft 26.1.2 presentation boundary
+
+World blocks and item icons share the host-model remapping in `LatentOreModels`.
+Native host geometry, UVs, shading and texture pixels are preserved. Each vertical
+face selects an ore-mask orientation from its actual UV direction, including
+quarter-turns and half-turns; only the ore and transition masks rotate. The top
+and bottom retain their native orientation. Source artwork stays unchanged.
+
+The item adapter also appends the saved host state to Minecraft's tracked model
+identity. The 26 GUI atlas caches rendered icons by that identity, so changing
+quads alone would reuse an image when two states of the same registered host item
+differ, such as a pillar axis. The separate item IDs distinguish stone, deepslate,
+netherrack and End Stone, while the state identity preserves further variants.
+
+The isolated NeoForge OpenGL fixture checks native world/item composites, distinct
+GUI identities, repeated-host cache reuse and upright vertical overlays across
+32 block-model seeds, while asserting native positions and UVs remain unchanged.
+It is a loaded-resource fixture, not a joined gameplay session or JEI acceptance.
+
 ## Initial switch from placeholder ores
 
 The transition notes below describe the earlier development format. Current pack profiles use `generated_balance.json.gz`; follow [pack compatibility](pack-compatibility.md) for current storage, explicit rebuilds and preservation of existing worlds and human inputs.
@@ -12,13 +31,12 @@ If the world already uses the adaptive ore implementation, keep it. The later
 balance-driven supply update requires only regenerating the derived profile below;
 its new ore distribution applies to newly generated chunks.
 
-With Minecraft closed, remove the derived profile
-`fabric/run/config/essence_ascendance/generated_balance.json` before the next normal
-Fabric development launch. This file exists in the live project. For another game
-directory, remove its `config/essence_ascendance/generated_balance.json` if present.
-The existing balance generator recreates it. Keep `config/essence_ascendance.toml`
-and `config/essence_ascendance/balance_overrides.toml`; human settings need not be
-deleted. No Gradle, texture, or resource-pack cache cleanup is necessary.
+Current development runs use `<loader>/versions/<minecraft>/run`; see
+[the development directory map](DEVELOPMENT.md#current-run-folders-and-intellij-entries).
+Valid saved profiles are reused. When a rebuild is intended, use the explicit
+`/essence admin balance rebuild` command in that target's running game. Preserve
+human settings and existing worlds; the historical profile-deletion instructions
+from the placeholder transition do not apply to current runs.
 
 New worlds save `data/essence_ascendance_latent_ore_hosts.dat`. Keep that file when
 changing generation policy: it retains the resource catalog needed to display ore
@@ -128,11 +146,39 @@ generated chunks receive the changed distribution.
 
 ## Representation and gameplay
 
-Every host uses the new `essence_ascendance:adaptive_latent_ore` block/item. Its
+Every host uses the one `essence_ascendance:adaptive_latent_ore` world block. Its
 non-ticking block entity persists `latent_ore_host` as a registry name and state
-properties. Standard update tags/packets synchronize the same data. Items carry it
-in standard `minecraft:custom_data`, so inventory serialization, networking and
-stack comparison preserve host and orientation without runtime numeric IDs.
+properties. Standard update tags/packets synchronize the same data. Inventory
+items have four fixed registered IDs, one per known vanilla primary terrain layer:
+`essence_ascendance:stone_latent_ore`, `essence_ascendance:deepslate_latent_ore`,
+`essence_ascendance:netherrack_latent_ore`, and
+`essence_ascendance:end_stone_latent_ore`. These fixed-host aliases carry the exact
+state in standard `minecraft:custom_data`, so orientation and other properties
+survive save/load, networking and stack comparison. A plain `/give` of one of
+these items resolves its representative state without custom data.
+
+The aliases are registered through the existing common Architectury item
+registry. No loader scans the block registry to invent additional variants.
+Structural solidity permits the shared ore representation to carry a host; it
+is not evidence that logs, building blocks, incidental deposits or every solid
+modded block are primary dimension terrain.
+
+Actual modded terrain still comes from the existing per-world geological
+discovery and exact profile overrides. Those settings become authoritative after
+the static item registry freezes, so dynamically selected hosts retain their
+namespace-qualified state in the existing
+`essence_ascendance:adaptive_latent_ore` carrier. This preserves their placement,
+world appearance, drops, pick-block and catalog entries. Separate command IDs
+for modded hosts remain pending an authoritative earlier host declaration; the
+code does not guess from block names or manufacture an item for every block.
+The same adaptive carrier continues to read saved legacy stacks.
+
+The isolated headless native fixture checks the exact four-item registration,
+absence of the reported log/slab/bamboo aliases, the real vanilla dimension
+selection, native placement/pick/Silk Touch, item tags and standard serialization.
+Two fixture modded blocks exercise namespace-distinct component carriers and
+explicit catalog additions without speculative registry entries. These are
+server and catalog checks, not proof of final GUI appearance.
 
 `LatentOreHost` is the common identity boundary for worldgen, block entities, items,
 Silk Touch, pick-block, creative variants and Gathering's synthetic loot context.
@@ -141,22 +187,31 @@ host. The intentional default presentation stack is a generated stone-host ore.
 
 All hosts share Latent Ore behavior: pickaxe harvesting, fixed hardness, one native
 loot table retaining raw drops/Fortune/Silk Touch, common ore tags and two
-tag-based cooking recipes. Host-specific machinery or ticking behavior is never
-copied. Pistons cannot move the host-carrying block. Existing valuation retains
-one economic ore identity; Gathering supplies the exact primary source state when
+tag-based cooking recipes. The registered host items enter
+`essence_ascendance:latent_ores`, `c:ores` and `c:ores/latent` before native tag
+resolution; those additions respect data packs that replace a tag and remove its
+original adaptive item. The recipe advancement uses the same ore item tag.
+Host-specific machinery or ticking behavior is never
+copied. Pistons cannot move the host-carrying block. The generated placement policy
+remains independent of the item IDs; Gathering supplies the exact primary source state when
 manufacturing a Silk Touch drop. Creative Natural Blocks/Search access includes
 the baseline hosts and the synchronized selected-host catalog.
+When an existing generated balance profile is loaded, a saved adaptive-ore payout
+also applies to new fixed-host IDs that have no saved row. An explicit saved
+host-item route, including a zero route, remains authoritative. The profile itself
+is not rewritten and needs no rebuild for the item-ID change.
 The catalog revision participates in native `ItemDisplayParameters.needsUpdate`,
 so both Minecraft's global cache and independent per-tab parameter caches rebuild
 when the selected hosts change. It does not depend on any cache-owning mod.
 
-JEI uses that same creative variant list and distinguishes host state when browsing
-and bookmarking. Catalog updates refresh its ingredient list even if the server's
-catalog arrives after JEI starts. Recipe lookups intentionally share one ore
-identity, so every host finds the common smelting/blasting recipes. The four
-baseline hosts remain browsable in flat/test worlds too; additional selected and
-retained hosts appear automatically. This menu change needs only a client restart,
-not another world/profile reset if already using the adaptive ore implementation.
+JEI uses that same creative variant list and distinguishes host state properties
+when browsing and bookmarking. It removes unused pre-registered aliases from its
+ingredient list, then refreshes selected hosts even if the server's catalog arrives
+after JEI starts. Recipe lookups share the ore item tag, so every host finds the
+common smelting/blasting recipes. The four baseline hosts remain browsable in
+flat/test worlds too; additional selected and retained hosts appear automatically.
+This menu change needs only a client restart, not another world/profile reset if
+already using the adaptive ore implementation.
 For JEI's creative-order sorting, explicitly registered Essence variant families
 retain their first subtype's position when later subtypes arrive. Other sorting
 stages and unrelated ingredients keep JEI's own behavior. Runtime additions mark

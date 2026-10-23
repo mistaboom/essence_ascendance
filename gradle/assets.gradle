@@ -3,18 +3,34 @@ def artDirectory = rootProject.file('art')
 def generatedAssetResources = layout.buildDirectory.dir('generated-resources/assets')
 def assetWorkDirectory = layout.buildDirectory.dir('asset-work')
 def assetPipelineClasses = layout.buildDirectory.dir('asset-pipeline/classes')
+def assetSupportSources = sourceSets.main.java.matching {
+    include 'com/mistaboom/essence_ascendance/equipment/personalized/PersonalizedEquipmentDefinition.java'
+    include 'com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java'
+    include 'com/mistaboom/essence_ascendance/visual/TexturePixels.java'
+}
+def profileResourcePath = 'data/essence_ascendance/personalized_equipment.json'
+// The active Stonecutter node reads its shared authored resources directly;
+// other nodes read generated resources. Select the root declared in this node's
+// source set before files exist, never whichever old file happens to be on disk.
+def targetProfiles = tasks.named('stonecutterGenerate', Sync).map {
+    def sharedRoots = [rootProject.file('common/src/main/resources').canonicalFile,
+                       new File(it.destinationDir, 'resources').canonicalFile]
+    def selectedRoots = sourceSets.main.resources.srcDirs.collect { it.canonicalFile }.findAll { it in sharedRoots }
+    if (selectedRoots.size() != 1)
+        throw new GradleException("Expected one Stonecutter-declared shared resource root for ${project.path}, got ${selectedRoots}")
+    new File(selectedRoots.first(), profileResourcePath)
+}
+def profileResourceOwners = sourceSets.main.resources.matching { include profileResourcePath }
 def assetPipelineSources = files(
         rootProject.file('tools/AssetPipeline.java'),
         rootProject.file('tools/BlockbenchSource.java'),
         rootProject.file('tools/BlockbenchMeshExporter.java'),
         rootProject.file('tools/AscendanceArmorGenerator.java'),
         rootProject.file('tools/EssenceBlockTextureGenerator.java'),
-        rootProject.file('tools/MaskedTextureWriter.java'),
-        file('src/main/java/com/mistaboom/essence_ascendance/equipment/personalized/PersonalizedEquipmentDefinition.java'),
-        file('src/main/java/com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java'),
-        file('src/main/java/com/mistaboom/essence_ascendance/visual/TexturePixels.java'))
+        rootProject.file('tools/MaskedTextureWriter.java'), assetSupportSources)
 
 tasks.register('compileAssetPipeline', JavaCompile) {
+    dependsOn tasks.named('stonecutterGenerate')
     group = 'asset pipeline'
     description = 'Compiles the shared Blockbench import and texture baking tools.'
     source = assetPipelineSources
@@ -32,12 +48,26 @@ def generateAssets = tasks.register('generateAssets', JavaExec) {
     inputs.files(fileTree(artDirectory) { include 'asset-manifest.json', 'source/models/**/*.bbmodel' })
             .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.files(assetPipelineSources).withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.file(file('src/main/resources/data/essence_ascendance/personalized_equipment.json'))
+    inputs.file(targetProfiles)
             .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(profileResourceOwners).withPropertyName('profileResourceOwners')
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property 'resourceFormat', project.targetResourceFormat
+    if (project.targetResourceFormat == '26.1')
+        inputs.files(fileTree(rootProject.file('common/src/main/resources/assets/essence_ascendance/models/item')) {
+            include '*.json'
+        }).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dirs(generatedAssetResources, assetWorkDirectory)
     doFirst {
-        setArgs([artDirectory.absolutePath, generatedAssetResources.get().asFile.absolutePath,
-                 assetWorkDirectory.get().asFile.absolutePath])
+        def expectedProfile = targetProfiles.get().canonicalFile
+        def owners = sourceSets.main.resources.srcDirs.collect {
+            new File(it, profileResourcePath).canonicalFile
+        }.findAll { it.isFile() }
+        if (owners != [expectedProfile])
+            throw new GradleException("Expected only the Stonecutter-selected profile ${expectedProfile}, got ${owners}")
+        setArgs([artDirectory.absolutePath, layout.buildDirectory.get().asFile.absolutePath, generatedAssetResources.get().asFile.absolutePath,
+                 assetWorkDirectory.get().asFile.absolutePath, targetProfiles.get().absolutePath,
+                 project.targetResourceFormat, rootProject.file('common/src/main/resources').absolutePath])
     }
 }
 
@@ -70,15 +100,21 @@ def assetOwnershipInvariants = tasks.register('assetOwnershipInvariants') {
 }
 
 tasks.named('processResources') {
-    dependsOn generateAssets, assetOwnershipInvariants
+    dependsOn 'stonecutterGenerate', generateAssets, assetOwnershipInvariants
     duplicatesStrategy = DuplicatesStrategy.FAIL
 }
 tasks.named('sourcesJar') {
-    dependsOn generateAssets, assetOwnershipInvariants
+    dependsOn 'stonecutterGenerate', generateAssets, assetOwnershipInvariants
     duplicatesStrategy = DuplicatesStrategy.FAIL
 }
 tasks.named('check') {
-    dependsOn assetOwnershipInvariants, 'assetPipelineInvariants', ':assetJarInvariants'
+    def assetGateSuffix = project.targetMinecraft.replaceAll('[^0-9]', '')
+    def versionTargets = rootProject.targetCatalog.targets.findAll { it.minecraft == project.targetMinecraft }
+    // A common check audits both production archives for this Minecraft version.
+    def packagedAssetGates = versionTargets.every { it.implemented }
+            ? [":assetJarInvariants${assetGateSuffix}"]
+            : versionTargets.findAll { it.implemented }.collect { ":assetJarInvariants${it.id}" }
+    dependsOn assetOwnershipInvariants, 'assetPipelineInvariants', packagedAssetGates
 }
 
 def assetPipelineTestClasses = layout.buildDirectory.dir('asset-pipeline/test-classes')
@@ -95,8 +131,10 @@ tasks.register('assetPipelineInvariants', JavaExec) {
     dependsOn tasks.named('compileAssetPipelineTests'), generateAssets
     classpath = files(assetPipelineTestClasses, assetPipelineClasses) + configurations.compileClasspath
     mainClass = 'AssetPipelineTest'
-    args layout.buildDirectory.dir('asset-pipeline-tests').get().asFile.absolutePath,
-            artDirectory.absolutePath, generatedAssetResources.get().asFile.absolutePath
+    doFirst {
+        setArgs([layout.buildDirectory.dir('asset-pipeline-tests').get().asFile.absolutePath,
+                 artDirectory.absolutePath, generatedAssetResources.get().asFile.absolutePath, targetProfiles.get().absolutePath])
+    }
 }
 
 // Existing developer commands now use the same import and generation path as ordinary builds.

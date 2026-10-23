@@ -34,6 +34,9 @@ public final class AscendanceRangedWeaponItem
     }
 
     @Override
+    //? if >=26.1.2
+    /*public boolean releaseUsing(*/
+    //? if <26.1.2
     public void releaseUsing(
             ItemStack stack,
             Level level,
@@ -55,12 +58,21 @@ public final class AscendanceRangedWeaponItem
                     actualUseTicks
             );
 
+            //? if >=26.1.2
+            /*return super.releaseUsing(stack, level, user, useDuration - syntheticUseTicks);*/
+            //? if <26.1.2
             super.releaseUsing(
+                    //? if <26.1.2
                     stack,
+                    //? if <26.1.2
                     level,
+                    //? if <26.1.2
                     user,
+                    //? if <26.1.2
                     useDuration - syntheticUseTicks
+            //? if <26.1.2
             );
+            //? if <26.1.2
             return;
         }
 
@@ -73,18 +85,30 @@ public final class AscendanceRangedWeaponItem
         );
         int syntheticTimeLeft = useDuration - syntheticUseTicks;
 
+        //? if >=26.1.2
+        /*final boolean[] launched = {false};*/
         EquipmentWeaponService.withRangedShotContext(
                 player,
                 state,
                 actualUseTicks,
                 syntheticUseTicks,
+                //? if >=26.1.2
+                /*() -> launched[0] = super.releaseUsing(stack, level, user, syntheticTimeLeft)*/
+                //? if <26.1.2
                 () -> super.releaseUsing(
+                        //? if <26.1.2
                         stack,
+                        //? if <26.1.2
                         level,
+                        //? if <26.1.2
                         user,
+                        //? if <26.1.2
                         syntheticTimeLeft
+                //? if <26.1.2
                 )
         );
+        //? if >=26.1.2
+        /*return launched[0];*/
     }
 
     @Override

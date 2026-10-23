@@ -8,15 +8,15 @@ Edit geometry, UVs, and embedded textures in `art/source/models/armor/ascendance
 | --- | --- |
 | Geometry, UVs, and embedded masks | `art/source/models/armor/ascendance_armor.bbmodel` |
 | Asset registration | `art/asset-manifest.json` |
-| Extracted intermediate masks | `common/build/asset-work/armor-masks/` |
-| Baked tier and emission PNGs | `common/build/generated-resources/assets/assets/essence_ascendance/textures/armor/ascendance/generated/` |
-| Runtime EAM1 meshes | `common/build/generated-resources/assets/assets/essence_ascendance/meshes/armor/ascendance/` |
+| Extracted intermediate masks | `common/versions/1.21.1/build/asset-work/armor-masks/` |
+| Baked tier and emission PNGs | `common/versions/1.21.1/build/generated-resources/assets/assets/essence_ascendance/textures/armor/ascendance/generated/` |
+| Runtime EAM1 meshes | `common/versions/1.21.1/build/generated-resources/assets/assets/essence_ascendance/meshes/armor/ascendance/` |
 
 The embedded texture names are `{Head,Chest,Left_Arm,Right_Arm,Left_Leg,Right_Leg,Left_Foot,Right_Foot}_{Base,Accent}`, plus `Belt_Base`. The extracted intermediate filenames are lowercase. There are eight base/accent pairs and one base-only belt, with no belt accent. Intermediate PNGs and runtime outputs are generated files; edit the embedded textures in Blockbench instead. They are recreated after `clean` and never copied into the source resource tree.
 
 ## Geometry and atlases
 
-`:common:generateAssets` runs automatically during resource processing for both loaders. It preserves the triangular faces, winding, and local UV coordinates. The source meshes use origin `(0,0,0)` and rotation `(-90,0,0)`; the forward-facing import maps each source vertex to `(x, 24-z, y)`, subtracts the animated humanoid part pivot, and divides by 16. Head, chest, and belt use `(0,0,0)`, arms use `(±5,2,0)`, and legs/feet use `(±1.9,12,0)`, with positive X for the authored left side.
+`:common:1.21.1:generateAssets` runs automatically during resource processing for both current loaders. Each Minecraft version has its own generated output. It preserves the triangular faces, winding, and local UV coordinates. The source meshes use origin `(0,0,0)` and rotation `(-90,0,0)`; the forward-facing import maps each source vertex to `(x, 24-z, y)`, subtracts the animated humanoid part pivot, and divides by 16. Head, chest, and belt use `(0,0,0)`, arms use `(±5,2,0)`, and legs/feet use `(±1.9,12,0)`, with positive X for the authored left side.
 
 The leggings model attaches the belt to its torso bone, independently of either leg's walking rotation. Meshes attach to the corresponding humanoid parts so animation, visibility, and enchantment glint follow the armor pipeline. The source UV layout was not authored for vanilla armor trims; trim placement is not validated.
 
@@ -42,13 +42,13 @@ Each EAM1 mesh contains big-endian magic `0x45414D31`, a triangle count, and thr
 
 ## Editing and generation
 
-Save the armor BBModel after editing its geometry or textures, then run `./gradlew :common:generateAssets` or an ordinary build. No separate texture import is required. Gradle tracks the BBModels, manifest, and generator/compositor/palette code. Older asset generation task names remain aliases for the unified pipeline.
+Save the armor BBModel after editing its geometry or textures, then run `./gradlew :common:1.21.1:generateAssets` or an ordinary build. No separate texture import is required. Gradle tracks the BBModels, manifest, and generator/compositor/palette code. Older asset generation task names remain aliases within each version node for the unified pipeline.
 
 Only generated runtime resources and hand-authored runtime configuration enter the jars. BBModels, the manifest, and extracted intermediate armor masks stay outside the resource source sets. Masks needed during rendering, such as layered inventory sprites and adaptive ore overlays, are exported as runtime textures by their corresponding categories.
 
 The optional `tools/ShadeAscendanceArmor.java` authoring tool accepts `<input.bbmodel> <material-reference.png> <output-directory>`. It writes a separate repaint for review and requires Gson when compiling and running. It does not run during a normal build; incorporate an accepted repaint into the canonical BBModel.
 
-The optional `tools/PreviewAscendanceArmor.java` accepts `<asset-namespace-directory> <preview.png> [before-asset-namespace-directory]` and uses standard Java libraries. Point it to `common/build/generated-resources/assets/assets/essence_ascendance` after generation. It renders the exported meshes and baked textures without added lighting; it does not show runtime emission.
+The optional `tools/PreviewAscendanceArmor.java` accepts `<asset-namespace-directory> <preview.png> [before-asset-namespace-directory]` and uses standard Java libraries. Point it to `common/versions/1.21.1/build/generated-resources/assets/assets/essence_ascendance` after generation. It renders the exported meshes and baked textures without added lighting; it does not show runtime emission.
 
 ## Accent emission
 

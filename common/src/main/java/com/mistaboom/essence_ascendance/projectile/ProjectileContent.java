@@ -18,6 +18,9 @@ public final class ProjectileContent {
                     .sized(0.2F, 0.2F).clientTrackingRange(8).updateInterval(1)
                     // Fabric accepts null to skip vanilla DFU lookup for custom entities, retaining saves.
                     // The registry ID is assigned by TYPES.register, independently of this DFU key.
+                    //? if >=26.1.2
+                    /*.build(ResourceKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "magic_bolt"))));*/
+                    //? if <26.1.2
                     .build(Platform.isFabric() ? null : EssenceAscendance.MOD_ID + ":magic_bolt"));
     public static final ResourceKey<DamageType> MAGIC_BOLT_DAMAGE = ResourceKey.create(Registries.DAMAGE_TYPE,
             ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "magic_bolt"));

@@ -1,3 +1,5 @@
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'guard-movement'
 // Explicit isolated client initialization test. Test entrypoint exits before any menu/world is opened.
 def jeiFixturePath = gradle.startParameter.projectProperties['jeiFixtureJar']
 def jeiFixtureJar = gradle.startParameter.projectProperties.containsKey('jeiFixtureJar') ? new File(jeiFixturePath).canonicalFile : null
@@ -6,13 +8,17 @@ if (jeiFixtureJar != null && (!new File(jeiFixturePath).isAbsolute() || !jeiFixt
 def jeiRunSuffix = jeiFixtureJar == null ? '' : '-' + jeiFixtureJar.name.replaceAll('[^a-zA-Z0-9._-]', '-')
 allprojects { p ->
     p.afterEvaluate {
-        if (p.path == ':fabric') {
-            def metadata = p.rootProject.file('build/guard-movement-hook-metadata')
+        if (!p.rootProject.ext.has('nativeFixtureSelection'))
+            p.rootProject.apply from: p.rootProject.file('gradle/native-fixture-selection.gradle')
+        if (p.path != p.rootProject.nativeFixtureSelection.projectPath) return
+        if (p.parent.name == 'fabric') {
+            def common = p.rootProject.project(":common:${p.targetMinecraft}")
+            def metadata = p.file('build/native-fixtures/guard-movement-hook-metadata')
             def fixture = p.tasks.register('guardMovementHookFixtureJar', Jar) {
-                dependsOn(p.rootProject.project(':common').tasks.named('testClasses'))
+                dependsOn(common.tasks.named('testClasses'))
                 archiveFileName = 'guard-movement-hook-fixture.jar'
-                destinationDirectory = p.rootProject.layout.buildDirectory
-                from(p.rootProject.project(':common').sourceSets.test.output) {
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+                from(common.sourceSets.test.output) {
                     include 'com/mistaboom/essence_ascendance/fixture/GuardMovementNativeTest*.class'
                 }
                 from(metadata)
@@ -22,9 +28,9 @@ allprojects { p ->
                 }
             }
             p.tasks.named('runClient').configure { t ->
-                def testRun = p.rootProject.file('build/guard-movement-native-hooks-run' + jeiRunSuffix).canonicalFile
+                def testRun = p.file('build/native-fixtures/guard-movement-native-hooks-run' + jeiRunSuffix).canonicalFile
                 t.internalRunDir.set(testRun)
-                def addedMods = [p.rootProject.file('build/guard-movement-hook-fixture.jar').canonicalFile]
+                def addedMods = [p.file('build/native-fixtures/guard-movement-hook-fixture.jar').canonicalFile]
                 if (jeiFixtureJar != null) addedMods.add(jeiFixtureJar)
                 t.jvmArgs('-Dfabric.addMods=' + addedMods.collect { it.path }.join(File.pathSeparator),
                         '-Dessence.guard.movementNativeTest=true', '-Dessence.guard.fixtureLoader=fabric')
@@ -37,20 +43,21 @@ allprojects { p ->
                 }
             }
         }
-        if (p.path == ':neoforge') {
-            def common = p.rootProject.project(':common')
-            def metadata = p.rootProject.file('build/guard-movement-neo-hook-metadata')
+        if (p.parent.name == 'neoforge') {
+            def common = p.rootProject.project(":common:${p.targetMinecraft}")
+            def metadata = p.file('build/native-fixtures/guard-movement-neo-hook-metadata')
             def compile = p.tasks.register('compileGuardMovementNeoFixture', JavaCompile) {
                 dependsOn(common.tasks.named('testClasses'))
                 source(p.rootProject.file('gradle/native-fixtures/GuardMovementNativeMod.java'))
                 classpath = p.sourceSets.main.compileClasspath + common.sourceSets.test.output
-                destinationDirectory = p.rootProject.layout.buildDirectory.dir('guard-movement-neo-hook-classes')
-                options.release = 21
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/guard-movement-neo-hook-classes')
+                options.release = p.targetJava
+                javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
             }
             def fixture = p.tasks.register('guardMovementNeoHookFixtureJar', Jar) {
                 dependsOn(compile)
                 archiveFileName = 'guard-movement-neo-hook-fixture.jar'
-                destinationDirectory = p.rootProject.layout.buildDirectory
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
                 from(common.sourceSets.test.output) {
                     include 'com/mistaboom/essence_ascendance/fixture/GuardMovementNativeTest*.class'
                 }
@@ -75,7 +82,7 @@ side="CLIENT"
                 }
             }
             p.tasks.named('runClient').configure { t ->
-                def testRun = p.rootProject.file('build/guard-movement-native-hooks-neoforge-run' + jeiRunSuffix).canonicalFile
+                def testRun = p.file('build/native-fixtures/guard-movement-native-hooks-neoforge-run' + jeiRunSuffix).canonicalFile
                 t.internalRunDir.set(testRun)
                 t.jvmArgs('-Dessence.guard.movementNativeTest=true', '-Dessence.guard.fixtureLoader=neoforge')
                 if (jeiFixtureJar != null) t.jvmArgs('-Dessence.guard.requireJei=true')

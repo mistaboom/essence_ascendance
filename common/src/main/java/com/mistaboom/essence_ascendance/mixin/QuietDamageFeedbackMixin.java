@@ -29,6 +29,9 @@ public abstract class QuietDamageFeedbackMixin implements DamageFeedbackAccess {
 
     // ServerPlayer overrides indicateDamage to send a separate directional-hurt packet. Gate the
     // virtual CALL in hurt, not only the base method, so the override cannot repeatedly tilt the view.
+    //? if >=26.1.2
+    /*@WrapOperation(method = "hurtServer", at = @At(value = "INVOKE",*/
+    //? if <26.1.2
     @WrapOperation(method = "hurt", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/entity/LivingEntity;indicateDamage(DD)V"), require = 1)
     private void essenceAscendance$quietDirection(LivingEntity entity, double x, double z,
@@ -36,6 +39,9 @@ public abstract class QuietDamageFeedbackMixin implements DamageFeedbackAccess {
         if (!DamageFeedbackPolicy.quiet(source)) original.call(entity, x, z);
     }
 
+    //? if >=26.1.2
+    /*@WrapOperation(method = "hurtServer", at = @At(value = "INVOKE",*/
+    //? if <26.1.2
     @WrapOperation(method = "hurt", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/entity/LivingEntity;knockback(DDD)V"), require = 1)
     private void essenceAscendance$quietKnockback(LivingEntity entity, double strength, double x, double z,

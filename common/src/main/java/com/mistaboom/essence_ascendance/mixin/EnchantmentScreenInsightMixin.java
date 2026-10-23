@@ -7,6 +7,9 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.EnchantmentScreen;
 import net.minecraft.network.chat.Component;
@@ -24,8 +27,17 @@ import java.util.List;
  * retaining vanilla's own cost/requirement lines. Exactly one tooltip is rendered. */
 @Mixin(EnchantmentScreen.class)
 public abstract class EnchantmentScreenInsightMixin {
+    //? if >=26.1.2
+    /*@WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target =*/
+    //? if <26.1.2
     @WrapOperation(method = "render", at = @At(value = "INVOKE", target =
+            //? if >=26.1.2
+            /*"Lnet/minecraft/client/gui/GuiGraphicsExtractor;setComponentTooltipForNextFrame(Lnet/minecraft/client/gui/Font;Ljava/util/List;II)V"))*/
+            //? if <26.1.2
             "Lnet/minecraft/client/gui/GuiGraphics;renderComponentTooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;II)V"))
+    //? if >=26.1.2
+    /*private void essenceAscendance$renderFullEnchantingResult(GuiGraphicsExtractor graphics, Font font,*/
+    //? if <26.1.2
     private void essenceAscendance$renderFullEnchantingResult(GuiGraphics graphics, Font font,
                                                                List<Component> vanillaLines,
                                                                int mouseX, int mouseY,
@@ -59,7 +71,11 @@ public abstract class EnchantmentScreenInsightMixin {
         lines.add(Component.translatable("screen.essence_ascendance.enchanting_insight.preview")
                 .withStyle(style -> style.withColor(AscendancePalette.UTILITY)));
         for (EnchantmentInstance enchantment : result) {
-            lines.add(Enchantment.getFullname(enchantment.enchantment, enchantment.level));
+            lines.add(Enchantment.getFullname(
+                    //? if >=26.1.2
+                    /*enchantment.enchantment(), enchantment.level()));*/
+                    //? if <26.1.2
+                    enchantment.enchantment, enchantment.level));
         }
         // Vanilla's first line is the deliberately incomplete single-enchantment clue. Replace only that line;
         // preserve its blank separator and all lapis/level requirement text verbatim.

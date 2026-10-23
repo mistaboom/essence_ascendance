@@ -52,7 +52,12 @@ public final class TwoHandedEquipmentPolicy {
         // A positive passive declaration cannot turn a weapon, shield, or active hand tool into a charm.
         if (MasterworkTemperingRoles.activeHandEquipment(stack)) return false;
         if (stack.is(ItemTags.SWORDS) || ACTIVE_TOOLS.stream().anyMatch(stack::is)) return false;
-        if (stack.getUseAnimation() != UseAnim.NONE || stack.getUseDuration(holder) > 0
+        if (
+                //? if >=26.1.2
+                /*stack.getUseAnimation() != ItemUseAnimation.NONE*/
+                //? if <26.1.2
+                stack.getUseAnimation() != UseAnim.NONE
+                || stack.getUseDuration(holder) > 0
                 || stack.has(DataComponents.FOOD) || stack.has(DataComponents.TOOL)) return false;
         return stack.is(PASSIVE_OFFHAND) || EquipmentStatProviderRegistry.providers().stream()
                 .anyMatch(provider -> provider.passiveOffhand(stack));

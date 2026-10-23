@@ -75,7 +75,7 @@ public final class GuardMobilityController {
         if (!EquipmentShieldService.isShield(stack)) return;
         var tuning = SkillEffectRuntime.resolvedSettings(player).guard().mobility();
         var next = new net.minecraft.nbt.CompoundTag();
-        next.putUUID("holder", player.getUUID());
+        com.mistaboom.essence_ascendance.data.NbtVersionCompat.putUUID(next, "holder", player.getUUID());
         next.putBoolean("enabled", effective && EquipmentShieldService.canGuard(player, stack));
         next.putDouble("removal", tuning.slowdownRemoval()); next.putDouble("step", tuning.stepHeight());
         var old = stack.get(DataComponents.CUSTOM_DATA);
@@ -135,6 +135,9 @@ public final class GuardMobilityController {
             target.hurtMarked = true;
             com.mistaboom.essence_ascendance.network.CombatVisualFeedback.shieldRam(
                     player.serverLevel(), player, target, direction);
+            //? if >=26.1.2
+            /*player.serverLevel().playSound(null, target.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, .35F, 1.15F);*/
+            //? if <26.1.2
             player.serverLevel().playSound(null, target.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, .35F, 1.15F);
             accepted++; reason = "accepted target=" + contact.id() + "; fraction=" + contact.fraction() + "; push=" + direction;
         }

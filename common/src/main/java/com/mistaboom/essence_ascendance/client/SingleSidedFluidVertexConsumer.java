@@ -29,6 +29,11 @@ public final class SingleSidedFluidVertexConsumer implements VertexConsumer {
         this.delegate = Objects.requireNonNull(delegate);
     }
 
+    //? if >=26.1.2
+    /*@Override public VertexConsumer setLineWidth(float width) { delegate.setLineWidth(width); return this; }*/
+    //? if >=26.1.2
+    /*@Override public VertexConsumer setColor(int argb) { return setColor((argb >>> 16) & 255, (argb >>> 8) & 255, argb & 255, (argb >>> 24) & 255); }*/
+
     @Override
     public VertexConsumer addVertex(float x, float y, float z) {
         if (count == QUAD_SIZE) flush();

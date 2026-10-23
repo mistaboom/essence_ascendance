@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.nexus;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -34,10 +35,10 @@ public final class AscendanceNexusContent {
             BLOCKS.register(
                     "ascendance_nexus",
                     () -> new AscendanceNexusBlock(
-                            BlockBehaviour.Properties.of()
+                            ContentRegistrationCompat.block("ascendance_nexus", BlockBehaviour.Properties.of()
                                     .requiresCorrectToolForDrops()
                                     .strength(3.5F)
-                                    .pushReaction(PushReaction.BLOCK)
+                                    .pushReaction(PushReaction.BLOCK))
                     )
             );
 
@@ -46,17 +47,17 @@ public final class AscendanceNexusContent {
                     "ascendance_nexus",
                     () -> new BlockItem(
                             ASCENDANCE_NEXUS.get(),
-                            new Item.Properties()
+                            ContentRegistrationCompat.blockItem("ascendance_nexus", new Item.Properties())
                     )
             );
 
     public static final RegistrySupplier<BlockEntityType<AscendanceNexusBlockEntity>> ASCENDANCE_NEXUS_BLOCK_ENTITY =
             BLOCK_ENTITIES.register(
                     "ascendance_nexus",
-                    () -> BlockEntityType.Builder.of(
+                    () -> ContentRegistrationCompat.blockEntityType(
                             AscendanceNexusBlockEntity::new,
                             ASCENDANCE_NEXUS.get()
-                    ).build(null)
+                    )
             );
 
     public static final RegistrySupplier<MenuType<AscendanceNexusMenu>> ASCENDANCE_NEXUS_MENU =

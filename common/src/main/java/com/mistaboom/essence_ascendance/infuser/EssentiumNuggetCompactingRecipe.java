@@ -10,12 +10,20 @@ import net.minecraft.world.level.Level;
 
 /** Full matching carriers exchange at their saved denomination, preserving exact face value. */
 public final class EssentiumNuggetCompactingRecipe extends CustomRecipe {
-    public EssentiumNuggetCompactingRecipe(CraftingBookCategory category) { super(category); }
+    public EssentiumNuggetCompactingRecipe(CraftingBookCategory category) {
+        //? if >=26.1.2
+        /*super();*/
+        //? if <26.1.2
+        super(category);
+    }
 
     @Override
     public boolean matches(CraftingInput input, Level level) { return !convert(input).isEmpty(); }
 
     @Override
+    //? if >=26.1.2
+    /*public ItemStack assemble(CraftingInput input) { return convert(input); }*/
+    //? if <26.1.2
     public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) { return convert(input); }
 
     private static ItemStack convert(CraftingInput input) {
@@ -23,9 +31,10 @@ public final class EssentiumNuggetCompactingRecipe extends CustomRecipe {
                 EssenceInfuserContent.ESSENTIUM_INGOT.get(), true);
     }
 
+    //? if <26.1.2
     @Override
     public boolean canCraftInDimensions(int width, int height) { return width * height >= 9; }
 
     @Override
-    public RecipeSerializer<?> getSerializer() { return EssenceInfuserContent.ESSENTIUM_NUGGET_COMPACTING_SERIALIZER.get(); }
+    public RecipeSerializer<EssentiumNuggetCompactingRecipe> getSerializer() { return EssenceInfuserContent.ESSENTIUM_NUGGET_COMPACTING_SERIALIZER.get(); }
 }

@@ -24,6 +24,9 @@ import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScreen;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.Minecraft;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
@@ -116,9 +119,15 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
 
     @Override public boolean isPauseScreen() { return false; }
 
+    //? if >=26.1.2
+    /*@Override protected void renderFullscreenTooltips(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     @Override protected void renderFullscreenTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (isYieldBrowser()) yieldBrowser.renderTooltips(graphics, mouseX, mouseY);
         else if (navigation.mode() == ArchiveMode.SEARCH) searchResults.overflowTextAt(font, mouseX, mouseY)
+                //? if >=26.1.2
+                /*.ifPresent(text -> graphics.setTooltipForNextFrame(font, text, mouseX, mouseY));*/
+                //? if <26.1.2
                 .ifPresent(text -> graphics.renderTooltip(font, text, mouseX, mouseY));
         else if (navigation.mode() != ArchiveMode.SEARCH) article.renderTooltips(graphics, mouseX, mouseY);
     }
@@ -203,6 +212,9 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         builder.region(new FullscreenComposition.Region("archive/search/status", statusBounds,
                 (graphics, x, y, tick) -> {
                     for (int line = 0; line < statusLines.size(); line++)
+                        //? if >=26.1.2
+                        /*graphics.text(font, statusLines.get(line), statusBounds.x(),*/
+                        //? if <26.1.2
                         graphics.drawString(font, statusLines.get(line), statusBounds.x(),
                                 statusBounds.y() + line * (font.lineHeight + 1),
                                 AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
@@ -214,9 +226,15 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
                 (graphics, x, y, tick) -> searchResults.render(graphics, font, x, y), searchResults, true));
     }
 
+    //? if >=26.1.2
+    /*private void renderTitle(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
     private void renderTitle(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         UiBounds bounds = fullscreen.scene().regions().stream().filter(region -> region.id().equals("archive/title"))
                 .findFirst().orElseThrow().bounds();
+        //? if >=26.1.2
+        /*graphics.text(font, StyledTextLayout.fit(font, title, bounds.width()), bounds.x(), bounds.y() + 4,*/
+        //? if <26.1.2
         graphics.drawString(font, StyledTextLayout.fit(font, title, bounds.width()), bounds.x(), bounds.y() + 4,
                 AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
     }

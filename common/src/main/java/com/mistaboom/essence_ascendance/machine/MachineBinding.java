@@ -1,9 +1,14 @@
 package com.mistaboom.essence_ascendance.machine;
 
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
+import com.mistaboom.essence_ascendance.data.NbtVersionCompat;
 import com.mistaboom.essence_ascendance.team.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueOutput;*/
 import java.util.UUID;
 
 /** Persistent infrastructure identity, independent of provenance, operator and recipient. No roster copy. */
@@ -147,30 +152,34 @@ public final class MachineBinding {
     public void save(CompoundTag root) {
         CompoundTag tag = new CompoundTag();
         if (pool != null) tag.put("pool", pool.save());
-        if (placer != null) tag.putUUID("placer", placer);
-        if (personalOwner != null) tag.putUUID("personal_owner", personalOwner);
-        if (pendingPlacementOwner != null) tag.putUUID("pending_placement_owner", pendingPlacementOwner);
-        if (operator != null) tag.putUUID("operator", operator);
-        if (recipient != null) tag.putUUID("recipient", recipient);
-        if (automationRecipient != null) tag.putUUID("automation_recipient", automationRecipient);
+        if (placer != null) NbtVersionCompat.putUUID(tag, "placer", placer);
+        if (personalOwner != null) NbtVersionCompat.putUUID(tag, "personal_owner", personalOwner);
+        if (pendingPlacementOwner != null) NbtVersionCompat.putUUID(tag, "pending_placement_owner", pendingPlacementOwner);
+        if (operator != null) NbtVersionCompat.putUUID(tag, "operator", operator);
+        if (recipient != null) NbtVersionCompat.putUUID(tag, "recipient", recipient);
+        if (automationRecipient != null) NbtVersionCompat.putUUID(tag, "automation_recipient", automationRecipient);
         tag.putLong("ownership_roster_revision", ownershipRosterRevision);
         tag.putLong("revision", revision);
         tag.putBoolean("paused", paused); root.put("machine_binding", tag);
     }
+    //? if >=26.1.2
+    /*public void save(ValueOutput output) { CompoundTag root = new CompoundTag(); save(root); output.store("machine_binding", CompoundTag.CODEC, NbtVersionCompat.getCompound(root, "machine_binding")); }*/
+    //? if >=26.1.2
+    /*public void load(ValueInput input) { CompoundTag root = new CompoundTag(); input.read("machine_binding", CompoundTag.CODEC).ifPresent(tag -> root.put("machine_binding", tag)); load(root); }*/
     public void load(CompoundTag root) {
-        CompoundTag tag = root.getCompound("machine_binding");
-        pool = tag.contains("pool", Tag.TAG_COMPOUND) ? PoolId.load(tag.getCompound("pool")) : null;
-        placer = tag.hasUUID("placer") ? tag.getUUID("placer") : null;
-        personalOwner = tag.hasUUID("personal_owner") ? tag.getUUID("personal_owner") : null;
-        pendingPlacementOwner = tag.hasUUID("pending_placement_owner") ? tag.getUUID("pending_placement_owner") : null;
-        operator = tag.hasUUID("operator") ? tag.getUUID("operator") : null;
-        recipient = tag.hasUUID("recipient") ? tag.getUUID("recipient") : null;
-        automationRecipient = tag.hasUUID("automation_recipient") ? tag.getUUID("automation_recipient") : null;
-        if (root.contains("machine_binding") && !tag.contains("ownership_roster_revision", Tag.TAG_LONG))
+        CompoundTag tag = NbtVersionCompat.getCompound(root, "machine_binding");
+        pool = NbtVersionCompat.contains(tag, "pool", Tag.TAG_COMPOUND) ? PoolId.load(NbtVersionCompat.getCompound(tag, "pool")) : null;
+        placer = NbtVersionCompat.hasUUID(tag, "placer") ? NbtVersionCompat.getUUID(tag, "placer") : null;
+        personalOwner = NbtVersionCompat.hasUUID(tag, "personal_owner") ? NbtVersionCompat.getUUID(tag, "personal_owner") : null;
+        pendingPlacementOwner = NbtVersionCompat.hasUUID(tag, "pending_placement_owner") ? NbtVersionCompat.getUUID(tag, "pending_placement_owner") : null;
+        operator = NbtVersionCompat.hasUUID(tag, "operator") ? NbtVersionCompat.getUUID(tag, "operator") : null;
+        recipient = NbtVersionCompat.hasUUID(tag, "recipient") ? NbtVersionCompat.getUUID(tag, "recipient") : null;
+        automationRecipient = NbtVersionCompat.hasUUID(tag, "automation_recipient") ? NbtVersionCompat.getUUID(tag, "automation_recipient") : null;
+        if (root.contains("machine_binding") && !NbtVersionCompat.contains(tag, "ownership_roster_revision", Tag.TAG_LONG))
             throw new IllegalStateException("Missing machine ownership revision");
-        ownershipRosterRevision = root.contains("machine_binding") ? tag.getLong("ownership_roster_revision") : -1;
-        paused = tag.getBoolean("paused");
-        revision = tag.getLong("revision");
+        ownershipRosterRevision = root.contains("machine_binding") ? NbtVersionCompat.getLong(tag, "ownership_roster_revision") : -1;
+        paused = NbtVersionCompat.getBoolean(tag, "paused");
+        revision = NbtVersionCompat.getLong(tag, "revision");
         if (ownershipRosterRevision < -1 || revision < 0 || pool != null && (revision < 1 || ownershipRosterRevision < 0)) throw new IllegalStateException("Invalid machine binding revision");
         if (pendingPlacementOwner != null && (pool != null || personalOwner != null || !pendingPlacementOwner.equals(placer)))
             throw new IllegalStateException("Invalid pending machine placement");

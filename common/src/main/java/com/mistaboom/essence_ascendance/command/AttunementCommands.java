@@ -63,7 +63,7 @@ final class AttunementCommands {
     }
     static LiteralArgumentBuilder<CommandSourceStack> admin() {
         return Commands.literal("attunement")
-                .requires(s -> s.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                .requires(s -> EssenceCommandUtil.hasAdminPermission(s))
                 .executes(c -> adminHelp(c.getSource()))
                 .then(Commands.literal("help").executes(c -> adminHelp(c.getSource())))
                 .then(adminAction("fill", 100)).then(adminAction("reset", 0))
@@ -167,7 +167,7 @@ final class AttunementCommands {
             if (row.recent().isEmpty()) EssenceCommandUtil.send(source, EssenceCommandUtil.muted(text("no_recent")));
             for (var result : row.recent().stream().limit(3).toList()) summaryAction(source, result);
         }
-        if (source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+        if (EssenceCommandUtil.hasAdminPermission(source))
             EssenceCommandUtil.send(source, EssenceCommandUtil.command(historyCommand(source, player, id, 1), text("history_help")));
         return 1;
     }

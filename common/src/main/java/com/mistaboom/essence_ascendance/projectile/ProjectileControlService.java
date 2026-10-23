@@ -97,7 +97,7 @@ public final class ProjectileControlService {
             boolean entered = state.dragFactor == 1 && factor < 0.999;
             Vec3 velocity = ProjectileControlMath.velocity(projectile.getDeltaMovement(), state.dragFactor, factor, maximum);
             if (!ProjectileControlMath.finite(velocity)) { projectile.discard(); return; }
-            projectile.setDeltaMovement(velocity); projectile.hasImpulse = true; state.dragFactor = factor;
+            projectile.setDeltaMovement(velocity); ProjectileMotionSync.mark(projectile); state.dragFactor = factor;
             state.physicsInput = factor < 1 ? velocity : null;
             if (factor < 0.999 && projectile.level() instanceof net.minecraft.server.level.ServerLevel level
                     && (entered || Math.floorMod(now + projectile.getId(), 8) == 0))
@@ -128,7 +128,7 @@ public final class ProjectileControlService {
                 : launch.maximumSpeed;
         Vec3 velocity = ProjectileControlMath.afterPhysics(input, projectile.getDeltaMovement(), inertia, control.dragFactor, maximum);
         if (!ProjectileControlMath.finite(velocity) || velocity.lengthSqr() < 0.000000000001) { projectile.discard(); return; }
-        projectile.setDeltaMovement(velocity); projectile.hasImpulse = true;
+        projectile.setDeltaMovement(velocity); ProjectileMotionSync.mark(projectile);
     }
     /** Native arrows take their ordinary tick path; the pre-movement input was captured by beforeFlight. */
     public static void afterNativeArrowFlight(Projectile projectile, double inertia) {

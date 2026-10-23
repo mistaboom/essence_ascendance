@@ -11,10 +11,12 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+//? if <26.1.2
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.BrushItem;
 import net.minecraft.world.item.CrossbowItem;
+//? if <26.1.2
 import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -67,8 +69,12 @@ public final class MasterworkTemperingRoles {
         if (stack == null || stack.isEmpty()) return false;
         if (heldStrength(stack, EssenceStats.MINING_SPEED) > 0) return true;
         Item item = stack.getItem();
-        return item instanceof DiggerItem
-                || item instanceof ShearsItem
+        return
+                //? if <26.1.2
+                item instanceof DiggerItem ||
+                //? if >=26.1.2
+                /*stack.is(ItemTags.MINING_ENCHANTABLE) ||*/
+                item instanceof ShearsItem
                 || item instanceof BrushItem
                 || stack.is(CONVENTIONAL_MINING_TOOLS)
                 || stack.is(ItemTags.PICKAXES)
@@ -84,6 +90,9 @@ public final class MasterworkTemperingRoles {
 
     public static boolean armor(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return false;
+        //? if >=26.1.2
+        /*if (stack.is(ItemTags.HEAD_ARMOR) || stack.is(ItemTags.CHEST_ARMOR) || stack.is(ItemTags.LEG_ARMOR) || stack.is(ItemTags.FOOT_ARMOR)) return true;*/
+        //? if <26.1.2
         if (stack.getItem() instanceof ArmorItem) return true;
         EquipmentProfileDefinition profile = firstPartyProfile(stack);
         return profile != null && (profile.baselineMultiplier(EquipmentBaselineProperty.ARMOR) > 0

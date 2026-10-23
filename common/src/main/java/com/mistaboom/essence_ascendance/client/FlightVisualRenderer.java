@@ -10,6 +10,11 @@ import com.mistaboom.essence_ascendance.visual.FlightVisualState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.SubmitNodeCollector;*/
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.rendertype.RenderType;*/
+//? if <26.1.2
 import net.minecraft.client.renderer.RenderType;
 
 /**
@@ -56,6 +61,38 @@ public final class FlightVisualRenderer {
 
     public static void render(AbstractClientPlayer player, PoseStack poseStack,
                               MultiBufferSource buffers, float partialTick) {
+        Frame frame = capture(player, partialTick);
+        if (frame == null) return;
+        poseStack.pushPose();
+        poseStack.translate(0.0F, -0.090F, -0.090F);
+        renderFills(frame, poseStack, buffers.getBuffer(PLANES));
+        renderEdges(frame, poseStack, buffers.getBuffer(EDGES));
+        poseStack.popPose();
+    }
+
+    //? if >=26.1.2 {
+    /*public static void submit(Frame frame, PoseStack poseStack,
+                              SubmitNodeCollector collector) {
+        if (frame == null) return;
+        poseStack.pushPose();
+        poseStack.translate(0.0F, -0.090F, -0.090F);
+        collector.submitCustomGeometry(poseStack, PLANES, (submittedPose, vertices) -> {
+            PoseStack geometry = new PoseStack();
+            geometry.mulPose(submittedPose.pose());
+            renderFills(frame, geometry, vertices);
+        });
+        collector.submitCustomGeometry(poseStack, EDGES, (submittedPose, vertices) -> {
+            PoseStack geometry = new PoseStack();
+            geometry.mulPose(submittedPose.pose());
+            renderEdges(frame, geometry, vertices);
+        });
+        poseStack.popPose();
+    }
+    *///? }
+
+    public record Frame(double age, boolean wingVisual, boolean thrustVisual, double thrustIntensity) { }
+
+    public static Frame capture(AbstractClientPlayer player, float partialTick) {
         boolean local = player == Minecraft.getInstance().player;
         FlightVisualState state = (FlightVisualState) player;
         int flags = state.essenceAscendance$flightFlags();
@@ -70,29 +107,24 @@ public final class FlightVisualRenderer {
 
         boolean harnessVisible = fatigueEnabled || wingsEnabled || boost > 0.0;
         boolean wingVisual = wingsEnabled || boost > 0.0;
-        if (!harnessVisible) return;
+        if (!harnessVisible) return null;
 
         double age = player.tickCount + Math.clamp(partialTick, 0.0F, 1.0F);
         double thrustIntensity = boost > 0.0 ? 1.0 + boost * 0.85 : 1.0;
 
-        poseStack.pushPose();
-        poseStack.translate(0.0F, -0.090F, -0.090F);
+        return new Frame(age, wingVisual, fatigueThrusting || boost > 0.0, thrustIntensity);
+    }
 
-        VertexConsumer fills = buffers.getBuffer(PLANES);
-        renderHarnessFills(poseStack, fills, age);
-        if (wingVisual) renderWingFeathers(poseStack, fills, age);
-        if (fatigueThrusting || boost > 0.0) {
-            renderThrusterFills(poseStack, fills, age, thrustIntensity);
-        }
+    private static void renderFills(Frame frame, PoseStack pose, VertexConsumer fills) {
+        renderHarnessFills(pose, fills, frame.age());
+        if (frame.wingVisual()) renderWingFeathers(pose, fills, frame.age());
+        if (frame.thrustVisual()) renderThrusterFills(pose, fills, frame.age(), frame.thrustIntensity());
+    }
 
-        VertexConsumer lines = buffers.getBuffer(EDGES);
-        renderHarnessEdges(poseStack, lines, age);
-        if (wingVisual) renderWingFeatherAccents(poseStack, lines, age);
-        if (fatigueThrusting || boost > 0.0) {
-            renderThrusterEdges(poseStack, lines, age, thrustIntensity);
-        }
-
-        poseStack.popPose();
+    private static void renderEdges(Frame frame, PoseStack pose, VertexConsumer lines) {
+        renderHarnessEdges(pose, lines, frame.age());
+        if (frame.wingVisual()) renderWingFeatherAccents(pose, lines, frame.age());
+        if (frame.thrustVisual()) renderThrusterEdges(pose, lines, frame.age(), frame.thrustIntensity());
     }
 
     private static void renderHarnessFills(PoseStack pose, VertexConsumer fills, double age) {

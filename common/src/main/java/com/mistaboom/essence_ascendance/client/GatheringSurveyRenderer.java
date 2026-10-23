@@ -9,6 +9,9 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.rendertype.RenderType;*/
+//? if <26.1.2
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -34,7 +37,7 @@ public final class GatheringSurveyRenderer {
 
         PoseStack pose = new PoseStack();
         pose.mulPose(positionMatrix);
-        Vec3 cameraPos = camera.getPosition();
+        Vec3 cameraPos = ClientCameraCompat.position(camera);
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
         VertexConsumer lines = buffers.getBuffer(SEE_THROUGH_LINES);
         GatheringSurveyService.Mode mode = GatheringSurveyClientState.mode();
@@ -50,8 +53,26 @@ public final class GatheringSurveyRenderer {
                     : mode == GatheringSurveyService.Mode.TREASURE ? 0.85F : 0.72F;
             AABB box = new AABB(target.pos())
                     .move(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+            //? if >=26.1.2
+            /*renderBox(pose, lines, box, rgb, alpha);*/
+            //? if <26.1.2
             LevelRenderer.renderLineBox(pose, lines, box, red, green, blue, alpha);
         }
         buffers.endBatch(SEE_THROUGH_LINES);
+    }
+
+    private static void renderBox(PoseStack pose, VertexConsumer lines, AABB box, int rgb, float alpha) {
+        for (double y : new double[]{box.minY, box.maxY})
+            for (double z : new double[]{box.minZ, box.maxZ})
+                com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry.line(pose, lines,
+                        new Vec3(box.minX, y, z), new Vec3(box.maxX, y, z), rgb, alpha);
+        for (double x : new double[]{box.minX, box.maxX})
+            for (double z : new double[]{box.minZ, box.maxZ})
+                com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry.line(pose, lines,
+                        new Vec3(x, box.minY, z), new Vec3(x, box.maxY, z), rgb, alpha);
+        for (double x : new double[]{box.minX, box.maxX})
+            for (double y : new double[]{box.minY, box.maxY})
+                com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry.line(pose, lines,
+                        new Vec3(x, y, box.minZ), new Vec3(x, y, box.maxZ), rgb, alpha);
     }
 }

@@ -13,6 +13,9 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(AreaEffectCloud.class)
 public abstract class StatusCloudInstantMixin {
+    //? if >=26.1.2
+    /*@WrapOperation(method = "serverTick", at = @At(value = "INVOKE", target =*/
+    //? if <26.1.2
     @WrapOperation(method = "tick", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/world/entity/LivingEntity;addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z"), require = 1, expect = 1)
     private boolean essenceAscendance$source(LivingEntity target, net.minecraft.world.effect.MobEffectInstance effect,
@@ -24,12 +27,24 @@ public abstract class StatusCloudInstantMixin {
                         () -> original.call(target, resolvedEffect, resolvedSource)));
     }
 
+    //? if >=26.1.2
+    /*@WrapOperation(method = "serverTick", at = @At(value = "INVOKE", target =*/
+    //? if <26.1.2
     @WrapOperation(method = "tick", at = @At(value = "INVOKE", target =
+            //? if >=26.1.2
+            /*"Lnet/minecraft/world/effect/MobEffect;applyInstantenousEffect(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/LivingEntity;ID)V"), require = 1)*/
+            //? if <26.1.2
             "Lnet/minecraft/world/effect/MobEffect;applyInstantenousEffect(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/LivingEntity;ID)V"), require = 1)
+    //? if >=26.1.2
+    /*private void essenceAscendance$instant(MobEffect effect, net.minecraft.server.level.ServerLevel level, Entity direct, Entity owner, LivingEntity target,*/
+    //? if <26.1.2
     private void essenceAscendance$instant(MobEffect effect, Entity direct, Entity owner, LivingEntity target,
                                            int amplifier, double potency, Operation<Void> original) {
         double resolvedPotency = UtilityPotionService.externalInstantPotency(effect, target, potency);
         StatusInterceptionService.instant(effect, direct, owner, target, amplifier, resolvedPotency,
+                //? if >=26.1.2
+                /*() -> original.call(effect, level, direct, owner, target, amplifier, resolvedPotency));*/
+                //? if <26.1.2
                 () -> original.call(effect, direct, owner, target, amplifier, resolvedPotency));
     }
 }

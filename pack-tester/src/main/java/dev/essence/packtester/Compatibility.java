@@ -16,21 +16,28 @@ final class Compatibility {
         if (!instance.problem().isEmpty()) return new Verdict("UNRESOLVED", instance.problem());
         if (!Set.of("fabric", "neoforge").contains(instance.loader())) return new Verdict("INCOMPATIBLE", "Unsupported loader: " + instance.loader() + "; Forge is not NeoForge.");
         try {
-            Properties p = new Properties();
-            try (var in = Files.newBufferedReader(project.resolve("gradle.properties"))) { p.load(in); }
-            if (!instance.minecraft().equals(p.getProperty("minecraft_version")))
-                return new Verdict("INCOMPATIBLE", "Project targets Minecraft " + p.getProperty("minecraft_version") + "; instance is " + instance.minecraft());
-            return requirements(instance, sourceRequirements(instance.loader()));
-        } catch (Exception e) { return new Verdict("UNRESOLVED", e.getMessage()); }
+            var target = TargetCatalog.require(project, instance.minecraft(), instance.loader());
+            return requirements(instance, sourceRequirements(instance.loader(), target));
+        } catch (TargetCatalog.UnsupportedTarget e) { return new Verdict("INCOMPATIBLE", e.getMessage()); }
+        catch (Exception e) { return new Verdict("UNRESOLVED", e.getMessage()); }
     }
-    List<ModMetadata.Requirement> sourceRequirements(String loader) throws IOException {
+    List<ModMetadata.Requirement> sourceRequirements(String loader, TargetCatalog.Target target) throws IOException {
         List<ModMetadata.Requirement> list = new ArrayList<>();
         if (loader.equals("fabric")) {
-            var obj = JsonParser.parseString(Files.readString(project.resolve("fabric/src/main/resources/fabric.mod.json"))).getAsJsonObject();
+            String source = Files.readString(project.resolve("fabric/src/main/resources/fabric.mod.json"))
+                    .replace("${fabric_loader_requirement}", ">=" + target.fabricLoader())
+                    .replace("${minecraft_requirement}", target.minecraft())
+                    .replace("${java_requirement}", ">=" + target.javaVersion())
+                    .replace("${architectury_requirement}", ">=" + target.architecturyApi());
+            var obj = JsonParser.parseString(source).getAsJsonObject();
             obj.getAsJsonObject("depends").entrySet().forEach(e -> list.add(new ModMetadata.Requirement(e.getKey(),
                     e.getValue().isJsonPrimitive() ? e.getValue().getAsString() : e.getValue().toString())));
         } else {
-            var toml = ModMetadata.parseToml(Files.readString(project.resolve("neoforge/src/main/resources/META-INF/neoforge.mods.toml")));
+            String source = Files.readString(project.resolve("neoforge/src/main/resources/META-INF/neoforge.mods.toml"))
+                    .replace("${neoforge_requirement}", "[" + target.neoforgeMinimum() + ",)")
+                    .replace("${minecraft_requirement}", "[" + target.minecraft() + "]")
+                    .replace("${architectury_requirement}", "[" + target.architecturyApi() + ",)");
+            var toml = ModMetadata.parseToml(source);
             if (!"javafml".equals(toml.getString("modLoader")) || !"[4,)".equals(toml.getString("loaderVersion"))) throw new IOException("Unresolved NeoForge language-loader requirement");
             var deps = toml.getArray("dependencies." + ModMetadata.OWN);
             if (deps != null) for (int i = 0; i < deps.size(); i++) {
@@ -42,6 +49,7 @@ final class Compatibility {
     }
     Verdict requirements(PrismDiscovery.Instance instance, List<ModMetadata.Requirement> requirements) {
         try {
+            int javaVersion = TargetCatalog.require(project, instance.minecraft(), instance.loader()).javaVersion();
             Map<String, List<String>> installed = new HashMap<>();
             installed.put("minecraft", List.of(instance.minecraft()));
             installed.put(instance.loader().equals("fabric") ? "fabricloader" : "neoforge", List.of(instance.loaderVersion()));
@@ -61,7 +69,7 @@ final class Compatibility {
             for (var req : requirements) {
                 // Prism may auto-select Java at launch; this tool never changes that setting.
                 if (req.id().equals("java")) {
-                    if (!">=21".equals(req.range())) return new Verdict("UNRESOLVED", "Unrecognized game Java requirement: " + req.range());
+                    if (!req.range().equals(">=" + javaVersion)) return new Verdict("UNRESOLVED", "Game Java requirement differs from the selected target: " + req.range());
                     continue;
                 }
                 var versions = installed.get(req.id());
@@ -69,7 +77,7 @@ final class Compatibility {
                 if (versions.size() != 1) return new Verdict("UNRESOLVED", "Duplicate dependency " + req.id() + ": " + versions);
                 if (!satisfies(versions.getFirst(), req.range())) return new Verdict("INCOMPATIBLE", req.id() + " " + versions.getFirst() + " does not satisfy " + req.range());
             }
-            return new Verdict("SUPPORTED", "Minecraft/loader and declared required mods match. Prism game Java must be 21 or newer.");
+            return new Verdict("SUPPORTED", "Minecraft/loader and declared required mods match. Prism game Java must be " + javaVersion + " or newer.");
         } catch (Exception e) { return new Verdict("UNRESOLVED", e.getMessage()); }
     }
     // The source declares these forms. Unknown expressions/qualifiers must never imply compatibility.
@@ -87,6 +95,7 @@ final class Compatibility {
             return (bounds[0].isEmpty() || compare(version, bounds[0]) >= (range.charAt(0) == '[' ? 0 : 1))
                     && (bounds[1].isEmpty() || compare(version, bounds[1]) <= (range.endsWith("]") ? 0 : -1));
         }
+        if (range.matches("\\[[0-9.]+\\]")) return compare(version, range.substring(1, range.length() - 1)) == 0;
         if (range.matches("[0-9.]+")) return compare(version, range) == 0;
         throw new IOException("Unsupported dependency range: " + range);
     }

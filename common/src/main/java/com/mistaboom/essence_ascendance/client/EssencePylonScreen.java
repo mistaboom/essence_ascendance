@@ -4,6 +4,9 @@ import com.mistaboom.essence_ascendance.network.EssencePylonStatePayload;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonMenu;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.core.BlockPos;
@@ -64,11 +67,19 @@ public final class EssencePylonScreen
     }
 
     @Override
+    //? if >=26.1.2
+    /*public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
     protected void renderBg(
+            //? if <26.1.2
             GuiGraphics graphics,
+            //? if <26.1.2
             float partialTick,
+            //? if <26.1.2
             int mouseX,
+            //? if <26.1.2
             int mouseY
+    //? if <26.1.2
     ) {
         int x = leftPos;
         int y = topPos;
@@ -80,10 +91,17 @@ public final class EssencePylonScreen
     }
 
     @Override
+    //? if >=26.1.2
+    /*protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     protected void renderLabels(
+            //? if <26.1.2
             GuiGraphics graphics,
+            //? if <26.1.2
             int mouseX,
+            //? if <26.1.2
             int mouseY
+    //? if <26.1.2
     ) {
         EssencePylonStatePayload state =
                 EssencePylonClientState.snapshotFor(menu.containerId);
@@ -93,6 +111,9 @@ public final class EssencePylonScreen
 
         if (state == null) {
             drawCentered(graphics, EssenceText.term("synchronizing"), 68, MachineScreenUi.MUTED);
+            //? if >=26.1.2
+            /*graphics.text(*/
+            //? if <26.1.2
             graphics.drawString(
                     font, playerInventoryTitle, inventoryLabelX, inventoryLabelY,
                     MachineScreenUi.MUTED, false
@@ -109,6 +130,9 @@ public final class EssencePylonScreen
                 16, 214, 80
         );
 
+        //? if >=26.1.2
+        /*graphics.text(*/
+        //? if <26.1.2
         graphics.drawString(
                 font, playerInventoryTitle, inventoryLabelX, inventoryLabelY,
                 MachineScreenUi.MUTED, false

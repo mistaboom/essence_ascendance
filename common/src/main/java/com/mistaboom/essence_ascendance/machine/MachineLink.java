@@ -2,11 +2,16 @@ package com.mistaboom.essence_ascendance.machine;
 
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
+import com.mistaboom.essence_ascendance.data.NbtVersionCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueOutput;*/
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -84,13 +89,17 @@ public final class MachineLink {
         if (target != null) { tag.putString("dimension", target.dimension.toString()); tag.putLong("pos", target.pos.asLong()); }
         root.put("machine_link", tag);
     }
+    //? if >=26.1.2
+    /*public void save(ValueOutput output) { CompoundTag root = new CompoundTag(); save(root); output.store("machine_link", CompoundTag.CODEC, NbtVersionCompat.getCompound(root, "machine_link")); }*/
+    //? if >=26.1.2
+    /*public void load(ValueInput input) { CompoundTag root = new CompoundTag(); input.read("machine_link", CompoundTag.CODEC).ifPresent(tag -> root.put("machine_link", tag)); load(root); }*/
     public void load(CompoundTag root) {
         if (!root.contains("machine_link")) { mode = Mode.AUTOMATIC; target = null; return; }
-        CompoundTag tag = root.getCompound("machine_link");
-        if (!tag.contains("version", Tag.TAG_INT) || tag.getInt("version") != 2)
+        CompoundTag tag = NbtVersionCompat.getCompound(root, "machine_link");
+        if (!NbtVersionCompat.contains(tag, "version", Tag.TAG_INT) || NbtVersionCompat.getInt(tag, "version") != 2)
             throw new IllegalStateException("Unsupported machine link format");
-        mode = tag.contains("mode", Tag.TAG_STRING) ? Mode.valueOf(tag.getString("mode")) : Mode.AUTOMATIC;
-        target = tag.contains("pos", Tag.TAG_LONG) ? new Source(ResourceLocation.parse(tag.getString("dimension")), BlockPos.of(tag.getLong("pos"))) : null;
+        mode = NbtVersionCompat.contains(tag, "mode", Tag.TAG_STRING) ? Mode.valueOf(NbtVersionCompat.getString(tag, "mode")) : Mode.AUTOMATIC;
+        target = NbtVersionCompat.contains(tag, "pos", Tag.TAG_LONG) ? new Source(ResourceLocation.parse(NbtVersionCompat.getString(tag, "dimension")), BlockPos.of(NbtVersionCompat.getLong(tag, "pos"))) : null;
         if (mode == Mode.DISCONNECTED && target != null) throw new IllegalStateException("Disconnected machine has a target");
 
     }

@@ -12,9 +12,15 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+//? if >=26.1.2
+/*import net.minecraft.world.item.component.TooltipDisplay;*/
 import net.minecraft.world.item.context.UseOnContext;
 
 import java.util.List;
+//? if >=26.1.2
+/*import java.util.ArrayList;*/
+//? if >=26.1.2
+/*import java.util.function.Consumer;*/
 import java.util.Locale;
 
 /** Single evolving machine-upgrade focus. Tier is stored on the ItemStack. */
@@ -58,6 +64,7 @@ public final class EssenceFocusItem extends Item {
                 : InteractionResult.FAIL;
     }
 
+    //? if <26.1.2
     @Override
     public void appendHoverText(
             ItemStack stack,
@@ -65,6 +72,7 @@ public final class EssenceFocusItem extends Item {
             List<Component> tooltipComponents,
             TooltipFlag tooltipFlag
     ) {
+        //? if <26.1.2
         super.appendHoverText(stack, context, tooltipComponents, tooltipFlag);
 
         EssenceFocusTier tier = EssenceFocusData.tier(stack);
@@ -130,6 +138,9 @@ public final class EssenceFocusItem extends Item {
 
         FocusInfusionData.appendTooltip(stack, tooltipComponents);
     }
+
+    //? if >=26.1.2
+    /*@Override public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) { super.appendHoverText(stack, context, display, tooltip, flag); List<Component> lines = new ArrayList<>(); appendHoverText(stack, context, lines, flag); lines.forEach(tooltip); }*/
 
     private static Component section(Component title) {
         return title.copy().withStyle(style -> style.withColor(AscendanceUiPalette.PRIMARY_TEXT).withBold(true));

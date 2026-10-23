@@ -77,6 +77,9 @@ public final class NativeMachineBindingTest {
             check(!infuser.setLink(neighbor, MachineLink.Mode.LOCKED, target), "Foreign actor cannot change source");
             check(!pylon.setLink(b, MachineLink.Mode.LOCKED, new MachineLink.Source(f.level.dimension().location(), foreign.getBlockPos())), "Proximity does not grant source authorization");
             check(infuser.setLink(b, MachineLink.Mode.LOCKED, target), "Infuser uses the same explicit source policy");
+            //? if >=26.1.2
+            /*f.level.unloadedMachineChunks = new HashSet<>(Set.of(net.minecraft.world.level.ChunkPos.pack(0,0)));*/
+            //? if <26.1.2
             f.level.unloadedMachineChunks = new HashSet<>(Set.of(net.minecraft.world.level.ChunkPos.asLong(0,0)));
             infuser.refreshLink(); pylon.refreshLink();
             check(infuser.linkState() == MachineLink.State.UNAVAILABLE && pylon.linkState() == MachineLink.State.UNAVAILABLE
@@ -106,7 +109,7 @@ public final class NativeMachineBindingTest {
             var savedMachine = source.saveWithFullMetadata(f.level.registryAccess());
             f.saved.nativeMembership().disband(solo.getUUID());
             var loaded = new EssenceCrucibleBlockEntity(source.getBlockPos(), source.getBlockState()); install(f, loaded);
-            loaded.loadWithComponents(savedMachine, f.level.registryAccess());
+            com.mistaboom.essence_ascendance.verification.BlockEntityTestNbtCompat.load(loaded, savedMachine, f.level.registryAccess());
             EssenceCrucibleBlockEntity.serverTick(f.level, loaded.getBlockPos(), loaded.getBlockState(), loaded);
             check(loaded.machineBinding().personalOwner().equals(solo.getUUID()) && !loaded.machineBinding().paused() && loaded.canPlayerUse(solo)
                     && loaded.fundingActor() != null, "Actual unloaded machine resolves final owner and resumes ordinary personal operation after disband");
@@ -331,6 +334,9 @@ public final class NativeMachineBindingTest {
                 "An active player session does not reserve the source against Infuser links");
         check(first.statusCode()==EssenceInfuserBlockEntity.STATUS_PROCESSING && first.isCurrentLinkValid(),
                 "Player channeling and Infuser processing coexist on the shared source");
+        //? if >=26.1.2
+        /*f.level.unloadedMachineChunks = new HashSet<>(Set.of(net.minecraft.world.level.ChunkPos.pack(0,0)));*/
+        //? if <26.1.2
         f.level.unloadedMachineChunks = new HashSet<>(Set.of(net.minecraft.world.level.ChunkPos.asLong(0,0)));
         first.refreshLink();second.refreshLink();
         check(first.linkState()==MachineLink.State.UNAVAILABLE && second.linkState()==MachineLink.State.UNAVAILABLE
@@ -493,9 +499,12 @@ public final class NativeMachineBindingTest {
             check(!secondSource.isChanneling(a.getUUID()) && machines.stream().allMatch(EssenceInfuserBlockEntity::processingEnabled),"Logout cleanup removes player links without disarming automation");
             var savedInfuser=machines.get(0).saveWithFullMetadata(f.level.registryAccess()); long paid=jobPaid(jobField,machines.get(0));
             machines.get(0).setRemoved();var loaded=sharedSourceInfuser(f,machines.get(0).getBlockPos(),a);
-            loaded.loadWithComponents(savedInfuser,f.level.registryAccess());machines.set(0,loaded);
+            com.mistaboom.essence_ascendance.verification.BlockEntityTestNbtCompat.load(loaded, savedInfuser,f.level.registryAccess());machines.set(0,loaded);
             check(jobPaid(jobField,loaded)==paid && loaded.processingEnabled(),"Chunk save/reload preserves bounded exact timed payment and armed state");
             var beforeStock=poolWhole(f,a);
+            //? if >=26.1.2
+            /*f.level.unloadedMachineChunks.add(net.minecraft.world.level.ChunkPos.pack(0,0));*/
+            //? if <26.1.2
             f.level.unloadedMachineChunks.add(net.minecraft.world.level.ChunkPos.asLong(0,0));
             tickChannels(f,source,machines,20);
             check(poolWhole(f,a)==beforeStock && jobPaid(jobField,loaded)==paid,"Unavailable source reserves and spends no bandwidth");
@@ -631,7 +640,7 @@ public final class NativeMachineBindingTest {
                 job = (InfusionJobProgress) paidField.get(repair);
                 if (job != null && !job.paid().isEmpty()) break;
             }
-            int elapsed = tickField.getInt(repair);
+            int elapsed = com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, repair);
             check(job != null && !job.paid().isEmpty() && !job.complete()
                             && job.funding().equals(Map.of(pool, job.paid())) && job.recipient().equals(a.getUUID()),
                     "Actual partial repair records exact committed funding and recipient: cost=" + repairCost
@@ -645,14 +654,14 @@ public final class NativeMachineBindingTest {
             System.out.println("Stage 7 partial repair: cost=" + repairCost + ", paid=" + InfusionPayments.total(job.paid())
                     + ", elapsed=" + elapsed + ", source rate=" + source.structureStats().transferRatePerSecond());
             repair.setProcessingEnabled(a, false);
-            check(paidField.get(repair) == job && tickField.getInt(repair) == elapsed, "Explicit Stop preserves paid work and elapsed timer");
+            check(paidField.get(repair) == job && com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, repair) == elapsed, "Explicit Stop preserves paid work and elapsed timer");
             repair.setProcessingEnabled(b, true);
             BigInteger beforeOffense = f.saved.reservoirs().read(a.getUUID()).units(EssenceTypes.OFFENSE.id());
             var saved = repair.saveWithFullMetadata(f.level.registryAccess());
             repair.setRemoved();
-            var reloaded = sharedSourceInfuser(f, repair.getBlockPos(), a); reloaded.loadWithComponents(saved, f.level.registryAccess());
+            var reloaded = sharedSourceInfuser(f, repair.getBlockPos(), a); com.mistaboom.essence_ascendance.verification.BlockEntityTestNbtCompat.load(reloaded, saved, f.level.registryAccess());
             check(((InfusionJobProgress)paidField.get(reloaded)).save(f.level.registryAccess()).equals(job.save(f.level.registryAccess()))
-                    && tickField.getInt(reloaded) == elapsed, "Restart retains job identity, attribution, recipient and timer exactly");
+                    && com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, reloaded) == elapsed, "Restart retains job identity, attribution, recipient and timer exactly");
             check(!reloaded.recoverWorkpiece(outsider, 0), "Foreign recovery is denied by actual soulbound owner");
             f.saved.nativeMembership().transfer(a.getUUID(), b.getUUID()); f.saved.nativeMembership().leave(a.getUUID());
             check(!reloaded.canPlayerUse(a), "Former member has no general inventory or spending access");
@@ -680,7 +689,7 @@ public final class NativeMachineBindingTest {
             var focus = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get()); EssenceFocusData.setTier(focus, EssenceFocusTier.DORMANT);
             destination.setItem(2, focus); destination.setItem(0, recovered);
             check(((InfusionJobProgress)paidField.get(destination)).identity().equals(job.identity())
-                    && tickField.getInt(destination) == elapsed && !destination.processingEnabled(),
+                    && com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, destination) == elapsed && !destination.processingEnabled(),
                     "The same repair progress and timer travel to another funding identity, requiring explicit restart");
             destination.setLink(a, MachineLink.Mode.LOCKED, new MachineLink.Source(f.level.dimension().location(), personalSource.getBlockPos()));
             var personalPool = f.saved.resolvePool(a.getUUID()).requireReady().pool();
@@ -705,16 +714,16 @@ public final class NativeMachineBindingTest {
                                 && debit.equals(BigInteger.valueOf(added).multiply(ReservoirService.SCALE)),
                         "Resumed repair attributes only the exact additional reservoir debit for " + type.id());
             }
-            int beforeJoinTicks = tickField.getInt(destination);
+            int beforeJoinTicks = com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, destination);
             var rejoin = f.saved.nativeMembership().request(a.getUUID(), pool, true);
             f.saved.nativeMembership().decide(b.getUUID(), rejoin.token(), true);
             check(destination.canPlayerUse(b) && destination.machineBinding().pool().equals(pool)
                     && !destination.processingEnabled() && paidField.get(destination) == funded
-                    && tickField.getInt(destination) == beforeJoinTicks,
+                    && com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, destination) == beforeJoinTicks,
                     "Joining a team automatically changes personal machine funding without discarding paid work or elapsed time");
             check(MachineProtection.canBreak(reloaded, b) && MachineProtection.canBreak(reloaded, outsider),
                     "Team ownership permits vanilla physical theft by an opposing player");
-            var snapshotJob = funded.save(f.level.registryAccess()); int snapshotTicks = tickField.getInt(destination);
+            var snapshotJob = funded.save(f.level.registryAccess()); int snapshotTicks = com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, destination);
             ItemStack pickup = MachineProtection.takePickup(destination);
             check(!pickup.isEmpty() && MachineProtection.takePickup(destination).isEmpty() && destination.isEmpty(),
                     "Physical pickup transfers all custody once and prevents secondary inventory drops");
@@ -725,7 +734,7 @@ public final class NativeMachineBindingTest {
             replaced.getBlockState().getBlock().setPlacedBy(f.level, replaced.getBlockPos(), replaced.getBlockState(), outsider, pickup);
             check(replaced.machineBinding().pool().equals(f.saved.resolvePool(outsider.getUUID()).requireReady().pool())
                     && replaced.machineBinding().placer().equals(outsider.getUUID()) && !replaced.processingEnabled()
-                    && replaced.canPlayerUse(outsider) && !replaced.canPlayerUse(b) && tickField.getInt(replaced) == snapshotTicks
+                    && replaced.canPlayerUse(outsider) && !replaced.canPlayerUse(b) && com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(tickField, replaced) == snapshotTicks
                     && ((InfusionJobProgress)paidField.get(replaced)).save(f.level.registryAccess()).equals(snapshotJob),
                     "Stolen-machine placement gives the new placer ownership while retaining contents, paid provenance and timer");
             check(replaced.getBlockState().getPistonPushReaction() == net.minecraft.world.level.material.PushReaction.BLOCK,
@@ -774,7 +783,7 @@ public final class NativeMachineBindingTest {
     }
     /** Actual platform handler mechanics; no claim of third-party pipe interoperability. */
     private static void platformPorts(EssenceInfuserBlockEntity port, net.minecraft.server.level.ServerPlayer actor) throws Exception {
-        var funds = EssenceSavedData.get(actor.server).save(new net.minecraft.nbt.CompoundTag(), actor.registryAccess());
+        var funds = EssenceSavedData.get(actor.serverLevel().getServer()).save(new net.minecraft.nbt.CompoundTag(), actor.registryAccess());
         boolean fabric = dev.architectury.platform.Platform.isModLoaded("fabricloader");
         String adapter = "com.mistaboom.essence_ascendance." + (fabric ? "fabric.EssenceInfuserFabricItemStorage" : "neoforge.EssenceInfuserNeoForgeItemHandler");
         var constructor = Class.forName(adapter).getDeclaredConstructor(EssenceInfuserBlockEntity.class); constructor.setAccessible(true);
@@ -836,12 +845,13 @@ public final class NativeMachineBindingTest {
                 && port.getItem(1).getCount()==1 && hopper.getItem(0).getCount()==1,
                 "Actual vanilla hopper extraction takes one item without machine ownership or enable settings");
         var restored = new EssenceInfuserBlockEntity(port.getBlockPos(), port.getBlockState()); restored.setLevel(port.getLevel());
-        restored.loadWithComponents(port.saveWithFullMetadata(port.getLevel().registryAccess()), port.getLevel().registryAccess());
+        com.mistaboom.essence_ascendance.verification.BlockEntityTestNbtCompat.load(
+                restored, port.saveWithFullMetadata(port.getLevel().registryAccess()), port.getLevel().registryAccess());
         check(restored.machineBinding().pool().equals(port.machineBinding().pool())
                 && ItemStack.matches(restored.getItem(0), port.getItem(0))
                 && ItemStack.matches(restored.getItem(1), port.getItem(1)),
                 "Restart preserves automatic material input and output with their machine ownership");
-        check(EssenceSavedData.get(actor.server).save(new net.minecraft.nbt.CompoundTag(), actor.registryAccess()).equals(funds),
+        check(EssenceSavedData.get(actor.serverLevel().getServer()).save(new net.minecraft.nbt.CompoundTag(), actor.registryAccess()).equals(funds),
                 "Simulations, aborts and real item transfers cannot spend or publish essence");
     }
     private static EssenceInfuserBlockEntity preparedInfuser(ProjectileNativeInterceptionTest.Fixture f,BlockPos pos,

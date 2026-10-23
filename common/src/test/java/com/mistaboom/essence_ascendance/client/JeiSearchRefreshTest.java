@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Executes both compiled production mixins against a small JEI indexing lifecycle fixture.
+/** Executes the common production mixin against a small JEI indexing lifecycle fixture.
  * The fixture supplies only the target rebuild method, not a copy of our refresh logic.
  * This is not a live JEI/Mixin transformation or a timing benchmark.
  */
@@ -30,23 +31,18 @@ public final class JeiSearchRefreshTest {
         field.setAccessible(true);
         revision = (AtomicLong) field.get(null);
         long previous = revision.get();
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve("neoforge/src/main/java"))) root = root.getParent();
-        if (root == null) throw new AssertionError("Project root required");
         try {
-            for (String loader : List.of("fabric", "neoforge")) {
-                Path compiled = root.resolve(loader + "/build/classes/java/main/com/mistaboom/essence_ascendance/"
-                        + loader + "/mixin/JeiIngredientFilterMixin.class");
-                check(Files.isRegularFile(compiled), loader + " compiled mixin is required");
-                byte[] bytes = Files.readAllBytes(compiled);
-                inspectHooks(bytes);
-                exercise(bytes, loader);
-            }
+            Path compiled = TargetTestInputs.compiledClass("common",
+                    "com/mistaboom/essence_ascendance/mixin/JeiIngredientFilterMixin");
+            check(Files.isRegularFile(compiled), "Common compiled mixin is required");
+            byte[] bytes = Files.readAllBytes(compiled);
+            inspectHooks(bytes);
+            exercise(bytes, "common");
         } finally {
             revision.set(previous);
             REBUILDS.clear();
         }
-        System.out.println("JeiSearchRefreshTest: " + checks + " checks PASS; both production loader hooks,"
+        System.out.println("JeiSearchRefreshTest: " + checks + " checks PASS; shared production hook,"
                 + " initial/reload reuse, new revisions, reentrancy and failure throttling; no live JEI timing claim");
     }
 
@@ -151,7 +147,7 @@ public final class JeiSearchRefreshTest {
     private static long indexed(Object filter) throws Exception {
         var field = filter.getClass().getDeclaredField(PREFIX + "indexedRevision");
         field.setAccessible(true);
-        return field.getLong(filter);
+        return com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readLong(field, filter);
     }
 
     private static void inspectHooks(byte[] bytes) {

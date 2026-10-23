@@ -14,6 +14,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(TargetingConditions.class)
 public abstract class SustenancePhantomTargetMixin {
     @Inject(method = "test", at = @At("HEAD"), cancellable = true)
+    //? if >=26.1.2
+    /*private void essenceAscendance$ignoreRestedOwner(net.minecraft.server.level.ServerLevel level, LivingEntity attacker, LivingEntity target,*/
+    //? if <26.1.2
     private void essenceAscendance$ignoreRestedOwner(LivingEntity attacker, LivingEntity target,
                                                      CallbackInfoReturnable<Boolean> result) {
         if (attacker instanceof Phantom && target instanceof ServerPlayer player

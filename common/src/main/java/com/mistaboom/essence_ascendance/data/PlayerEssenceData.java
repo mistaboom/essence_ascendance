@@ -1251,7 +1251,7 @@ private static final String NEXUS_REVISION_TAG =
          * ========================================================
          */
 
-        if (root.contains(
+        if (NbtVersionCompat.contains(root,
                 NEXUS_REVISION_TAG,
                 Tag.TAG_LONG
         )) {
@@ -1372,7 +1372,7 @@ private static final String NEXUS_REVISION_TAG =
          * explicitly.
          */
 
-        if (root.contains(
+        if (NbtVersionCompat.contains(root,
                 COMPLETED_MILESTONES_TAG,
                 Tag.TAG_COMPOUND
         )) {
@@ -1421,7 +1421,7 @@ private static final String NEXUS_REVISION_TAG =
          * Unknown identities are rejected without changing ownership or accounting.
          */
 
-        if (root.contains(
+        if (NbtVersionCompat.contains(root,
                 OWNED_SKILLS_TAG,
                 Tag.TAG_COMPOUND
         )) {
@@ -1456,10 +1456,10 @@ private static final String NEXUS_REVISION_TAG =
                                 key
                         );
 
-                if (!purchaseTag.contains(
+                if (!NbtVersionCompat.contains(purchaseTag,
                         SKILL_PAID_ESSENCE_TAG,
                         Tag.TAG_STRING
-                ) || !purchaseTag.contains(
+                ) || !NbtVersionCompat.contains(purchaseTag,
                         SKILL_RANK_COSTS_TAG,
                         Tag.TAG_LONG_ARRAY
                 )) {
@@ -1477,7 +1477,7 @@ private static final String NEXUS_REVISION_TAG =
                                 )
                         );
 
-                long[] rankCosts = purchaseTag.getLongArray(SKILL_RANK_COSTS_TAG);
+                long[] rankCosts = NbtVersionCompat.getLongArray(purchaseTag, SKILL_RANK_COSTS_TAG);
                 if (paidEssenceId == null || rankCosts.length == 0
                         || rankCosts.length > SkillPurchase.MAX_RANKS) {
                     throw new IllegalArgumentException("Malformed rank receipt for " + skillId);
@@ -1493,7 +1493,7 @@ private static final String NEXUS_REVISION_TAG =
          * ========================================================
          */
 
-        if (root.contains(
+        if (NbtVersionCompat.contains(root,
                 LOADOUT_SELECTIONS_TAG,
                 Tag.TAG_COMPOUND
         )) {
@@ -1566,7 +1566,7 @@ private static final String NEXUS_REVISION_TAG =
          * ========================================================
          */
 
-        if (root.contains(
+        if (NbtVersionCompat.contains(root,
                 FRACTIONAL_RESOURCE_COST_CARRY_TAG,
                 Tag.TAG_COMPOUND
         )) {

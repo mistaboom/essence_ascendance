@@ -81,7 +81,11 @@ def main():
     java = shutil.which("java")
     assert java, "Java 21 required"
     version = re.search(r"(?m)^mod_version\s*=\s*(\S+)", (ROOT / "gradle.properties").read_text())[1]
-    jar = args.jar.resolve() if args.jar else ROOT / "neoforge/build/libs" / f"essence_ascendance-neoforge-{version}.jar"
+    if args.jar:
+        jar = args.jar.resolve()
+    else:
+        manifest = json.loads((ROOT / "build/production-artifacts-1.21.1.json").read_text(encoding="utf-8"))
+        jar = Path(next(t["archive"] for t in manifest["targets"] if t["target"] == "1211NeoForge"))
     assert jar.is_file(), jar
     old_jars = list((server / "mods").glob("essence_ascendance*.jar"))
     (destination / "prior-jars").mkdir()

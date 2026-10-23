@@ -10,8 +10,10 @@ import org.spongepowered.asm.mixin.Mixin;
 /** Client/server prediction hook for Tool Instinct's shared carried-tool resolver. */
 @Mixin(Player.class)
 public abstract class ToolInstinctPlayerMixin {
-    @WrapMethod(method = "getDestroySpeed")
+    @WrapMethod(method = "getDestroySpeed(Lnet/minecraft/world/level/block/state/BlockState;)F")
     private float essenceAscendance$toolInstinctSpeed(BlockState state, Operation<Float> original) {
+        //? if >=26.1.2
+        /*if (dev.architectury.platform.Platform.isNeoForge()) return original.call(state);*/
         Player player = (Player) (Object) this;
         try (GatheringToolResolver.PreviewScope scope = GatheringToolResolver.beginPreview(player, state)) {
             float nativeSpeed = original.call(state);
@@ -19,7 +21,7 @@ public abstract class ToolInstinctPlayerMixin {
         }
     }
 
-    @WrapMethod(method = "hasCorrectToolForDrops")
+    @WrapMethod(method = "hasCorrectToolForDrops(Lnet/minecraft/world/level/block/state/BlockState;)Z")
     private boolean essenceAscendance$toolInstinctHarvest(BlockState state, Operation<Boolean> original) {
         try (GatheringToolResolver.PreviewScope ignored = GatheringToolResolver.beginPreview((Player) (Object) this, state)) {
             return original.call(state);

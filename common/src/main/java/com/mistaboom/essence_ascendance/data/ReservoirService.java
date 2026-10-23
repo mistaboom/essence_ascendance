@@ -344,7 +344,7 @@ public final class ReservoirService {
         ListTag joins = new ListTag();
         machineJoins.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
             for (var join : entry.getValue()) {
-                CompoundTag record = new CompoundTag(); record.putUUID("owner", entry.getKey());
+                CompoundTag record = new CompoundTag(); NbtVersionCompat.putUUID(record, "owner", entry.getKey());
                 record.putLong("revision", join.revision()); record.put("pool", join.pool().save()); joins.add(record);
             }
         });
@@ -359,12 +359,12 @@ public final class ReservoirService {
         if (revision < 0 || rosterRevision < 0) throw new IllegalStateException("Negative reservoir revision");
         for (String key : List.of("teams", "cursors")) {
             ListTag list = (ListTag) tag.get(key);
-            if (!list.isEmpty() && list.getElementType() != Tag.TAG_COMPOUND)
+            if (!NbtVersionCompat.listHasElementType(list, Tag.TAG_COMPOUND))
                 throw new IllegalStateException("Malformed reservoir settlement list");
         }
         if (!tag.contains("dissolved", Tag.TAG_LIST)) throw new IllegalStateException("Missing binding resolution metadata");
         ListTag resolutions = tag.getList("dissolved", Tag.TAG_COMPOUND);
-        if (!((ListTag) tag.get("dissolved")).isEmpty() && ((ListTag) tag.get("dissolved")).getElementType() != Tag.TAG_COMPOUND)
+        if (!NbtVersionCompat.listHasElementType((ListTag) tag.get("dissolved"), Tag.TAG_COMPOUND))
             throw new IllegalStateException("Invalid binding resolution list");
         for (Tag raw : resolutions) {
             CompoundTag receipt = (CompoundTag) raw;
@@ -379,7 +379,7 @@ public final class ReservoirService {
         if (!tag.contains("machine_joins", Tag.TAG_LIST)) throw new IllegalStateException("Missing or invalid machine joins");
         {
             ListTag joins = (ListTag) tag.get("machine_joins");
-            if (!joins.isEmpty() && joins.getElementType() != Tag.TAG_COMPOUND) throw new IllegalStateException("Invalid machine join records");
+            if (!NbtVersionCompat.listHasElementType(joins, Tag.TAG_COMPOUND)) throw new IllegalStateException("Invalid machine join records");
             for (Tag raw : joins) {
                 CompoundTag record = (CompoundTag) raw;
                 if (!record.hasUUID("owner") || !record.contains("revision", Tag.TAG_LONG)) throw new IllegalStateException("Incomplete machine join");

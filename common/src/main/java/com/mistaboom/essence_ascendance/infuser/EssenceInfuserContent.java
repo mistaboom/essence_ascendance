@@ -5,6 +5,8 @@ import com.mistaboom.essence_ascendance.ore.LatentOreBlock;
 import com.mistaboom.essence_ascendance.ore.LatentOreBlockEntity;
 import com.mistaboom.essence_ascendance.ore.LatentOreBlockItem;
 import com.mistaboom.essence_ascendance.ore.LatentOreHost;
+import com.mistaboom.essence_ascendance.ore.LatentOreItems;
+import com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -12,7 +14,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -39,64 +40,64 @@ public final class EssenceInfuserContent {
     public static final RegistrySupplier<LatentOreBlock> LATENT_ORE = BLOCKS.register(
             "adaptive_latent_ore",
             () -> new LatentOreBlock(
-                    BlockBehaviour.Properties.of()
+                    ContentRegistrationCompat.block("adaptive_latent_ore", BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
                             .strength(3.0F)
-                            .pushReaction(PushReaction.BLOCK)
+                            .pushReaction(PushReaction.BLOCK))
             )
     );
     public static final RegistrySupplier<Block> RAW_LATENT_ORE_BLOCK = BLOCKS.register(
             "raw_latent_ore_block",
             () -> new Block(
-                    BlockBehaviour.Properties.of()
+                    ContentRegistrationCompat.block("raw_latent_ore_block", BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
-                            .strength(5.0F)
+                            .strength(5.0F))
             )
     );
     public static final RegistrySupplier<Block> LATENT_BLOCK = BLOCKS.register(
             "latent_block",
             () -> new Block(
-                    BlockBehaviour.Properties.of()
+                    ContentRegistrationCompat.block("latent_block", BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
-                            .strength(5.0F)
+                            .strength(5.0F))
             )
     );
     public static final RegistrySupplier<EssentiumBlock> ESSENTIUM_BLOCK_BLOCK = BLOCKS.register(
             "essentium_block",
             () -> new EssentiumBlock(
-                    BlockBehaviour.Properties.of()
+                    ContentRegistrationCompat.block("essentium_block", BlockBehaviour.Properties.of()
                             .mapColor(net.minecraft.world.level.material.MapColor.COLOR_GRAY)
                             .requiresCorrectToolForDrops()
-                            .strength(5.0F)
+                            .strength(5.0F))
             )
     );
     public static final RegistrySupplier<RotatedPillarBlock> CHANNELSTONE = BLOCKS.register(
             "channelstone",
             () -> new RotatedPillarBlock(
-                    BlockBehaviour.Properties.of()
+                    ContentRegistrationCompat.block("channelstone", BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
-                            .strength(3.5F, 6.0F)
+                            .strength(3.5F, 6.0F))
             )
     );
     public static final RegistrySupplier<EssenceInfuserBlock> ESSENCE_INFUSER = BLOCKS.register(
             "essence_infuser",
             () -> new EssenceInfuserBlock(
-                    BlockBehaviour.Properties.of()
+                    ContentRegistrationCompat.block("essence_infuser", BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
                             .strength(3.5F)
                             .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
                             .lightLevel(state -> state.getValue(EssenceInfuserBlock.FOCUS_LIT) ? 9 : 0)
-                            .pushReaction(PushReaction.BLOCK)
+                            .pushReaction(PushReaction.BLOCK))
             )
     );
 
     public static final RegistrySupplier<Item> LATENT_ORE_ITEM = ITEMS.register(
             "adaptive_latent_ore",
-            () -> new LatentOreBlockItem(LATENT_ORE.get(), new Item.Properties())
+            () -> new LatentOreBlockItem(LATENT_ORE.get(), ContentRegistrationCompat.blockItem("adaptive_latent_ore", new Item.Properties()))
     );
     public static final RegistrySupplier<Item> RAW_LATENT_ORE = ITEMS.register(
             "raw_latent_ore",
-            () -> new Item(new Item.Properties())
+            () -> new Item(ContentRegistrationCompat.item("raw_latent_ore", new Item.Properties()))
     );
     public static final RegistrySupplier<Item> RAW_LATENT_ORE_BLOCK_ITEM = blockItem(
             "raw_latent_ore_block",
@@ -104,11 +105,11 @@ public final class EssenceInfuserContent {
     );
     public static final RegistrySupplier<Item> LATENT_NUGGET = ITEMS.register(
             "latent_nugget",
-            () -> new Item(new Item.Properties())
+            () -> new Item(ContentRegistrationCompat.item("latent_nugget", new Item.Properties()))
     );
     public static final RegistrySupplier<Item> LATENT_INGOT = ITEMS.register(
             "latent_ingot",
-            () -> new Item(new Item.Properties())
+            () -> new Item(ContentRegistrationCompat.item("latent_ingot", new Item.Properties()))
     );
     public static final RegistrySupplier<Item> LATENT_BLOCK_ITEM = blockItem(
             "latent_block",
@@ -120,27 +121,27 @@ public final class EssenceInfuserContent {
     );
     public static final RegistrySupplier<Item> ASCENDANCE_MATRIX = ITEMS.register(
             "ascendance_matrix",
-            () -> new Item(new Item.Properties())
+            () -> new Item(ContentRegistrationCompat.item("ascendance_matrix", new Item.Properties()))
     );
     public static final RegistrySupplier<Item> ESSENTIUM_NUGGET = ITEMS.register(
             "essentium_nugget",
             () -> new EssentiumItem(
                     EssentiumItem.CarrierForm.NUGGET,
-                    new Item.Properties()
+                    ContentRegistrationCompat.item("essentium_nugget", new Item.Properties())
             )
     );
     public static final RegistrySupplier<Item> ESSENTIUM_INGOT = ITEMS.register(
             "essentium_ingot",
             () -> new EssentiumItem(
                     EssentiumItem.CarrierForm.INGOT,
-                    new Item.Properties()
+                    ContentRegistrationCompat.item("essentium_ingot", new Item.Properties())
             )
     );
     public static final RegistrySupplier<Item> ESSENTIUM_BLOCK = ITEMS.register(
             "essentium_block",
             () -> new EssentiumItem(
                     EssentiumItem.CarrierForm.BLOCK,
-                    new Item.Properties()
+                    ContentRegistrationCompat.item("essentium_block", new Item.Properties())
             )
     );
     public static final RegistrySupplier<Item> ESSENCE_INFUSER_ITEM = blockItem(
@@ -151,25 +152,25 @@ public final class EssenceInfuserContent {
     public static final RegistrySupplier<BlockEntityType<EssenceInfuserBlockEntity>> ESSENCE_INFUSER_BLOCK_ENTITY =
             BLOCK_ENTITIES.register(
                     "essence_infuser",
-                    () -> BlockEntityType.Builder.of(
+                    () -> ContentRegistrationCompat.blockEntityType(
                             EssenceInfuserBlockEntity::new,
                             ESSENCE_INFUSER.get()
-                    ).build(null)
+                    )
             );
 
     public static final RegistrySupplier<BlockEntityType<LatentOreBlockEntity>> LATENT_ORE_BLOCK_ENTITY =
             BLOCK_ENTITIES.register(
                     "adaptive_latent_ore",
-                    () -> BlockEntityType.Builder.of(LatentOreBlockEntity::new, LATENT_ORE.get()).build(null)
+                    () -> ContentRegistrationCompat.blockEntityType(LatentOreBlockEntity::new, LATENT_ORE.get())
             );
 
     public static final RegistrySupplier<BlockEntityType<EssentiumBlockEntity>> ESSENTIUM_BLOCK_BLOCK_ENTITY =
             BLOCK_ENTITIES.register(
                     "essentium_block",
-                    () -> BlockEntityType.Builder.of(
+                    () -> ContentRegistrationCompat.blockEntityType(
                             EssentiumBlockEntity::new,
                             ESSENTIUM_BLOCK_BLOCK.get()
-                    ).build(null)
+                    )
             );
 
     public static final RegistrySupplier<MenuType<EssenceInfuserMenu>> ESSENCE_INFUSER_MENU =
@@ -185,25 +186,25 @@ public final class EssenceInfuserContent {
     public static final RegistrySupplier<RecipeSerializer<EssentiumNuggetCompactingRecipe>> ESSENTIUM_NUGGET_COMPACTING_SERIALIZER =
             RECIPE_SERIALIZERS.register(
                     "essentium_nugget_compacting",
-                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumNuggetCompactingRecipe::new)
+                    () -> EssentiumRecipeSerializerCompat.create(EssentiumNuggetCompactingRecipe::new)
             );
 
     public static final RegistrySupplier<RecipeSerializer<EssentiumNuggetUncompactingRecipe>> ESSENTIUM_NUGGET_UNCOMPACTING_SERIALIZER =
             RECIPE_SERIALIZERS.register(
                     "essentium_nugget_uncompacting",
-                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumNuggetUncompactingRecipe::new)
+                    () -> EssentiumRecipeSerializerCompat.create(EssentiumNuggetUncompactingRecipe::new)
             );
 
     public static final RegistrySupplier<RecipeSerializer<EssentiumBlockCompactingRecipe>> ESSENTIUM_BLOCK_COMPACTING_SERIALIZER =
             RECIPE_SERIALIZERS.register(
                     "essentium_block_compacting",
-                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumBlockCompactingRecipe::new)
+                    () -> EssentiumRecipeSerializerCompat.create(EssentiumBlockCompactingRecipe::new)
             );
 
     public static final RegistrySupplier<RecipeSerializer<EssentiumBlockUncompactingRecipe>> ESSENTIUM_BLOCK_UNCOMPACTING_SERIALIZER =
             RECIPE_SERIALIZERS.register(
                     "essentium_block_uncompacting",
-                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumBlockUncompactingRecipe::new)
+                    () -> EssentiumRecipeSerializerCompat.create(EssentiumBlockUncompactingRecipe::new)
             );
 
     private static boolean initialized = false;
@@ -217,7 +218,7 @@ public final class EssenceInfuserContent {
     ) {
         return ITEMS.register(
                 id,
-                () -> new BlockItem(block.get(), new Item.Properties())
+                () -> new BlockItem(block.get(), ContentRegistrationCompat.blockItem(id, new Item.Properties()))
         );
     }
 
@@ -227,6 +228,7 @@ public final class EssenceInfuserContent {
         }
 
         BLOCKS.register();
+        LatentOreItems.register(ITEMS);
         ITEMS.register();
         BLOCK_ENTITIES.register();
         MENUS.register();

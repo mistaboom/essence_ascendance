@@ -1,4 +1,5 @@
 package com.mistaboom.essence_ascendance.crucible;
+import com.mistaboom.essence_ascendance.network.PlayerMessageCompat;
 
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleNetworkService;
 import net.minecraft.core.BlockPos;
@@ -127,7 +128,7 @@ public final class EssenceCrucibleBlock extends Block implements EntityBlock {
                 com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.openRestricted(serverPlayer, crucible);
                 return InteractionResult.CONSUME;
             }
-            player.displayClientMessage(
+            PlayerMessageCompat.send(player,
                     Component.translatable("message.essence_ascendance.crucible_private"),
                     true
             );
@@ -142,23 +143,40 @@ public final class EssenceCrucibleBlock extends Block implements EntityBlock {
         return InteractionResult.CONSUME;
     }
 
+    //? if <26.1.2
     @Override
+    //? if <26.1.2
     protected void onRemove(
+            //? if <26.1.2
             BlockState state,
+            //? if <26.1.2
             Level level,
+            //? if <26.1.2
             BlockPos pos,
+            //? if <26.1.2
             BlockState newState,
+            //? if <26.1.2
             boolean movedByPiston
+    //? if <26.1.2
     ) {
+        //? if <26.1.2
         if (!state.is(newState.getBlock())) {
+            //? if <26.1.2
             if (level.getBlockEntity(pos) instanceof EssenceCrucibleBlockEntity crucible) {
+                //? if <26.1.2
                 crucible.stopChanneling();
+                //? if <26.1.2
                 if (!level.isClientSide) popResource(level, pos,
+                        //? if <26.1.2
                         com.mistaboom.essence_ascendance.machine.MachineProtection.takePickup(crucible));
+            //? if <26.1.2
             }
+        //? if <26.1.2
         }
 
+        //? if <26.1.2
         super.onRemove(state, level, pos, newState, movedByPiston);
+    //? if <26.1.2
     }
     @Override protected java.util.List<ItemStack> getDrops(BlockState state,
             net.minecraft.world.level.storage.loot.LootParams.Builder params) { return java.util.List.of(); }

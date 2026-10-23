@@ -70,15 +70,15 @@ Fully funded Bonus checkpoints return their stored effect fraction exactly, and 
 
 ## Native development scope
 
-The isolated Fabric server is `fabric/build/progression-audit-server`, launched by `:fabric:runProgressionAuditServer`. It binds game and console access to localhost, uses its own `progression-audit-world`, and copies the eight existing Fabric development mod jars and common balance inputs. This is the user's minimal development environment, **not pure vanilla**. Dummy contributes progression data, Moonlight contributes a runtime pack, and other development libraries/UI integrations are installed. The original Fabric/NeoForge run directories, human TOMLs and saved profiles are protected by before/after hashes.
+The isolated Fabric server is `fabric/versions/1.21.1/build/progression-audit-server`, launched by `:fabric:1.21.1:runProgressionAuditServer`. The historical receipt below bound game and console access to localhost, used its own `progression-audit-world`, and copied the eight then-installed Fabric development mod jars and common balance inputs. Those older run contents are archived; new audit runs use the explicit versioned directory. This is the user's minimal development environment, **not pure vanilla**. Dummy contributes progression data, Moonlight contributes a runtime pack, and other development libraries/UI integrations are installed. The original Fabric/NeoForge run directories, human TOMLs and saved profiles are protected by before/after hashes.
 
 The user authorized command-line launches, world creation in the isolated server, rebuilds, validation and iteration, and explicitly accepted Minecraft's EULA for this server. The original Prism instances and human worlds are not test targets. No production JAR deployment is part of this isolated verification.
 
 `tools/verification/native_server_console.py` reads only this server's loopback console settings and does not print its secret. Useful commands:
 
 ```powershell
-.\gradlew.bat :common:check :fabric:build :neoforge:build --continue --console=plain
-.\gradlew.bat :fabric:runProgressionAuditServer --console=plain
+.\gradlew.bat :common:1.21.1:check :fabric:1.21.1:build :neoforge:1.21.1:build --continue --console=plain
+.\gradlew.bat :fabric:1.21.1:runProgressionAuditServer --console=plain
 python tools/verification/native_server_console.py 'essence admin balance rebuild' 'essence debug balance validate'
 python tools/verification/native_server_console.py 'essence test skills effects' 'essence test skills milestones'
 python tools/verification/native_server_console.py stop

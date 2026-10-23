@@ -7,7 +7,6 @@ import com.mistaboom.essence_ascendance.team.PoolId;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 
 import java.math.BigDecimal;
@@ -37,8 +36,8 @@ final class EssenceMultiplayerCommandOutput {
         if (id == null) return EssenceCommandUtil.muted(text("none"));
         String name = MachineOwnerDisplay.playerName(source.getServer(), id);
         if (name.equals("Unknown player")) name = id.toString();
-        return EssenceCommandUtil.value(name).withStyle(style -> style.withHoverEvent(new HoverEvent(
-                HoverEvent.Action.SHOW_TEXT, Component.literal(id.toString()))));
+        return EssenceCommandUtil.value(name).withStyle(style -> style.withHoverEvent(
+                EssenceCommandUtil.hoverText(Component.literal(id.toString()))));
     }
 
     static Component pool(CommandSourceStack source, PoolId pool) {
@@ -46,8 +45,8 @@ final class EssenceMultiplayerCommandOutput {
         Component label = pool.kind() == PoolId.Kind.TEAM
                 ? Component.literal(MachineOwnerDisplay.teamName(source.getServer(), pool))
                 : text("personal_pool", player(source, EssenceSavedData.get(source.getServer()).personalOwner(pool)));
-        return EssenceCommandUtil.value(label).withStyle(style -> style.withHoverEvent(new HoverEvent(
-                HoverEvent.Action.SHOW_TEXT, Component.literal(pool.authority().displayName() + "\n" + pool.id()))));
+        return EssenceCommandUtil.value(label).withStyle(style -> style.withHoverEvent(
+                EssenceCommandUtil.hoverText(Component.literal(pool.authority().displayName() + "\n" + pool.id()))));
     }
 
     static Component readiness(ProviderReadiness readiness) {

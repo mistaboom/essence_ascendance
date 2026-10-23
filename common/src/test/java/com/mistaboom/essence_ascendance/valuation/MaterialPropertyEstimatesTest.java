@@ -6,6 +6,9 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Items;
+//? if >=26.1.2
+/*import net.minecraft.world.item.ToolMaterial;*/
+//? if <26.1.2
 import net.minecraft.world.item.Tiers;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -91,15 +94,21 @@ public final class MaterialPropertyEstimatesTest {
     }
     private static void nativeProperties() {
         Map<TagKey<Block>,List<Holder<Block>>> before = new HashMap<>();
-        BuiltInRegistries.BLOCK.getTags().forEach(pair -> before.put(pair.getFirst(),pair.getSecond().stream().toList()));
+        before.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.BLOCK));
         var blockTags = new HashMap<>(before);
         blockTags.put(ProceduralValuationTags.NEEDS_STONE_TOOL,List.of(Blocks.IRON_ORE.builtInRegistryHolder()));
         blockTags.put(ProceduralValuationTags.NEEDS_IRON_TOOL,List.of(Blocks.DIAMOND_ORE.builtInRegistryHolder(),Blocks.DEEPSLATE_DIAMOND_ORE.builtInRegistryHolder()));
         blockTags.put(ProceduralValuationTags.NEEDS_DIAMOND_TOOL,List.of(Blocks.ANCIENT_DEBRIS.builtInRegistryHolder()));
+        //? if >=26.1.2
+        /*blockTags.put(ToolMaterial.WOOD.incorrectBlocksForDrops(),List.of(Blocks.COPPER_ORE.builtInRegistryHolder()));*/
+        //? if <26.1.2
         blockTags.put(Tiers.WOOD.getIncorrectBlocksForDrops(),List.of(Blocks.COPPER_ORE.builtInRegistryHolder()));
+        //? if >=26.1.2
+        /*blockTags.put(ToolMaterial.NETHERITE.incorrectBlocksForDrops(),List.of(Blocks.COAL_ORE.builtInRegistryHolder()));*/
+        //? if <26.1.2
         blockTags.put(Tiers.NETHERITE.getIncorrectBlocksForDrops(),List.of(Blocks.COAL_ORE.builtInRegistryHolder()));
         try {
-            BuiltInRegistries.BLOCK.bindTags(blockTags);
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, blockTags);
             var items = List.of(Items.IRON_ORE,Items.DIAMOND_ORE,Items.DEEPSLATE_DIAMOND_ORE,Items.DIAMOND,
                     Items.ANCIENT_DEBRIS,Items.COPPER_ORE,Items.COAL_ORE,Items.BEDROCK,Items.PAPER);
             var tags = Map.of("c:ores",List.of("minecraft:iron_ore","minecraft:ancient_debris","minecraft:copper_ore","minecraft:coal_ore","minecraft:bedrock","minecraft:paper"),
@@ -115,7 +124,7 @@ public final class MaterialPropertyEstimatesTest {
             for (String id : List.of("minecraft:copper_ore","minecraft:coal_ore","minecraft:bedrock","minecraft:paper","unregistered:x"))
                 check(!values.containsKey(id), "Unsupported tier, unbreakable, non-block or absent registry item remains unestimated: " + id);
             check(MaterialPropertyEstimates.collect(items,Map.of()).isEmpty(), "Native block identity alone never guesses ore membership");
-        } finally { BuiltInRegistries.BLOCK.bindTags(before); }
+        } finally { com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, before); }
     }
     private static void check(boolean test,String message) { checks++; if (!test) throw new AssertionError(message); }
 }

@@ -8,6 +8,10 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueOutput;*/
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
@@ -34,14 +38,21 @@ public final class LatentOreBlockEntity extends BlockEntity {
         if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
 
+    //? if <26.1.2
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if <26.1.2
         super.saveAdditional(tag, registries);
         if (host != null) tag.put(LatentOreHost.HOST_TAG, LatentOreHost.encode(host));
     }
 
+    //? if >=26.1.2
+    /*@Override protected void saveAdditional(ValueOutput output) { super.saveAdditional(output); if (host != null) output.store(LatentOreHost.HOST_TAG, CompoundTag.CODEC, LatentOreHost.encode(host)); }*/
+
+    //? if <26.1.2
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if <26.1.2
         super.loadAdditional(tag, registries);
         host = LatentOreHost.decode(tag.getCompound(LatentOreHost.HOST_TAG)).orElse(null);
         // Client packet handling uses the same load path as disk. Mark its chunk mesh dirty.
@@ -49,10 +60,18 @@ public final class LatentOreBlockEntity extends BlockEntity {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
 
+    //? if >=26.1.2
+    /*@Override protected void loadAdditional(ValueInput input) { super.loadAdditional(input); host = LatentOreHost.decode(input.read(LatentOreHost.HOST_TAG, CompoundTag.CODEC).orElseGet(CompoundTag::new)).orElse(null); if (level != null && level.isClientSide()) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS); }*/
+
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*return saveCustomOnly(registries);*/
+        //? if <26.1.2
         CompoundTag tag = new CompoundTag();
+        //? if <26.1.2
         saveAdditional(tag, registries);
+        //? if <26.1.2
         return tag;
     }
 

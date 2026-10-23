@@ -179,7 +179,7 @@ public final class EquipmentGatheringService {
                             VIRTUAL_LOOTING_LEVEL_TAG,
                             state.lootingLevel()
                     );
-                    tag.putUUID(
+                    com.mistaboom.essence_ascendance.data.NbtVersionCompat.putUUID(tag,
                             VIRTUAL_LOOT_OWNER_TAG,
                             state.playerId()
                     );
@@ -235,6 +235,22 @@ public final class EquipmentGatheringService {
     /*
      * Loader-facing hook for an item-specific enchantment gameplay query.
      */
+    // Immutable loot/recipe templates carry the same synced virtual levels as a copied stack.
+    // Preserve actual stack identity when available for the authoritative held-stack cache.
+    //? if >=26.1.2 {
+    /*public static int resolveVirtualEnchantmentLevel(net.minecraft.world.item.ItemInstance instance,
+            Holder<Enchantment> enchantment, int vanillaLevel) {
+        if (instance == null || instance.count() <= 0) return vanillaLevel;
+        if (instance instanceof ItemStack stack) return resolveVirtualEnchantmentLevel(stack, enchantment, vanillaLevel);
+        if (instance instanceof net.minecraft.world.item.ItemStackTemplate template)
+            return resolveVirtualEnchantmentLevel(template.create(), enchantment, vanillaLevel);
+        ItemStack snapshot = new ItemStack(instance.typeHolder(), instance.count());
+        var data = instance.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (data != null) snapshot.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, data);
+        return resolveVirtualEnchantmentLevel(snapshot, enchantment, vanillaLevel);
+    }
+    *///? }
+
     public static int resolveVirtualEnchantmentLevel(
             ItemStack stack,
             Holder<Enchantment> enchantment,

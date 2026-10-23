@@ -56,14 +56,19 @@ public final class ConstructionMaterialResolver {
             Recipe<?> recipe = holder.value();
             ItemStack output;
             try {
-                output = recipe.getResultItem(registries);
+                output = RecipeEvidenceCompat.output(recipe, registries);
             } catch (RuntimeException ignored) {
                 continue;
             }
-            if (output == null || output.isEmpty() || output.is(Items.AIR)
+            if (output == null) return List.of();
+            if (output.isEmpty() || output.is(Items.AIR)
                     || output.getItem() != target) continue;
             boolean nativeCrafting = recipe.getClass() == ShapedRecipe.class || recipe.getClass() == ShapelessRecipe.class;
-            if (nativeCrafting && requiredTargetCount(recipe, target) >= output.getCount()) continue;
+            if (nativeCrafting) {
+                int consumedTarget = requiredTargetCount(recipe, target);
+                if (consumedTarget >= output.getCount()) continue;
+                if (consumedTarget > 0) return List.of();
+            }
             // Generic getIngredients() is not a bill for machine/custom recipes: counts and
             // reusable catalysts may be hidden. A known alternative without a proven bill
             // prevents material recovery; it must not cause an expensive route to win.
@@ -89,7 +94,7 @@ public final class ConstructionMaterialResolver {
     private static Map<Item, Double> recipeMaterials(Recipe<?> recipe, Item target, int outputCount) {
         Map<Item, Double> amounts = new LinkedHashMap<>();
         double perOutput = 1.0D / Math.max(1, outputCount);
-        for (Ingredient ingredient : recipe.getIngredients()) {
+        for (Ingredient ingredient : RecipeEvidenceCompat.ingredients(recipe)) {
             Item candidate = guaranteedConsumedMaterial(ingredient);
             if (candidate != null && candidate != target) amounts.merge(candidate, perOutput, Double::sum);
         }
@@ -97,13 +102,13 @@ public final class ConstructionMaterialResolver {
     }
 
     private static Item guaranteedConsumedMaterial(Ingredient ingredient) {
-        if (ingredient == null || ingredient == Ingredient.EMPTY || !completeItemAlternatives(ingredient)) return null;
+        if (RecipeEvidenceCompat.empty(ingredient) || !completeItemAlternatives(ingredient)) return null;
         Item guaranteed = null;
-        for (ItemStack stack : ingredient.getItems()) {
+        for (ItemStack stack : RecipeEvidenceCompat.alternatives(ingredient)) {
             if (stack == null || stack.isEmpty() || stack.is(Items.AIR)) continue;
             Item candidate = stack.getItem();
             // A returned container or reusable catalyst was not consumed as a recoverable unit.
-            if (candidate.hasCraftingRemainingItem() || !knownRemainderContract(candidate)
+            if (RecipeEvidenceCompat.hasCraftingRemainder(candidate) || !knownRemainderContract(candidate)
                     || (guaranteed != null && guaranteed != candidate)) return null;
             guaranteed = candidate;
         }
@@ -150,10 +155,10 @@ public final class ConstructionMaterialResolver {
 
     private static int requiredTargetCount(Recipe<?> recipe, Item target) {
         int count = 0;
-        for (Ingredient ingredient : recipe.getIngredients()) {
-            if (ingredient == null || ingredient == Ingredient.EMPTY || !completeItemAlternatives(ingredient)) continue;
+        for (Ingredient ingredient : RecipeEvidenceCompat.ingredients(recipe)) {
+            if (RecipeEvidenceCompat.empty(ingredient) || !completeItemAlternatives(ingredient)) continue;
             boolean required = false;
-            for (ItemStack candidate : ingredient.getItems()) {
+            for (ItemStack candidate : RecipeEvidenceCompat.alternatives(ingredient)) {
                 if (candidate == null || candidate.isEmpty()) continue;
                 if (candidate.getItem() != target) { required = false; break; }
                 required = true;

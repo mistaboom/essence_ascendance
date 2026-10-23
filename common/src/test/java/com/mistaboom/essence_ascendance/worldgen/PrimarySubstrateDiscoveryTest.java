@@ -60,7 +60,8 @@ public final class PrimarySubstrateDiscoveryTest {
     private static void vanillaHosts() {
         var overworld = discover("minecraft:overworld", vanilla(NoiseGeneratorSettings.OVERWORLD), -64, 320, DEFAULTS);
         check(overworld.enabled() && overworld.hosts().keySet().equals(Set.of(Blocks.STONE, Blocks.DEEPSLATE)), "Overworld primary layers");
-        for (Block incidental : List.of(Blocks.DIORITE, Blocks.ANDESITE, Blocks.GRANITE, Blocks.DIRT, Blocks.BEDROCK, Blocks.IRON_ORE))
+        for (Block incidental : List.of(Blocks.DIORITE, Blocks.ANDESITE, Blocks.GRANITE, Blocks.DIRT,
+                Blocks.BEDROCK, Blocks.IRON_ORE, Blocks.ACACIA_LOG, Blocks.ANDESITE_SLAB, Blocks.BAMBOO_BLOCK))
             check(!overworld.accepts(incidental.defaultBlockState()), "Skip incidental deposit " + incidental);
         check(discover("minecraft:the_nether", vanilla(NoiseGeneratorSettings.NETHER), 0, 256, DEFAULTS).hosts().keySet().equals(Set.of(Blocks.NETHERRACK)), "Nether default host");
         check(discover("minecraft:the_end", vanilla(NoiseGeneratorSettings.END), 0, 256, DEFAULTS).hosts().keySet().equals(Set.of(Blocks.END_STONE)), "End default host");
@@ -192,10 +193,12 @@ public final class PrimarySubstrateDiscoveryTest {
         hosts.add(StringTag.valueOf("minecraft:stone"));
         hosts.add(StringTag.valueOf("minecraft:basalt"));
         tag.put("hosts", hosts);
-        check(LatentOreHostCatalog.load(tag, registries).save(new CompoundTag(), registries).getList("hosts", 8).size() == 2,
+        check(com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(
+                LatentOreHostCatalog.load(tag, registries).save(new CompoundTag(), registries), "hosts", 8).size() == 2,
                 "Current host catalog saves and reloads stable identifiers");
         hosts.add(StringTag.valueOf("INVALID ID"));
-        check(LatentOreHostCatalog.load(tag, registries).save(new CompoundTag(), registries).getList("hosts", 8).size() == 2,
+        check(com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(
+                LatentOreHostCatalog.load(tag, registries).save(new CompoundTag(), registries), "hosts", 8).size() == 2,
                 "Invalid current catalog identity safely omitted");
     }
 

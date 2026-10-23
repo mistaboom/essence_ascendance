@@ -26,6 +26,23 @@ public abstract class ItemStackDurabilityMixin {
 
     @Unique private ServerPlayer essenceAscendance$durabilityOwner;
 
+    //? if >=26.1.2 {
+    /*
+    @com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod(method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V")
+    private void essenceAscendance$wearFrame(int amount, ServerLevel level, LivingEntity entity, Consumer<Item> onBreak,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Void> original) {
+        ItemStack stack = (ItemStack)(Object)this;
+        ServerPlayer player = entity instanceof ServerPlayer server ? server : null;
+        ServerPlayer previous = essenceAscendance$durabilityOwner;
+        boolean fracturedBefore = FracturedEquipmentData.isFractured(stack);
+        essenceAscendance$durabilityOwner = player;
+        try {
+            original.call(amount, level, entity, onBreak);
+            if (!fracturedBefore && FracturedEquipmentData.isFractured(stack) && player != null)
+                player.playSound(stack.getOrDefault(net.minecraft.core.component.DataComponents.BREAK_SOUND, net.minecraft.sounds.SoundEvents.ITEM_BREAK).value());
+        } finally { essenceAscendance$durabilityOwner = previous; }
+    }
+    *///?} else {
     @com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod(
             method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V")
     private void essenceAscendance$wearFrame(int amount, ServerLevel level, ServerPlayer player,
@@ -43,6 +60,8 @@ public abstract class ItemStackDurabilityMixin {
         }
     }
 
+
+    //?}
     @ModifyVariable(
             method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At("HEAD"),
@@ -125,6 +144,9 @@ public abstract class ItemStackDurabilityMixin {
     }
 
     @Redirect(
+            //? if >=26.1.2
+            /*method = "processDurabilityChange(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;)I",*/
+            //? if <26.1.2
             method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At(
                     value = "INVOKE",

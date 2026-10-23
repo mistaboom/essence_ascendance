@@ -93,8 +93,14 @@ public final class NativeGuardRamTest {
             check(StaggerController.apply(f.player, victim, SkillIds.SHIELD_RAM, tuning.staggerTicks(), tuning.staggerMovementMultiplier(), tuning.maximumSweep(), sourceValid), "Reusable stagger applies bounded skill-owned state");
             f.player.stopUsingItem(); StaggerController.tick(victim);
             check(victim.getAttributeValue(Attributes.MOVEMENT_SPEED) < nativeSpeed, "Lowering the exact still-held shield preserves accepted stagger");
+            //? if >=26.1.2
+            /*f.player.getCooldowns().addCooldown(shield, 20); StaggerController.tick(victim);*/
+            //? if <26.1.2
             f.player.getCooldowns().addCooldown(shield.getItem(), 20); StaggerController.tick(victim);
             check(victim.getAttributeValue(Attributes.MOVEMENT_SPEED) == nativeSpeed, "Source shield disable immediately clears accepted stagger");
+            //? if >=26.1.2
+            /*f.player.getCooldowns().removeCooldown(f.player.getCooldowns().getCooldownGroup(shield));*/
+            //? if <26.1.2
             f.player.getCooldowns().removeCooldown(shield.getItem());
             StaggerController.apply(f.player, victim, SkillIds.SHIELD_RAM, tuning.staggerTicks(), tuning.staggerMovementMultiplier(), tuning.maximumSweep(), sourceValid);
             f.player.setItemInHand(hand, shield.copy()); StaggerController.tick(victim);

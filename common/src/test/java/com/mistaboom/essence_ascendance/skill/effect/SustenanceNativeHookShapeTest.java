@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.skill.effect;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.*;
 import java.io.InputStream;
@@ -12,20 +13,9 @@ import java.util.jar.JarFile;
 public final class SustenanceNativeHookShapeTest {
     private static int checks;
     public static void main(String[] args) throws Exception {
-        inspect(name -> SustenanceNativeHookShapeTest.class.getClassLoader().getResourceAsStream(name + ".class"), false);
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) root = root.getParent();
-        if (root == null) throw new AssertionError("Mapped NeoForge cache required");
-        List<Path> jars;
-        try (var files = Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
-            jars = files.filter(p -> p.getFileName().toString().startsWith("neoforge-") && p.toString().endsWith(".jar")
-                    && !p.toString().endsWith("-sources.jar")).toList();
-        }
-        check(!jars.isEmpty(), "both loader artifacts available");
-        for (var path : jars) try (var jar = new JarFile(path.toFile())) {
-            inspect(name -> jar.getInputStream(jar.getJarEntry(name + ".class")), true);
-        }
-        System.out.println("Sustenance native shapes passed: " + checks + " (both mapped loaders; no world)");
+        inspect(name -> TargetTestInputs.nativeClass("fabric", name), false);
+        inspect(name -> TargetTestInputs.nativeClass("neoforge", name), true);
+        System.out.println("Sustenance native shapes passed: " + checks + " (exact target Fabric and NeoForge artifacts; no world)");
     }
     private interface Source { InputStream read(String name) throws Exception; }
     private static ClassNode read(Source source, String name) throws Exception {

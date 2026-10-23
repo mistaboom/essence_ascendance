@@ -72,6 +72,9 @@ public final class NativeGlaiveFoundationTest {
                 player.attack(target);
                 check(target.getHealth() == health, "Real transformed Player.attack cannot damage during stage one");
                 check(player.getAttackStrengthScale(0) == readiness, "Rejected action never enters native cooldown handling");
+                //? if >=26.1.2
+                /*check(stack.use(f.level, player, InteractionHand.MAIN_HAND) == InteractionResult.FAIL, "Right-click unavailable");*/
+                //? if <26.1.2
                 check(stack.use(f.level, player, InteractionHand.MAIN_HAND).getResult() == InteractionResult.FAIL, "Right-click unavailable");
                 check(player.getOffhandItem() == offhand, "Offhand is never moved or cleared");
                 FracturedEquipmentData.markFractured(stack);
@@ -89,7 +92,20 @@ public final class NativeGlaiveFoundationTest {
             }
             check(NativeDamageBonusFloor.contexts(runtime, EssenceStats.MELEE_DAMAGE).stream()
                     .noneMatch(c -> c.profile().equals(EquipmentProfiles.GLAIVE.id())), "Native damage calibration excludes unavailable actions");
-            check(GlaiveTuning.STAB.outwardTicks() == 4 && GlaiveTuning.SWIPE.outwardTicks() == 8, "Fixed outward phase contract");
+            check(GlaiveTuning.STAB.outwardTicks() == 4 && GlaiveTuning.SWIPE.extensionTicks() == 1
+                    && GlaiveTuning.SWIPE.outwardTicks() == 5, "Quick extension and strike phase contract");
+            check(GlaiveTuning.swipeAngle(1)==-60 && GlaiveTuning.swipeAngle(3.5)==0
+                    && GlaiveTuning.swipeAngle(6)==60
+                    && GlaiveTuning.swipeAngle(3)-GlaiveTuning.swipeAngle(2)
+                    >GlaiveTuning.swipeAngle(2)-GlaiveTuning.swipeAngle(1),
+                    "Full arc accelerates through the strike instead of rotating at constant speed");
+            for (double actionsPerSecond : new double[]{.8, 1.2, 4, 40}) {
+                var swipe=GlaiveTuning.SWIPE;
+                int cycle=swipe.extensionTicks()+swipe.outwardTicks()+swipe.retractionTicks()
+                        +swipe.recoveryTicks(actionsPerSecond);
+                int previousCycle=Math.max(14,(int)Math.ceil(EquipmentWeaponService.rateToTicks(actionsPerSecond)));
+                check(cycle==previousCycle,"Snappier stroke retains the existing full-strength attack cadence");
+            }
             check(GlaiveTuning.STAB.recoveryTicks(1.2) > GlaiveTuning.STAB.recoveryTicks(40), "Attack speed reduces recovery");
             check(WeaponActionRuntime.allowsNativeAttack(new ItemStack(Items.IRON_SWORD)), "Ordinary attacks remain enabled");
             System.out.println("NativeGlaiveFoundationTest: " + checks + " registered foundation and native attack rejection checks PASS");
@@ -111,6 +127,9 @@ public final class NativeGlaiveFoundationTest {
             var input = net.minecraft.world.item.crafting.CraftingInput.of(3,3,List.of(ItemStack.EMPTY,new ItemStack(ingot),new ItemStack(ingot),
                     ItemStack.EMPTY,new ItemStack(Items.STICK),new ItemStack(ingot),new ItemStack(Items.STICK),ItemStack.EMPTY,ItemStack.EMPTY));
             check(recipe.matches(input,f.level),"Native crafting recipe matches three ingots and two sticks");
+            //? if >=26.1.2
+            /*var output = recipe.assemble(input);*/
+            //? if <26.1.2
             var output = recipe.assemble(input,f.level.registryAccess());
             check(output.is(AscendanceItems.ASCENDANCE_GLAIVE.get()) && output.getCount()==1
                     && EquipmentTierData.tier(output)==EquipmentTier.LATENT && !SoulboundEquipmentData.isSoulbound(output),

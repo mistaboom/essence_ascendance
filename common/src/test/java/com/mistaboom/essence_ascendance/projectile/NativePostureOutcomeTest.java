@@ -40,6 +40,9 @@ public final class NativePostureOutcomeTest {
         ProjectileNativeInterceptionTest.set(net.minecraft.server.MinecraftServer.class,f.server,"pvp",false);
         check(!PostureService.eligible(p,source,4,false),"Native disabled PvP cannot grant posture outcomes");
         ProjectileNativeInterceptionTest.set(net.minecraft.server.MinecraftServer.class,f.server,"pvp",true);
+        //? if >=26.1.2
+        /*var arrow=f.arrow(net.minecraft.world.entity.projectile.arrow.Arrow.class);*/
+        //? if <26.1.2
         var arrow=f.arrow(net.minecraft.world.entity.projectile.Arrow.class);
         ProjectileOwnership.transferNative(arrow,attacker);
         check(PostureService.eligible(p,p.damageSources().arrow(arrow,attacker),4,false),"Projectile resolves its actual living shooter");
@@ -53,7 +56,7 @@ public final class NativePostureOutcomeTest {
                 "Selected Adaptive Guard is present but inactive before any qualifying hit");
         presentation.replace(initialHud.entries(),initialHud.serverGameTime());
         check(presentation.visibleEntries(initialHud.serverGameTime()).isEmpty(),"Unseeded adaptation has no fabricated visible stacks");
-        p.invulnerableTime=0;check(p.hurt(source,4),"First native adaptation hit accepted");
+        p.invulnerableTime=0;check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(p,source,4),"First native adaptation hit accepted");
         close(PostureService.snapshot(p).incoming().resistance(),0,"First native exact damage ID unmitigated");
         check(PostureService.snapshot(p).stacks()==1,"Native measured positive health hit seeds first stack");
         long firstHitLifecycle=PostureService.snapshot(p).lifecycle();
@@ -68,7 +71,7 @@ public final class NativePostureOutcomeTest {
                 "Shared client presentation visibly opens Adaptive Guard on the first accepted native hit");
         check(PostureService.snapshot(p).lifecycle()==firstHitLifecycle&&PostureService.snapshot(p).stacks()==1,
                 "Runtime HUD snapshot and codec do not reconcile away the active adaptation lifecycle");
-        p.invulnerableTime=0;p.setHealth(20);check(p.hurt(source,4),"Second native adaptation hit accepted");
+        p.invulnerableTime=0;p.setHealth(20);check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(p,source,4),"Second native adaptation hit accepted");
         var s=PostureService.snapshot(p);check(s.stacks()==2,"Second native hit commits exactly one stack");
         close(s.incoming().resistance(),SkillEffectRuntime.resolvedSettings(p).posture().adaptive().resistancePerStack(),"Same native type receives typed generated reduction");
         close(s.incoming().confirmedPrevention(),p.getHealth()-16,"Exact incoming prevention measured before armor");
@@ -124,7 +127,7 @@ public final class NativePostureOutcomeTest {
         p.invulnerableTime=0;p.setHealth(20);p.hurtTime=0;
         int durability=shield.getDamageValue();
         int[] rolls={0};
-        check(!EquipmentDamageService.withPostureTestRoll(()->{rolls[0]++;return 0;},()->p.hurt(source,4)),"Actual transformed native dodge returns false before shield");
+        check(!EquipmentDamageService.withPostureTestRoll(()->{rolls[0]++;return 0;},()->com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(p,source,4)),"Actual transformed native dodge returns false before shield");
         s=PostureService.snapshot(p);var outcome=EquipmentDamageService.lastGuardOutcome(p).orElseThrow();
         check(s.incoming().dodged()&&s.incoming().roll()==0&&rolls[0]==1,"Exactly one scoped deterministic native roll recorded: "+s.incoming()+" calls="+rolls[0]);
         check(!outcome.successfulBlock()&&!outcome.perfect()&&outcome.requestedReflection()==0&&outcome.wardExtension()==0,"Dodge cannot fabricate native block/perfect/reflection/Ward rewards");
@@ -152,7 +155,7 @@ public final class NativePostureOutcomeTest {
         check(ThreatFacingResolver.incoming(p,attacker,settings.bulwark()),"Native responsible attacker in front accepted");
         f.level.occluded=true;check(!ThreatFacingResolver.incoming(p,attacker,settings.bulwark()),"Controlled native LOS terrain rejects hidden threats");f.level.occluded=false;
         p.invulnerableTime=0;p.setHealth(20);p.setDeltaMovement(Vec3.ZERO);p.hurtTime=0;
-        check(p.hurt(source,4),"Bulwark native incoming hit remains accepted");
+        check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(p,source,4),"Bulwark native incoming hit remains accepted");
         s=PostureService.snapshot(p);outcome=EquipmentDamageService.lastGuardOutcome(p).orElseThrow();
         close(s.incoming().resistance(),settings.bulwark().maximumResistance(),"Full frontal meter applies generated resistance");
         check(outcome.attemptedKnockback().lengthSqr()>0&&outcome.acceptedKnockback().lengthSqr()==0,"Correlated actual native knockback attempt is fully rejected at threshold");
@@ -164,7 +167,7 @@ public final class NativePostureOutcomeTest {
             close(PostureService.snapshot(p).meter(),1,"Standing unarmed Bulwark survives the hurt animation on tick "+tick);
             if(p.hurtTime>0)p.hurtTime--;
             if(tick%20==0) {
-                p.invulnerableTime=0;p.setHealth(20);check(p.hurt(source,4),"Repeated unblocked Bulwark hit is accepted");
+                p.invulnerableTime=0;p.setHealth(20);check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(p,source,4),"Repeated unblocked Bulwark hit is accepted");
                 close(PostureService.snapshot(p).incoming().resistance(),settings.bulwark().maximumResistance(),
                         "Repeated frontal hits retain full Bulwark resistance without any shield");
             }
@@ -195,6 +198,9 @@ public final class NativePostureOutcomeTest {
             var display=new SkillEffectHudPresentation();
             com.mistaboom.essence_ascendance.skill.effect.CombatHudActivity.confirmedDefense(p,p.damageSources().mobAttack(zombie));
             display.replace(SkillEffectRuntime.hudSnapshot(p).entries(),f.level.tick);
+            //? if >=26.1.2
+            /*boolean accepted=zombie.doHurtTarget(f.level,p);*/
+            //? if <26.1.2
             boolean accepted=zombie.doHurtTarget(p);
             var result=PostureService.snapshot(p);
             check(result.incoming().chance()==evasive.maximumDodgeChance()&&result.incoming().roll()>=0&&result.incoming().roll()<1,
@@ -228,6 +234,9 @@ public final class NativePostureOutcomeTest {
             if(tick%20!=0)continue;
             var zombie=zombies.get((tick/20)%2);zombie.setPos(p.getX(),p.getY(),p.getZ()+1);p.setHealth(20);
             double before=PostureService.snapshot(p).meter();
+            //? if >=26.1.2
+            /*zombie.doHurtTarget(f.level,p);*/
+            //? if <26.1.2
             zombie.doHurtTarget(p);
             var result=PostureService.snapshot(p);
             if(result.incoming().dodged())sustainedDodges++;
@@ -237,10 +246,22 @@ public final class NativePostureOutcomeTest {
         check(sustainedDodges>0,"Continuous movement between two zombies retains enough charge for repeated native dodge rolls");
         System.out.println("Sustained two-zombie Evasive outcomes: "+sustainedDodges+" dodges in 30 attacks (no recharge/reset between attacks)");
     }
+    //? if >=26.1.2
+    /*private static net.minecraft.world.entity.monster.zombie.Zombie zombie(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {*/
+    //? if <26.1.2
     private static net.minecraft.world.entity.monster.Zombie zombie(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        //? if >=26.1.2
+        /*var zombie=ProjectileNativeInterceptionTest.instance(net.minecraft.world.entity.monster.zombie.Zombie.class);*/
+        //? if <26.1.2
         var zombie=ProjectileNativeInterceptionTest.instance(net.minecraft.world.entity.monster.Zombie.class);
         ProjectileNativeInterceptionTest.initializeEntity(zombie,net.minecraft.world.entity.EntityType.ZOMBIE,f.level,new Vec3(0,0,2),new net.minecraft.world.phys.AABB(-.3,0,1.7,.3,1.95,2.3));
+        //? if >=26.1.2
+        /*ProjectileNativeInterceptionTest.defineData(zombie,net.minecraft.world.entity.monster.zombie.Zombie.class);*/
+        //? if <26.1.2
         ProjectileNativeInterceptionTest.defineData(zombie,net.minecraft.world.entity.monster.Zombie.class);
+        //? if >=26.1.2
+        /*ProjectileNativeInterceptionTest.set(LivingEntity.class,zombie,"attributes",new net.minecraft.world.entity.ai.attributes.AttributeMap(net.minecraft.world.entity.monster.zombie.Zombie.createAttributes().build()));*/
+        //? if <26.1.2
         ProjectileNativeInterceptionTest.set(LivingEntity.class,zombie,"attributes",new net.minecraft.world.entity.ai.attributes.AttributeMap(net.minecraft.world.entity.monster.Zombie.createAttributes().build()));
         ProjectileNativeInterceptionTest.set(LivingEntity.class,zombie,"activeEffects",new java.util.HashMap<>());
         ProjectileNativeInterceptionTest.set(LivingEntity.class,zombie,"useItem",ItemStack.EMPTY);
@@ -269,7 +290,7 @@ public final class NativePostureOutcomeTest {
                     "Bulwark charges through stationary push attempts with a lowered held item: "+held);
             var chargedHud=SkillEffectRuntime.hudSnapshot(p).entries().stream().filter(card->card.id().equals(SkillIds.BULWARK_STANCE)).findFirst().orElseThrow();
             check(!chargedHud.active(),"Holding an item alone never creates combat or reveals the Bulwark card");
-            p.invulnerableTime=0;p.setHealth(20);check(p.hurt(source,4),"Unblocked native hit qualifies equally with a lowered held item: "+held);
+            p.invulnerableTime=0;p.setHealth(20);check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(p,source,4),"Unblocked native hit qualifies equally with a lowered held item: "+held);
             close(PostureService.snapshot(p).incoming().resistance(),settings.bulwark().maximumResistance(),
                     "Pending force with no displacement cannot invalidate incoming Bulwark protection");
             f.level.tick++;groundContact(f);SkillEffectRuntime.tick(p);EquipmentShieldService.tick(p);
@@ -299,6 +320,9 @@ public final class NativePostureOutcomeTest {
         // Real Entity.move sets onGround before this real Block callback cancels downward gravity.
         // The fixture supplies the collision boundary without opening a world or overriding velocity.
         f.player.setDeltaMovement(new Vec3(0,-.0784,0));
+        //? if >=26.1.2
+        /*Blocks.STONE.updateEntityMovementAfterFallOn(f.level,f.player);*/
+        //? if <26.1.2
         Blocks.STONE.updateEntityAfterFallOn(f.level,f.player);
     }
     private static SkillEffectHudSnapshot transmittedHud(ProjectileNativeInterceptionTest.Fixture f) {

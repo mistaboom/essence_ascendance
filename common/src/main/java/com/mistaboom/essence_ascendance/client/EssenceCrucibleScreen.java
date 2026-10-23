@@ -8,6 +8,9 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleStatePayload;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -368,11 +371,19 @@ public final class EssenceCrucibleScreen
     }
 
     @Override
+    //? if >=26.1.2
+    /*public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
     protected void renderBg(
+            //? if <26.1.2
             GuiGraphics graphics,
+            //? if <26.1.2
             float partialTick,
+            //? if <26.1.2
             int mouseX,
+            //? if <26.1.2
             int mouseY
+    //? if <26.1.2
     ) {
         int x = leftPos;
         int y = topPos;
@@ -430,10 +441,17 @@ public final class EssenceCrucibleScreen
     }
 
     @Override
+    //? if >=26.1.2
+    /*protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     protected void renderLabels(
+            //? if <26.1.2
             GuiGraphics graphics,
+            //? if <26.1.2
             int mouseX,
+            //? if <26.1.2
             int mouseY
+    //? if <26.1.2
     ) {
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
@@ -443,6 +461,9 @@ public final class EssenceCrucibleScreen
 
         if (state == null) {
             drawCentered(graphics, EssenceText.term("synchronizing"), 56, MUTED);
+            //? if >=26.1.2
+            /*graphics.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, MUTED, false);
             return;
         }
@@ -492,10 +513,16 @@ public final class EssenceCrucibleScreen
                 statusColor(state)
         );
 
+        //? if >=26.1.2
+        /*graphics.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, MUTED, false);*/
+        //? if <26.1.2
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, MUTED, false);
     }
 
     private void renderVentPopup(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             EssenceCrucibleStatePayload state,
             UiBounds bounds
@@ -549,6 +576,9 @@ public final class EssenceCrucibleScreen
                 textX,
                 cursorY
         );
+        //? if >=26.1.2
+        /*graphics.text(*/
+        //? if <26.1.2
         graphics.drawString(
                 font,
                 EssenceText.gui("crucible.vent_warning"),
@@ -563,6 +593,9 @@ public final class EssenceCrucibleScreen
             int rowY = firstRowY + i * VENT_ROW_HEIGHT;
             Component name = displayName(EssenceCrucibleEssences.ORDERED.get(i));
 
+            //? if >=26.1.2
+            /*graphics.text(*/
+            //? if <26.1.2
             graphics.drawString(
                     font,
                     name,
@@ -705,12 +738,18 @@ public final class EssenceCrucibleScreen
     }
 
     private void drawRightAlignedAbsolute(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             String text,
             int right,
             int y,
             int color
     ) {
+        //? if >=26.1.2
+        /*graphics.text(*/
+        //? if <26.1.2
         graphics.drawString(
                 font,
                 text,

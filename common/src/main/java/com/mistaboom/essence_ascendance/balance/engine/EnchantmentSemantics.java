@@ -80,9 +80,23 @@ public final class EnchantmentSemantics {
             Set<String> supported = new TreeSet<>();
             for (var item : enchantment.getSupportedItems()) {
                 Item value = item.value();
+                //? if >=26.1.2
+                /*ItemStack stack = new ItemStack(value);*/
+                //? if >=26.1.2
+                /*if (stack.has(net.minecraft.core.component.DataComponents.TOOL) && !stack.is(net.minecraft.tags.ItemTags.SWORDS) || value instanceof FishingRodItem || value instanceof ShearsItem) supported.add("gathering");*/
+                //? if >=26.1.2
+                /*else if (stack.has(net.minecraft.core.component.DataComponents.BLOCKS_ATTACKS) || stack.is(net.minecraft.tags.ItemTags.HEAD_ARMOR) || stack.is(net.minecraft.tags.ItemTags.CHEST_ARMOR) || stack.is(net.minecraft.tags.ItemTags.LEG_ARMOR) || stack.is(net.minecraft.tags.ItemTags.FOOT_ARMOR) || stack.getOrDefault(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY).modifiers().stream().anyMatch(modifier -> modifier.attribute().equals(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR) || modifier.attribute().equals(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS))) supported.add("defense");*/
+                //? if >=26.1.2
+                /*else if (value instanceof ProjectileWeaponItem || stack.is(net.minecraft.tags.ItemTags.SWORDS) || stack.has(net.minecraft.core.component.DataComponents.WEAPON) && !stack.has(net.minecraft.core.component.DataComponents.TOOL) || value instanceof TridentItem || value instanceof MaceItem) supported.add("offense");*/
+                //? if >=26.1.2
+                /*else if (stack.has(net.minecraft.core.component.DataComponents.GLIDER)) supported.add("mobility");*/
+                //? if <26.1.2
                 if (value instanceof DiggerItem || value instanceof FishingRodItem || value instanceof ShearsItem) supported.add("gathering");
+                //? if <26.1.2
                 else if (value instanceof ArmorItem || value instanceof ShieldItem) supported.add("defense");
+                //? if <26.1.2
                 else if (value instanceof ProjectileWeaponItem || value instanceof SwordItem || value instanceof TridentItem || value instanceof MaceItem) supported.add("offense");
+                //? if <26.1.2
                 else if (value instanceof ElytraItem) supported.add("mobility");
             }
             if (supported.isEmpty()) return Facts.unknown("No supported positive effect or equipment evidence");

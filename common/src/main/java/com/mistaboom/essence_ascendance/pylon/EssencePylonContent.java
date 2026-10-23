@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.pylon;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -34,12 +35,12 @@ public final class EssencePylonContent {
             BLOCKS.register(
                     "essence_pylon",
                     () -> new EssencePylonBlock(
-                            BlockBehaviour.Properties.of()
+                            ContentRegistrationCompat.block("essence_pylon", BlockBehaviour.Properties.of()
                                     .requiresCorrectToolForDrops()
                                     .strength(3.5F)
                                     .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
                                     .lightLevel(state -> state.getValue(EssencePylonBlock.FOCUS_LIT) ? 9 : 0)
-                                    .pushReaction(PushReaction.BLOCK)
+                                    .pushReaction(PushReaction.BLOCK))
                     )
             );
 
@@ -48,23 +49,23 @@ public final class EssencePylonContent {
                     "essence_pylon",
                     () -> new BlockItem(
                             ESSENCE_PYLON.get(),
-                            new Item.Properties()
+                            ContentRegistrationCompat.blockItem("essence_pylon", new Item.Properties())
                     )
             );
 
     public static final RegistrySupplier<Item> ESSENCE_FOCUS =
             ITEMS.register(
                     "essence_focus",
-                    () -> new EssenceFocusItem(new Item.Properties())
+                    () -> new EssenceFocusItem(ContentRegistrationCompat.item("essence_focus", new Item.Properties()))
             );
 
     public static final RegistrySupplier<BlockEntityType<EssencePylonBlockEntity>> ESSENCE_PYLON_BLOCK_ENTITY =
             BLOCK_ENTITIES.register(
                     "essence_pylon",
-                    () -> BlockEntityType.Builder.of(
+                    () -> ContentRegistrationCompat.blockEntityType(
                             EssencePylonBlockEntity::new,
                             ESSENCE_PYLON.get()
-                    ).build(null)
+                    )
             );
 
     public static final RegistrySupplier<MenuType<EssencePylonMenu>> ESSENCE_PYLON_MENU =

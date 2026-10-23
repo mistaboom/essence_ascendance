@@ -368,6 +368,9 @@ public final class UtilityMaintenanceEffects {
             SkillEffectAttributes.apply(context.player(), Attributes.BLOCK_BREAK_SPEED, id(), miningBonus,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
+            //? if >=26.1.2
+            /*PlayerEssenceData playerData = EssenceSavedData.get(context.player().serverLevel().getServer())*/
+            //? if <26.1.2
             PlayerEssenceData playerData = EssenceSavedData.get(context.player().server)
                     .getPlayerData(context.player().getUUID());
             double armorBonus = 0;

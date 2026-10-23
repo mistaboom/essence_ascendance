@@ -15,6 +15,9 @@ public record LatentOreCatalogPayload(Set<ResourceLocation> hosts) implements Cu
     public static final StreamCodec<RegistryFriendlyByteBuf, LatentOreCatalogPayload> CODEC = StreamCodec.of(
             (buffer, payload) -> {
                 buffer.writeVarInt(payload.hosts.size());
+                //? if >=26.1.2
+                /*payload.hosts.stream().sorted().forEach(buffer::writeIdentifier);*/
+                //? if <26.1.2
                 payload.hosts.stream().sorted().forEach(buffer::writeResourceLocation);
             }, buffer -> {
                 int size = buffer.readVarInt();

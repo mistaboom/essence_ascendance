@@ -2,6 +2,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
 import com.mistaboom.essence_ascendance.equipment.personalized.PersonalizedEquipmentDefinition;
 
@@ -34,16 +35,29 @@ public final class AssetPipeline {
             CanonicalPaletteValues.AWAKENED_METAL, CanonicalPaletteValues.RESONANT_METAL,
             CanonicalPaletteValues.ASCENDANT_METAL, CanonicalPaletteValues.TRANSCENDENT_METAL};
     private final Map<String, byte[]> resources = new LinkedHashMap<>();
+    private final Path profiles;
+    private final String resourceFormat;
+    private final Path authoredResources;
+    private final Set<String> tieredItems = new LinkedHashSet<>();
+    private AssetPipeline(Path profiles, String resourceFormat, Path authoredResources) {
+        this.profiles = profiles;
+        if (!Set.of("1.21", "26.1").contains(resourceFormat))
+            throw new IllegalArgumentException("Unsupported asset resource format: " + resourceFormat);
+        this.resourceFormat = resourceFormat;
+        this.authoredResources = authoredResources;
+    }
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 3) throw new IllegalArgumentException("Expected <art-directory> <generated-resource-root> <work-directory>");
+        if (args.length != 5 && args.length != 7) throw new IllegalArgumentException("Expected <art-directory> <build-directory> <generated-resource-root> <work-directory> <target-personalized-equipment> [<resource-format> <authored-resource-root>]");
         Path art = Path.of(args[0]).toAbsolutePath().normalize();
-        Path build = art.getParent().resolve("common/build").normalize();
-        Path output = buildPath(build, Path.of(args[1]));
-        Path work = buildPath(build, Path.of(args[2]));
+        Path build = Path.of(args[1]).toAbsolutePath().normalize();
+        Path output = buildPath(build, Path.of(args[2]));
+        Path work = buildPath(build, Path.of(args[3]));
         if (output.startsWith(work) || work.startsWith(output))
             throw new IllegalArgumentException("Resource and intermediate directories must be separate");
-        new AssetPipeline().generate(art, output, work);
+        new AssetPipeline(Path.of(args[4]).toAbsolutePath().normalize(),
+                args.length == 7 ? args[5] : "1.21",
+                args.length == 7 ? Path.of(args[6]).toAbsolutePath().normalize() : null).generate(art, output, work);
     }
 
     private void generate(Path art, Path output, Path work) throws Exception {
@@ -92,6 +106,7 @@ public final class AssetPipeline {
                 throw new IllegalArgumentException("BBModels missing from asset-manifest.json: " + actual);
             }
         }
+        if (resourceFormat.equals("26.1")) clientItemDefinitions();
         // Publish only after every source, texture, model and bake has validated successfully.
         sync(output);
         Files.writeString(work.resolve("resource-index.json"), JSON.toJson(resources.keySet()) + "\n");
@@ -172,6 +187,7 @@ public final class AssetPipeline {
     private void itemModels(JsonObject item) {
         String id = item.get("id").getAsString();
         boolean tiered = item.get("tiered").getAsBoolean();
+        if (tiered) tieredItems.add(id);
         JsonArray states = item.getAsJsonArray("states");
         if (states.isEmpty() || !states.get(0).getAsJsonObject().get("suffix").getAsString().isEmpty())
             throw new IllegalArgumentException("First item state must be the idle state: " + id);
@@ -216,6 +232,138 @@ public final class AssetPipeline {
             root.add("overrides", overrides);
             model("item/" + id, root);
         }
+    }
+
+    /** Keep authored 1.21 model/override art while expressing its selection in 26.1 client items. */
+    private void clientItemDefinitions() throws IOException {
+        if (authoredResources == null) throw new IllegalArgumentException("26.1 resource format requires authored client models");
+        String modelPrefix = ROOT + "models/item/";
+        Map<String, JsonObject> roots = new LinkedHashMap<>();
+        for (var entry : resources.entrySet()) {
+            String path = entry.getKey();
+            if (path.startsWith(modelPrefix) && path.endsWith(".json")
+                    && !path.substring(modelPrefix.length()).contains("/"))
+                roots.put(path.substring(modelPrefix.length(), path.length() - 5),
+                        JsonParser.parseString(new String(entry.getValue(), StandardCharsets.UTF_8)).getAsJsonObject());
+        }
+        Path staticRoot = authoredResources.resolve("assets").resolve(NAMESPACE).resolve("models/item");
+        try (var files = Files.list(staticRoot)) {
+            for (Path file : files.filter(path -> path.getFileName().toString().endsWith(".json")).toList()) {
+                String name = file.getFileName().toString();
+                String id = name.substring(0, name.length() - 5);
+                if (roots.putIfAbsent(id, JsonParser.parseString(Files.readString(file)).getAsJsonObject()) != null)
+                    throw new IllegalArgumentException("Duplicate generated/authored root item model: " + id);
+            }
+        }
+        for (var entry : roots.entrySet()) {
+            String id = entry.getKey();
+            JsonObject old = entry.getValue();
+            JsonObject model = clientModel(NAMESPACE + ":item/" + id, id);
+            if (tieredItems.contains(id)) {
+                // The legacy flat override list repeats the tier predicate for every state.
+                // Dispatch by tier once, then by action state inside that tier; this also
+                // keeps the client-item JSON linear in the number of authored models.
+                JsonObject tierDispatch = new JsonObject();
+                tierDispatch.addProperty("type", "minecraft:range_dispatch");
+                tierDispatch.addProperty("property", NAMESPACE + ":tier");
+                JsonArray tierEntries = new JsonArray();
+                for (int tier = 0; tier < TIERS.size(); tier++) {
+                    String tierPrefix = NAMESPACE + ":item/tier/" + TIERS.get(tier) + "/" + id;
+                    JsonObject tierModel = clientModel(tierPrefix, id);
+                    for (var value : old.getAsJsonArray("overrides")) {
+                        JsonObject override = value.getAsJsonObject();
+                        String selectedModel = override.get("model").getAsString();
+                        if (!selectedModel.startsWith(tierPrefix) || selectedModel.equals(tierPrefix)) continue;
+                        JsonObject predicate = override.getAsJsonObject("predicate").deepCopy();
+                        predicate.remove(NAMESPACE + ":tier");
+                        tierModel = applyPredicates(tierModel, clientModel(selectedModel, id), predicate);
+                    }
+                    if (tier == 0) tierDispatch.add("fallback", tierModel);
+                    else {
+                        JsonObject branch = new JsonObject();
+                        branch.addProperty("threshold", tier / 5.0);
+                        branch.add("model", tierModel);
+                        tierEntries.add(branch);
+                    }
+                }
+                tierDispatch.add("entries", tierEntries);
+                model = tierDispatch;
+            } else if (old.has("overrides")) {
+                for (var value : old.getAsJsonArray("overrides")) {
+                    JsonObject override = value.getAsJsonObject();
+                    model = applyPredicates(model, clientModel(override.get("model").getAsString(), id),
+                            override.getAsJsonObject("predicate"));
+                }
+            }
+            JsonObject definition = new JsonObject();
+            definition.add("model", model);
+            add("items/" + id + ".json", (JSON.toJson(definition) + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private JsonObject applyPredicates(JsonObject fallback, JsonObject selected, JsonObject predicates) {
+        for (var predicate : predicates.entrySet()) {
+            String property = predicate.getKey();
+            if (!property.contains(":")) property = "minecraft:" + property;
+            if (property.startsWith("minecraft:"))
+                property = NAMESPACE + ":" + property.substring("minecraft:".length());
+            JsonObject dispatch = new JsonObject();
+            dispatch.addProperty("type", "minecraft:range_dispatch");
+            dispatch.addProperty("property", property);
+            dispatch.add("fallback", fallback);
+            JsonObject branch = new JsonObject();
+            branch.add("threshold", predicate.getValue().deepCopy());
+            branch.add("model", selected);
+            JsonArray branches = new JsonArray();
+            branches.add(branch);
+            dispatch.add("entries", branches);
+            selected = dispatch;
+        }
+        return selected;
+    }
+
+    private JsonObject clientModel(String model, String itemId) {
+        JsonObject result = new JsonObject();
+        if (itemId.equals("ascendance_shield")) {
+            result.addProperty("type", "minecraft:special");
+            result.addProperty("base", model);
+            JsonObject renderer = new JsonObject();
+            renderer.addProperty("type", NAMESPACE + ":ascendance_shield");
+            result.add("model", renderer);
+            return result;
+        }
+        String machineKind = switch (itemId) {
+            case "essence_crucible" -> "crucible";
+            case "essence_pylon" -> "pylon";
+            case "essence_infuser" -> "infuser";
+            case "ascendance_nexus" -> "nexus";
+            case "essence_focus" -> "focus";
+            default -> null;
+        };
+        if (machineKind != null) {
+            result.addProperty("type", "minecraft:special");
+            result.addProperty("base", model);
+            JsonObject renderer = new JsonObject();
+            renderer.addProperty("type", NAMESPACE + ":machine_item");
+            renderer.addProperty("kind", machineKind);
+            result.add("model", renderer);
+            return result;
+        }
+        result.addProperty("type", "minecraft:model");
+        result.addProperty("model", model);
+        String tintFamily = tieredItems.contains(itemId) || itemId.equals("ascendance_shield")
+                ? "equipment" : itemId.startsWith("essentium_") || itemId.startsWith("latent_") ? "carrier" : null;
+        if (tintFamily != null) {
+            JsonArray tints = new JsonArray();
+            int count = tintFamily.equals("equipment") ? 5 : 2;
+            for (int layer = 0; layer < count; layer++) {
+                JsonObject tint = new JsonObject();
+                tint.addProperty("type", NAMESPACE + ":" + tintFamily + "_layer_" + layer);
+                tints.add(tint);
+            }
+            result.add("tints", tints);
+        }
+        return result;
     }
 
     private void blockModels(JsonObject block) {
@@ -266,6 +414,26 @@ public final class AssetPipeline {
         try {
             AscendanceArmorGenerator.main(new String[]{source.toString(), scratch.toString(), masks.toString()});
             collect(scratch);
+            if (resourceFormat.equals("26.1")) {
+                // The 26 equipment asset resolves its default layer through these native paths.
+                // The client extension selects the same authored atlas for each actual slot and tier.
+                for (String tier : TIERS) {
+                    for (String piece : List.of("helmet", "chestplate", "boots")) {
+                        byte[] art = resources.get(ROOT + "textures/armor/ascendance/generated/"
+                                + piece + "_" + tier + ".png");
+                        if (art == null) throw new IOException("Missing generated armor texture: " + piece + "_" + tier);
+                        add("textures/entity/equipment/humanoid/ascendance/generated/"
+                                + piece + "_" + tier + ".png", art);
+                        add("textures/entity/equipment/humanoid_baby/ascendance/generated/"
+                                + piece + "_" + tier + ".png", art);
+                    }
+                    byte[] leggings = resources.get(ROOT + "textures/armor/ascendance/generated/leggings_"
+                            + tier + ".png");
+                    if (leggings == null) throw new IOException("Missing generated leggings texture: " + tier);
+                    add("textures/entity/equipment/humanoid_leggings/ascendance/generated/leggings_"
+                            + tier + ".png", leggings);
+                }
+            }
         } finally {
             deleteScratch(scratch);
         }
@@ -285,7 +453,6 @@ public final class AssetPipeline {
                 add(bake.get("output").getAsString()+"/"+TIERS.get(tier)+".png",encoded.toByteArray());
             }
             if (bake.has("personalizedItem")) {
-                Path profiles = art.getParent().resolve("common/src/main/resources/data/essence_ascendance/personalized_equipment.json");
                 try (var reader = Files.newBufferedReader(profiles, StandardCharsets.UTF_8)) {
                     for (var profile : PersonalizedEquipmentDefinition.read(reader)) {
                         if (!profile.itemId().equals(bake.get("personalizedItem").getAsString())) continue;

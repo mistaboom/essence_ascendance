@@ -18,6 +18,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Item;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.phys.EntityHitResult;
 import java.util.List;
@@ -223,7 +226,7 @@ public final class NativeMeleeBonusTest {
                 arrow.setBaseDamage(2); arrow.setDeltaMovement(0, 0, 3); arrow.setOwner(player);
                 EquipmentWeaponService.withRangedShotContext(player, launch, launch.fullDrawTicks(), 20,
                         () -> EquipmentWeaponService.configureRangedProjectile(player, arrow, 3));
-                double launchDamage = arrow.getBaseDamage() * arrow.getDeltaMovement().length();
+                double launchDamage = com.mistaboom.essence_ascendance.verification.ArrowTestCompat.baseDamage(arrow) * arrow.getDeltaMovement().length();
                 check(Math.abs(launchDamage - state.finalDamage()) < 1e-6,
                         "Real arrow launch applies flat damage once and speed compensation does not multiply it");
                 f.level.entities.remove(arrow);
@@ -232,7 +235,15 @@ public final class NativeMeleeBonusTest {
         }
         var state = EquipmentWeaponService.evaluateMagic(player, stack);
         var bolt = new MagicBoltEntity(player, state.finalDamage(), 1);
+        //? if >=26.1.2
+        /*var output = net.minecraft.world.level.storage.TagValueOutput.createWithContext(new net.minecraft.util.ProblemReporter.Collector(), player.registryAccess());*/
+        //? if >=26.1.2
+        /*bolt.addAdditionalSaveData(output);*/
+        //? if >=26.1.2
+        /*var stored = output.buildResult();*/
+        //? if <26.1.2
         var stored = new net.minecraft.nbt.CompoundTag();
+        //? if <26.1.2
         bolt.addAdditionalSaveData(stored);
         check(stored.getDouble("LaunchDamage") == state.finalDamage(), "Magic launch snapshots additive damage exactly once");
         target.invulnerableTime = 0; target.setHealth(1000); target.setDeltaMovement(Vec3.ZERO);

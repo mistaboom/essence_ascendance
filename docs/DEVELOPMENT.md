@@ -10,31 +10,268 @@ The root README is the shared player-facing project description. Keep build,
 publishing, and maintainer instructions in `docs/` so they do not appear in mod
 store descriptions.
 
-With Java 21 installed, build and check both loader variants:
+Use Java 25 for Gradle. The 1.21.1 targets independently use a Java 21 toolchain;
+26.1.2 uses Java 25. Build and check all four production variants:
 
 ```powershell
-./gradlew.bat :common:check :fabric:build :neoforge:build
+./gradlew.bat :checkSupportedTargets
 ```
 
 On macOS/Linux, use `bash gradlew` instead of `./gradlew.bat`.
-Production jars are written to `fabric/build/libs` and `neoforge/build/libs`.
+Production JARs are written to each loader's `versions/<minecraft>/build/libs`.
+The four exact task provider paths, Java levels and hashes are recorded in
+`build/production-artifacts-all.json`. The 1.21.1-only release manifest remains
+available through `:writeProduction1211Manifest`.
 
-## Isolated team development in IntelliJ
+The independent audit on 2026-10-22 completed a fresh `checkSupportedTargets`
+gate: both normal common suites and all four production archive audits passed
+(273 tasks, 272 executed). Exact packaged jars also passed server startup,
+saved-profile reuse and dimension save/shutdown. Human client/world scenarios,
+live multiplayer and remote CI for the unpushed changes remain pending. The latest
+auxiliary `stonecutter-multiversion/VALIDATION.md` section records current hashes,
+staging, native fixture scope and the manual acceptance checklist.
 
-Refresh the Gradle project to generate the `Teams baseline` and `Teams ftb` server,
-client 1, and client 2 run configurations for each loader. These use the normal
-Minecraft/Architectury initialization and existing Java 21 target. Launch graphical
-clients through IntelliJ. Each client has its own username, UUID, and working
-directory; keep the generated identity arguments when running both together.
+## Stonecutter foundation and recovery (2026-10-20)
 
-| Mode | Working directories, relative to the loader project |
+`gradle/targets.json` defines the four implemented Minecraft/loader pairs, dependency
+profiles, native API source selections, resource formats, access requirements and Java levels.
+Both 1.21.1 pairs pass their normal builds and common checks. NeoForge 26.1.2 has a real production JAR, a packaged
+dedicated-server world, a passing full normal common check, and headless
+transfer and membership fixture assertions. Its Glaive OpenGL fixture passes all
+71 captures, its guard initialization probe passes transformed-hook checks, and its
+registry-bound projectile server probe passes native arrow/attachment/physics checks.
+Functional client movement and projectile presentation still need a joined world.
+Fabric 26.1.2 now has a real production JAR, packaged dedicated-server world,
+isolated integrated-client world join with and without JEI, JEI recipe/ingredient
+indexing, and a packaged FTB Teams availability check. Manual in-world visual,
+input and multiplayer scenario review remains open. See the auxiliary
+Stonecutter handoff for exact evidence and limits.
+`gradle/production-targets.gradle` binds those definitions to actual archive task
+providers. The 1.21.1 providers are `remapJar`; 26.1.2 uses no-remap `shadowJar`.
+Explicit node tasks and root production aliases do not depend on the
+IDE active version. Keep Gradle operations sequential, including active-version
+switches; `org.gradle.parallel=false` also serializes tasks inside an invocation.
+
+Shared gameplay, GUI composition, visual calculations, resources and tests are
+authored in `common/src/main` and `common/src/test`. Optional authored source
+roots selected by `versions.<minecraft>.nativeSources` in `gradle/targets.json`
+hold only native APIs that cannot compile across versions. The current API roots
+are `common/src/1.21.1` and `common/src/26.1.2`, with matching loader roots. A
+compatible future target reuses those roots directly; their names identify the
+API implementation, not an obligation to copy a directory for every release.
+These versioned `src` directories are source inputs, including currently untracked migration
+files. Stonecutter's generated projections instead live under
+`<module>/versions/<minecraft>/build/generated`. Use `//?` conditions for
+small API differences and keep common behavior in one maintained owner.
+For example, `LatentOreSprites` owns atlas preparation for both versions;
+Stonecutter selects the changed model resolver and image signatures.
+Loader constants are `common`, `fabric`, `neoforge`.
+
+## Maintaining another target
+
+1. **Declare real dependencies and support.** `gradle/targets.json` owns Minecraft
+   dependency profiles, Java levels, loader coordinates, implementation flags and
+   production archive task names. Add release targets to both `targets` and
+   `release.requiredTargetIds`; staging rejects a mismatch. `nativeSources` selects existing API roots per
+   module; `resourceFormat` selects the actual recipe/item/mixin projection;
+   `nativeAccess` declares loader access-resource requirements. `settings.gradle`
+   derives version nodes and loader branches from the catalog. Plugin versions live in `stonecutter.gradle.kts`. Verify the
+   actual dependency APIs before marking a target implemented; successful resolution
+   alone does not establish compatibility. Do not add speculative profiles.
+
+2. **Select the native build.** Root `build.gradle` selects Loom's remapped or
+   unobfuscated configuration from `profile.loom`, applies the declared Java toolchain
+   and supplies each loader's exact common project. `gradle/native-sources.gradle`
+   attaches each selected API root's `java`, `resources`, `test/java` and
+   `test/resources` directories to every module through one maintained implementation.
+   Selected native roots compile and copy resources verbatim: Stonecutter conditions
+   there are only comments. Put conditional shared code in the projected `src/main`
+   or `src/test` roots, or select a disjoint native implementation explicitly.
+   All authored shared feature code continues through `src/main` and `src/test`. Generated projections
+   and outputs belong under `versions/<minecraft>/build`, not authored source.
+   Add the two small `.run/Minecraft ... Client/Server.run.xml` IDE entries for
+   the target's exact tasks. `verifyDevelopmentRuns`, included in the normal gate,
+   rejects missing, duplicate or wrong-target IDE entries against the catalog.
+
+3. **Reuse behavior before adding native code.** Compare the new native method
+   signatures, event order, cancellation, item components, serialization and render
+   phases with the existing implementation. Reuse shared controllers and state
+   directly when those contracts match. Small signature differences belong in the
+   existing Stonecutter branch; larger native APIs belong in the existing native
+   source selection. A compatible target selects the same catalog `nativeSources`
+   entries; copying feature services or entire native folders is not a porting step.
+   Additional roots must contain disjoint adapters. The source-ownership gate rejects
+   duplicate Java paths, and resource processing rejects duplicate resources. Use
+   a small compile-time branch or split the genuinely changed API boundary instead
+   of hiding overrides in competing folders. Common code compiles against the shared Minecraft API for each version; loader-specific
+   patched signatures belong at loader boundaries. For example, NeoForge's 26 sweep overload
+   includes an AABB argument absent from vanilla/Fabric.
+
+   The remaining boundaries include native render extraction/submission, item-model
+   registration (`ItemModelRegistration1211` versus 26 native codecs), block-entity
+   value input/output, loader transfer transactions and entity attachments. The
+   shared lifecycle, recovery, tooltip, JEI, combat, guard, emission and hand/HUD
+   hooks are registered once in `essence_ascendance.mixins.json`. Anvil/enchanting
+   label policy and machine post-load normalization also have single common owners.
+   NeoForge's extra sprint-key, silent equipment update and damage-container cleanup
+   remain narrow loader additions. `CONTRACT.md` in the auxiliary handoff
+   contains the full boundary inventory.
+
+4. **Select resources and actual archives.** Module resource tasks select metadata,
+   ingredients and access resources. `gradle/mixin-resources.gradle` projects the
+   native mixin lists and declared Java compatibility using structured JSON; it never
+   removes a hook merely because a class is missing. Add an explicitly justified
+   native replacement there when needed. `gradle/assets.gradle` imports the existing
+   art into target-local outputs. `gradle/production-targets.gradle` binds each target
+   to its real archive provider. Use `production<TargetId>Jar`,
+   `assetJarInvariants<TargetId>` or the Minecraft aggregate; never choose a warm
+   cache entry or a JAR by directory glob.
+
+5. **Keep checks and publication tied to the catalog.** `checkSupportedTargets`
+   selects the normal common checks for implemented versions, all production
+   providers and Pack Tester regression. `gradle/test-inputs.gradle` supplies exact
+   resolved native JARs, selected sources and compiled output directories. Native
+   fixture entrypoints remain explicit where their lifecycle or API differs, and
+   their worlds remain target-local. Expensive generation/replay suites stay opt-in.
+   Pack Tester reads the catalog and stays a standalone Java 21 application.
+
+   `tools/release/prepare.py` stages every catalog target together from the exact
+   provider receipt. It verifies paths, hashes, native metadata and Java levels,
+   then exports validated variants and Java toolchains for the publishing workflow.
+   A new loader also needs its real build/entrypoint/lifecycle integration,
+   Stonecutter loader constant, metadata validator and `release.publication` IDs.
+   Validators explicitly reject unknown loaders until that support is implemented.
+   A new loader or a Minecraft profile supporting only one loader also requires
+   reviewing existing Fabric/NeoForge native parity checks and their fixture inputs;
+   catalog selection alone cannot establish those test contracts. See
+   `docs/RELEASING.md` for current paths, hashes and commands.
+
+6. **Verify before advertising support.** For a fresh gate, first run
+   `./gradlew.bat :cleanProductionOutputs --console=plain` by itself, then
+   `./gradlew.bat :checkSupportedTargets --console=plain`. The clean task
+   removes generated/compiler/archive outputs while preserving fixture worlds, run
+   directories, dependency caches and root audit receipts. Do not use root `clean`
+   to clear a workspace containing verification evidence. Also run
+   the relevant existing native fixtures for the exact target, and
+   `python -m unittest discover -s tools/release -p "test_*.py"`. Build the original
+   Minecraft version, the new version, then the original again using exact production
+   aliases; compare source/resource inputs and archive hashes. Exercise packaged
+   server startup plus save/reload and packaged client/world behavior. Use lightweight
+   two-client runs when network or observer behavior changes. Record compilation,
+   native fixtures, packaged startup, world interaction, visuals, multiplayer and
+   persistence separately. A codec test or early initialization exit cannot substitute
+   for a live world or multiplayer result. Update the contract, passdown, validation
+   ledger and release selection only to the level the evidence establishes.
+
+Keep the editor-active authored source at 1.21.1 during production selection. The
+public Stonecutter editor switch copies projections back into authored files, and
+the current one-way API substitutions do not provide a lossless editor round trip.
+Exact version-node tasks provide independent build selection without that mutation.
+
+## Current run folders and IntelliJ entries
+
+The run dropdown has eight `Minecraft <version> <loader> Client/Server` entries
+plus `Essence Ascendance — Pack Tester`. All four client/server pairs select their
+exact version nodes. The Fabric 26.1.2 client has entered an isolated world with
+and without official JEI 29.47.0.111; JEI registered its recipes and indexed
+ingredients. The Fabric 26.1.2 production archive and packaged dedicated server
+also pass. Manual visual and multiplayer scenario review remains separate.
+Refreshing Gradle does not add duplicate Loom or team configurations; headless
+fixtures and special multiplayer tasks stay in Gradle.
+
+| Target | Game directory | Production JAR directory |
+| --- | --- | --- |
+| 1.21.1 Fabric | `fabric/versions/1.21.1/run` | `fabric/versions/1.21.1/build/libs` |
+| 1.21.1 NeoForge | `neoforge/versions/1.21.1/run` | `neoforge/versions/1.21.1/build/libs` |
+| 26.1.2 Fabric | `fabric/versions/26.1.2/run` | `fabric/versions/26.1.2/build/libs` |
+| 26.1.2 NeoForge | `neoforge/versions/26.1.2/run` | `neoforge/versions/26.1.2/build/libs` |
+
+Put optional mods in the chosen game directory's `mods` folder. Its `saves`,
+`config`, `screenshots`, and `logs` folders belong to that target. Gradle already
+provides the required loader, Architectury, and Fabric API dependencies; do not
+duplicate them in `mods`. The current local Fabric 1.21.1 run has JEI 19.43.0.395;
+NeoForge 26.1.2 has JEI 29.47.0.111. Optional mods remain separate from the EA JAR.
+
+The obsolete unversioned loader run folders, module build outputs and module
+caches were archived on 2026-10-20 under the auxiliary handoff folder's
+`legacy-project-archive-2026-10-20`. The archive preserves old worlds, settings,
+screenshots and mod collections together; `archive-manifest.json` maps their
+original paths. Those directories are no longer launch or output locations.
+Root `versions/` is Stonecutter infrastructure, not another game directory.
+Root `build/` holds current verification receipts and isolated fixtures.
+Pack Tester keeps its standalone build under `pack-tester/build` and its local
+settings under `.pack-tester`.
+
+## Build and fixture commands
+
+```powershell
+# The normal gate includes the custom JavaExec suites and per-JAR asset checks.
+./gradlew.bat :common:1.21.1:check :fabric:1.21.1:build :neoforge:1.21.1:build :assetJarInvariants :pack-tester:regression :writeProduction1211Manifest
+# Ordinary development; select one loader explicitly.
+./gradlew.bat :fabric:1.21.1:runClient
+./gradlew.bat :neoforge:1.21.1:runClient
+./gradlew.bat :fabric:26.1.2:runClient
+./gradlew.bat :neoforge:26.1.2:runClient
+./gradlew.bat :production2612FabricJar :production2612NeoForgeJar :assetJarInvariants2612
+# Normal 26 common checks audit both target distributables.
+./gradlew.bat :common:26.1.2:check
+# Initialization-only native fixtures; run each command separately.
+./gradlew.bat -I gradle/membership-native-hooks.init.gradle :fabric:1.21.1:runServer
+./gradlew.bat -I gradle/membership-native-hooks.init.gradle :neoforge:1.21.1:runServer
+./gradlew.bat -I gradle/projectile-native-hooks.init.gradle :fabric:1.21.1:runServer
+./gradlew.bat -I gradle/projectile-native-hooks.init.gradle :neoforge:1.21.1:runClient
+./gradlew.bat -I gradle/guard-movement-native-hooks.init.gradle :fabric:1.21.1:runClient
+./gradlew.bat -I gradle/guard-movement-native-hooks.init.gradle :neoforge:1.21.1:runClient
+./gradlew.bat -I gradle/glaive-visual.init.gradle :fabric:1.21.1:runClient
+./gradlew.bat -I gradle/glaive-visual.init.gradle :neoforge:1.21.1:runClient
+# 26 native fixtures; guard and Glaive client probes stop before a gameplay world.
+./gradlew.bat -I gradle/membership-native-hooks.init.gradle :fabric:26.1.2:runServer
+./gradlew.bat -I gradle/projectile-native-hooks.init.gradle :fabric:26.1.2:runServer
+./gradlew.bat -I gradle/fabric-entity-presentation-2612.init.gradle :fabric:26.1.2:runServer
+./gradlew.bat -I gradle/guard-movement-native-hooks.init.gradle :fabric:26.1.2:runClient
+./gradlew.bat -I gradle/glaive-visual.init.gradle :fabric:26.1.2:runClient
+./gradlew.bat -I gradle/fabric-world-join-2612.init.gradle :fabric:26.1.2:runClient
+./gradlew.bat -I gradle/membership-native-hooks.init.gradle :neoforge:26.1.2:runServer
+./gradlew.bat -I gradle/projectile-native-hooks.init.gradle :neoforge:26.1.2:runServer
+./gradlew.bat -I gradle/guard-movement-native-hooks.init.gradle :neoforge:26.1.2:runClient
+./gradlew.bat -I gradle/glaive-visual.init.gradle :neoforge:26.1.2:runClient
+```
+
+Normal loader runs use `<loader>/versions/<version>/run`. Explicit fixtures use
+`<loader>/versions/<version>/build/native-fixtures`; fixture common archives are
+separate from production common archives. Native shape/source suites receive the
+exact sibling project's mapped dependency and source/compiler output providers.
+Do not search a shared cache for a convenient native JAR. Use one fixture init
+script per invocation. The 26 Glaive visual fixtures capture from the loaded title
+screen without entering a gameplay world; they do not verify in-world player or
+observer animation. The 26 membership and transfer probes run after registry
+binding in disposable server worlds and stop early after their assertions. Other
+fixtures may exit during initialization. An early fixture exit is not a normal
+world session, multiplayer verification or visual approval.
+
+The dated sections below preserve historical receipts and old command names.
+Use the explicit versioned commands above for the current structure. Current
+membership supports native and FTB Teams, one active Crucible source per player,
+and multiple consumers per physical source. Historical OpenPAC and machine
+adoption/privatization controls are removed.
+
+## Isolated team development
+
+Special team runs remain Gradle tasks, for example
+`:fabric:1.21.1:runTeamBaselineServer`, `runTeamBaselineClientOne`, and
+`runTeamBaselineClientTwo` on that same node. Replace `Baseline` with `Provider`
+for FTB, and select the loader/version explicitly. They use the target's normal
+Minecraft initialization and Java toolchain. Each client has its own username,
+UUID and directory. These tasks do not add entries to IntelliJ's ordinary run
+dropdown.
+
+| Mode | Working directories, relative to the loader's `versions/1.21.1` node |
 | --- | --- |
 | Provider-free baseline | `run/teams/baseline/server`, `client-1`, `client-2` |
 | Provider runs (default FTB) | `run/teams/ftb/server`, `client-1`, `client-2` |
 
-Set the Gradle project property `teamDevProvider=openpac` or `teamDevProvider=both`
-and refresh Gradle to select a separate provider directory and generated run names.
-The baseline configurations always remain available. Install optional mods and
+The supported optional provider is FTB Teams. The baseline configurations always
+remain available. Install optional mods and
 their required dependencies manually in the selected run's own `mods` folder;
 the build adds only optional compile APIs, never provider runtime dependencies. Keep baseline folders minimal. Existing
 main development runs and installed mods are untouched. Do not copy a financial
@@ -45,6 +282,11 @@ directory and configure its port/online identity mode deliberately. Join the
 server with both clients through IntelliJ; separate directories alone do not
 prove distinct server-side identities. Confirm both UUIDs in the server before
 testing financial behavior. Use different ports for simultaneous servers.
+
+## Historical stage 5 provider and machine notes
+
+The following dated implementation notes retain old task names and removed
+provider/machine controls. Use the current Stonecutter and gameplay guidance above.
 
 Stage 5 provides native membership commands and optional FTB Teams/OpenPAC adapters using
 the same exact reservoir service, capabilities, and settled-roster reconciler.

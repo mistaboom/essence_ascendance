@@ -190,6 +190,9 @@ public final class EssenceTetherVisuals {
         double length = direction.length();
         if (length < 0.08) return;
 
+        //? if >=26.1.2
+        /*Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().position()*/
+        //? if <26.1.2
         Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
                 .subtract(Vec3.atLowerCornerOf(origin));
         double distanceSquared = distanceToSegmentSquared(camera, stream.start(), stream.end());

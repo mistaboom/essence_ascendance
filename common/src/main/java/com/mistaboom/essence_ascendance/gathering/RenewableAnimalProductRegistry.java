@@ -8,6 +8,9 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Animal;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.animal.sheep.Sheep;*/
+//? if <26.1.2
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -91,6 +94,9 @@ public final class RenewableAnimalProductRegistry {
                     BiologicalAcquisitionSources.periodicProducts(animal.getType());
             if (sources.isEmpty()) return false;
             BiologicalAcquisitionSources.Source source = sources.get(random.nextInt(sources.size()));
+            //? if >=26.1.2
+            /*animal.spawnAtLocation(player.serverLevel(), new ItemStack(source.output(), source.count()));*/
+            //? if <26.1.2
             animal.spawnAtLocation(new ItemStack(source.output(), source.count()));
             return true;
         }
@@ -110,6 +116,9 @@ public final class RenewableAnimalProductRegistry {
         @Override
         public boolean provide(ServerPlayer player, Animal animal, RandomSource random) {
             if (!(animal instanceof Sheep sheep) || !sheep.readyForShearing()) return false;
+            //? if >=26.1.2
+            /*sheep.shear(player.serverLevel(), SoundSource.PLAYERS, new ItemStack(Items.SHEARS));*/
+            //? if <26.1.2
             sheep.shear(SoundSource.PLAYERS);
             return true;
         }
@@ -145,6 +154,9 @@ public final class RenewableAnimalProductRegistry {
             ItemStack container = player.getInventory().getItem(slot);
             container.shrink(1);
             ItemStack product = new ItemStack(filledProduct);
+            //? if >=26.1.2
+            /*if (!player.getInventory().add(product)) animal.spawnAtLocation(player.serverLevel(), product);*/
+            //? if <26.1.2
             if (!player.getInventory().add(product)) animal.spawnAtLocation(product);
             player.getInventory().setChanged();
             player.inventoryMenu.broadcastChanges();

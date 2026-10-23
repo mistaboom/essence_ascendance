@@ -242,6 +242,9 @@ public final class StatusInterceptionService {
                 copy = List.of(value);
                 double boundedPotency = Math.clamp(potency, 0, 1);
                 withTransfer(() -> instant(effect, defender, defender, source.target, value.amplifier(), boundedPotency,
+                        //? if >=26.1.2
+                        /*() -> effect.applyInstantenousEffect(defender.serverLevel(), defender, defender, source.target, value.amplifier(), boundedPotency)));*/
+                        //? if <26.1.2
                         () -> effect.applyInstantenousEffect(defender, defender, source.target, value.amplifier(), boundedPotency)));
                 transfer = "native_instant_dispatched_no_boolean_acceptance";
                 if (source.target instanceof ServerPlayer other && lastOutcome(other)

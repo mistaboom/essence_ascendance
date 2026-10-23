@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** A single ordinary chunk-meshed ore block; its host contributes appearance, never special behavior. */
@@ -29,18 +30,32 @@ public final class LatentOreBlock extends Block implements EntityBlock {
             LatentOreHost.read(stack).ifPresent(ore::setHost);
     }
 
+    //? if <26.1.2
     @Override
+    //? if <26.1.2
     public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
+        //? if <26.1.2
         return LatentOreHost.host(level, pos).map(LatentOreHost::stack).orElseGet(() -> new ItemStack(this));
+    //? if <26.1.2
     }
+
+    //? if >=26.1.2
+    /*@Override protected ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state, boolean includeData) { return LatentOreHost.host(level, pos).map(LatentOreHost::stack).orElseGet(() -> new ItemStack(this)); }*/
 
     @Override
     protected List<ItemStack> getDrops(BlockState state, LootParams.Builder loot) {
-        List<ItemStack> drops = super.getDrops(state, loot);
+        List<ItemStack> drops = new ArrayList<>(super.getDrops(state, loot));
         if (loot.getOptionalParameter(LootContextParams.BLOCK_ENTITY) instanceof LatentOreBlockEntity ore) {
-            ore.hostState().ifPresent(host -> drops.forEach(stack -> {
-                if (stack.is(asItem())) LatentOreHost.write(stack, host);
-            }));
+            ore.hostState().ifPresent(host -> {
+                for (int i = 0; i < drops.size(); i++) {
+                    ItemStack original = drops.get(i);
+                    if (!original.is(asItem())) continue;
+                    ItemStack replacement = new ItemStack(LatentOreItems.itemFor(host), original.getCount());
+                    replacement.applyComponents(original.getComponentsPatch());
+                    LatentOreHost.write(replacement, host);
+                    drops.set(i, replacement);
+                }
+            });
         }
         return drops;
     }

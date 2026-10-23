@@ -69,10 +69,11 @@ public final class AscendanceToolMiningService {
     /** A just-created/upgraded carried tool must be correct before its first inventory tick, on both sides. */
     public static void refreshNativeTool(ItemStack stack) {
         if (!(stack.getItem() instanceof EquipmentProfileItem profile)) return;
-        TagKey<Block> mineable = stack.getItem() instanceof net.minecraft.world.item.PickaxeItem ? BlockTags.MINEABLE_WITH_PICKAXE
-                : stack.getItem() instanceof net.minecraft.world.item.AxeItem ? BlockTags.MINEABLE_WITH_AXE
-                : stack.getItem() instanceof net.minecraft.world.item.ShovelItem ? BlockTags.MINEABLE_WITH_SHOVEL
-                : stack.getItem() instanceof net.minecraft.world.item.HoeItem ? BlockTags.MINEABLE_WITH_HOE : null;
+        ResourceLocation profileId = profile.equipmentProfileId();
+        TagKey<Block> mineable = profileId.equals(EquipmentProfiles.PICKAXE.id()) ? BlockTags.MINEABLE_WITH_PICKAXE
+                : profileId.equals(EquipmentProfiles.AXE.id()) ? BlockTags.MINEABLE_WITH_AXE
+                : profileId.equals(EquipmentProfiles.SHOVEL.id()) ? BlockTags.MINEABLE_WITH_SHOVEL
+                : profileId.equals(EquipmentProfiles.HOE.id()) ? BlockTags.MINEABLE_WITH_HOE : null;
         if (mineable != null) refresh(stack, mineable, profile.equipmentProfileId());
     }
 
@@ -152,37 +153,40 @@ public final class AscendanceToolMiningService {
          */
         for (RequiredLevelTag required : discoverNumericRequirementTags()) {
             if (required.level() > harvestLevel) {
-                rules.add(
-                        Tool.Rule.deniesDrops(
-                                required.tag()
-                        )
-                );
+                rules.add(deniesDrops(required.tag()));
             }
         }
 
-        rules.add(
-                Tool.Rule.deniesDrops(
-                        vanillaIncorrectTag(harvestLevel)
-                )
-        );
+        rules.add(deniesDrops(vanillaIncorrectTag(harvestLevel)));
 
-        rules.add(
-                Tool.Rule.minesAndDrops(
-                        mineableTag,
-                        miningSpeed
-                )
-        );
+        rules.add(minesAndDrops(mineableTag, miningSpeed));
 
-        return new Tool(
-                List.copyOf(rules),
-                1.0F,
-                1
-        );
+        //? if >=26.1.2
+        /*return new Tool(List.copyOf(rules), 1.0F, 1, true);*/
+        //? if <26.1.2
+        return new Tool(List.copyOf(rules), 1.0F, 1);
+    }
+
+    private static Tool.Rule deniesDrops(TagKey<Block> tag) {
+        //? if >=26.1.2
+        /*return Tool.Rule.deniesDrops(BuiltInRegistries.BLOCK.getOrThrow(tag));*/
+        //? if <26.1.2
+        return Tool.Rule.deniesDrops(tag);
+    }
+
+    private static Tool.Rule minesAndDrops(TagKey<Block> tag, float speed) {
+        //? if >=26.1.2
+        /*return Tool.Rule.minesAndDrops(BuiltInRegistries.BLOCK.getOrThrow(tag), speed);*/
+        //? if <26.1.2
+        return Tool.Rule.minesAndDrops(tag, speed);
     }
 
     private static List<RequiredLevelTag> discoverNumericRequirementTags() {
-        return BuiltInRegistries.BLOCK
-                .getTagNames()
+        return
+                //? if >=26.1.2
+                /*BuiltInRegistries.BLOCK.getTags().map(net.minecraft.core.HolderSet.Named::key)*/
+                //? if <26.1.2
+                BuiltInRegistries.BLOCK.getTagNames()
                 .map(tag -> new RequiredLevelTag(
                         tag,
                         parseRequiredLevel(tag.location())

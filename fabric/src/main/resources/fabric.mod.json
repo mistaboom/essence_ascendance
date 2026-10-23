@@ -26,10 +26,10 @@
     "essence_ascendance.damage.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.19.3",
-    "minecraft": "~1.21.1",
-    "java": ">=21",
-    "architectury": ">=13.0.11",
+    "fabricloader": "${fabric_loader_requirement}",
+    "minecraft": "${minecraft_requirement}",
+    "java": "${java_requirement}",
+    "architectury": "${architectury_requirement}",
     "fabric-api": "*"
   },
   "accessWidener": "essence_ascendance.accesswidener"

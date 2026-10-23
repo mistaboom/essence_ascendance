@@ -38,14 +38,26 @@ import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.player.Abilities;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.SpectralArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.SpectralArrow;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.EntityInLevelCallback;
 import net.minecraft.world.level.entity.EntityTypeTest;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.SavedDataStorage;*/
+//? if <26.1.2
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -106,6 +118,9 @@ public final class ProjectileNativeInterceptionTest {
                 var sourceLife = fixture.saved.getPlayerData(source.getUUID()).projectileLife();
                 ((ProjectileStateAccess) shot).essenceAscendance$state(new ProjectileState(
                         ProjectileSource.RANGED_PHYSICAL, ProjectilePath.NONE, source.getUUID(), sourceLife,
+                        //? if >=26.1.2
+                        /*Level.OVERWORLD.identifier(), fixture.level.tick, ProjectileBalanceSettings.defaults(), 0));*/
+                        //? if <26.1.2
                         Level.OVERWORLD.location(), fixture.level.tick, ProjectileBalanceSettings.defaults(), 0));
                 shot.pickup = AbstractArrow.Pickup.DISALLOWED;
                 var control = ProjectileControlService.state(shot);
@@ -148,6 +163,7 @@ public final class ProjectileNativeInterceptionTest {
         Fixture(Class<? extends ServerPlayer> playerClass) throws ReflectiveOperationException {
             server = instance(DedicatedServer.class);
             set(MinecraftServer.class, server, "serverThread", Thread.currentThread());
+            //? if <26.1.2
             set(MinecraftServer.class, server, "pvp", true);
             level = instance(MemoryLevel.class);
             try {
@@ -160,19 +176,35 @@ public final class ProjectileNativeInterceptionTest {
             }
             level.entities = new ArrayList<>();
             set(ServerLevel.class, level, "players", onlinePlayers);
+            //? if >=26.1.2
+            /*set(ServerLevel.class, level, "waypointManager", new net.minecraft.server.waypoints.ServerWaypointManager());*/
             level.movementSupport = List.of();
             level.tick = 100;
             level.memoryServer = server;
             level.scoreboard = new ServerScoreboard(server);
+            //? if >=26.1.2
+            /*level.storage = instance(SavedDataStorage.class);*/
+            //? if <26.1.2
             level.storage = instance(DimensionDataStorage.class);
+            //? if >=26.1.2
+            /*var dataTypeField = EssenceSavedData.class.getDeclaredField("DATA_TYPE");*/
+            //? if >=26.1.2
+            /*dataTypeField.setAccessible(true);*/
+            //? if >=26.1.2
+            /*set(SavedDataStorage.class, level.storage, "cache", new HashMap<>(Map.of(dataTypeField.get(null), Optional.of(saved))));*/
+            //? if <26.1.2
             set(DimensionDataStorage.class, level.storage, "cache", new HashMap<>(Map.of("essence_ascendance_players", saved)));
             set(Level.class, level, "dimension", Level.OVERWORLD);
             set(Level.class, level, "random", RandomSource.create(0));
+            //? if <26.1.2
             set(Level.class, level, "threadSafeRandom", RandomSource.create(0));
             set(MinecraftServer.class, server, "levels", Map.of(Level.OVERWORLD, level));
             var list = instance(DedicatedPlayerList.class);
             set(PlayerList.class, list, "server", server);
             // Real permission checks use the ordinary, empty in-memory op list; no file is read or written.
+            //? if >=26.1.2
+            /*set(PlayerList.class, list, "ops", new net.minecraft.server.players.ServerOpList(new java.io.File("build/fixture-unused-ops.json"), new net.minecraft.server.notifications.EmptyNotificationService()));*/
+            //? if <26.1.2
             set(PlayerList.class, list, "ops", new net.minecraft.server.players.ServerOpList(new java.io.File("build/fixture-unused-ops.json")));
             set(PlayerList.class, list, "playersByUUID", players);
             set(PlayerList.class, list, "players", onlinePlayers);
@@ -205,6 +237,9 @@ public final class ProjectileNativeInterceptionTest {
             set(Entity.class, entity, "eyeHeight", 1.62F);
             set(ServerPlayer.class, entity, "server", server);
             set(Player.class, entity, "abilities", new Abilities());
+            //? if >=26.1.2
+            /*var equipment = new net.minecraft.world.entity.EntityEquipment(); set(LivingEntity.class, entity, "equipment", equipment); set(Player.class, entity, "inventory", new Inventory(entity, equipment));*/
+            //? if <26.1.2
             set(Player.class, entity, "inventory", new Inventory(entity));
             set(Player.class, entity, "cooldowns", new net.minecraft.world.item.ItemCooldowns());
             set(Player.class, entity, "foodData", new net.minecraft.world.food.FoodData());
@@ -311,6 +346,9 @@ public final class ProjectileNativeInterceptionTest {
             networkChannels.forEach(io.netty.channel.embedded.EmbeddedChannel::finishAndReleaseAll);
             CommittedSkillService.forget(player);
             ProjectileControlService.forget(player);
+            //? if >=26.1.2
+            /*com.mistaboom.essence_ascendance.verification.FixtureEntityPresentationCompat.withDetachedEntities(level, () -> SkillEffectRuntime.forget(player));*/
+            //? if <26.1.2
             SkillEffectRuntime.forget(player);
             com.mistaboom.essence_ascendance.equipment.EquipmentDamageService.forgetSkillInput(player);
         }
@@ -322,16 +360,25 @@ public final class ProjectileNativeInterceptionTest {
         List<Entity> entities;
         long tick;
         MinecraftServer memoryServer;
+        //? if >=26.1.2
+        /*SavedDataStorage storage;*/
+        //? if <26.1.2
         DimensionDataStorage storage;
         ServerScoreboard scoreboard;
         boolean occluded;
         boolean nativeBlockClip;
         boolean rejectMissingTerrainReads;
+        //? if >=26.1.2
+        /*@Override public int getMinY() { return -64; }*/
+        //? if <26.1.2
         @Override public int getMinBuildHeight() { return -64; }
         @Override public int getHeight() { return 384; }
         List<net.minecraft.world.phys.shapes.VoxelShape> movementSupport;
         net.minecraft.core.RegistryAccess memoryRegistries;
         net.minecraft.world.damagesource.DamageSources memoryDamageSources;
+        //? if >=26.1.2
+        /*net.minecraft.world.level.gamerules.GameRules memoryGameRules;*/
+        //? if <26.1.2
         net.minecraft.world.level.GameRules memoryGameRules;
         net.minecraft.world.level.border.WorldBorder memoryWorldBorder;
         Map<BlockPos, net.minecraft.world.level.block.state.BlockState> memoryBlocks;
@@ -357,6 +404,9 @@ public final class ProjectileNativeInterceptionTest {
         }
 
         private MemoryLevel() {
+            //? if >=26.1.2
+            /*super(null, null, null, null, Level.OVERWORLD, null, false, 0, List.of(), false);*/
+            //? if <26.1.2
             super(null, null, null, null, Level.OVERWORLD, null, null, false, 0, List.of(), false, null);
             throw new AssertionError("World constructors must never run in this fixture");
         }
@@ -364,7 +414,11 @@ public final class ProjectileNativeInterceptionTest {
         @Override public MinecraftServer getServer() { return memoryServer; }
         @Override public Iterable<Entity> getAllEntities() { return entities; }
         @Override public long getGameTime() { return tick; }
+        //? if <26.1.2
         @Override public long getDayTime() { return tick; }
+        //? if >=26.1.2
+        /*@Override public SavedDataStorage getDataStorage() { return storage; }*/
+        //? if <26.1.2
         @Override public DimensionDataStorage getDataStorage() { return storage; }
         @Override public ServerScoreboard getScoreboard() { return scoreboard; }
         @Override public net.minecraft.world.Difficulty getDifficulty() { return net.minecraft.world.Difficulty.NORMAL; }
@@ -372,7 +426,13 @@ public final class ProjectileNativeInterceptionTest {
             // Native zombie melee consults local difficulty even with no fire transfer; no chunk is opened.
             return new net.minecraft.world.DifficultyInstance(getDifficulty(), 0, 0, 0);
         }
+        //? if >=26.1.2
+        /*@Override public net.minecraft.world.level.gamerules.GameRules getGameRules() {*/
+        //? if <26.1.2
         @Override public net.minecraft.world.level.GameRules getGameRules() {
+            //? if >=26.1.2
+            /*if (memoryGameRules==null) memoryGameRules=new net.minecraft.world.level.gamerules.GameRules(net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS);*/
+            //? if <26.1.2
             if (memoryGameRules==null) memoryGameRules=new net.minecraft.world.level.GameRules();
             return memoryGameRules;
         }
@@ -388,6 +448,9 @@ public final class ProjectileNativeInterceptionTest {
         }
         @Override public boolean hasChunkAt(BlockPos position) { return hasChunk(position.getX() >> 4, position.getZ() >> 4); }
         @Override public boolean hasChunk(int chunkX, int chunkZ) {
+            //? if >=26.1.2
+            /*return unloadedMachineChunks == null || !unloadedMachineChunks.contains(net.minecraft.world.level.ChunkPos.pack(chunkX, chunkZ));*/
+            //? if <26.1.2
             return unloadedMachineChunks == null || !unloadedMachineChunks.contains(net.minecraft.world.level.ChunkPos.asLong(chunkX, chunkZ));
         }
         @Override public boolean areEntitiesLoaded(long chunk) { return true; }
@@ -399,10 +462,18 @@ public final class ProjectileNativeInterceptionTest {
         @Override public void sendBlockUpdated(BlockPos pos, net.minecraft.world.level.block.state.BlockState before,
                                                net.minecraft.world.level.block.state.BlockState after, int flags) { }
         @Override public void updateNeighbourForOutputSignal(BlockPos position, net.minecraft.world.level.block.Block block) { }
+        //? if <26.1.2
         @Override public net.minecraft.util.profiling.ProfilerFiller getProfiler() { return net.minecraft.util.profiling.InactiveProfiler.INSTANCE; }
+        //? if >=26.1.2
+        /*@Override public net.minecraft.world.item.crafting.RecipeManager recipeAccess() {*/
+        //? if <26.1.2
         @Override public net.minecraft.world.item.crafting.RecipeManager getRecipeManager() {
+            //? if >=26.1.2
+            /*return memoryRecipes == null ? super.recipeAccess() : memoryRecipes;*/
+            //? if <26.1.2
             return memoryRecipes == null ? super.getRecipeManager() : memoryRecipes;
         }
+        //? if <26.1.2
         @Override public RandomSource getRandomSequence(net.minecraft.resources.ResourceLocation sequence) { return getRandom(); }
         @Override public Holder<net.minecraft.world.level.biome.Biome> getBiome(BlockPos position) {
             return memoryBiome == null ? super.getBiome(position) : memoryBiome;
@@ -430,6 +501,9 @@ public final class ProjectileNativeInterceptionTest {
         }
         @Override public boolean addFreshEntity(Entity entity) { entities.add(entity); return true; }
         @Override public boolean isInWorldBounds(BlockPos position) { return true; }
+        //? if >=26.1.2
+        /*@Override public boolean mayInteract(Entity player, BlockPos position) { return true; }*/
+        //? if <26.1.2
         @Override public boolean mayInteract(Player player, BlockPos position) { return true; }
         @Override public List<Entity> getEntities(Entity except, AABB box, Predicate<? super Entity> predicate) {
             entityQueries++;
@@ -456,12 +530,21 @@ public final class ProjectileNativeInterceptionTest {
             if (nativeBlockClip) return super.clip(context);
             if (occluded) return new BlockHitResult(context.getFrom().lerp(context.getTo(), .5), Direction.NORTH,
                     BlockPos.containing(context.getFrom().lerp(context.getTo(), .5)), false);
+            //? if >=26.1.2
+            /*return BlockHitResult.miss(context.getTo(), Direction.getApproximateNearest(context.getTo().subtract(context.getFrom())), BlockPos.containing(context.getTo()));*/
+            //? if <26.1.2
             return BlockHitResult.miss(context.getTo(), Direction.getNearest(context.getTo().subtract(context.getFrom())), BlockPos.containing(context.getTo()));
         }
         @Override public <T extends ParticleOptions> int sendParticles(T particle, double x, double y, double z, int count,
                 double dx, double dy, double dz, double speed) { return 0; }
+        //? if >=26.1.2
+        /*@Override public void playSeededSound(Entity player, double x, double y, double z, Holder<SoundEvent> sound,*/
+        //? if <26.1.2
         @Override public void playSeededSound(Player player, double x, double y, double z, Holder<SoundEvent> sound,
                 SoundSource source, float volume, float pitch, long seed) { }
+        //? if >=26.1.2
+        /*@Override public void playSeededSound(Entity player, Entity entity, Holder<SoundEvent> sound,*/
+        //? if <26.1.2
         @Override public void playSeededSound(Player player, Entity entity, Holder<SoundEvent> sound,
                 SoundSource source, float volume, float pitch, long seed) { }
     }
@@ -476,12 +559,18 @@ public final class ProjectileNativeInterceptionTest {
         set(Entity.class, entity, "id", entity.getUUID().hashCode() & Integer.MAX_VALUE);
         set(Entity.class, entity, "position", position);
         set(Entity.class, entity, "blockPosition", BlockPos.containing(position));
+        //? if >=26.1.2
+        /*set(Entity.class, entity, "chunkPosition", net.minecraft.world.level.ChunkPos.containing(BlockPos.containing(position)));*/
+        //? if <26.1.2
         set(Entity.class, entity, "chunkPosition", new net.minecraft.world.level.ChunkPos(BlockPos.containing(position)));
         set(Entity.class, entity, "bb", bounds);
         set(Entity.class, entity, "deltaMovement", Vec3.ZERO);
         set(Entity.class, entity, "passengers", ImmutableList.of());
         set(Entity.class, entity, "levelCallback", EntityInLevelCallback.NULL);
         set(Entity.class, entity, "random", RandomSource.create(0));
+        //? if >=26.1.2
+        /*set(Entity.class, entity, "fluidInteraction", new net.minecraft.world.entity.EntityFluidInteraction(java.util.Set.of(net.minecraft.tags.FluidTags.WATER, net.minecraft.tags.FluidTags.LAVA)));*/
+        //? if <26.1.2
         set(Entity.class, entity, "fluidHeight", new it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap<>());
         try { set(Entity.class,entity,"forgeFluidTypeHeight",new it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap<>()); }
         catch (NoSuchFieldException ignored) { }

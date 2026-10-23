@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.ore;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import com.google.gson.JsonParser;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.Direction;
@@ -39,7 +40,8 @@ public final class LatentOreHostTest {
             // without starting a loader or registering production mod content in a plain JavaExec test.
             ItemStack original = new ItemStack(Items.STONE, 17);
             original.applyComponents(LatentOreHost.components(state));
-            ItemStack saved = ItemStack.parse(registries, original.save(registries)).orElseThrow();
+            ItemStack saved = com.mistaboom.essence_ascendance.data.ItemStackNbtCompat.parse(registries,
+                    com.mistaboom.essence_ascendance.data.ItemStackNbtCompat.save(original, registries)).orElseThrow();
             check(ItemStack.isSameItemSameComponents(original, saved) && saved.getCount() == 17,
                     "Inventory save/load preserves exact host components and count");
             check(LatentOreHost.read(saved).orElseThrow() == state, "Item decoding uses the same state as BE encoding");
@@ -79,9 +81,28 @@ public final class LatentOreHostTest {
 
         check(Arrays.stream(LatentOreBlock.class.getDeclaredMethods()).noneMatch(method -> method.getName().equals("getTicker")),
                 "Ore inherits EntityBlock's non-ticking default");
+        registrationCandidates();
         resourceContracts();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
                 .println("LatentOreHostTest: " + checks + " identity, standard item codecs and content checks PASS");
+    }
+
+    private static void registrationCandidates() {
+        var selected = new java.util.HashSet<net.minecraft.world.level.block.Block>();
+        for (var block : BuiltInRegistries.BLOCK) {
+            var id = BuiltInRegistries.BLOCK.getKey(block);
+            LatentOreItems.candidate(id, block).ifPresent(candidate -> {
+                selected.add(block);
+                check(candidate.hostId().equals(id) && candidate.representative() == block.defaultBlockState(),
+                        "Fixed alias retains its exact default primary substrate: " + id);
+            });
+        }
+        check(selected.equals(java.util.Set.of(Blocks.STONE, Blocks.DEEPSLATE, Blocks.NETHERRACK, Blocks.END_STONE)),
+                "A complete vanilla block registry produces exactly four primary-substrate aliases");
+        for (var block : List.of(Blocks.ACACIA_LOG, Blocks.ANDESITE_SLAB, Blocks.BAMBOO_BLOCK,
+                Blocks.ANDESITE, Blocks.POLISHED_DEEPSLATE, Blocks.IRON_ORE))
+            check(LatentOreItems.candidate(BuiltInRegistries.BLOCK.getKey(block), block).isEmpty(),
+                    "Structural solidity or a possible full state never authorizes an ore alias: " + block);
     }
 
     private static void resourceContracts() throws Exception {
@@ -91,23 +112,39 @@ public final class LatentOreHostTest {
         check(serialized.contains("minecraft:silk_touch") && serialized.contains("minecraft:fortune"),
                 "Shared native loot retains Silk Touch and Fortune");
         check(serialized.contains("essence_ascendance:raw_latent_ore"), "Shared native loot returns raw Latent Ore");
-        for (String suffix : List.of("", "_blasting"))
-            check(json(base + "recipe/latent_ingot_from_ore" + suffix + ".json").getAsJsonObject("ingredient")
-                    .get("tag").getAsString().equals("essence_ascendance:latent_ores"), "All hosts share one cooking ingredient");
+        for (String suffix : List.of("", "_blasting")) {
+            var ingredient = json(base + "recipe/latent_ingot_from_ore" + suffix + ".json").get("ingredient");
+            //? if >=26.1.2
+            /*check(ingredient.isJsonPrimitive() && ingredient.getAsString().equals("#essence_ascendance:latent_ores"), "All hosts share one cooking ingredient");*/
+            //? if <26.1.2
+            check(ingredient.isJsonObject() && ingredient.getAsJsonObject().get("tag").getAsString().equals("essence_ascendance:latent_ores"), "All hosts share one cooking ingredient");
+        }
+        for (String tag : List.of("essence_ascendance/tags/item/latent_ores.json",
+                "c/tags/item/ores.json", "c/tags/item/ores/latent.json")) {
+            var values = json("/data/" + tag).getAsJsonArray("values");
+            check(values.toString().contains("essence_ascendance:adaptive_latent_ore"),
+                    "Each ore tag keeps the legacy item as its data-pack opt-in anchor: " + tag);
+        }
+        var advancement = json(base + "advancement/recipes/latent_progression.json")
+                .getAsJsonObject("criteria").getAsJsonObject("has_latent_ore")
+                .getAsJsonObject("conditions").getAsJsonArray("items")
+                .get(0).getAsJsonObject();
+        check(advancement.get("items").getAsString().equals("#essence_ascendance:latent_ores"),
+                "Recipe advancement accepts every registered host alias through the ore item tag");
         for (String old : List.of("latent_ore", "deepslate_latent_ore", "netherrack_latent_ore", "end_stone_latent_ore")) {
             check(LatentOreHostTest.class.getResource("/assets/essence_ascendance/blockstates/" + old + ".json") == null,
                     "Placeholder blockstate is removed: " + old);
             check(LatentOreHostTest.class.getResource(base + "loot_table/blocks/" + old + ".json") == null,
                     "Placeholder loot is removed: " + old);
         }
-        Path src = Path.of("src/main/java/com/mistaboom/essence_ascendance");
-        if (!Files.isDirectory(src)) src = Path.of("common").resolve(src);
-        String block = Files.readString(src.resolve("ore/LatentOreBlock.java"));
+        String block = Files.readString(TargetTestInputs.javaSource("common",
+                "com/mistaboom/essence_ascendance/ore/LatentOreBlock.java"));
         check(block.contains("getCloneItemStack") && block.contains("LatentOreHost::stack")
                         && block.contains("LatentOreHost.read(stack).ifPresent(ore::setHost)")
-                        && block.contains("LatentOreHost.write(stack, host)"),
-                "Pick, placement and loot route through the same tested host codec");
-        String gathering = Files.readString(src.resolve("gathering/NaturalOreDropService.java"));
+                        && block.contains("LatentOreItems.itemFor(host)")
+                        && block.contains("LatentOreHost.write(replacement, host)"),
+                "Pick, placement and loot preserve the shared host codec and registered alias");
+        String gathering = Files.readString(TargetTestInputs.javaSource("common", "com/mistaboom/essence_ascendance/gathering/NaturalOreDropService.java"));
         check(gathering.contains("ore.setHost(source)") && gathering.contains("pos, lootEntity, player"),
                 "Gathering preserves its selected source host in native loot context");
     }

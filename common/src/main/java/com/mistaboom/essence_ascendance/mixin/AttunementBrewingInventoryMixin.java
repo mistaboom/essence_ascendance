@@ -22,11 +22,13 @@ public abstract class AttunementBrewingInventoryMixin {
         if (slot == 3 && !cir.getReturnValue().isEmpty() && (Object) this instanceof AttunementBrewingOwner owner)
             owner.essenceAscendance$invalidateBrewing();
     }
+    //? if <26.1.2 {
     @Inject(method = "setItem", at = @At("HEAD"))
     private void essenceAscendance$ingredientReplaced(int slot, ItemStack item, CallbackInfo ci) {
         if (slot == 3 && (Object) this instanceof AttunementBrewingOwner owner)
             owner.essenceAscendance$invalidateBrewing();
     }
+    //?}
     @Inject(method = "clearContent", at = @At("HEAD"))
     private void essenceAscendance$ingredientsCleared(CallbackInfo ci) {
         if ((Object) this instanceof AttunementBrewingOwner owner) owner.essenceAscendance$invalidateBrewing();

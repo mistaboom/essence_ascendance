@@ -5,6 +5,9 @@ import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenControls;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.FormattedCharSequence;
 
@@ -15,6 +18,9 @@ public final class IllustrationView {
     @FunctionalInterface
     public interface Renderer {
         /** Render only inside figureBounds; the caller owns clipping, pose and flush boundaries. */
+        //? if >=26.1.2
+        /*void render(GuiGraphicsExtractor graphics, SemanticDocument.Illustration illustration,*/
+        //? if <26.1.2
         void render(GuiGraphics graphics, SemanticDocument.Illustration illustration,
                     UiBounds figureBounds, float partialTick);
     }
@@ -35,22 +41,40 @@ public final class IllustrationView {
                 figure, caption, List.copyOf(lines));
     }
 
+    //? if >=26.1.2
+    /*public static void render(GuiGraphicsExtractor graphics, Font font, SemanticDocument.Illustration illustration,*/
+    //? if <26.1.2
     public static void render(GuiGraphics graphics, Font font, SemanticDocument.Illustration illustration,
                               Layout layout, float partialTick, Renderer renderer) {
         FullscreenControls.panel(graphics, layout.bounds(),
                 AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE),
                 AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER));
+        //? if >=26.1.2
+        /*graphics.nextStratum();*/
+        //? if <26.1.2
         graphics.flush();
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
         try {
             FullscreenViewport.withClip(graphics, layout.figure(),
                     () -> renderer.render(graphics, illustration, layout.figure(), partialTick));
+            //? if >=26.1.2
+            /*graphics.nextStratum();*/
+            //? if <26.1.2
             graphics.flush();
         } finally {
+            //? if >=26.1.2
+            /*graphics.pose().popMatrix();*/
+            //? if <26.1.2
             graphics.pose().popPose();
         }
         int y = layout.caption().y() + 2;
         for (FormattedCharSequence line : layout.captionLines()) {
+            //? if >=26.1.2
+            /*graphics.centeredText(font, line, layout.caption().x() + layout.caption().width() / 2, y,*/
+            //? if <26.1.2
             graphics.drawCenteredString(font, line, layout.caption().x() + layout.caption().width() / 2, y,
                     AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT));
             y += font.lineHeight + 1;

@@ -18,8 +18,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class AttunementMovementMixin {
     @Shadow public ServerPlayer player;
+    //? if >=26.1.2
+    /*@Inject(method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V", at = @At("HEAD"), require = 1, expect = 1)*/
+    //? if <26.1.2
     @Inject(method = "teleport(DDDFFLjava/util/Set;)V", at = @At("HEAD"), require = 1, expect = 1)
+    //? if >=26.1.2
+    /*private void essenceAscendance$postureDiscontinuity(net.minecraft.world.entity.PositionMoveRotation movement, java.util.Set<net.minecraft.world.entity.Relative> relative, CallbackInfo ci) {*/
+    //? if <26.1.2
     private void essenceAscendance$postureDiscontinuity(double x, double y, double z, float yaw, float pitch,
+            //? if <26.1.2
             java.util.Set<net.minecraft.world.entity.RelativeMovement> relative, CallbackInfo ci) {
         com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);
         PostureService.forget(player);
@@ -28,7 +35,11 @@ public abstract class AttunementMovementMixin {
     @WrapMethod(method = "handleContainerClick")
     private void essenceAscendance$nativeMenuRequest(ServerboundContainerClickPacket packet, Operation<Void> original) {
         if (!player.server.isSameThread()) { original.call(packet); return; }
+        //? if >=26.1.2
+        /*boolean current = packet.containerId() == player.containerMenu.containerId && packet.stateId() == player.containerMenu.getStateId();*/
+        //? if <26.1.2
         boolean current = packet.getContainerId() == player.containerMenu.containerId
+                //? if <26.1.2
                 && packet.getStateId() == player.containerMenu.getStateId();
         AttunementGameplay.withMenuRequest(current, () -> original.call(packet));
     }

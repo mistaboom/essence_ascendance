@@ -90,11 +90,13 @@ public final class MachineBindingTest {
         malformedJoins.getCompound("reservoir_settlement").putString("machine_joins", "invalid");
         rejects(() -> EssenceSavedData.load(malformedJoins, null), "Malformed machine join history is rejected");
         CompoundTag missingDeletion = saved.save(new CompoundTag(), null);
-        missingDeletion.getCompound("reservoir_settlement").getList("dissolved", net.minecraft.nbt.Tag.TAG_COMPOUND)
+        com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(
+                missingDeletion.getCompound("reservoir_settlement"), "dissolved", net.minecraft.nbt.Tag.TAG_COMPOUND)
                 .getCompound(0).remove("roster_revision");
         rejects(() -> EssenceSavedData.load(missingDeletion, null), "Missing dissolution cursor is rejected");
         CompoundTag invalidDeletion = saved.save(new CompoundTag(), null);
-        invalidDeletion.getCompound("reservoir_settlement").getList("dissolved", net.minecraft.nbt.Tag.TAG_COMPOUND)
+        com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(
+                invalidDeletion.getCompound("reservoir_settlement"), "dissolved", net.minecraft.nbt.Tag.TAG_COMPOUND)
                 .getCompound(0).putLong("roster_revision", 0);
         rejects(() -> EssenceSavedData.load(invalidDeletion, null), "Zero dissolution cursor is rejected");
         var restarted = EssenceSavedData.load(saved.save(new CompoundTag(), null), null); publish(restarted, nextTeam);

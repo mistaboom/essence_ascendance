@@ -48,6 +48,9 @@ public record PylonLocalFrame(Direction direction, int quarterTurns, Vec3 right,
     }
 
     public Direction forwardDirection() {
+        //? if >=26.1.2
+        /*return Direction.getNearest((int) forward.x, (int) forward.y, (int) forward.z, direction);*/
+        //? if <26.1.2
         return Direction.getNearest(forward.x, forward.y, forward.z);
     }
 

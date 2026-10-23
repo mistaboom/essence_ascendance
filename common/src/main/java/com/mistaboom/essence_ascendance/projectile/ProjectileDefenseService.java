@@ -18,9 +18,30 @@ public final class ProjectileDefenseService {
     private static final Map<ResourceLocation, Predicate<Context>> DETECTORS = new LinkedHashMap<>();
     static {
         // Use native facing, raise delay, shield capability, and existing arrow/tag bypass rules.
-        register(VANILLA_SHIELD, context -> context.target().isDamageSourceBlocked(context.source()));
+        register(VANILLA_SHIELD, context -> nativeShieldBlocks(context.target(), context.source()));
     }
     private ProjectileDefenseService() { }
+
+    private static boolean nativeShieldBlocks(LivingEntity target, DamageSource source) {
+        //? if >=26.1.2
+        /*var blocking = target.getItemBlockingWith();*/
+        //? if >=26.1.2
+        /*if (blocking == null) return false;*/
+        //? if >=26.1.2
+        /*var blocks = blocking.get(net.minecraft.core.component.DataComponents.BLOCKS_ATTACKS);*/
+        //? if >=26.1.2
+        /*if (blocks == null || blocks.bypassedBy().map(types -> types.contains(source.typeHolder())).orElse(false)) return false;*/
+        //? if >=26.1.2
+        /*if (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.arrow.AbstractArrow arrow && arrow.getPierceLevel() > 0) return false;*/
+        //? if >=26.1.2
+        /*var position = source.getSourcePosition();*/
+        //? if >=26.1.2
+        /*double angle = position == null ? Math.PI : Math.acos(new net.minecraft.world.phys.Vec3(position.x - target.getX(), 0, position.z - target.getZ()).normalize().dot(target.calculateViewVector(0, target.getYHeadRot())));*/
+        //? if >=26.1.2
+        /*return blocks.resolveBlockedDamage(source, 1.0F, angle) > 0;*/
+        //? if <26.1.2
+        return target.isDamageSourceBlocked(source);
+    }
 
     public record Context(Projectile projectile, LivingEntity target, DamageSource source) {
         public Context {

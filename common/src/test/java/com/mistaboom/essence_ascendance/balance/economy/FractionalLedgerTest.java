@@ -49,12 +49,12 @@ public final class FractionalLedgerTest {
         check(!ledger.clear(owner, OFFENSE) && !ledger.isDirty(), "Empty clear mutated storage");
         check(ledger.clear(owner), "Full reset did not remove remaining account credit");
         check(ledger.snapshot(owner).isEmpty(), "Full reset left account credit");
-        CompoundTag saved = ledger.save(new CompoundTag(), null);
+        CompoundTag saved = com.mistaboom.essence_ascendance.verification.FractionalLedgerTestCompat.save(ledger);
         check(!saved.contains(owner.toString()), "Full reset retained an empty saved owner");
         check(roundTrip(ledger).snapshot(other).get(OFFENSE) == 800_000L,
                 "Full reset affected another owner's persistence");
         ledger.commit(other, Map.of(OFFENSE, 0L));
-        check(ledger.save(new CompoundTag(), null).getAllKeys().isEmpty(),
+        check(com.mistaboom.essence_ascendance.verification.FractionalLedgerTestCompat.save(ledger).getAllKeys().isEmpty(),
                 "Zero-carry commit retained an empty saved account");
         System.out.println("FractionalLedgerTest: " + assertions + " assertions passed");
     }
@@ -67,7 +67,8 @@ public final class FractionalLedgerTest {
         Method load = FractionalLedgerSavedData.class.getDeclaredMethod("load", CompoundTag.class,
                 HolderLookup.Provider.class);
         load.setAccessible(true);
-        return (FractionalLedgerSavedData) load.invoke(null, ledger.save(new CompoundTag(), null), null);
+        return (FractionalLedgerSavedData) load.invoke(null,
+                com.mistaboom.essence_ascendance.verification.FractionalLedgerTestCompat.save(ledger), null);
     }
 
     private static void check(boolean condition, String message) {

@@ -5,6 +5,11 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.SubmitNodeCollector;*/
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.rendertype.RenderTypes;*/
+//? if <26.1.2
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -60,12 +65,66 @@ public final class BlockbenchStaticMesh {
         render(poseStack, bufferSource, packedLight, packedOverlay, 0xFFFFFF, 255, false);
     }
 
+    //? if >=26.1.2
+    /*public void submit(PoseStack poseStack, SubmitNodeCollector collector, int packedLight, int packedOverlay) { submit(poseStack, collector, packedLight, packedOverlay, 0xFFFFFF, 255, false); }*/
+
+    //? if >=26.1.2 {
+    /*public void submit(PoseStack poseStack, SubmitNodeCollector collector, int packedLight,
+            int packedOverlay, int rgb, int alpha, boolean emissive) {
+        submit(poseStack, collector, emissive ? RenderTypes.entityTranslucentEmissive(texture)
+                : RenderTypes.entityCutout(texture), packedLight, packedOverlay, rgb, alpha);
+    }
+
+    public void submit(PoseStack poseStack, SubmitNodeCollector collector,
+            net.minecraft.client.renderer.rendertype.RenderType layer,
+            int packedLight, int packedOverlay, int rgb, int alpha) {
+        collector.submitCustomGeometry(poseStack, layer, (submittedPose, vertices) -> {
+            PoseStack geometry = new PoseStack();
+            geometry.mulPose(submittedPose.pose());
+            render(geometry, vertices, packedLight, packedOverlay, rgb, alpha);
+        });
+    }
+
+    public void submitClipped(PoseStack poseStack, SubmitNodeCollector collector,
+            net.minecraft.client.renderer.rendertype.RenderType layer,
+            int packedLight, int packedOverlay, int rgb, int alpha,
+            double planeX, double planeZ, double maximum, double minimumZ) {
+        collector.submitCustomGeometry(poseStack, layer, (submittedPose, vertices) -> {
+            PoseStack geometry = new PoseStack();
+            geometry.mulPose(submittedPose.pose());
+            renderClipped(geometry, vertices, packedLight, packedOverlay, rgb, alpha,
+                    planeX, planeZ, maximum, minimumZ);
+        });
+    }
+
+    public void visitExtents(java.util.function.Consumer<org.joml.Vector3fc> consumer) {
+        float[] data = vertexData();
+        if (data.length == 0) return;
+        float minX = Float.POSITIVE_INFINITY, minY = Float.POSITIVE_INFINITY, minZ = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY, maxY = Float.NEGATIVE_INFINITY, maxZ = Float.NEGATIVE_INFINITY;
+        for (int i = 0; i < data.length; i += FLOATS_PER_VERTEX) {
+            minX = Math.min(minX, data[i]); minY = Math.min(minY, data[i + 1]); minZ = Math.min(minZ, data[i + 2]);
+            maxX = Math.max(maxX, data[i]); maxY = Math.max(maxY, data[i + 1]); maxZ = Math.max(maxZ, data[i + 2]);
+        }
+        consumer.accept(new org.joml.Vector3f(minX, minY, minZ));
+        consumer.accept(new org.joml.Vector3f(maxX, maxY, maxZ));
+    }
+    *///? }
+
     /** Tint a shared white mesh; optional translucent emission keeps the lit facets visible. */
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, int packedLight,
                        int packedOverlay, int rgb, int alpha, boolean emissive) {
         VertexConsumer consumer = bufferSource.getBuffer(
-                emissive ? RenderType.entityTranslucentEmissive(texture)
-                        : RenderType.entityCutoutNoCull(texture)
+                emissive ?
+                        //? if >=26.1.2
+                        /*RenderTypes.entityTranslucentEmissive(texture)*/
+                        //? if <26.1.2
+                        RenderType.entityTranslucentEmissive(texture)
+                        :
+                        //? if >=26.1.2
+                        /*RenderTypes.entityCutout(texture)*/
+                        //? if <26.1.2
+                        RenderType.entityCutoutNoCull(texture)
         );
         render(poseStack, consumer, packedLight, packedOverlay, rgb, alpha);
     }

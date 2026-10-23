@@ -176,14 +176,23 @@ public final class GuardCounterattackService {
     }
 
     /** Decode the native packet's action without executing any game interaction. */
+    //? if <26.1.2
     public static boolean isAttack(ServerboundInteractPacket packet) {
+        //? if <26.1.2
         boolean[] attack = {false};
+        //? if <26.1.2
         packet.dispatch(new ServerboundInteractPacket.Handler() {
+            //? if <26.1.2
             @Override public void onInteraction(InteractionHand hand) { }
+            //? if <26.1.2
             @Override public void onInteraction(InteractionHand hand, Vec3 location) { }
+            //? if <26.1.2
             @Override public void onAttack() { attack[0] = true; }
+        //? if <26.1.2
         });
+        //? if <26.1.2
         return attack[0];
+    //? if <26.1.2
     }
 
     public static boolean canReach(ServerPlayer player, Entity target) {

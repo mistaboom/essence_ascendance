@@ -1,5 +1,8 @@
 package com.mistaboom.essence_ascendance.client.ui;
 
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +24,9 @@ public enum PixelSymbol {
 
     public List<UiBounds> pixels() { return pixels; }
 
+    //? if >=26.1.2
+    /*public void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {*/
+    //? if <26.1.2
     public void draw(GuiGraphics graphics, int x, int y, int color) {
         for (UiBounds pixel : pixels) graphics.fill(x + pixel.x(), y + pixel.y(),
                 x + pixel.right(), y + pixel.bottom(), color);

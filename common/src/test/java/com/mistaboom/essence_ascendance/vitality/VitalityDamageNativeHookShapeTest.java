@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.vitality;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
@@ -18,49 +19,19 @@ public final class VitalityDamageNativeHookShapeTest {
     private static final String LOCAL = "net/minecraft/client/player/LocalPlayer";
     private static final String GUI = "net/minecraft/client/gui/Gui";
     public static void main(String[] args) throws Exception {
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) root = root.getParent();
-        if (root == null) throw new AssertionError("Mapped NeoForge cache required; compile :neoforge:compileJava first");
-        inspect(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + PLAYER + ".class"),
-                declaredFloatOrdinal(root, "fabric"), "Fabric");
-        inspectFeedback(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + LIVING + ".class"),
-                VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + LOCAL + ".class"), "Fabric");
-        inspectHealing(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + LIVING + ".class"),
-                VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + FOOD + ".class"),
-                VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + REGEN + ".class"), "Fabric");
-        inspectHud(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + GUI + ".class"), "Fabric");
-        int neoOrdinal = declaredFloatOrdinal(root, "neoforge");
-        int found = 0;
-        try (var paths = Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
-            for (Path path : paths.filter(p -> p.getFileName().toString().startsWith("neoforge-")
-                    && p.toString().endsWith(".jar") && !p.toString().endsWith("-sources.jar")).toList()) {
-                try (var jar = new JarFile(path.toFile())) {
-                    var entry = jar.getJarEntry(PLAYER + ".class");
-                    if (entry == null) continue;
-                    String loader = "NeoForge " + path.getFileName();
-                    inspect(jar.getInputStream(entry), neoOrdinal, loader);
-                    var living = jar.getJarEntry(LIVING + ".class");
-                    var local = jar.getJarEntry(LOCAL + ".class");
-                    check(living != null && local != null, loader + " merged client/server classes are required");
-                    inspectFeedback(jar.getInputStream(living), jar.getInputStream(local), loader);
-                    var food = jar.getJarEntry(FOOD + ".class");
-                    var regen = jar.getJarEntry(REGEN + ".class");
-                    check(food != null && regen != null, loader + " native regeneration classes exist");
-                    inspectHealing(jar.getInputStream(living), jar.getInputStream(food), jar.getInputStream(regen), loader);
-                    var gui = jar.getJarEntry(GUI + ".class");
-                    check(gui != null, loader + " native health HUD class exists");
-                    inspectHud(jar.getInputStream(gui), loader);
-                    found++;
-                }
-            }
+        for (String loader : List.of("fabric", "neoforge")) {
+            inspect(TargetTestInputs.nativeClass(loader, PLAYER), declaredFloatOrdinal(loader), loader);
+            inspectFeedback(TargetTestInputs.nativeClass(loader, LIVING), TargetTestInputs.nativeClass(loader, LOCAL), loader);
+            inspectHealing(TargetTestInputs.nativeClass(loader, LIVING), TargetTestInputs.nativeClass(loader, FOOD),
+                    TargetTestInputs.nativeClass(loader, REGEN), loader);
+            inspectHud(TargetTestInputs.nativeClass(loader, GUI), loader);
         }
-        check(found > 0, "NeoForge was actually inspected, not silently skipped");
-        System.out.println("VitalityDamageNativeHookShapeTest: " + checks + " checks passed (both mapped loaders)");
+        System.out.println("VitalityDamageNativeHookShapeTest: " + checks + " checks passed (exact target Fabric and NeoForge)");
     }
     /** Inspect the actual compiled annotation so a changed binding cannot silently diverge from this test. */
-    private static int declaredFloatOrdinal(Path root, String loader) throws Exception {
-        Path mixin = root.resolve(loader + "/build/classes/java/main/com/mistaboom/essence_ascendance/"
-                + loader + "/mixin/VitalityPlayerDamageMixin.class");
+    private static int declaredFloatOrdinal(String loader) throws Exception {
+        Path mixin = TargetTestInputs.compiledClass(loader,
+                "com/mistaboom/essence_ascendance/" + loader + "/mixin/VitalityPlayerDamageMixin");
         check(Files.isRegularFile(mixin), loader + " compiled routing mixin must exist");
         var type = read(Files.newInputStream(mixin));
         var route = type.methods.stream().filter(m -> m.name.equals("essenceAscendance$routeHealth")).findFirst().orElseThrow();

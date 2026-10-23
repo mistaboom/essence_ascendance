@@ -286,7 +286,7 @@ public final class AttunementGameplay {
             if (scope.player == player) { scope.confirmed = true; break; }
     }
     public static ExertionScope beginExertion(ServerPlayer player, String family) {
-        ExertionScope scope = new ExertionScope(player, family, player.getFoodData().getExhaustionLevel());
+        ExertionScope scope = new ExertionScope(player, family, exhaustion(player));
         EXERTION_SCOPES.get().push(scope);
         return scope;
     }
@@ -298,7 +298,7 @@ public final class AttunementGameplay {
         if (scopes.isEmpty()) EXERTION_SCOPES.remove();
     }
     private static void recordExhaustion(ServerPlayer player, double before, String source) {
-        double actual = player.getFoodData().getExhaustionLevel() - before;
+        double actual = exhaustion(player) - before;
         if (!eligible(player) || !(actual > 0)) return;
         Exertion previous = EXERTION.get(player);
         long tick = player.level().getGameTime();
@@ -317,6 +317,13 @@ public final class AttunementGameplay {
         award(player, action("hunger"), "consume_hunger", exertion.family, eligible);
     }
     public static double food(ServerPlayer player) { return player.getFoodData().getFoodLevel() + player.getFoodData().getSaturationLevel(); }
+
+    public static float exhaustion(ServerPlayer player) {
+        //? if >=26.1.2
+        /*return ((FoodExhaustionAccess) player.getFoodData()).essenceAscendance$exhaustionLevel();*/
+        //? if <26.1.2
+        return player.getFoodData().getExhaustionLevel();
+    }
     public static void foodRestored(ServerPlayer player, double before, ItemStack food) {
         award(player, action("food"), "restore_hunger", itemSignature(food), food(player) - before);
     }
@@ -458,7 +465,7 @@ public final class AttunementGameplay {
             this.root = root; this.owner = owner(source); this.reflected = EquipmentDamageService.isReflectionInProgress()
                     || source.is(net.minecraft.world.damagesource.DamageTypes.THORNS)
                     || SkillProcDamageService.current() != null && SkillProcDamageService.current().kind().reflectedOutcome();
-            this.exhaustionBefore = target instanceof ServerPlayer player ? player.getFoodData().getExhaustionLevel() : 0;
+            this.exhaustionBefore = target instanceof ServerPlayer player ? exhaustion(player) : 0;
         }
     }
 }

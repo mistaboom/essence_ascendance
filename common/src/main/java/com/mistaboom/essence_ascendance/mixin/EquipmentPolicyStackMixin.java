@@ -45,7 +45,7 @@ abstract class EquipmentPolicyStackMixin implements EquipmentPolicyStack {
             } finally { TwoHandedEquipmentService.end(player); }
         }
     }
-    @WrapMethod(method = "set")
+    @WrapMethod(method = "set(Lnet/minecraft/core/component/DataComponentType;Ljava/lang/Object;)Ljava/lang/Object;")
     private <T> T essenceAscendance$component(DataComponentType<? super T> type, T value, Operation<T> original) {
         if (!TwoHandedEquipmentPolicy.relevant(type)) return original.call(type, value);
         return essenceAscendance$components(() -> original.call(type, value));

@@ -106,7 +106,7 @@ public final class ProjectileTargeting {
         }
         projectile.setDeltaMovement(turn(projectile.getDeltaMovement(),
                 target.getBoundingBox().getCenter().subtract(projectile.position()), state.profile.turnDegreesPerTick()));
-        projectile.hasImpulse = true;
+        ProjectileMotionSync.mark(projectile);
     }
     public static Vec3 turn(Vec3 velocity, Vec3 desired, double degrees) {
         double speed = velocity.length();

@@ -1,4 +1,5 @@
 package com.mistaboom.essence_ascendance.network;
+import com.mistaboom.essence_ascendance.network.PlayerMessageCompat;
 
 import com.mistaboom.essence_ascendance.crucible.*;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
@@ -77,7 +78,7 @@ public final class TeamInterfaceNetworkService {
         sync(player, true);
     }
     public static void interfaceGuidance(ServerPlayer player) {
-        player.displayClientMessage(nativeInterfaceAvailable(player)
+        PlayerMessageCompat.send(player, nativeInterfaceAvailable(player)
                 ? Component.translatable("gui.essence_ascendance.team.open_machine_guidance") : providerGuidance(player), false);
     }
     private static boolean nativeInterfaceAvailable(ServerPlayer player) {
@@ -144,7 +145,7 @@ public final class TeamInterfaceNetworkService {
         boolean completed = false;
         try { execute(player, menu, choice, payload.input()); completed = true; }
         catch (IllegalArgumentException | IllegalStateException | ArithmeticException denied) {
-            player.displayClientMessage(Component.translatable("gui.essence_ascendance.team.action_denied"), false);
+            PlayerMessageCompat.send(player, Component.translatable("gui.essence_ascendance.team.action_denied"), false);
         }
         if (player.containerMenu == menu && ServerMenuAccess.isCurrent(player, menu)) sync(player, true);
         else {

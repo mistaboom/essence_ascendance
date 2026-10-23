@@ -1,63 +1,9 @@
-plugins {
-    id 'dev.architectury.loom' version '1.17-SNAPSHOT' apply false
-    id 'architectury-plugin' version '3.5-SNAPSHOT'
-    id 'com.gradleup.shadow' version '9.4.3' apply false
-}
+// Applied by the Stonecutter controller (stonecutter.gradle.kts).
+pluginManager.apply('architectury-plugin')
 
 apply from: 'gradle/branding.gradle'
-
-tasks.register('assetJarInvariants') {
-    group = 'verification'
-    description = 'Verify every common runtime asset is packaged unchanged in both production jars.'
-    dependsOn ':common:processResources', ':fabric:remapJar', ':neoforge:remapJar'
-    doLast {
-        def resourceRoot = project(':common').tasks.named('processResources').get().destinationDir
-        def expected = [:]
-        fileTree(resourceRoot).matching { include 'assets/**' }.visit { entry ->
-            if (!entry.directory) expected[entry.relativePath.pathString] = entry.file
-        }
-        if (expected.empty) throw new GradleException('Common processed assets are missing.')
-        def sourcePaths = [] as Set
-        project(':common').sourceSets.main.resources.matching { include 'assets/**' }.visit { entry ->
-            if (!entry.directory) sourcePaths.add(entry.relativePath.pathString)
-        }
-        if (sourcePaths != expected.keySet())
-            throw new GradleException('Processed assets differ from current source/generated ownership: missing='
-                    + (sourcePaths - expected.keySet()) + ', stale=' + (expected.keySet() - sourcePaths))
-        ['fabric', 'neoforge'].each { loader ->
-            def jar = project(":${loader}").tasks.named('remapJar').get().archiveFile.get().asFile
-            new java.util.zip.ZipFile(jar).withCloseable { zip ->
-                def names = zip.entries().collect { it.name }
-                def nameCounts = names.countBy { it }
-                def unexpected = names.findAll { it.startsWith('assets/essence_ascendance/')
-                        && !it.endsWith('/') && !expected.containsKey(it) }
-                if (!unexpected.empty) throw new GradleException("${loader}: stale/unowned runtime assets ${unexpected}")
-                expected.each { name, source ->
-                    if (!nameCounts.containsKey(name)) throw new GradleException("${loader}: missing runtime asset ${name}")
-                    if (nameCounts[name] != 1) throw new GradleException("${loader}: duplicate runtime asset ${name}")
-                    if (!java.util.Arrays.equals(source.bytes, zip.getInputStream(zip.getEntry(name)).bytes))
-                        throw new GradleException("${loader}: stale runtime asset ${name}")
-                }
-                if (names.any { it.startsWith('art/') || it.endsWith('.bbmodel')
-                        || it.contains('textures/armor/ascendance/source/')
-                        || it.contains('textures/models/armor/source/') })
-                    throw new GradleException("${loader}: packaged asset authoring files")
-                if (!names.contains('com/mistaboom/essence_ascendance/mixin/ArmorPresentationMixin.class'))
-                    throw new GradleException("${loader}: missing common armor presentation hook")
-                if (names.any { it.startsWith('com/mistaboom/essence_ascendance/client/armor/ArmorOrnaments')
-                        || it.startsWith('com/mistaboom/essence_ascendance/visual/ArmorVisualStyle') })
-                    throw new GradleException("${loader}: obsolete floating armor ornament classes packaged")
-                logger.lifecycle("${loader}: all ${expected.size()} runtime assets match processed resources; authoring files excluded")
-            }
-        }
-    }
-}
-
-tasks.register('armorJarInvariants') {
-    group = 'verification'
-    description = 'Compatibility alias for the complete production asset verification.'
-    dependsOn tasks.named('assetJarInvariants')
-}
+ext.targetCatalog = new groovy.json.JsonSlurper().parse(file('gradle/targets.json'))
+if (targetCatalog.schema != 1) throw new GradleException('Unsupported target catalog schema')
 
 architectury {
     minecraft = project.minecraft_version
@@ -69,14 +15,42 @@ allprojects {
 }
 
 // Desktop developer tools must never inherit Loom or Minecraft dependencies.
-configure([project(':common'), project(':fabric'), project(':neoforge')]) {
-    apply plugin: 'dev.architectury.loom'
-    apply plugin: 'architectury-plugin'
-    apply plugin: 'maven-publish'
+def minecraftVersions = targetCatalog.versions.keySet().toList()
+def modProjects = minecraftVersions.collect { minecraft -> project(":common:${minecraft}") } +
+        targetCatalog.targets.collect { target -> project(":${target.loader}:${target.minecraft}") }
+configure(modProjects) { p ->
+    def nodeMinecraft = p.name
+    def profile = rootProject.targetCatalog.versions[nodeMinecraft]
+    if (profile == null) throw new GradleException("Unknown Minecraft node ${p.path}")
+    // Stonecutter gives all three sibling nodes the same project name (the MC version).
+    // Distinct module identities keep Gradle from selecting a loader node for common.
+    p.group = "${rootProject.maven_group}.${p.parent.name}"
+    p.ext.targetMinecraft = nodeMinecraft
+    p.ext.targetJava = profile.java as int
+    p.ext.targetRemap = profile.loom == 'remap'
+    p.ext.targetResourceFormat = profile.resourceFormat
+    p.ext.targetNativeSources = profile.nativeSources[p.parent.name]
+    p.ext.targetNativeAccess = profile.nativeAccess[p.parent.name] ?: false
+    p.ext.targetImplemented = rootProject.targetCatalog.targets.any {
+        it.minecraft == nodeMinecraft && it.implemented && (p.parent.name == 'common' || it.loader == p.parent.name)
+    }
+    p.ext.targetArchitecturyApi = profile.architecturyApi
+    p.ext.targetFabricLoader = profile.fabricLoader
+    p.ext.targetFabricApi = profile.fabricApi
+    p.ext.targetNeoForge = profile.neoforge
+    p.ext.targetNeoForgeMin = profile.neoforgeMinimum
+    p.ext.targetJeiCommonApi = profile.jeiCommonApi
+    p.ext.targetFtbTeams = profile.ftbTeams
+    p.ext.targetFtbLibrary = profile.ftbLibrary
+    p.ext.targetCommon = rootProject.project(":common:${nodeMinecraft}")
+    p.pluginManager.apply(profile.loom == 'no-remap' ? 'dev.architectury.loom-no-remap' : 'dev.architectury.loom')
+    p.pluginManager.apply('architectury-plugin')
+    p.pluginManager.apply('maven-publish')
+    if (p.parent.name != 'common') p.pluginManager.apply('com.gradleup.shadow')
 
     base {
-        // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
-        archivesName = "$rootProject.archives_name-$project.name"
+        // Keep established development and Maven archive coordinates.
+        archivesName = "$rootProject.archives_name-${project.parent.name}${nodeMinecraft == '1.21.1' ? '' : '-' + nodeMinecraft}"
     }
 
     repositories {
@@ -92,8 +66,8 @@ configure([project(':common'), project(':fabric'), project(':neoforge')]) {
     }
 
     dependencies {
-        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
-        mappings loom.officialMojangMappings()
+        minecraft "net.minecraft:minecraft:${nodeMinecraft}"
+        if (profile.loom == 'remap') mappings loom.officialMojangMappings()
     }
 
     java {
@@ -102,13 +76,33 @@ configure([project(':common'), project(':fabric'), project(':neoforge')]) {
         // If you remove this line, sources will not be generated.
         withSourcesJar()
 
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        toolchain.languageVersion = JavaLanguageVersion.of(project.targetJava)
+        sourceCompatibility = JavaVersion.toVersion(project.targetJava)
+        targetCompatibility = JavaVersion.toVersion(project.targetJava)
     }
 
     tasks.withType(JavaCompile).configureEach {
-        it.options.release = 21
+        it.options.release = project.targetJava
     }
+    p.tasks.withType(JavaExec).configureEach {
+        javaLauncher = p.javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+        if (!p.targetImplemented && name.startsWith('run')) {
+            doFirst { throw new GradleException("${p.path} runtime is not implemented; complete this target's port first.") }
+        }
+    }
+    if (p.parent.name == 'common') {
+        // Preserve the fixture working directory used by the pre-Stonecutter common module.
+        p.tasks.withType(JavaExec).configureEach {
+            workingDir rootProject.file('common')
+            systemProperty 'essence.test.buildDirectory', p.layout.buildDirectory.get().asFile.absolutePath
+        }
+    }
+    ['compileJava', 'compileTestJava', 'processResources', 'processTestResources', 'sourcesJar'].each { taskName ->
+        p.tasks.named(taskName) { dependsOn p.tasks.named(taskName.contains('Test') ? 'stonecutterGenerateTest' : 'stonecutterGenerate') }
+    }
+
+    p.apply from: rootProject.file('gradle/native-sources.gradle')
+    p.apply from: rootProject.file('gradle/mixin-resources.gradle')
 
     // Configure Maven publishing.
     publishing {
@@ -129,5 +123,50 @@ configure([project(':common'), project(':fabric'), project(':neoforge')]) {
     }
 }
 
+apply from: 'gradle/production-targets.gradle'
 apply from: 'gradle/pack-tester.gradle'
 apply from: 'gradle/release.gradle'
+
+// Keep Stonecutter's switch tasks callable from Gradle without adding switch
+// entries to the Minecraft client/server run dropdown in IntelliJ.
+tasks.named('stonecutterIdea').configure { enabled = false }
+
+// The supported matrix is declared once; CI and maintainers use the same normal gates.
+tasks.register('verifyDevelopmentRuns') {
+    group = 'verification'
+    description = 'Checks that every implemented target has exactly one explicit IDE client and server entry.'
+    inputs.file('gradle/targets.json')
+    inputs.files(fileTree('.run') { include '*.run.xml' })
+    doLast {
+        def expected = targetCatalog.targets.findAll { it.implemented }.collectMany { target ->
+            ['Client', 'Server'].collect { side -> ":${target.loader}:${target.minecraft}:run${side}".toString() }
+        }.toSet()
+        def entries = [:].withDefault { [] }
+        fileTree('.run').matching { include '*.run.xml' }.files.each { file ->
+            def document = new groovy.xml.XmlSlurper().parse(file)
+            document.configuration.findAll { it.@name.text().startsWith('Minecraft ') }.each { config ->
+                def options = config.ExternalSystemSettings.option
+                def tasks = options.find { it.@name.text() == 'taskNames' }.list.option.collect { it.@value.text() }
+                if (config.@type.text() != 'GradleRunConfiguration' || tasks.size() != 1
+                        || !expected.contains(tasks.first())
+                        || options.find { it.@name.text() == 'externalProjectPath' }.@value.text() != '$PROJECT_DIR$')
+                    throw new GradleException("${file}: Minecraft run must select one exact implemented target task from the repository root")
+                entries[tasks.first()].add(file.name)
+            }
+        }
+        expected.each { task ->
+            if (entries[task].size() != 1)
+                throw new GradleException("Expected one .run entry for ${task}, got ${entries[task]}")
+        }
+        logger.lifecycle("Verified ${expected.size()} IDE client/server runs against the target catalog")
+    }
+}
+
+tasks.register('checkSupportedTargets') {
+    group = 'verification'
+    description = 'Run normal common checks and artifact audits for every implemented target version.'
+    def supportedVersions = targetCatalog.targets.findAll { it.implemented }.collect { it.minecraft }.unique()
+    dependsOn supportedVersions.collect { project(":common:${it}").tasks.named('check') }
+    dependsOn tasks.named('verifyDevelopmentRuns'), tasks.named('writeProductionManifest'), tasks.named('assetJarInvariants'),
+            project(':pack-tester').tasks.named('regression')
+}

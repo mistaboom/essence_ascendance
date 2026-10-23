@@ -1,4 +1,5 @@
 package com.mistaboom.essence_ascendance.network;
+import com.mistaboom.essence_ascendance.network.PlayerMessageCompat;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
@@ -266,7 +267,7 @@ public final class AscendanceNexusNetworkService {
         } else {
             /* Fresh authoritative state precedes the correlated failure ack. */
             PlayerEssenceSyncService.forceSync(player);
-            player.displayClientMessage(
+            PlayerMessageCompat.send(player,
                     resultMessage(result.status()),
                     true
             );
@@ -359,7 +360,7 @@ public final class AscendanceNexusNetworkService {
             Component message,
             boolean refreshState
     ) {
-        player.displayClientMessage(message, true);
+        PlayerMessageCompat.send(player, message, true);
         if (refreshState) {
             PlayerEssenceSyncService.forceSync(player);
         }

@@ -1,0 +1,21 @@
+// Explicit fixture-only development dependency. Production common.jar and shadowBundle stay pristine.
+ext.useNativeFixtureCommon = { String fixtureName, List<String> patterns ->
+    if (!project.targetImplemented) throw new GradleException("${project.path}: native fixtures require an implemented target")
+    if (project.ext.has('nativeFixtureOwner')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+    project.ext.nativeFixtureOwner = fixtureName
+    def commonProject = project.targetCommon
+    def original = commonProject.tasks.named('jar')
+    def fixtureCommon = tasks.register("${fixtureName}CommonFixtureJar", Jar) {
+        dependsOn original, commonProject.tasks.named('testClasses')
+        archiveFileName = 'common-with-fixture.jar'
+        destinationDirectory = layout.buildDirectory.dir("native-fixtures/${fixtureName}/common")
+        from({ zipTree(original.get().archiveFile.get().asFile) }) { exclude 'META-INF/MANIFEST.MF' }
+        from(commonProject.sourceSets.test.output) { patterns.each { include it } }
+        manifest.attributes(original.get().manifest.attributes)
+        duplicatesStrategy = DuplicatesStrategy.FAIL
+    }
+    // Only development classpaths inherit this configuration. Production uses shadowBundle's project transform.
+    configurations.common.dependencies.clear()
+    dependencies.add('common', files(fixtureCommon.flatMap { it.archiveFile }).builtBy(fixtureCommon))
+    fixtureCommon
+}

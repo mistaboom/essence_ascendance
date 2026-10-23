@@ -30,7 +30,7 @@ import java.util.Locale;
 final class EssenceBalanceCommands {
     private EssenceBalanceCommands() { }
     static LiteralArgumentBuilder<CommandSourceStack> build() {
-        var root = Commands.literal("balance").requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+        var root = Commands.literal("balance").requires(source -> EssenceCommandUtil.hasAdminPermission(source))
                 .executes(context -> showHelp(context.getSource(), false))
                 .then(Commands.literal("help").executes(context -> showHelp(context.getSource(), false)))
                 .then(Commands.literal("summary").executes(context -> guarded(context.getSource(), () -> summary(context.getSource()))))
@@ -56,7 +56,7 @@ final class EssenceBalanceCommands {
 
     static LiteralArgumentBuilder<CommandSourceStack> admin() {
         return Commands.literal("balance")
-                .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                .requires(source -> EssenceCommandUtil.hasAdminPermission(source))
                 .executes(context -> showHelp(context.getSource(), true))
                 .then(Commands.literal("help").executes(context -> showHelp(context.getSource(), true)))
                 .then(Commands.literal("rebuild").executes(context -> rebuild(context.getSource())))

@@ -3,6 +3,9 @@ package com.mistaboom.essence_ascendance.mixin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -22,8 +25,14 @@ public abstract class MaximumHealthHudMixin {
     @Shadow private int lastHealth;
     @Shadow private int displayHealth;
 
+    //? if >=26.1.2
+    /*@Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V",*/
+    //? if <26.1.2
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V",
             at = @At("HEAD"), require = 1)
+    //? if >=26.1.2
+    /*private void essenceAscendance$respectCapacity(GuiGraphicsExtractor graphics, DeltaTracker delta, CallbackInfo ci) {*/
+    //? if <26.1.2
     private void essenceAscendance$respectCapacity(GuiGraphics graphics, DeltaTracker delta, CallbackInfo ci) {
         if (!(minecraft.getCameraEntity() instanceof Player player)) return;
         int maximum = Mth.ceil(player.getMaxHealth());

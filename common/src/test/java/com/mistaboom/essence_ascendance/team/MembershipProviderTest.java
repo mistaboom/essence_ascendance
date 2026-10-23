@@ -301,14 +301,22 @@ public final class MembershipProviderTest {
             check(MembershipProviders.support(entry, Map.of(), loader).status() == ProviderReadiness.Status.ABSENT, "Absent distinct from unsupported");
         }
         var ftb = MembershipProviders.entries().stream().filter(e -> e.authority() == MembershipAuthority.FTB_TEAMS).findFirst().orElseThrow();
+        //? if >=26.1.2
+        /*var shared = Map.of("ftbteams", "26.1.2.4", "ftblibrary", "26.1.2.9");*/
+        //? if <26.1.2
         var shared = Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.36", "architectury", "13.0.11");
         for (String loader : List.of("fabric", "neoforge")) {
             check(MembershipProviders.support(ftb, shared, loader).status() == ProviderReadiness.Status.NOT_READY,
                     "One installed FTB tuple supports functional membership");
+            //? if <26.1.2
             var newest = new HashMap<>(shared); newest.put("ftblibrary", "2101.1.37");
-            check(MembershipProviders.support(ftb, newest, loader).status() == ProviderReadiness.Status.NOT_READY,
-                    "The installed Library 2101.1.37 tuple supports functional membership");
+            //? if <26.1.2
+            check(MembershipProviders.support(ftb, newest, loader).status() == ProviderReadiness.Status.NOT_READY, "The installed Library 2101.1.37 tuple supports functional membership");
+            //? if >=26.1.2
+            /*for (var rejected : List.of(Map.of("ftbteams", "26.1.2.4", "ftblibrary", "26.1.2.8"), Map.of("ftbteams", "26.1.2.3", "ftblibrary", "26.1.2.9"), Map.of("ftbteams", "26.1.2.4")))*/
+            //? if <26.1.2
             for (var rejected : List.of(Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.35"),
+                    //? if <26.1.2
                     Map.of("ftbteams", "2101.1.10", "ftblibrary", "2101.1.36"), Map.of("ftbteams", "2101.1.11")))
                 check(MembershipProviders.support(ftb, rejected, loader).status() == ProviderReadiness.Status.UNSUPPORTED,
                         "Unverified or incomplete membership tuple remains blocked");

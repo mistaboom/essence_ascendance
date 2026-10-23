@@ -22,7 +22,13 @@ public final class LatentOreFeature extends Feature<NoneFeatureConfiguration> {
         var settings = selection.distribution();
         var level = context.level();
         var generator = context.chunkGenerator();
+        //? if >=26.1.2
+        /*int minY = Math.max(settings.minY(), Math.max(level.getMinY(), generator.getMinY()));*/
+        //? if <26.1.2
         int minY = Math.max(settings.minY(), Math.max(level.getMinBuildHeight(), generator.getMinY()));
+        //? if >=26.1.2
+        /*int maxY = Math.min(settings.maxY(), Math.min(level.getMaxY() + 1, generator.getMinY() + generator.getGenDepth()) - 1);*/
+        //? if <26.1.2
         int maxY = Math.min(settings.maxY(), Math.min(level.getMaxBuildHeight(), generator.getMinY() + generator.getGenDepth()) - 1);
         if (minY > maxY) return false;
         var oreState = EssenceInfuserContent.LATENT_ORE.get().defaultBlockState();

@@ -244,6 +244,9 @@ public final class ReferencePresentationTest {
                             "Essentium forms are out of order");
                     var expected = com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData.carrierData(
                             new com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData.Value(essence, EssenceFocusTier.values()[grade], 1, 9));
+                    //? if >=26.1.2
+                    /*check(java.util.Objects.requireNonNull(model.components().get(net.minecraft.core.component.DataComponentMap.EMPTY, net.minecraft.core.component.DataComponents.CUSTOM_DATA)).equals(expected),*/
+                    //? if <26.1.2
                     check(model.components().get(net.minecraft.core.component.DataComponents.CUSTOM_DATA).orElseThrow().equals(expected),
                             "Essentium image lacks the category and grade components used by the native model");
                     check(model.label().getString().isBlank() == false, "Essentium image is not searchable");
@@ -497,6 +500,9 @@ public final class ReferencePresentationTest {
         var column = table.data().columns().getFirst();
         check(column.isItem(), "First equipment column is not an item image");
         var model = column.item(table.data().rows().get(row).value());
+        //? if >=26.1.2
+        /*var encoded = java.util.Objects.requireNonNull(model.components().get(net.minecraft.core.component.DataComponentMap.EMPTY, net.minecraft.core.component.DataComponents.CUSTOM_DATA));*/
+        //? if <26.1.2
         var encoded = model.components().get(net.minecraft.core.component.DataComponents.CUSTOM_DATA).orElseThrow();
         check(encoded.equals(com.mistaboom.essence_ascendance.equipment.EquipmentTierData.tierData(tier)),
                 "Equipment illustration lost its completed tier");

@@ -7,8 +7,16 @@ import com.mistaboom.essence_ascendance.projectile.MagicBoltEntity;
 import com.mistaboom.essence_ascendance.projectile.ProjectileFlightTraceAccess;
 import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.SubmitNodeCollector;*/
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.entity.state.EntityRenderState;*/
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.state.level.CameraRenderState;*/
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+//? if <26.1.2
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -18,6 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Depth-tested, textureless Caster bolt with a strong core and distance-gated fine structure. */
+//? if >=26.1.2
+/*public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity, MagicBoltRenderer.State> {*/
+//? if <26.1.2
 public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity> {
     private static final int SHELL = SemanticVisualColor.MAGIC.rgb();
     private static final int CORE = 0xFFF4CB;
@@ -33,26 +44,79 @@ public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity> {
         return 15;
     }
 
+    //? if <26.1.2 {
     @Override public void render(MagicBoltEntity bolt, float yaw, float partialTick,
                                  PoseStack pose, MultiBufferSource buffers, int packedLight) {
+        Frame frame = capture(bolt, partialTick, entityRenderDispatcher.distanceToSqr(bolt));
         if (com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.inWorldFrame()) {
             com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.enqueueEntity(
                     pose, entityRenderDispatcher.distanceToSqr(bolt),
-                    (captured, deferredBuffers) -> renderVisual(bolt, partialTick, captured, deferredBuffers));
-        } else renderVisual(bolt, partialTick, pose, buffers);
+                    (captured, deferredBuffers) -> renderVisual(frame, captured, deferredBuffers));
+        } else renderVisual(frame, pose, buffers);
         super.render(bolt, yaw, partialTick, pose, buffers, packedLight);
     }
+    //? }
 
-    private void renderVisual(MagicBoltEntity bolt, float partialTick,
-                              PoseStack pose, MultiBufferSource buffers) {
-        Vec3 velocity = bolt.getDeltaMovement();
+    //? if >=26.1.2 {
+    /*public static final class State extends EntityRenderState {
+        private Frame frame;
+    }
+
+    @Override public State createRenderState() { return new State(); }
+
+    @Override public void extractRenderState(MagicBoltEntity bolt, State state, float partialTick) {
+        super.extractRenderState(bolt, state, partialTick);
+        state.frame = capture(bolt, partialTick, state.distanceToCameraSq);
+    }
+
+    @Override public void submit(State state, PoseStack pose, SubmitNodeCollector collector,
+                                 CameraRenderState camera) {
+        Frame frame = state.frame;
+        if (frame == null) return;
+        collector.submitCustomGeometry(pose, ProceduralRenderTypes.WORLD_PLANES,
+                (submittedPose, vertices) -> {
+                    PoseStack geometry = new PoseStack();
+                    geometry.mulPose(submittedPose.pose());
+                    renderPlanes(frame, geometry, vertices);
+                });
+        collector.submitCustomGeometry(pose, ProceduralRenderTypes.WORLD_DEPTH_LINES,
+                (submittedPose, vertices) -> {
+                    PoseStack geometry = new PoseStack();
+                    geometry.mulPose(submittedPose.pose());
+                    renderLines(frame, geometry, vertices);
+                });
+        super.submit(state, pose, collector, camera);
+    }
+    *///? }
+
+    private record Frame(Vec3 velocity, double time, double distanceSquared, List<Vec3> trace) { }
+
+    private static Frame capture(MagicBoltEntity bolt, float partialTick, double distanceSquared) {
+        Vec3 origin = new Vec3(
+                bolt.xo + (bolt.getX() - bolt.xo) * partialTick,
+                bolt.yo + (bolt.getY() - bolt.yo) * partialTick,
+                bolt.zo + (bolt.getZ() - bolt.zo) * partialTick);
+        List<Vec3> trace = ((ProjectileFlightTraceAccess) (Object) bolt).essenceAscendance$flightTrace();
+        int first = Math.max(0, trace.size() - 10);
+        List<Vec3> local = new ArrayList<>(trace.size() - first + 1);
+        for (int i = first; i < trace.size(); i++) local.add(trace.get(i).subtract(origin));
+        local.add(Vec3.ZERO);
+        return new Frame(bolt.getDeltaMovement(), bolt.tickCount + partialTick, distanceSquared, List.copyOf(local));
+    }
+
+    private static void renderVisual(Frame frame, PoseStack pose, MultiBufferSource buffers) {
+        renderPlanes(frame, pose, buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES));
+        renderLines(frame, pose, buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES));
+    }
+
+    private static void renderPlanes(Frame frame, PoseStack pose, VertexConsumer planes) {
+        Vec3 velocity = frame.velocity();
         Vec3 forward = velocity.lengthSqr() > 1.0E-8 ? velocity.normalize() : new Vec3(0, 0, 1);
         Basis basis = Basis.around(forward);
-        double time = bolt.tickCount + partialTick;
+        double time = frame.time();
         double pulse = 1.0 + Math.sin(time * 0.72) * 0.07;
         Vec3 center = Vec3.ZERO;
 
-        var planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);
         ProceduralGeometry.diamond(pose, planes, center, basis.a(), forward,
                 0.115 * pulse, 0.245 * pulse, SHELL, 0.72F);
         ProceduralGeometry.diamond(pose, planes, center, basis.b(), forward,
@@ -69,14 +133,24 @@ public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity> {
                 0.012, 0.050, SHELL, 0.34F);
         ProceduralGeometry.taperedPlane(pose, planes, tail.scale(0.82), forward.scale(-0.04), basis.b(),
                 0.008, 0.034, brighten(SHELL, 0.36), 0.25F);
+    }
 
-        var lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
+    private static void renderLines(Frame frame, PoseStack pose, VertexConsumer lines) {
+        Vec3 velocity = frame.velocity();
+        Vec3 forward = velocity.lengthSqr() > 1.0E-8 ? velocity.normalize() : new Vec3(0, 0, 1);
+        Basis basis = Basis.around(forward);
+        double time = frame.time();
+        double pulse = 1.0 + Math.sin(time * 0.72) * 0.07;
+        Vec3 center = Vec3.ZERO;
+        double trailLength = Math.clamp(0.42 + velocity.length() * 0.12, 0.48, 0.92);
+        Vec3 tail = forward.scale(-trailLength);
+
         ProceduralGeometry.line(pose, lines, forward.scale(-0.24), forward.scale(0.25), CORE, 0.90F);
         ProceduralGeometry.brokenRing(pose, lines, center, basis.a(), basis.b(),
                 0.18, time * 0.19, Math.PI * 2.0, 6, 2, 0.32,
                 brighten(SHELL, 0.48), 0.54F);
 
-        if (entityRenderDispatcher.distanceToSqr(bolt) <= DETAIL_DISTANCE_SQUARED) {
+        if (frame.distanceSquared() <= DETAIL_DISTANCE_SQUARED) {
             ProceduralGeometry.arc(pose, lines, center, basis.a(), basis.b(),
                     0.22, 0.12, -time * 0.25, Math.PI * 1.55, 10,
                     brighten(SHELL, 0.68), 0.28F);
@@ -87,23 +161,14 @@ public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity> {
             ProceduralGeometry.helix(pose, lines, tail, forward.scale(trailLength * 0.88),
                     basis.a(), basis.b(), 0.025, 1.35, 12,
                     brighten(SHELL, 0.62), 0.22F);
-            renderFlightTrace(bolt, partialTick, pose, lines, basis);
+            renderFlightTrace(frame.trace(), pose, lines, basis);
         }
 
     }
 
-    private static void renderFlightTrace(MagicBoltEntity bolt, float partialTick, PoseStack pose,
-                                          com.mojang.blaze3d.vertex.VertexConsumer lines, Basis basis) {
-        List<Vec3> trace = ((ProjectileFlightTraceAccess) (Object) bolt).essenceAscendance$flightTrace();
-        if (trace.size() < 2) return;
-        Vec3 origin = new Vec3(
-                bolt.xo + (bolt.getX() - bolt.xo) * partialTick,
-                bolt.yo + (bolt.getY() - bolt.yo) * partialTick,
-                bolt.zo + (bolt.getZ() - bolt.zo) * partialTick);
-        int first = Math.max(0, trace.size() - 10);
-        List<Vec3> local = new ArrayList<>(trace.size() - first + 1);
-        for (int i = first; i < trace.size(); i++) local.add(trace.get(i).subtract(origin));
-        local.add(Vec3.ZERO);
+    private static void renderFlightTrace(List<Vec3> local, PoseStack pose,
+                                          VertexConsumer lines, Basis basis) {
+        if (local.size() < 3) return;
         ProceduralGeometry.ribbon(pose, lines, local, brighten(SHELL, 0.34), 0.24F);
         if (local.size() >= 3) {
             Vec3 offset = basis.a().scale(0.022);
@@ -114,9 +179,11 @@ public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity> {
         }
     }
 
+    //? if <26.1.2 {
     @Override public ResourceLocation getTextureLocation(MagicBoltEntity entity) {
         return TextureAtlas.LOCATION_BLOCKS;
     }
+    //? }
 
     private static int brighten(int rgb, double amount) {
         int red = rgb >> 16 & 255, green = rgb >> 8 & 255, blue = rgb & 255;

@@ -16,6 +16,9 @@ import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -59,6 +62,9 @@ public final class NexusAttunementView {
         // The next authoritative render resolves removed categories and clamps scrolling to the current layout.
     }
 
+    //? if >=26.1.2
+    /*public void render(GuiGraphicsExtractor graphics, Font font, AttunementSnapshot state,*/
+    //? if <26.1.2
     public void render(GuiGraphics graphics, Font font, AttunementSnapshot state,
                        Component currentTier, Component nextTier, int left, int top,
                        int width, int height, int mouseX, int mouseY, double time) {
@@ -103,6 +109,9 @@ public final class NexusAttunementView {
                 color(category), this::back));
     }
 
+    //? if >=26.1.2
+    /*private void renderOverview(GuiGraphicsExtractor graphics, Font font, AttunementSnapshot state,*/
+    //? if <26.1.2
     private void renderOverview(GuiGraphics graphics, Font font, AttunementSnapshot state,
                                 Component currentTier, Component nextTier, int mouseX, int mouseY, double time) {
         int cx = layout.centerX(), cy = layout.centerY(), centerRadius = layout.medallionRadius();
@@ -217,6 +226,9 @@ public final class NexusAttunementView {
         return text;
     }
 
+    //? if >=26.1.2
+    /*private void renderDetail(GuiGraphicsExtractor graphics, Font font, AttunementSnapshot.Category category) {*/
+    //? if <26.1.2
     private void renderDetail(GuiGraphics graphics, Font font, AttunementSnapshot.Category category) {
         int headerHeight = font.lineHeight + 14;
         List<FormattedCharSequence> lines = detail(category).wrap(font, Math.max(1, width - 28));
@@ -228,6 +240,9 @@ public final class NexusAttunementView {
         FullscreenViewport.withClip(graphics,
                 new UiBounds(left + 6, bodyTop, Math.max(0, width - 12), Math.max(1, bodyBottom - bodyTop)), () -> {
             for (int i = detailScroll.offset(); i < Math.min(lines.size(), detailScroll.offset() + rows); i++)
+                //? if >=26.1.2
+                /*graphics.text(font, lines.get(i), left + 12, bodyTop + (i - detailScroll.offset()) * lineHeight, TEXT, false);*/
+                //? if <26.1.2
                 graphics.drawString(font, lines.get(i), left + 12, bodyTop + (i - detailScroll.offset()) * lineHeight, TEXT, false);
         });
         if (detailScroll.maximumOffset() > 0) {
@@ -264,8 +279,14 @@ public final class NexusAttunementView {
         return text;
     }
 
+    //? if >=26.1.2
+    /*public void renderTooltip(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, int screenWidth) {*/
+    //? if <26.1.2
     public void renderTooltip(GuiGraphics graphics, Font font, int mouseX, int mouseY, int screenWidth) {
         if (hovered == null || selectedCategory != null) return;
+        //? if >=26.1.2
+        /*graphics.setTooltipForNextFrame(font, hovered.wrap(font, TooltipLayout.compactWidth(180, screenWidth)), mouseX, mouseY);*/
+        //? if <26.1.2
         graphics.renderTooltip(font, hovered.wrap(font, TooltipLayout.compactWidth(180, screenWidth)), mouseX, mouseY);
     }
 
@@ -336,8 +357,14 @@ public final class NexusAttunementView {
         ResourceLocation id = ResourceLocation.tryParse(category.categoryId());
         return id == null ? categoryName(category) : ItemEssenceTooltipClientState.compactNameComponent(id);
     }
+    //? if >=26.1.2
+    /*private static void centeredFit(GuiGraphicsExtractor graphics, Font font, Component text,*/
+    //? if <26.1.2
     private static void centeredFit(GuiGraphics graphics, Font font, Component text,
                                     int x, int y, int maxWidth, int color) {
+        //? if >=26.1.2
+        /*graphics.centeredText(font, com.mistaboom.essence_ascendance.client.ui.StyledTextLayout.fit(*/
+        //? if <26.1.2
         graphics.drawCenteredString(font, com.mistaboom.essence_ascendance.client.ui.StyledTextLayout.fit(
                 font, text, Math.max(0, maxWidth)), x, y, color);
     }

@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.valuation;
 
 import com.mistaboom.essence_ascendance.balance.economy.ProductionGraph;
 import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
+import com.mistaboom.essence_ascendance.equipment.RecipeEvidenceCompat;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.*;
@@ -21,18 +22,21 @@ public final class EffectiveProduction {
         for(var holder:recipes){
             BalancePerformance.increment("production_recipes_inspected");
             try{
-                var recipe=holder.value();var output=recipe.getResultItem(registries);
-                if(output.isEmpty())continue;
+                var recipe=holder.value();var output=RecipeEvidenceCompat.output(recipe,registries);
+                if(output==null||output.isEmpty()){unsupported.accept("generic_recipe","No unambiguous static output");continue;}
                 boolean complete=nativeStatic(recipe);
                 var inputs=new ArrayList<ProductionGraph.Input>();var returns=new TreeMap<String,Double>();
                 for(var ingredient:staticIngredients(recipe,registries)){
-                    if(ingredient==null||ingredient==Ingredient.EMPTY)continue;
-                    var choices=ingredient.getItems();if(choices.length==0){complete=false;continue;}
+                    if(RecipeEvidenceCompat.empty(ingredient))continue;
+                    var choices=RecipeEvidenceCompat.alternatives(ingredient);if(choices.isEmpty()){complete=false;continue;}
                     complete &= simpleIngredient(ingredient);
                     var alternatives=new TreeSet<String>();var remainders=new TreeSet<String>();
                     for(var stack:choices){
                         if(stack.isEmpty())continue;
                         alternatives.add(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+                        //? if >=26.1.2
+                        /*var returned=recipe instanceof CraftingRecipe && stack.getItem().getCraftingRemainder()!=null ? stack.getItem().getCraftingRemainder().item().value() : null;*/
+                        //? if <26.1.2
                         var returned=recipe instanceof CraftingRecipe?stack.getItem().getCraftingRemainingItem():null;
                         remainders.add(returned==null?"":BuiltInRegistries.ITEM.getKey(returned).toString());
                         if(recipe instanceof CraftingRecipe)complete &= !customRemainder(stack.getItem());
@@ -46,13 +50,21 @@ public final class EffectiveProduction {
                 var outputs=new ArrayList<ProductionGraph.Output>();
                 outputs.add(new ProductionGraph.Output(BuiltInRegistries.ITEM.getKey(output.getItem()).toString(),output.getCount(),1,false));
                 returns.forEach((id,n)->outputs.add(new ProductionGraph.Output(id,n,1,true)));
+                //? if >=26.1.2
+                /*double ticks=recipe instanceof AbstractCookingRecipe cooking?cooking.cookingTime():0;*/
+                //? if <26.1.2
                 double ticks=recipe instanceof AbstractCookingRecipe cooking?cooking.getCookingTime():0;
                 var metadata=new TreeMap<String,String>();
                 metadata.put("adapter","shared_recipe_interfaces");metadata.put("conservation_complete",Boolean.toString(complete));
                 metadata.put("acquisition_complete","false");metadata.put("duration_known",Boolean.toString(recipe instanceof AbstractCookingRecipe));
                 metadata.put("value_evidence",complete?"static_material_recipe":"advisory_recipe_estimate");
                 metadata.put("source_access","not_inferred");
-                processes.add(new ProductionGraph.Process(holder.id().toString(),BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType()).toString(),
+                processes.add(new ProductionGraph.Process(
+                        //? if >=26.1.2
+                        /*holder.id().identifier().toString(),*/
+                        //? if <26.1.2
+                        holder.id().toString(),
+                        BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType()).toString(),
                         inputs,outputs,ticks,0,"shared_recipe_interfaces",complete?.9:.4,metadata));
             }catch(RuntimeException|LinkageError failure){
                 unsupported.accept("generic_recipe",failure.getClass().getSimpleName());
@@ -69,25 +81,47 @@ public final class EffectiveProduction {
                 ||type==SmokingRecipe.class||type==CampfireCookingRecipe.class||type==StonecutterRecipe.class||type==SmithingTransformRecipe.class;
     }
     private static List<Ingredient> staticIngredients(Recipe<?> recipe,HolderLookup.Provider registries){
+        //? if >=26.1.2
+        /*return RecipeEvidenceCompat.ingredients(recipe);*/
+        //? if <26.1.2
         // Smithing's public generic getter is empty. Its native codec exposes the three exact inputs.
+        //? if <26.1.2
         if(recipe.getClass()==SmithingTransformRecipe.class){
+            //? if <26.1.2
             var ops=registries.createSerializationContext(com.mojang.serialization.JsonOps.INSTANCE);
+            //? if <26.1.2
             var json=RecipeSerializer.SMITHING_TRANSFORM.codec().codec().encodeStart(ops,(SmithingTransformRecipe)recipe)
+                    //? if <26.1.2
                     .getOrThrow().getAsJsonObject();
+            //? if <26.1.2
             var result=new ArrayList<Ingredient>(3);
+            //? if <26.1.2
             for(String key:List.of("template","base","addition"))
+                //? if <26.1.2
                 result.add(Ingredient.CODEC_NONEMPTY.parse(ops,json.get(key)).getOrThrow());
+            //? if <26.1.2
             return result;
+        //? if <26.1.2
         }
+        //? if <26.1.2
         return recipe.getIngredients();
     }
     private static boolean customRemainder(Item item){
+        //? if >=26.1.2
+        /*return false;*/
+        //? if <26.1.2
         // Compare with the loaded platform's Item contract, including inherited loader defaults.
+        //? if <26.1.2
         for(String name:List.of("getCraftingRemainingItem","hasCraftingRemainingItem"))try{
+            //? if <26.1.2
             if(item.getClass().getMethod(name,ItemStack.class).getDeclaringClass()
+                    //? if <26.1.2
                     !=Item.class.getMethod(name,ItemStack.class).getDeclaringClass())return true;
+        //? if <26.1.2
         }catch(NoSuchMethodException absent){ /* The other loader exposes only static native properties. */ }
+        //? if <26.1.2
         try{return item.getClass().getMethod("hasCraftingRemainingItem").getDeclaringClass()!=Item.class;}
+        //? if <26.1.2
         catch(NoSuchMethodException absent){return true;}
     }
     private static boolean simpleIngredient(Ingredient ingredient){

@@ -147,7 +147,7 @@ public final class AttunementLedger {
     public static AttunementLedger load(CompoundTag tag) {
         AttunementLedger ledger = new AttunementLedger(); ledger.chapterId = tag.getString("chapter");
         ledger.revision = Math.max(0, tag.getLong("revision")); ledger.rejectedHealingMicros = Math.max(0, tag.getLong("rejected_healing_micros"));
-        long[] bits = tag.getLongArray("discoveries"); ledger.discoveries.or(BitSet.valueOf(Arrays.copyOf(bits, Math.min(bits.length, 128))));
+        long[] bits = com.mistaboom.essence_ascendance.data.NbtVersionCompat.getLongArray(tag, "discoveries"); ledger.discoveries.or(BitSet.valueOf(Arrays.copyOf(bits, Math.min(bits.length, 128))));
         for (String kind : List.of("progress", "methods")) {
             CompoundTag totals = tag.getCompound(kind); Map<String, Long> map = kind.equals("progress") ? ledger.progress : ledger.methods;
             for (String key : totals.getAllKeys().stream().sorted().limit(512).toList()) map.put(key, Math.clamp(totals.getLong(key), 0, SCALE));

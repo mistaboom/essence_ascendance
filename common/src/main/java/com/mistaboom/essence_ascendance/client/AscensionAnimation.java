@@ -9,6 +9,9 @@ import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
 import com.mistaboom.essence_ascendance.visual.transientfx.WorldVisualEvent;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -120,10 +123,16 @@ public final class AscensionAnimation {
         player = null;
     }
 
+    //? if >=26.1.2
+    /*public static void render(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     public static void render(GuiGraphics graphics) {
         Minecraft client = Minecraft.getInstance();
         if (active == null || client.level != level || client.player != player
                 || client.screen != null || client.options.hideGui) return;
+        //? if >=26.1.2
+        /*double p = (level.getGameTime() - startedTick + client.getDeltaTracker().getGameTimeDeltaPartialTick(true))*/
+        //? if <26.1.2
         double p = (level.getGameTime() - startedTick + client.getTimer().getGameTimeDeltaPartialTick(true))
                 / active.lifetimeTicks();
         double caption = (p - 0.52) / 0.48;
@@ -138,12 +147,27 @@ public final class AscensionAnimation {
         int cx = graphics.guiWidth() / 2, y = Math.max(16, graphics.guiHeight() / 5);
         int color = GuiProceduralGeometry.opacity(active.color().rgb(), (int) (fade * 255));
         float scale = Math.min(1, (graphics.guiWidth() - 24F) / Math.max(1, client.font.width(title)));
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
+        //? if >=26.1.2
+        /*graphics.pose().translate((float) cx, (float) y);*/
+        //? if <26.1.2
         graphics.pose().translate(cx, y, 0);
+        //? if >=26.1.2
+        /*graphics.pose().scale(scale, scale);*/
+        //? if <26.1.2
         graphics.pose().scale(scale, scale, 1);
+        //? if >=26.1.2
+        /*graphics.centeredText(client.font, title, 0, 0, color);*/
+        //? if <26.1.2
         graphics.drawCenteredString(client.font, title, 0, 0, color);
         GuiProceduralGeometry.beam(graphics, -28, 13, 28, 13,
                 GuiProceduralGeometry.opacity(active.color().rgb(), (int) (fade * 90)));
+        //? if >=26.1.2
+        /*graphics.pose().popMatrix();*/
+        //? if <26.1.2
         graphics.pose().popPose();
     }
 }

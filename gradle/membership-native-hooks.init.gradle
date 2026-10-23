@@ -1,27 +1,36 @@
-// Explicit isolated headless/no-world optional-loading checks. No EULA acceptance or live mods-folder changes.
-// Run -I gradle/membership-native-hooks.init.gradle :fabric:runServer or :neoforge:runServer.
-// Add -PmembershipFixtureFtb=true for the exact verified binaries under build/ftb-stage3-verification.
-// Library 2101.1.36/37 use checksummed build/ftb-shared-compat-audit binaries.
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'membership'
+// Explicit isolated optional-loading checks. The 26.1.2 probes bind a disposable world.
+// Run one exact loader/version runServer task per invocation.
+// Add -PmembershipFixtureFtb=true for exact verified optional binaries.
+// The 1.21.1 Library variants use checksummed build/ftb-shared-compat-audit binaries;
+// 26.1.2 uses exact full binaries resolved by the selected node's declared coordinates.
 allprojects { p ->
     p.afterEvaluate {
-        if (!(p.path in [':fabric', ':neoforge'])) return
+        if (!p.rootProject.ext.has('nativeFixtureSelection'))
+            p.rootProject.apply from: p.rootProject.file('gradle/native-fixture-selection.gradle')
+        def selection = p.rootProject.nativeFixtureSelection
+        if (p.path != selection.projectPath) return
+        def requestedTasks = selection.taskPaths
         def enabled = p.rootProject.findProperty('membershipFixtureFtb') == 'true'
-        def libraryVersion = p.rootProject.findProperty('membershipFixtureFtbLibraryVersion') ?: '2101.1.30'
-        if (!(libraryVersion in ['2101.1.30', '2101.1.36', '2101.1.37']))
+        def modern = p.targetResourceFormat == '26.1'
+        def libraryVersion = p.rootProject.findProperty('membershipFixtureFtbLibraryVersion') ?: p.targetFtbLibrary
+        if (!(libraryVersion in (modern ? [p.targetFtbLibrary] : [p.targetFtbLibrary, '2101.1.36', '2101.1.37'])))
             throw new GradleException('Membership fixture requires an audited Library version')
         def mode = enabled ? 'ftb-' + libraryVersion : 'absent'
-        def common = p.rootProject.project(':common')
-        def testRun = p.rootProject.file("build/membership-native-${p.name}-${mode}-run").canonicalFile
-        def metadata = p.rootProject.file("build/membership-fixture-${p.name}-metadata")
+        def common = p.rootProject.project(":common:${p.targetMinecraft}")
+        def testRun = p.file("build/native-fixtures/membership-native-${p.parent.name}-${mode}-run").canonicalFile
+        def metadata = p.file("build/native-fixtures/membership-fixture-${p.parent.name}-metadata")
         def fixture = p.tasks.register('membershipNativeFixtureJar', Jar) {
             dependsOn(common.tasks.named('testClasses'))
-            archiveFileName = "membership-${p.name}-fixture.jar"
-            destinationDirectory = p.rootProject.layout.buildDirectory
-            if (p.path == ':fabric') {
+            archiveFileName = "membership-${p.parent.name}-fixture.jar"
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            if (p.path.startsWith(':fabric:')) {
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipNativeHookTest*.class' }
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/compat/FtbTeamsApiBoundaryTest*.class' }
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipProviderTest*.class' }
                 from(common.sourceSets.test.output) {
+                    include 'com/mistaboom/essence_ascendance/verification/*Compat*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeMachineBindingTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeSinglePlayerChannelTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeAutomatedItemOwnershipTest*.class'
@@ -34,8 +43,13 @@ allprojects { p ->
             from(metadata)
             doFirst {
                 metadata.mkdirs()
-                if (p.path == ':fabric') {
-                    new File(metadata, 'fabric.mod.json').text = '''{"schemaVersion":1,"id":"essence_membership_test","version":"1","environment":"server","entrypoints":{"server":["com.mistaboom.essence_ascendance.team.MembershipNativeHookTest::runAndExit"]},"depends":{"essence_ascendance":"*"}}'''
+                if (p.path.startsWith(':fabric:')) {
+                    def entrypoint = modern ? 'com.mistaboom.essence_ascendance.membershipfixture.FabricMembershipNativeMod2612'
+                            : 'com.mistaboom.essence_ascendance.team.MembershipNativeHookTest::runAndExit'
+                    new File(metadata, 'fabric.mod.json').text = groovy.json.JsonOutput.toJson([
+                            schemaVersion: 1, id: 'essence_membership_test', version: '1', environment: 'server',
+                            entrypoints: [(modern ? 'main' : 'server'): [entrypoint]],
+                            depends: [essence_ascendance: '*']])
                 } else {
                     new File(metadata, 'META-INF').mkdirs()
                     new File(metadata, 'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
@@ -44,7 +58,7 @@ license="All Rights Reserved"
 [[mods]]
 modId="essence_membership_test"
 version="1"
-displayName="No-world membership fixture"
+displayName="Membership native fixture"
 [[dependencies.essence_membership_test]]
 modId="essence_ascendance"
 type="required"
@@ -55,45 +69,86 @@ side="SERVER"
                 }
             }
         }
-        if (p.path == ':neoforge' && p.gradle.startParameter.taskNames.any { it == ':neoforge:runServer' }) {
+        if (p.parent.name == 'fabric' && modern && requestedTasks.any { it == "${p.path}:runServer" }) {
+            def compile = p.tasks.register('compileFabricMembershipNativeFixture', JavaCompile) {
+                source(p.rootProject.file('gradle/native-fixtures/FabricMembershipNativeMod2612.java'))
+                classpath = p.sourceSets.main.compileClasspath
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/membership-native-fabric-classes')
+                options.release = p.targetJava
+                javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+            }
+            fixture.configure {
+                dependsOn(compile)
+                from(compile.flatMap { it.destinationDirectory })
+            }
+        }
+        if (p.path.startsWith(':neoforge:') && requestedTasks.any { it == "${p.path}:runServer" }) {
             // Avoid NeoForge split packages; fixture test lives in common only for this explicit run.
-            common.tasks.named('jar').configure {
-                dependsOn(common.tasks.named('testClasses'))
-                from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipNativeHookTest*.class' }
-                from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/compat/FtbTeamsApiBoundaryTest*.class' }
-                from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipProviderTest*.class' }
-                from(common.sourceSets.test.output) {
-                    include 'com/mistaboom/essence_ascendance/projectile/NativeMachineBindingTest*.class'
-                    include 'com/mistaboom/essence_ascendance/projectile/NativeSinglePlayerChannelTest*.class'
-                    include 'com/mistaboom/essence_ascendance/projectile/NativeAutomatedItemOwnershipTest*.class'
-                    include 'com/mistaboom/essence_ascendance/projectile/NativeInfuserStartTest*.class'
-                    include 'com/mistaboom/essence_ascendance/projectile/NativeFishingRodTest*.class'
-                    include 'com/mistaboom/essence_ascendance/projectile/ProjectileNativeInterceptionTest*.class'
-                    include 'com/mistaboom/essence_ascendance/projectile/NativeGuardOutcomeTest*.class'
+            p.apply from: p.rootProject.file('gradle/native-fixture-support.gradle')
+                p.useNativeFixtureCommon('membership', [
+                        'com/mistaboom/essence_ascendance/verification/*Compat*.class',
+                        'com/mistaboom/essence_ascendance/team/MembershipNativeHookTest*.class',
+                        'com/mistaboom/essence_ascendance/team/compat/FtbTeamsApiBoundaryTest*.class',
+                        'com/mistaboom/essence_ascendance/team/MembershipProviderTest*.class',
+                        'com/mistaboom/essence_ascendance/projectile/NativeMachineBindingTest*.class',
+                        'com/mistaboom/essence_ascendance/projectile/NativeSinglePlayerChannelTest*.class',
+                        'com/mistaboom/essence_ascendance/projectile/NativeAutomatedItemOwnershipTest*.class',
+                        'com/mistaboom/essence_ascendance/projectile/NativeInfuserStartTest*.class',
+                        'com/mistaboom/essence_ascendance/projectile/NativeFishingRodTest*.class',
+                        'com/mistaboom/essence_ascendance/projectile/ProjectileNativeInterceptionTest*.class',
+                        'com/mistaboom/essence_ascendance/projectile/NativeGuardOutcomeTest*.class'
+                ])
+            def compile = p.tasks.register('compileMembershipNativeFixture', JavaCompile) {
+                source(p.rootProject.file(modern ? 'gradle/native-fixtures/MembershipNativeMod2612.java' : 'gradle/native-fixtures/MembershipNativeMod.java'))
+                classpath = p.sourceSets.main.compileClasspath
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/membership-native-neo-classes')
+                options.release = p.targetJava
+                javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+            }
+            fixture.configure {
+                dependsOn(compile)
+                from(compile.flatMap { it.destinationDirectory }) {
+                    include modern ? 'com/mistaboom/essence_ascendance/membershipfixture/MembershipNativeMod2612.class'
+                            : 'com/mistaboom/essence_ascendance/membershipfixture/MembershipNativeMod.class'
                 }
             }
-            def compile = p.tasks.register('compileMembershipNativeFixture', JavaCompile) {
-                source(p.rootProject.file('gradle/native-fixtures/MembershipNativeMod.java'))
-                classpath = p.sourceSets.main.compileClasspath
-                destinationDirectory = p.rootProject.layout.buildDirectory.dir('membership-native-neo-classes')
-                options.release = 21
-            }
-            fixture.configure { dependsOn(compile); from(compile.flatMap { it.destinationDirectory }) }
         }
         p.tasks.named('runServer').configure { t ->
             t.internalRunDir.set(testRun)
             t.jvmArgs('-Dessence.membership.expectFtb=' + enabled)
             t.dependsOn(fixture)
-            if (p.path == ':fabric') t.args('--initSettings')
+            if (p.parent.name == 'fabric' && !modern) t.args('--initSettings')
             t.doFirst {
                 if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected membership test directory')
                 testRun.mkdirs()
-                def providerJars = enabled ? [
-                        p.rootProject.file("build/ftb-stage3-verification/ftb-teams-${p.name}-2101.1.11.jar").canonicalFile,
-                        p.rootProject.file("build/${libraryVersion == '2101.1.30' ? 'ftb-stage3-verification' : 'ftb-shared-compat-audit'}/ftb-library-${p.name}-${libraryVersion}.jar").canonicalFile
+                def providerJars = enabled && !modern ? [
+                        p.rootProject.file("build/ftb-stage3-verification/ftb-teams-${p.parent.name}-${p.targetFtbTeams}.jar").canonicalFile,
+                        p.rootProject.file("build/${libraryVersion == '2101.1.30' ? 'ftb-stage3-verification' : 'ftb-shared-compat-audit'}/ftb-library-${p.parent.name}-${libraryVersion}.jar").canonicalFile
                 ] : []
-                if (providerJars.any { !it.isFile() }) throw new GradleException('Missing verified no-world FTB test binaries')
-                if (p.path == ':fabric') {
+                if (enabled && modern) {
+                    def artifacts = p.configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts
+                    ["ftb-teams-${p.parent.name}": p.targetFtbTeams,
+                     "ftb-library-${p.parent.name}": libraryVersion].each { name, version ->
+                        def resolved = artifacts.findAll {
+                            it.moduleVersion.id.group == 'dev.ftb.mods' && it.name == name
+                                    && it.moduleVersion.id.version == version && it.classifier == null
+                        }
+                        if (resolved.size() != 1)
+                            throw new GradleException("Expected exact ${name}:${version} binary, got ${resolved}")
+                        providerJars.add(resolved.first().file.canonicalFile)
+                    }
+                }
+                if (providerJars.any { !it.isFile() }) throw new GradleException('Missing exact FTB fixture binaries')
+                if (modern) {
+                    new File(testRun, 'eula.txt').text = 'eula=true\n'
+                    def propertiesFile = new File(testRun, 'server.properties')
+                    def settings = new Properties()
+                    if (propertiesFile.isFile()) propertiesFile.withInputStream { settings.load(it) }
+                    settings.setProperty('server-ip', '127.0.0.1')
+                    settings.setProperty('server-port', '0')
+                    propertiesFile.withOutputStream { settings.store(it, 'Isolated native membership fixture') }
+                }
+                if (p.path.startsWith(':fabric:')) {
                     t.jvmArgs('-Dfabric.addMods=' + ([fixture.get().archiveFile.get().asFile.canonicalFile] + providerJars).collect { it.path }.join(File.pathSeparator))
                 } else {
                     def mods = new File(testRun, 'mods'); mods.mkdirs()

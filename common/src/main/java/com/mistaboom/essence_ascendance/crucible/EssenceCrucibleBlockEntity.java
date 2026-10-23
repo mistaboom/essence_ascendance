@@ -17,6 +17,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+//? if >=26.1.2
+/*import net.minecraft.core.UUIDUtil;*/
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -30,8 +32,14 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+//? if >=26.1.2
+/*import net.minecraft.world.level.block.Block;*/
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueOutput;*/
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -43,6 +51,9 @@ import java.util.UUID;
 
 public final class EssenceCrucibleBlockEntity extends BlockEntity
         implements WorldlyContainer, MenuProvider, BoundMachine {
+
+    //? if >=26.1.2
+    /*@Override public void preRemoveSideEffects(BlockPos pos, BlockState state) { stopChanneling(); if (level instanceof ServerLevel server) Block.popResource(server, pos, MachineProtection.takePickup(this)); super.preRemoveSideEffects(pos, state); }*/
 
     public static final int MAX_INPUT_SLOTS = EssenceCrucibleStructureService.MAX_INPUT_SLOTS;
     private static final int[] NO_AUTOMATION_SLOTS = {};
@@ -994,15 +1005,24 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     @Override
-    protected void saveAdditional(
-            CompoundTag tag,
-            HolderLookup.Provider registries
-    ) {
+    //? if >=26.1.2
+    /*protected void saveAdditional(ValueOutput tag) {*/
+    //? if <26.1.2
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*super.saveAdditional(tag);*/
+        //? if <26.1.2
         super.saveAdditional(tag, registries);
+        //? if >=26.1.2
+        /*ContainerHelper.saveAllItems(tag, items);*/
+        //? if <26.1.2
         ContainerHelper.saveAllItems(tag, items, registries);
         binding.save(tag);
 
         if (ownerId != null) {
+            //? if >=26.1.2
+            /*tag.store(OWNER_TAG, UUIDUtil.CODEC, ownerId);*/
+            //? if <26.1.2
             tag.putUUID(OWNER_TAG, ownerId);
         }
         if (!ownerName.isBlank()) {
@@ -1016,25 +1036,41 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     @Override
-    protected void loadAdditional(
-            CompoundTag tag,
-            HolderLookup.Provider registries
-    ) {
-        if (tag.contains(MachineVisualState.TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)) {
-            clientVisualState = MachineVisualState.Crucible.read(tag.getCompound(MachineVisualState.TAG));
+    //? if >=26.1.2
+    /*protected void loadAdditional(ValueInput tag) {*/
+    //? if <26.1.2
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*CompoundTag visual = tag.read(MachineVisualState.TAG, CompoundTag.CODEC).orElse(null);*/
+        //? if <26.1.2
+        CompoundTag visual = tag.contains(MachineVisualState.TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)
+                //? if <26.1.2
+                ? tag.getCompound(MachineVisualState.TAG) : null;
+        if (visual != null) {
+            clientVisualState = MachineVisualState.Crucible.read(visual);
             return;
         }
+        //? if >=26.1.2
+        /*super.loadAdditional(tag);*/
+        //? if <26.1.2
         super.loadAdditional(tag, registries);
+        //? if >=26.1.2
+        /*ContainerHelper.loadAllItems(tag, items);*/
+        //? if <26.1.2
         ContainerHelper.loadAllItems(tag, items, registries);
         binding.load(tag);
 
-        ownerId = tag.hasUUID(OWNER_TAG)
-                ? tag.getUUID(OWNER_TAG)
-                : null;
+        //? if >=26.1.2
+        /*ownerId = tag.read(OWNER_TAG, UUIDUtil.CODEC).orElse(null);*/
+        //? if <26.1.2
+        ownerId = tag.hasUUID(OWNER_TAG) ? tag.getUUID(OWNER_TAG) : null;
         ownerName = tag.getString(OWNER_NAME_TAG);
         accessMode = EssenceCrucibleAccessMode.fromSerializedName(
                 tag.getString(ACCESS_MODE_TAG)
         );
+        //? if >=26.1.2
+        /*processingArmed = tag.getBooleanOr("processing_armed", true);*/
+        //? if <26.1.2
         processingArmed = !tag.contains("processing_armed") || tag.getBoolean("processing_armed");
         processingTicks = Math.max(0, tag.getInt(PROCESSING_TICKS_TAG));
         dissolutionMode = EssenceCrucibleDissolutionMode.fromSerializedName(

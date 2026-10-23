@@ -7,6 +7,9 @@ import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
 import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
 import net.minecraft.server.level.ServerPlayer;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.npc.villager.Villager;*/
+//? if <26.1.2
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.trading.MerchantOffer;

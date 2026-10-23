@@ -39,27 +39,50 @@ abstract class EquipmentPolicyInventoryMixin {
         TwoHandedEquipmentService.begin(player);
         try { return original.call(slot, stack); } finally { TwoHandedEquipmentService.end(player); }
     }
+    //? if >=26.1.2 {
+    /*
+    @WrapMethod(method = "setSelectedItem")
+    private ItemStack essenceAscendance$mutation5(ItemStack stack, Operation<ItemStack> original) {
+        TwoHandedEquipmentService.begin(player);
+        try { return original.call(stack); } finally { TwoHandedEquipmentService.end(player); }
+    }
+    *///?} else {
     @WrapMethod(method = "setPickedItem")
     private void essenceAscendance$mutation5(ItemStack stack, Operation<Void> original) {
         TwoHandedEquipmentService.begin(player);
         try { original.call(stack); } finally { TwoHandedEquipmentService.end(player); }
     }
+    //?}
+
     @WrapMethod(method = "pickSlot")
     private void essenceAscendance$mutation6(int slot, Operation<Void> original) {
         TwoHandedEquipmentService.begin(player);
         try { original.call(slot); } finally { TwoHandedEquipmentService.end(player); }
     }
+    //? if >=26.1.2 {
+    /*
+    @WrapMethod(method = "setSelectedSlot")
+    private void essenceAscendance$mutation7(int direction, Operation<Void> original) {
+        TwoHandedEquipmentService.begin(player);
+        try { original.call(direction); } finally { TwoHandedEquipmentService.end(player); }
+    }
+    *///?} else {
     @WrapMethod(method = "swapPaint")
     private void essenceAscendance$mutation7(double direction, Operation<Void> original) {
         TwoHandedEquipmentService.begin(player);
         try { original.call(direction); } finally { TwoHandedEquipmentService.end(player); }
     }
+    //?}
+
     @WrapMethod(method = "clearOrCountMatchingItems")
     private int essenceAscendance$mutation8(Predicate<ItemStack> predicate, int amount, Container container, Operation<Integer> original) {
         TwoHandedEquipmentService.begin(player);
         try { return original.call(predicate, amount, container); } finally { TwoHandedEquipmentService.end(player); }
     }
     @WrapMethod(method = "load")
+    //? if >=26.1.2
+    /*private void essenceAscendance$mutation9(net.minecraft.world.level.storage.ValueInput.TypedInputList tag, Operation<Void> original) {*/
+    //? if <26.1.2
     private void essenceAscendance$mutation9(ListTag tag, Operation<Void> original) {
         TwoHandedEquipmentService.begin(player);
         try { original.call(tag); } finally { TwoHandedEquipmentService.end(player); }

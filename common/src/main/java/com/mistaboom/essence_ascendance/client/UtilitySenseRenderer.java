@@ -11,6 +11,9 @@ import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.rendertype.RenderType;*/
+//? if <26.1.2
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -44,7 +47,7 @@ public final class UtilitySenseRenderer {
 
         PoseStack pose = new PoseStack();
         pose.mulPose(positionMatrix);
-        Vec3 cameraPos = camera.getPosition();
+        Vec3 cameraPos = ClientCameraCompat.position(camera);
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
 
         if (mode == UtilitySenseService.Mode.THREAT) {
@@ -103,7 +106,7 @@ public final class UtilitySenseRenderer {
 
     private static void renderWaylightFills(Camera camera, Vec3 cameraPos, PoseStack pose,
                                             VertexConsumer fills) {
-        Vec3 wispWorld = UtilitySenseClientState.wispPosition(camera.getPartialTickTime());
+        Vec3 wispWorld = UtilitySenseClientState.wispPosition(ClientCameraCompat.partialTick(camera));
         if (wispWorld != null) {
             renderWispFills(camera, pose, fills, wispWorld.subtract(cameraPos));
         }
@@ -118,7 +121,7 @@ public final class UtilitySenseRenderer {
             spawnFootingMarker(pose, lines, center);
         }
 
-        Vec3 wispWorld = UtilitySenseClientState.wispPosition(camera.getPartialTickTime());
+        Vec3 wispWorld = UtilitySenseClientState.wispPosition(ClientCameraCompat.partialTick(camera));
         if (wispWorld != null) {
             renderWispLines(camera, pose, lines, wispWorld.subtract(cameraPos));
         }
@@ -133,7 +136,7 @@ public final class UtilitySenseRenderer {
             if (!(entity instanceof LivingEntity living) || entity.isRemoved()) continue;
 
             float visibility = threat.active() ? 1.0F : 0.62F;
-            Vec3 center = entity.getPosition(camera.getPartialTickTime())
+            Vec3 center = entity.getPosition(ClientCameraCompat.partialTick(camera))
                     .add(0, entity.getBbHeight() + 0.36, 0).subtract(cameraPos);
             // Membership/memory remains server-selected. Health is native synchronized entity data:
             // the five-tick threat scan must not freeze a pre-hit value over a dying creature.
@@ -297,12 +300,12 @@ public final class UtilitySenseRenderer {
     }
 
     private static Vec3 cameraRight(Camera camera) {
-        Vector3f left = camera.getLeftVector();
+        Vector3f left = ClientCameraCompat.left(camera);
         return new Vec3(-left.x(), -left.y(), -left.z());
     }
 
     private static Vec3 cameraUp(Camera camera) {
-        Vector3f up = camera.getUpVector();
+        Vector3f up = ClientCameraCompat.up(camera);
         return new Vec3(up.x(), up.y(), up.z());
     }
 

@@ -3,6 +3,9 @@ package com.mistaboom.essence_ascendance.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService;
 import com.mistaboom.essence_ascendance.gathering.*;
+//? if >=26.1.2
+/*import com.mistaboom.essence_ascendance.visual.EntityPresentationBridge2612;*/
+//? if <26.1.2
 import net.minecraft.network.syncher.*;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -18,47 +21,93 @@ import org.spongepowered.asm.mixin.injection.callback.*;
 /** Extends the native bobber rather than introducing competing fishing/loot or rendering implementations. */
 @Mixin(FishingHook.class)
 public abstract class AscendanceFishingHookMixin extends Projectile implements RodHookAccess {
+    //? if <26.1.2 {
     @Unique private static final EntityDataAccessor<Integer> essenceAscendance$rodHand = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.INT);
     @Unique private static final EntityDataAccessor<Integer> essenceAscendance$attachment = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.INT);
     @Unique private static final EntityDataAccessor<Integer> essenceAscendance$rodTier = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.INT);
     @Unique private static final EntityDataAccessor<net.minecraft.core.BlockPos> essenceAscendance$anchorBlock = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.BLOCK_POS);
     @Unique private static final EntityDataAccessor<org.joml.Vector3f> essenceAscendance$anchorOffset = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.VECTOR3);
+    //?}
     @Unique private final RodAttachmentState essenceAscendance$rod = new RodAttachmentState();
     @Shadow private int life;
     @Shadow protected abstract void setHookedEntity(Entity entity);
     protected AscendanceFishingHookMixin(EntityType<? extends Projectile> type, Level level) { super(type, level); }
+    //? if <26.1.2 {
     @Inject(method = "defineSynchedData", at = @At("TAIL"))
     private void essenceAscendance$rodData(SynchedEntityData.Builder builder, CallbackInfo ci) {
         builder.define(essenceAscendance$rodHand, 0); builder.define(essenceAscendance$attachment, 0); builder.define(essenceAscendance$rodTier, 0);
         builder.define(essenceAscendance$anchorBlock,net.minecraft.core.BlockPos.ZERO); builder.define(essenceAscendance$anchorOffset,new org.joml.Vector3f());
     }
+    //?}
     @Override public RodAttachmentState essenceAscendance$rodState() { return essenceAscendance$rod; }
-    @Override public int essenceAscendance$rodHand() { return entityData.get(essenceAscendance$rodHand); }
-    @Override public com.mistaboom.essence_ascendance.equipment.EquipmentTier essenceAscendance$rodTier() {
-        return com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()[entityData.get(essenceAscendance$rodTier)];
+    @Override public int essenceAscendance$rodHand() {
+        //? if >=26.1.2
+        /*return EntityPresentationBridge2612.get(this).rodHand();*/
+        //? if <26.1.2
+        return entityData.get(essenceAscendance$rodHand);
     }
-    @Override public int essenceAscendance$attachment() { return entityData.get(essenceAscendance$attachment); }
+    @Override public com.mistaboom.essence_ascendance.equipment.EquipmentTier essenceAscendance$rodTier() {
+        return com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()[essenceAscendance$rodTierOrdinal()];
+    }
+    @Unique private int essenceAscendance$rodTierOrdinal() {
+        //? if >=26.1.2
+        /*return EntityPresentationBridge2612.get(this).rodTier();*/
+        //? if <26.1.2
+        return entityData.get(essenceAscendance$rodTier);
+    }
+    @Override public int essenceAscendance$attachment() {
+        //? if >=26.1.2
+        /*return EntityPresentationBridge2612.get(this).attachment();*/
+        //? if <26.1.2
+        return entityData.get(essenceAscendance$attachment);
+    }
     @Override public Vec3 essenceAscendance$anchorPosition() {
+        //? if >=26.1.2
+        /*return EntityPresentationBridge2612.get(this).anchor();*/
+        //? if <26.1.2 {
         var block=entityData.get(essenceAscendance$anchorBlock);var offset=entityData.get(essenceAscendance$anchorOffset);
         return Vec3.atLowerCornerOf(block).add(offset.x,offset.y,offset.z);
+        //?}
     }
     @Override public void essenceAscendance$initializeRod(InteractionHand hand, ItemStack stack, EquipmentFishingRodService.Context context) {
-        essenceAscendance$rod.cast(hand, stack, context); entityData.set(essenceAscendance$rodHand, hand == InteractionHand.MAIN_HAND ? 1 : 2);
+        essenceAscendance$rod.cast(hand, stack, context);
+        //? if >=26.1.2 {
+        /*EntityPresentationBridge2612.set(this, EntityPresentationBridge2612.get(this)
+                .withRod(hand == InteractionHand.MAIN_HAND ? 1 : 2, context.itemTier().ordinal()));
+        *///?} else {
+        entityData.set(essenceAscendance$rodHand, hand == InteractionHand.MAIN_HAND ? 1 : 2);
         entityData.set(essenceAscendance$rodTier, context.itemTier().ordinal());
+        //?}
         setDeltaMovement(((FishingHook)(Object)this).getPlayerOwner().getLookAngle().scale(context.castSpeed()));
         setNoGravity(false);
     }
     @Override public void essenceAscendance$attachBlock(BlockHitResult hit) {
         essenceAscendance$rod.anchorBlock = hit.getBlockPos().immutable();
         essenceAscendance$rod.anchorGeometry = level().getBlockState(hit.getBlockPos());
+        //? if >=26.1.2
+        /*essenceAscendance$rod.anchor = hit.getLocation().add(hit.getDirection().getUnitVec3().scale(.025));*/
+        //? if <26.1.2
         essenceAscendance$rod.anchor = hit.getLocation().add(Vec3.atLowerCornerOf(hit.getDirection().getNormal()).scale(.025));
+        //? if >=26.1.2 {
+        /*EntityPresentationBridge2612.set(this, EntityPresentationBridge2612.get(this)
+                .withAttachment(1, essenceAscendance$rod.anchor));
+        *///?} else {
         var offset=essenceAscendance$rod.anchor.subtract(Vec3.atLowerCornerOf(hit.getBlockPos()));
         entityData.set(essenceAscendance$anchorBlock,hit.getBlockPos().immutable());
         entityData.set(essenceAscendance$anchorOffset,new org.joml.Vector3f((float)offset.x,(float)offset.y,(float)offset.z));
-        entityData.set(essenceAscendance$attachment, 1); setPos(essenceAscendance$rod.anchor); setDeltaMovement(Vec3.ZERO);
+        entityData.set(essenceAscendance$attachment, 1);
+        //?}
+        setPos(essenceAscendance$rod.anchor); setDeltaMovement(Vec3.ZERO);
     }
     @Override public void essenceAscendance$attachEntity(Entity entity) {
-        setHookedEntity(entity); entityData.set(essenceAscendance$attachment, 2); setDeltaMovement(Vec3.ZERO);
+        setHookedEntity(entity);
+        //? if >=26.1.2 {
+        /*EntityPresentationBridge2612.set(this, EntityPresentationBridge2612.get(this)
+                .withAttachment(2, entity.getBoundingBox().getCenter()));
+        *///?} else {
+        entityData.set(essenceAscendance$attachment, 2);
+        //?}
+        setDeltaMovement(Vec3.ZERO);
         setPos(entity.getBoundingBox().getCenter());
     }
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
@@ -125,16 +174,27 @@ public abstract class AscendanceFishingHookMixin extends Projectile implements R
         if (rod != essenceAscendance$rod.castStack || !essenceAscendance$rod.armed || essenceAscendance$attachment() != 0)
             cir.setReturnValue(0);
     }
+    //? if >=26.1.2 {
+    /*
+    @Inject(method = "getInterpolation", at = @At("RETURN"))
+    private void essenceAscendance$attachedPosition(CallbackInfoReturnable<InterpolationHandler> ci) {
+        // Native zero-step interpolation snaps and cancels old interpolation at the packet boundary.
+        ci.getReturnValue().setInterpolationLength(essenceAscendance$rodHand() != 0 && essenceAscendance$attachment() != 0
+                ? 0 : InterpolationHandler.DEFAULT_INTERPOLATION_STEPS);
+    }
+    *///?} else {
     @Inject(method="lerpTo",at=@At("HEAD"))
     private void essenceAscendance$attachedPosition(double x,double y,double z,float yaw,float pitch,int steps,CallbackInfo ci) {
         if(essenceAscendance$rodHand()!=0 && essenceAscendance$attachment()!=0)setPos(x,y,z);
     }
+    //?}
+
     @Inject(method="shouldRenderAtSqrDistance",at=@At("HEAD"),cancellable=true)
     private void essenceAscendance$rodRenderRange(double distance,CallbackInfoReturnable<Boolean> cir) {
         if(essenceAscendance$rodHand()==0)return;
         var runtime=com.mistaboom.essence_ascendance.config.EssenceConfigManager.clientRuntime();
         if(runtime==null)runtime=com.mistaboom.essence_ascendance.config.EssenceConfigManager.serverRuntime();
-        int tier=entityData.get(essenceAscendance$rodTier);
+        int tier=essenceAscendance$rodTierOrdinal();
         if(runtime!=null && tier>=0 && tier<com.mistaboom.essence_ascendance.equipment.EquipmentTier.values().length) {
             double range=Math.max(64,runtime.config().fishingRodBalance().tier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()[tier]).range()+16);
             cir.setReturnValue(distance<range*range);
@@ -145,7 +205,7 @@ public abstract class AscendanceFishingHookMixin extends Projectile implements R
         if (essenceAscendance$rodHand() == 0) return nativeGravity;
         if (essenceAscendance$rod.castContext != null) return -essenceAscendance$rod.castContext.baseline().gravity();
         var runtime = com.mistaboom.essence_ascendance.config.EssenceConfigManager.clientRuntime();
-        int tier = entityData.get(essenceAscendance$rodTier);
+        int tier = essenceAscendance$rodTierOrdinal();
         return runtime != null && tier >= 0 && tier < com.mistaboom.essence_ascendance.equipment.EquipmentTier.values().length
                 ? -runtime.config().fishingRodBalance().tier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()[tier]).gravity() : nativeGravity;
     }

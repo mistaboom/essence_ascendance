@@ -18,6 +18,9 @@ public final class CrowdControlEligibility {
         return target != null && owner.isAlive() && !owner.isRemoved()
                 && target.level() == owner.level() && ProjectileTargeting.canHarm(owner, target)
                 && !owner.isAlliedTo(target) && !target.isPassenger() && !target.isVehicle()
+                //? if >=26.1.2
+                /*&& !target.getType().builtInRegistryHolder().is(IMMUNE)*/
+                //? if <26.1.2
                 && !target.getType().is(IMMUNE)
                 && target.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE) < 1;
     }

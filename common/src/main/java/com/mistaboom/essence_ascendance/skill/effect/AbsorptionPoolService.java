@@ -130,6 +130,11 @@ public final class AbsorptionPoolService {
         if (changesAbsorption(entity, effect)) externalEffect(entity, nativeEffect);
         else nativeEffect.run();
     }
+    /** Batch removal is a single native write scope in newer runtimes. */
+    public static void externalEffects(LivingEntity entity, java.util.Collection<MobEffectInstance> effects, Runnable nativeEffect) {
+        if (effects.stream().anyMatch(effect -> changesAbsorption(entity, effect))) externalEffect(entity, nativeEffect);
+        else nativeEffect.run();
+    }
     private static boolean changesAbsorption(LivingEntity entity, MobEffectInstance effect) {
         if (!(entity instanceof ServerPlayer player)) return false;
         Account account = ACCOUNTS.get(player);

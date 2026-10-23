@@ -28,6 +28,9 @@ import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -146,6 +149,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         EssenceFocusTier installedFocus = recipe.installedFocusTier();
         ItemStack focus = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());
         if (installedFocus != null) EssenceFocusData.setTier(focus, installedFocus);
+        //? if >=26.1.2
+        /*builder.addSlot(RecipeIngredientRole.RENDER_ONLY, AUX_X, SLOT_Y)*/
+        //? if <26.1.2
         builder.addSlot(RecipeIngredientRole.CATALYST, AUX_X, SLOT_Y)
                 .setStandardSlotBackground()
                 .setSlotName("installed_focus")
@@ -269,6 +275,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
             EssenceFocusData.setTier(focus, tier);
             variants.add(focus);
         }
+        //? if >=26.1.2
+        /*builder.addSlot(RecipeIngredientRole.RENDER_ONLY, x, SLOT_Y)*/
+        //? if <26.1.2
         builder.addSlot(RecipeIngredientRole.CATALYST, x, SLOT_Y)
                 .setStandardSlotBackground()
                 .setSlotName("installed_focus")
@@ -279,6 +288,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     public void draw(
             InfuserJeiRecipe recipe,
             IRecipeSlotsView recipeSlotsView,
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             double mouseX,
             double mouseY
@@ -301,6 +313,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     }
 
     private static void drawSlotLabels(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             InfuserJeiRecipe recipe,
@@ -342,6 +357,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     private static void drawEssentium(
             InfuserJeiRecipe recipe,
             EssenceInfuserRecipe resolved,
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             int startY
@@ -412,6 +430,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
 
     private static void drawFocus(
             EssenceInfuserRecipe resolved,
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             int startY
@@ -485,6 +506,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     private static void drawEquipment(
             InfuserJeiRecipe recipe,
             EssenceInfuserRecipe resolved,
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             int startY
@@ -545,6 +569,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
 
     private static void drawRepair(
             EssenceInfuserRecipe resolved,
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             int startY
@@ -635,6 +662,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     }
 
     private static void drawSlotLabel(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,
@@ -644,10 +674,16 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         int centerX = slotX + 9;
         int x = centerX - font.width(text) / 2;
         x = Math.max(TEXT_X, Math.min(x, WIDTH - TEXT_X - font.width(text)));
+        //? if >=26.1.2
+        /*graphics.text(font, text, x, y, JEI_MUTED, false);*/
+        //? if <26.1.2
         graphics.drawString(font, text, x, y, JEI_MUTED, false);
     }
 
     private static int header(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,
@@ -668,6 +704,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     }
 
     private static int wrapped(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,
@@ -690,6 +729,9 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     }
 
     private static int detail(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,

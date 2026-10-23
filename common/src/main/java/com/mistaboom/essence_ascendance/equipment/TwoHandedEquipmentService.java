@@ -1,4 +1,5 @@
 package com.mistaboom.essence_ascendance.equipment;
+import com.mistaboom.essence_ascendance.network.PlayerMessageCompat;
 
 import com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload;
 import net.minecraft.network.chat.Component;
@@ -36,7 +37,7 @@ public final class TwoHandedEquipmentService {
     private static long revision(ItemStack stack) { return ((EquipmentPolicyStack)(Object) stack).essenceAscendance$equipmentRevision(); }
     private static boolean current(ServerPlayer player, State s) {
         return s.main == player.getMainHandItem() && s.off == player.getOffhandItem()
-                && s.selected == player.getInventory().selected && s.mainRevision == revision(s.main)
+                && s.selected == selectedSlot(player) && s.mainRevision == revision(s.main)
                 && s.offRevision == revision(s.off) && s.decision.generation() == TwoHandedEquipmentPolicy.generation();
     }
 
@@ -57,7 +58,7 @@ public final class TwoHandedEquipmentService {
             var s = STATES.get(player);
             long now = player.level().getGameTime();
             if (s.lastMessage == Long.MIN_VALUE || now < s.lastMessage || now - s.lastMessage >= 20) {
-                player.displayClientMessage(Component.translatable("message.essence_ascendance.incompatible_offhand"), true);
+                PlayerMessageCompat.send(player, Component.translatable("message.essence_ascendance.incompatible_offhand"), true);
                 s.lastMessage = now;
             }
         }
@@ -97,7 +98,7 @@ public final class TwoHandedEquipmentService {
     private static void capture(ServerPlayer player, State s) {
         WeaponActionRuntime.equipmentChanged(player);
         s.main = player.getMainHandItem(); s.off = player.getOffhandItem();
-        s.selected = player.getInventory().selected;
+        s.selected = selectedSlot(player);
         s.mainRevision = revision(s.main); s.offRevision = revision(s.off);
         if (!s.main.isEmpty()) ((EquipmentPolicyStack)(Object)s.main).essenceAscendance$watchHand(player);
         if (!s.off.isEmpty()) ((EquipmentPolicyStack)(Object)s.off).essenceAscendance$watchHand(player);
@@ -152,4 +153,11 @@ public final class TwoHandedEquipmentService {
         }
     }
     public static void forget(ServerPlayer player) { STATES.remove(player); TwoHandedPolicyPayload.forget(player); }
+
+    private static int selectedSlot(ServerPlayer player) {
+        //? if >=26.1.2
+        /*return player.getInventory().getSelectedSlot();*/
+        //? if <26.1.2
+        return player.getInventory().selected;
+    }
 }

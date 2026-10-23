@@ -41,6 +41,9 @@ public final class MembershipNativeHookTest {
                 : MembershipAuthority.NATIVE;
         if (MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null, statuses).authority() != expectedAuthority)
             throw new AssertionError("Runtime AUTO priority mismatch");
+        //? if >=26.1.2
+        /*System.out.println("MembershipNativeHookTest: PASS; registry-bound server startup; detached player fixtures; no live roster assertion");*/
+        //? if <26.1.2
         System.out.println("MembershipNativeHookTest: PASS; actual loader initialization; no world/manager opened");
     }
     public static void runAndExit() {

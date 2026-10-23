@@ -23,19 +23,30 @@ public abstract class AnimalFeedingMixin implements AnimalFeedingState {
     public long essenceAscendance$fedAt() { return essenceAscendance$fedAt; }
     public void essenceAscendance$fedAt(long now) { essenceAscendance$fedAt = now; }
     public int essenceAscendance$feedWindow() { return PARENT_AGE_AFTER_BREEDING; }
-    @WrapMethod(method = "usePlayerItem")
-    private void essenceAscendance$feed(Player player, InteractionHand hand, ItemStack stack, Operation<Void> original) {
-        int before = stack.getCount();
-        original.call(player, hand, stack);
-        if (!player.level().isClientSide && stack.getCount() < before)
-            essenceAscendance$fedAt = player.level().getGameTime();
+    //? if >=26.1.2 {
+    /*
+    @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
+    private void essenceAscendance$save(net.minecraft.world.level.storage.ValueOutput tag, CallbackInfo ci) {
+        if (essenceAscendance$fedAt != Long.MIN_VALUE) tag.putLong("essence_ascendance_fed_at", essenceAscendance$fedAt);
     }
+    *///?} else {
     @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
     private void essenceAscendance$save(CompoundTag tag, CallbackInfo ci) {
         if (essenceAscendance$fedAt != Long.MIN_VALUE) tag.putLong("essence_ascendance_fed_at", essenceAscendance$fedAt);
     }
+    //?}
+
+    //? if >=26.1.2 {
+    /*
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
+    private void essenceAscendance$load(net.minecraft.world.level.storage.ValueInput tag, CallbackInfo ci) {
+        essenceAscendance$fedAt = tag.getLongOr("essence_ascendance_fed_at", Long.MIN_VALUE);
+    }
+    *///?} else {
     @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
     private void essenceAscendance$load(CompoundTag tag, CallbackInfo ci) {
         essenceAscendance$fedAt = tag.contains("essence_ascendance_fed_at") ? tag.getLong("essence_ascendance_fed_at") : Long.MIN_VALUE;
     }
+    //?}
+
 }

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.data.NbtVersionCompat;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
@@ -33,7 +34,7 @@ public final class FocusInfusionData {
     public static void recordFunding(ItemStack stack, com.mistaboom.essence_ascendance.team.PoolId pool,
                                      Map<net.minecraft.resources.ResourceLocation, Long> costs) {
         CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> {
-            CompoundTag progress = outer.getCompound(ROOT_TAG);
+            CompoundTag progress = NbtVersionCompat.getCompound(outer, ROOT_TAG);
             InfusionPayments.attribute(progress, pool, costs); outer.put(ROOT_TAG, progress);
         });
     }
@@ -48,24 +49,24 @@ public final class FocusInfusionData {
             return Optional.empty();
         }
         CompoundTag outer = customData.copyTag();
-        if (!outer.contains(ROOT_TAG, Tag.TAG_COMPOUND)) {
+        if (!NbtVersionCompat.contains(outer, ROOT_TAG, Tag.TAG_COMPOUND)) {
             return Optional.empty();
         }
 
-        CompoundTag tag = outer.getCompound(ROOT_TAG);
-        EssenceFocusTier target = parseTier(tag.getString(TARGET_TAG));
+        CompoundTag tag = NbtVersionCompat.getCompound(outer, ROOT_TAG);
+        EssenceFocusTier target = parseTier(NbtVersionCompat.getString(tag, TARGET_TAG));
         if (target == null) {
             return Optional.empty();
         }
-        UUID session = tag.hasUUID(SESSION_TAG) ? tag.getUUID(SESSION_TAG) : null;
-        CompoundTag contributions = tag.contains(CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND)
-                ? tag.getCompound(CONTRIBUTIONS_TAG)
+        UUID session = NbtVersionCompat.hasUUID(tag, SESSION_TAG) ? NbtVersionCompat.getUUID(tag, SESSION_TAG) : null;
+        CompoundTag contributions = NbtVersionCompat.contains(tag, CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND)
+                ? NbtVersionCompat.getCompound(tag, CONTRIBUTIONS_TAG)
                 : new CompoundTag();
         Map<EssenceDefinition, Long> values = new LinkedHashMap<>();
         long total = 0L;
         try {
             for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
-                long amount = contributions.getLong(essence.id().getPath());
+                long amount = NbtVersionCompat.getLong(contributions, essence.id().getPath());
                 if (amount < 0L) {
                     return Optional.empty();
                 }
@@ -93,7 +94,7 @@ public final class FocusInfusionData {
         if (raw.isEmpty()) {
             CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
             if (customData != null
-                    && customData.copyTag().contains(ROOT_TAG, Tag.TAG_COMPOUND)) {
+                    && NbtVersionCompat.contains(customData.copyTag(), ROOT_TAG, Tag.TAG_COMPOUND)) {
                 return Optional.empty();
             }
             return Optional.of(new Progress(recipe.targetTier(), null, zero));
@@ -113,7 +114,7 @@ public final class FocusInfusionData {
         }
         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
         return customData != null
-                && customData.copyTag().contains(ROOT_TAG, Tag.TAG_COMPOUND);
+                && NbtVersionCompat.contains(customData.copyTag(), ROOT_TAG, Tag.TAG_COMPOUND);
     }
 
     public static boolean hasProgress(ItemStack stack) {
@@ -197,15 +198,15 @@ public final class FocusInfusionData {
                 DataComponents.CUSTOM_DATA,
                 stack,
                 outer -> {
-                    CompoundTag tag = outer.contains(ROOT_TAG, Tag.TAG_COMPOUND)
-                            ? outer.getCompound(ROOT_TAG)
+                    CompoundTag tag = NbtVersionCompat.contains(outer, ROOT_TAG, Tag.TAG_COMPOUND)
+                            ? NbtVersionCompat.getCompound(outer, ROOT_TAG)
                             : new CompoundTag();
                     tag.putString(TARGET_TAG, recipe.targetTier().serializedName());
-                    if (!tag.hasUUID(SESSION_TAG)) {
-                        tag.putUUID(SESSION_TAG, UUID.randomUUID());
+                    if (!NbtVersionCompat.hasUUID(tag, SESSION_TAG)) {
+                        NbtVersionCompat.putUUID(tag, SESSION_TAG, UUID.randomUUID());
                     }
-                    CompoundTag contributions = tag.contains(CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND)
-                            ? tag.getCompound(CONTRIBUTIONS_TAG)
+                    CompoundTag contributions = NbtVersionCompat.contains(tag, CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND)
+                            ? NbtVersionCompat.getCompound(tag, CONTRIBUTIONS_TAG)
                             : new CompoundTag();
                     contributions.putLong(essence.id().getPath(), newAmount);
                     tag.put(CONTRIBUTIONS_TAG, contributions);

@@ -95,8 +95,8 @@ public final class AttunementAccountingTest {
         var sourceReload=AttunementLedger.load(repeats.save());
         check(apply(sourceReload,"after-restart","defeat_enemies","minecraft:zombie",10,0,chapter).repetitionMultiplier()<1,"Repetition survives restart");
         for(int i=0;i<2000;i++)apply(reload,"bounded"+i,"run","region:"+i,1,0,chapter);
-        check(reload.save().getList("roots",10).size()<=1024,"Root identity ledger bounded");
-        check(reload.save().getCompound("history").getList(MOB,10).size()<=AttunementLedger.MAX_HISTORY,"Recent source history bounded");
+        check(com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(reload.save(),"roots",10).size()<=1024,"Root identity ledger bounded");
+        check(com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(reload.save().getCompound("history"),MOB,10).size()<=AttunementLedger.MAX_HISTORY,"Recent source history bounded");
         volumeAndCategoryHistory(chapter);
         var data=new PlayerEssenceData();
         var balanceProfile=com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().balanceProfile();

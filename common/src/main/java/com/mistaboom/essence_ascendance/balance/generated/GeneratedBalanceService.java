@@ -16,6 +16,7 @@ import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.network.RuntimeBalanceSyncService;
+import com.mistaboom.essence_ascendance.ore.LatentOreItems;
 import dev.architectury.platform.Platform;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
@@ -487,7 +489,21 @@ public final class GeneratedBalanceService {
             if (!outputs.isEmpty()) result.put(item, Map.copyOf(outputs));
         }
         if (absent > 0) warnings.add(absent + " saved resources are not registered and were omitted from item mappings");
+        projectSavedOreItemRoutes(result, economy.resources().keySet(), LatentOreItems.items().stream()
+                .map(BuiltInRegistries.ITEM::getKey).toList());
         return result;
+    }
+
+    /** One legacy saved ore route applies to new fixed-host item IDs unless the profile names that alias. */
+    static void projectSavedOreItemRoutes(Map<ResourceLocation, Map<EssenceDefinition, Long>> resolved,
+                                          Set<String> savedItemIds, Iterable<ResourceLocation> registeredAliases) {
+        ResourceLocation adaptive = ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,
+                "adaptive_latent_ore");
+        Map<EssenceDefinition, Long> shared = resolved.get(adaptive);
+        if (shared == null || shared.isEmpty()) return;
+        for (ResourceLocation alias : registeredAliases) {
+            if (!savedItemIds.contains(alias.toString())) resolved.putIfAbsent(alias, shared);
+        }
     }
     private record GenerationResult(Active candidate, Map<String, Long> timings, long millis) { }
 

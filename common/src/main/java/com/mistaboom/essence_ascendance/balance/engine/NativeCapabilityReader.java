@@ -88,6 +88,9 @@ public final class NativeCapabilityReader {
      * evaluate tags, custom predicates, inversion or gameplay callbacks here. */
     static boolean impossibleRequirements(Optional<net.minecraft.world.level.storage.loot.predicates.LootItemCondition> requirements) {
         if (requirements.orElse(null) instanceof net.minecraft.world.level.storage.loot.predicates.MatchTool match) {
+            //? if >=26.1.2
+            /*var items = match.predicate().flatMap(net.minecraft.advancements.criterion.ItemPredicate::items);*/
+            //? if <26.1.2
             var items = match.predicate().flatMap(net.minecraft.advancements.critereon.ItemPredicate::items);
             return items.isPresent() && items.get().getClass() == net.minecraft.core.HolderSet.Direct.class
                     && items.get().size() == 0;

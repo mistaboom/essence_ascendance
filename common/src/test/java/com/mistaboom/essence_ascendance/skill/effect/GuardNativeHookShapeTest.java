@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.skill.effect;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -21,21 +22,9 @@ public final class GuardNativeHookShapeTest {
     private static int checks;
     private static final String LOCAL = "net/minecraft/client/player/LocalPlayer";
     public static void main(String[] args) throws Exception {
-        inspect(name -> GuardNativeHookShapeTest.class.getClassLoader().getResourceAsStream(name + ".class"), false);
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) root = root.getParent();
-        if (root == null) throw new AssertionError("Mapped NeoForge build cache is required for loader equivalence verification");
-        List<Path> jars;
-        try (var stream = Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
-            jars = stream.filter(path -> path.getFileName().toString().startsWith("neoforge-")
-                    && path.toString().endsWith(".jar") && !path.toString().endsWith("-sources.jar")).toList();
-        }
-        check(!jars.isEmpty(), "Current NeoForge mapped native artifact exists");
-        for (Path path : jars) try (JarFile jar = new JarFile(path.toFile())) {
-            inspect(name -> jar.getInputStream(jar.getJarEntry(name + ".class")), true);
-        }
-        System.out.println("Guard native hook bytecode shapes passed: " + checks + " (Fabric/common and " + jars.size()
-                + " NeoForge mapped artifacts; exact injections/native jump/step/server movement; not a live NeoForge world)");
+        inspect(name -> TargetTestInputs.nativeClass("fabric", name), false);
+        inspect(name -> TargetTestInputs.nativeClass("neoforge", name), true);
+        System.out.println("Guard native hook bytecode shapes passed: " + checks + " (exact target Fabric and NeoForge artifacts; no world)");
     }
     private interface Source { InputStream read(String name) throws Exception; }
     private static void inspect(Source source, boolean neo) throws Exception {

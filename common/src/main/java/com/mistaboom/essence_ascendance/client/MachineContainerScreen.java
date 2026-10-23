@@ -2,6 +2,9 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.client.ui.UiOverlayStack;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -10,6 +13,12 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+//? if >=26.1.2
+/*import net.minecraft.client.input.MouseButtonEvent;*/
+//? if >=26.1.2
+/*import net.minecraft.client.input.KeyEvent;*/
+//? if >=26.1.2
+/*import net.minecraft.client.input.CharacterEvent;*/
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,9 +68,14 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
             Component title,
             MachineScreenLayout.Spec layoutSpec
     ) {
+        //? if >=26.1.2
+        /*super(menu, playerInventory, title, layoutSpec.imageWidth(), layoutSpec.imageHeight());*/
+        //? if <26.1.2
         super(menu, playerInventory, title);
         this.layoutSpec = layoutSpec;
+        //? if <26.1.2
         imageWidth = layoutSpec.imageWidth();
+        //? if <26.1.2
         imageHeight = layoutSpec.imageHeight();
         inventoryLabelX = layoutSpec.inventoryLabelX();
         inventoryLabelY = layoutSpec.inventoryLabelY();
@@ -164,13 +178,22 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
             String title = state != null && state.view() == 2 ? "team.requests_title" : "team.title";
             MachineScreenUi.sectionHeader(graphics, font, com.mistaboom.essence_ascendance.text.EssenceText.gui(title), bounds.x() + TEAM_POPUP_PADDING, bounds.y() + 7);
             int lineY = bounds.y() + 27;
+            //? if >=26.1.2
+            /*if (state == null) graphics.text(font, com.mistaboom.essence_ascendance.text.EssenceText.term("synchronizing"), bounds.x() + TEAM_POPUP_PADDING, lineY, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             if (state == null) graphics.drawString(font, com.mistaboom.essence_ascendance.text.EssenceText.term("synchronizing"), bounds.x() + TEAM_POPUP_PADDING, lineY, MachineScreenUi.MUTED, false);
             else {
                 for (var line : state.lines()) {
                     var text = TeamInterfaceClientState.text(line);
+                    //? if >=26.1.2
+                    /*graphics.textWithWordWrap(font, text, bounds.x() + TEAM_POPUP_PADDING, lineY, TEAM_POPUP_TEXT_WIDTH, MachineScreenUi.TEXT);*/
+                    //? if <26.1.2
                     graphics.drawWordWrap(font, text, bounds.x() + TEAM_POPUP_PADDING, lineY, TEAM_POPUP_TEXT_WIDTH, MachineScreenUi.TEXT);
                     lineY += font.split(text, TEAM_POPUP_TEXT_WIDTH).size() * font.lineHeight + 4;
                 }
+                //? if >=26.1.2
+                /*if (state.pages() > 1) graphics.centeredText(font, com.mistaboom.essence_ascendance.text.EssenceText.gui("team.page", state.page() + 1, state.pages()), bounds.x() + bounds.width() / 2, bounds.bottom() - 19, MachineScreenUi.MUTED);*/
+                //? if <26.1.2
                 if (state.pages() > 1) graphics.drawCenteredString(font, com.mistaboom.essence_ascendance.text.EssenceText.gui("team.page", state.page() + 1, state.pages()), bounds.x() + bounds.width() / 2, bounds.bottom() - 19, MachineScreenUi.MUTED);
             }
         });
@@ -351,38 +374,52 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
         );
     }
 
-    @Override
-    public final void render(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        updateMachineWidgets();
-        updateTeamPopup();
-        synchronizeWidgetFocus();
-        super.render(graphics, mouseX, mouseY, partialTick);
+    //? if >=26.1.2
+    /*@Override public final void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) { updateMachineWidgets(); updateTeamPopup(); synchronizeWidgetFocus(); super.extractRenderState(graphics, mouseX, mouseY, partialTick); }*/
+    //? if >=26.1.2
+    /*@Override public final void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) { super.extractContents(graphics, mouseX, mouseY, partialTick); renderMachineOverlays(graphics, mouseX, mouseY, partialTick); }*/
+    //? if >=26.1.2
+    /*@Override protected void extractTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) { if (overlayStack(currentOverlays()).allowsTooltip(mouseX, mouseY)) super.extractTooltip(graphics, mouseX, mouseY); }*/
+    //? if <26.1.2
+    @Override public final void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) { updateMachineWidgets(); updateTeamPopup(); synchronizeWidgetFocus(); super.render(graphics, mouseX, mouseY, partialTick); renderMachineOverlays(graphics, mouseX, mouseY, partialTick); }
+    //? if >=26.1.2
+    /*private void renderMachineOverlays(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
+    private void renderMachineOverlays(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
 
         List<MachineOverlay> overlays = currentOverlays();
         for (MachineOverlay overlay : overlays) {
             int scrollOffset = scrollOffset(overlay);
+            //? if >=26.1.2
+            /*graphics.pose().pushMatrix();*/
+            //? if <26.1.2
             graphics.pose().pushPose();
+            //? if >=26.1.2
+            /*graphics.nextStratum();*/
+            //? if <26.1.2
             graphics.pose().translate(0.0F, 0.0F, overlay.zOrder());
             overlay.renderer().render(graphics, mouseX, mouseY, partialTick, scrollOffset);
             for (AbstractWidget control : overlay.controls()) {
                 if (control.visible) {
+                    //? if >=26.1.2
+                    /*control.extractRenderState(graphics, mouseX, mouseY, partialTick);*/
+                    //? if <26.1.2
                     control.render(graphics, mouseX, mouseY, partialTick);
                 }
             }
+            //? if >=26.1.2
+            /*graphics.pose().popMatrix();*/
+            //? if <26.1.2
             graphics.pose().popPose();
             var hoveredStyle = overlay.styleAt(mouseX, mouseY, scrollOffset);
             if (hoveredStyle != null) {
-                graphics.renderComponentHoverEffect(font, hoveredStyle, mouseX, mouseY);
+                ClientHoverTooltip.show(graphics, font, hoveredStyle, mouseX, mouseY);
             }
         }
 
         UiOverlayStack stack = overlayStack(overlays);
         if (stack.allowsTooltip(mouseX, mouseY)) {
+            //? if <26.1.2
             renderTooltip(graphics, mouseX, mouseY);
         }
     }
@@ -395,22 +432,36 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     }
 
     @Override
+    //? if >=26.1.2
+    /*public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {*/
+    //? if <26.1.2
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        //? if >=26.1.2
+        /*double mouseX = event.x(), mouseY = event.y(); int button = event.button();*/
         updateMachineWidgets();
         updateTeamPopup();
         List<MachineOverlay> overlays = currentOverlays();
         MachineOverlay owner = pointerOwner(overlays, mouseX, mouseY);
         if (owner == null) {
+            //? if >=26.1.2
+            /*return super.mouseClicked(event, doubleClick);*/
+            //? if <26.1.2
             return super.mouseClicked(mouseX, mouseY, button);
         }
         for (int index = owner.controls().size() - 1; index >= 0; index--) {
             AbstractWidget control = owner.controls().get(index);
+            //? if >=26.1.2
+            /*if (control.visible && control.mouseClicked(event, doubleClick)) {*/
+            //? if <26.1.2
             if (control.visible && control.mouseClicked(mouseX, mouseY, button)) {
                 setFocused(control);
                 return true;
             }
         }
         var style = owner.styleAt(mouseX, mouseY, scrollOffset(owner));
+        //? if >=26.1.2
+        /*if (style != null && style.getClickEvent() != null) { defaultHandleClickEvent(style.getClickEvent(), minecraft, this);*/
+        //? if <26.1.2
         if (style != null && handleComponentClicked(style)) {
             return true;
         }
@@ -418,14 +469,25 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     }
 
     @Override
+    //? if >=26.1.2
+    /*public boolean mouseReleased(MouseButtonEvent event) {*/
+    //? if <26.1.2
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        //? if >=26.1.2
+        /*double mouseX = event.x(), mouseY = event.y();*/
         List<MachineOverlay> overlays = currentOverlays();
         MachineOverlay owner = pointerOwner(overlays, mouseX, mouseY);
         if (owner == null) {
+            //? if >=26.1.2
+            /*return super.mouseReleased(event);*/
+            //? if <26.1.2
             return super.mouseReleased(mouseX, mouseY, button);
         }
         for (AbstractWidget control : owner.controls()) {
             if (control.visible) {
+                //? if >=26.1.2
+                /*control.mouseReleased(event);*/
+                //? if <26.1.2
                 control.mouseReleased(mouseX, mouseY, button);
             }
         }
@@ -433,19 +495,36 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     }
 
     @Override
+    //? if >=26.1.2
+    /*public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {*/
+    //? if <26.1.2
     public boolean mouseDragged(
+            //? if <26.1.2
             double mouseX,
+            //? if <26.1.2
             double mouseY,
+            //? if <26.1.2
             int button,
+            //? if <26.1.2
             double dragX,
+            //? if <26.1.2
             double dragY
+    //? if <26.1.2
     ) {
+        //? if >=26.1.2
+        /*double mouseX = event.x(), mouseY = event.y();*/
         List<MachineOverlay> overlays = currentOverlays();
         MachineOverlay owner = pointerOwner(overlays, mouseX, mouseY);
         if (owner == null) {
+            //? if >=26.1.2
+            /*return super.mouseDragged(event, dragX, dragY);*/
+            //? if <26.1.2
             return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
         }
         for (AbstractWidget control : owner.controls()) {
+            //? if >=26.1.2
+            /*if (control.visible && control.mouseDragged(event, dragX, dragY)) {*/
+            //? if <26.1.2
             if (control.visible && control.mouseDragged(mouseX, mouseY, button, dragX, dragY)) {
                 return true;
             }
@@ -473,7 +552,12 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     }
 
     @Override
+    //? if >=26.1.2
+    /*public boolean keyPressed(KeyEvent event) {*/
+    //? if <26.1.2
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        //? if >=26.1.2
+        /*int keyCode = event.key();*/
         if (keyCode == GLFW_KEY_ESCAPE && confirmationAction != null) { confirmationAction = null; return true; }
         if (keyCode == GLFW_KEY_ESCAPE && activePopup != null) { setMachinePopup(null); return true; }
         List<MachineOverlay> overlays = currentOverlays();
@@ -481,40 +565,64 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
         if ((owner == null || owner.pointerPolicy() != UiOverlayStack.PointerPolicy.MODAL)
                 && getFocused() instanceof net.minecraft.client.gui.components.EditBox field
                 && field.visible && field.canConsumeInput() && keyCode != GLFW_KEY_ESCAPE && keyCode != GLFW_KEY_TAB) {
+            //? if >=26.1.2
+            /*field.keyPressed(event);*/
+            //? if <26.1.2
             field.keyPressed(keyCode, scanCode, modifiers);
             return true; // Typing a team name must not trigger inventory/hotbar shortcuts.
         }
         if (owner != null) {
             if (owner.pointerPolicy() != UiOverlayStack.PointerPolicy.MODAL && getFocused() instanceof net.minecraft.client.gui.components.EditBox field
+                    //? if >=26.1.2
+                    /*&& field.visible && field.keyPressed(event)) return true;*/
+                    //? if <26.1.2
                     && field.visible && field.keyPressed(keyCode, scanCode, modifiers)) return true;
             if (routeScrollKey(owner, keyCode)) {
                 return true;
             }
+            //? if >=26.1.2
+            /*if (keyCode == GLFW_KEY_TAB && cycleOverlayFocus(owner, event.hasShiftDown() ? -1 : 1)) {*/
+            //? if <26.1.2
             if (keyCode == GLFW_KEY_TAB && cycleOverlayFocus(owner, hasShiftDown() ? -1 : 1)) {
                 return true;
             }
             GuiEventListener focused = getFocused();
             if (focused != null && owner.controls().contains(focused)
+                    //? if >=26.1.2
+                    /*&& focused.keyPressed(event)) {*/
+                    //? if <26.1.2
                     && focused.keyPressed(keyCode, scanCode, modifiers)) {
                 return true;
             }
             if (owner.pointerPolicy() == UiOverlayStack.PointerPolicy.MODAL) {
                 if (keyCode == GLFW_KEY_ESCAPE && shouldCloseOnEsc()) {
+                    //? if >=26.1.2
+                    /*return super.keyPressed(event);*/
+                    //? if <26.1.2
                     return super.keyPressed(keyCode, scanCode, modifiers);
                 }
                 return true;
             }
         }
+        //? if >=26.1.2
+        /*return super.keyPressed(event);*/
+        //? if <26.1.2
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
+    //? if >=26.1.2
+    /*public boolean keyReleased(KeyEvent event) {*/
+    //? if <26.1.2
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
         List<MachineOverlay> overlays = currentOverlays();
         MachineOverlay owner = keyboardOwner(overlays);
         if (owner != null) {
             GuiEventListener focused = getFocused();
             if (focused != null && owner.controls().contains(focused)
+                    //? if >=26.1.2
+                    /*&& focused.keyReleased(event)) {*/
+                    //? if <26.1.2
                     && focused.keyReleased(keyCode, scanCode, modifiers)) {
                 return true;
             }
@@ -522,16 +630,25 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
                 return true;
             }
         }
+        //? if >=26.1.2
+        /*return super.keyReleased(event);*/
+        //? if <26.1.2
         return super.keyReleased(keyCode, scanCode, modifiers);
     }
 
     @Override
+    //? if >=26.1.2
+    /*public boolean charTyped(CharacterEvent event) {*/
+    //? if <26.1.2
     public boolean charTyped(char character, int modifiers) {
         List<MachineOverlay> overlays = currentOverlays();
         MachineOverlay owner = keyboardOwner(overlays);
         if (owner != null) {
             GuiEventListener focused = getFocused();
             if (focused != null && owner.controls().contains(focused)
+                    //? if >=26.1.2
+                    /*&& focused.charTyped(event)) {*/
+                    //? if <26.1.2
                     && focused.charTyped(character, modifiers)) {
                 return true;
             }
@@ -539,6 +656,9 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
                 return true;
             }
         }
+        //? if >=26.1.2
+        /*return super.charTyped(event);*/
+        //? if <26.1.2
         return super.charTyped(character, modifiers);
     }
 
@@ -551,11 +671,17 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     }
 
     protected final void drawCentered(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Component text,
             int relativeY,
             int color
     ) {
+        //? if >=26.1.2
+        /*graphics.text(*/
+        //? if <26.1.2
         graphics.drawString(
                 font,
                 text,

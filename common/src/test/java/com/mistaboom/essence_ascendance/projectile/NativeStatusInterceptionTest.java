@@ -25,6 +25,9 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownSplashPotion;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -113,7 +116,11 @@ public final class NativeStatusInterceptionTest {
         reset(fixture, player);
         check(player.addEffect(new MobEffectInstance(poison, 100), player) && !last(player).removed(), "self source never mirrored");
         reset(fixture, player);
-        var arrow = fixture.arrow(net.minecraft.world.entity.projectile.Arrow.class); arrow.setOwner(source);
+        //? if >=26.1.2
+        /*var arrow = fixture.arrow(net.minecraft.world.entity.projectile.arrow.Arrow.class);*/
+        //? if <26.1.2
+        var arrow = fixture.arrow(net.minecraft.world.entity.projectile.Arrow.class);
+        arrow.setOwner(source);
         player.addEffect(new MobEffectInstance(poison, 100), arrow);
         check(last(player).responsibleSource().equals(source.getUUID()) && last(player).directEntity().equals(arrow.getUUID())
                 && last(player).removed(), "native projectile owner resolved separately from direct arrow identity");
@@ -188,20 +195,40 @@ public final class NativeStatusInterceptionTest {
                 "arbitrary registered modded harmful category participates by exact registry identity");
 
         // Controlled native instantaneous callback: direct fallback for the vanilla implementation.
+        //? if >=26.1.2
+        /*MobEffects.INSTANT_DAMAGE.value().applyInstantenousEffect(fixture.level, source, source, player, 0, 1);*/
+        //? if <26.1.2
         MobEffects.HARM.value().applyInstantenousEffect(source, source, player, 0, 1);
         check(last(player).nativeAcceptance().equals("eligible_instant_preflight_intercepted"), "vanilla overriding instant method intercepted before irreversible damage");
         check(!last(player).removed() && last(player).prevented() && last(player).cooldownUntil() == 0, "instant Pure State uses prevention not fake removal/cooldown");
 
         var customInstant = new CustomInstant();
+        //? if >=26.1.2
+        /*var potion = ProjectileNativeInterceptionTest.instance(ThrownSplashPotion.class);*/
+        //? if <26.1.2
         var potion = ProjectileNativeInterceptionTest.instance(ThrownPotion.class);
+        //? if >=26.1.2
+        /*ProjectileNativeInterceptionTest.initializeEntity(potion, EntityType.SPLASH_POTION, fixture.level, Vec3.ZERO, new AABB(-.2, 0, -.2, .2, .4, .2));*/
+        //? if <26.1.2
         ProjectileNativeInterceptionTest.initializeEntity(potion, EntityType.POTION, fixture.level, Vec3.ZERO, new AABB(-.2, 0, -.2, .2, .4, .2));
         potion.setOwner(source);
+        //? if >=26.1.2
+        /*var potionStack = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SPLASH_POTION);*/
+        //? if >=26.1.2
+        /*potionStack.set(net.minecraft.core.component.DataComponents.POTION_CONTENTS, net.minecraft.world.item.alchemy.PotionContents.EMPTY.withEffectAdded(new MobEffectInstance(Holder.direct(customInstant), 1)));*/
+        //? if <26.1.2
         var splash = ThrownPotion.class.getDeclaredMethod("applySplash", Iterable.class, Entity.class); splash.setAccessible(true);
         // Move all other fixture entities outside the splash; source remains the real owner.
         source.setPos(10, 0, 0);
+        //? if >=26.1.2
+        /*potion.onHitAsPotion(fixture.level, potionStack, new net.minecraft.world.phys.EntityHitResult(player));*/
+        //? if <26.1.2
         splash.invoke(potion, List.of(new MobEffectInstance(Holder.direct(customInstant), 1)), player);
         check(customInstant.calls == 0 && last(player).prevented(), "real native splash bridge intercepts a modded override that never calls the base method");
         select(fixture, player, SkillIds.STATUS_MIRROR);
+        //? if >=26.1.2
+        /*potion.onHitAsPotion(fixture.level, potionStack, new net.minecraft.world.phys.EntityHitResult(player));*/
+        //? if <26.1.2
         splash.invoke(potion, List.of(new MobEffectInstance(Holder.direct(customInstant), 1)), player);
         check(customInstant.calls == 1 && customInstant.lastTarget == source && customInstant.lastOwner == player,
                 "real generic splash bridge copies modded instant directly to responsible source with defender attribution");
@@ -209,12 +236,12 @@ public final class NativeStatusInterceptionTest {
 
         var periodic = new PeriodicEffect(MobEffectCategory.HARMFUL);
         var periodicInstance = new MobEffectInstance(Holder.direct(periodic), 20);
-        check(periodicInstance.tick(source, () -> { }), "actual native periodic instance continues normally");
+        check(com.mistaboom.essence_ascendance.verification.MobEffectTestCompat.tick(periodicInstance, source, () -> { }), "actual native periodic instance continues normally");
         check(periodic.calls == 1 && periodic.secondary, "periodic native callbacks are derived secondary even without persisted origin");
         check(!EquipmentDamageService.isSecondarySkillDamage(), "periodic secondary scope always closes after native callback");
         for (var category : List.of(MobEffectCategory.BENEFICIAL, MobEffectCategory.NEUTRAL)) {
             var ordinary = new PeriodicEffect(category);
-            new MobEffectInstance(Holder.direct(ordinary), 20).tick(source, () -> { });
+            com.mistaboom.essence_ascendance.verification.MobEffectTestCompat.tick(new MobEffectInstance(Holder.direct(ordinary), 20), source, () -> { });
             check(ordinary.calls == 1 && !ordinary.secondary, "ordinary " + category + " callback remains outside secondary scope");
         }
 
@@ -250,6 +277,9 @@ public final class NativeStatusInterceptionTest {
             lastSource = source;
             if (refresh) { effect.getEffect().value().removeAttributeModifiers(getAttributes()); effect.getEffect().value().addAttributeModifiers(getAttributes(), effect.getAmplifier()); }
         }
+        //? if >=26.1.2
+        /*@Override protected void onEffectsRemoved(java.util.Collection<MobEffectInstance> effects) { for (var effect : effects) effect.getEffect().value().removeAttributeModifiers(getAttributes()); }*/
+        //? if <26.1.2
         @Override protected void onEffectRemoved(MobEffectInstance effect) { effect.getEffect().value().removeAttributeModifiers(getAttributes()); }
     }
     static class CustomEffect extends MobEffect { CustomEffect(MobEffectCategory category) { super(category, 0); } }
@@ -257,6 +287,9 @@ public final class NativeStatusInterceptionTest {
         int calls; LivingEntity lastTarget; Entity lastOwner; boolean secondary;
         CustomInstant() { super(MobEffectCategory.HARMFUL); }
         @Override public boolean isInstantenous() { return true; }
+        //? if >=26.1.2
+        /*@Override public void applyInstantenousEffect(net.minecraft.server.level.ServerLevel level, Entity direct, Entity owner, LivingEntity target, int amplifier, double potency) {*/
+        //? if <26.1.2
         @Override public void applyInstantenousEffect(Entity direct, Entity owner, LivingEntity target, int amplifier, double potency) {
             calls++; lastTarget = target; lastOwner = owner; secondary = EquipmentDamageService.isSecondarySkillDamage();
         }
@@ -265,6 +298,9 @@ public final class NativeStatusInterceptionTest {
         int calls; boolean secondary;
         PeriodicEffect(MobEffectCategory category) { super(category); }
         @Override public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) { return true; }
+        //? if >=26.1.2
+        /*@Override public boolean applyEffectTick(net.minecraft.server.level.ServerLevel level, LivingEntity target, int amplifier) {*/
+        //? if <26.1.2
         @Override public boolean applyEffectTick(LivingEntity target, int amplifier) {
             calls++; secondary = EquipmentDamageService.isSecondarySkillDamage(); return true;
         }

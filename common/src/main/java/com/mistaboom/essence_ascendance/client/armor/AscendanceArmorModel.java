@@ -6,6 +6,9 @@ import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.world.entity.EquipmentSlot;
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.entity.state.HumanoidRenderState;*/
+//? if <26.1.2
 import net.minecraft.world.entity.LivingEntity;
 
 import java.io.BufferedInputStream;
@@ -23,6 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * One armor slot's meshes attached to vanilla humanoid bones. Vanilla owns the
  * animated transforms, visibility, baby scaling and enchantment foil passes.
  */
+//? if >=26.1.2
+/*public final class AscendanceArmorModel<T extends HumanoidRenderState> extends HumanoidModel<T> {*/
+//? if <26.1.2
 public final class AscendanceArmorModel<T extends LivingEntity> extends HumanoidModel<T> {
     public AscendanceArmorModel(EquipmentSlot slot) {
         super(root(slot));
@@ -35,7 +41,11 @@ public final class AscendanceArmorModel<T extends LivingEntity> extends Humanoid
         }
 
         Map<String, ModelPart> parts = new LinkedHashMap<>();
+        //? if >=26.1.2
+        /*parts.put("head", part(slot == EquipmentSlot.HEAD ? "head" : null, 0, 0, 0, Map.of("hat", part(null, 0, 0, 0))));*/
+        //? if <26.1.2
         parts.put("head", part(slot == EquipmentSlot.HEAD ? "head" : null, 0, 0, 0));
+        //? if <26.1.2
         parts.put("hat", part(null, 0, 0, 0));
         // The leggings' belt follows torso crouching/rotation independently of leg motion.
         parts.put("body", part(slot == EquipmentSlot.CHEST ? "chest"
@@ -50,7 +60,11 @@ public final class AscendanceArmorModel<T extends LivingEntity> extends Humanoid
     }
 
     private static ModelPart part(String mesh, float x, float y, float z) {
-        ModelPart part = new ModelPart(mesh == null ? List.of() : List.of(new ArmorMesh(mesh)), Map.of());
+        return part(mesh, x, y, z, Map.of());
+    }
+
+    private static ModelPart part(String mesh, float x, float y, float z, Map<String, ModelPart> children) {
+        ModelPart part = new ModelPart(mesh == null ? List.of() : List.of(new ArmorMesh(mesh)), children);
         PartPose pose = PartPose.offset(x, y, z);
         part.setInitialPose(pose);
         part.loadPose(pose);

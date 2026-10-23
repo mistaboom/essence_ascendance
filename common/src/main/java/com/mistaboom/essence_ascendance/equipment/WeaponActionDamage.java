@@ -26,9 +26,18 @@ public final class WeaponActionDamage {
         EquipmentGatheringService.sync(player);
         boolean sprint = player.isSprinting();
         boolean critical = player.fallDistance>0 && !player.onGround() && !player.onClimbable()
-                && !player.isInWater() && !player.hasEffect(MobEffects.BLINDNESS) && !player.isPassenger() && !sprint;
+                && !player.isInWater()
+                //? if >=26.1.2
+                /*&& !player.isMobilityRestricted()*/
+                //? if <26.1.2
+                && !player.hasEffect(MobEffects.BLINDNESS)
+                && !player.isPassenger() && !sprint;
         var weapon=player.getMainHandItem().copy();
+        //? if >=26.1.2
+        /*var looting=player.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).get(net.minecraft.world.item.enchantment.Enchantments.LOOTING);*/
+        //? if <26.1.2
         var looting=player.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                //? if <26.1.2
                 .getHolder(net.minecraft.world.item.enchantment.Enchantments.LOOTING);
         int lootingLevel=looting.map(h->EquipmentGatheringService.resolveVirtualEnchantmentLevel(weapon,h,
                 weapon.getEnchantments().getLevel(h))).orElse(0);
@@ -66,18 +75,25 @@ public final class WeaponActionDamage {
         float strength = offense.readiness;
         base *= .2F+strength*strength*.8F;
         base += offense.weapon.getItem().getAttackDamageBonus(target,base,source);
-        boolean critical=offense.critical && strength>.9F && target instanceof LivingEntity;
+        boolean strong=strength>GlaiveTuning.STRONG_HIT_THRESHOLD;
+        boolean critical=offense.critical && strong && target instanceof LivingEntity;
         if (critical) base *= 1.5F;
         float amount = base+enchanted*strength;
         Contact previous = CONTACT.get(); CONTACT.set(new Contact(player,offense));
         try {
             EquipmentDamageService.DamageResult result = target instanceof LivingEntity living
                     ? EquipmentDamageService.runActionMeleeContact(player,living,source,offense.skills,primaryEligible,scalar,
+                            //? if >=26.1.2
+                            /*() -> living.hurtServer(player.serverLevel(), source, amount))*/
+                            //? if <26.1.2
                             () -> living.hurt(source,amount))
+                    //? if >=26.1.2
+                    /*: new EquipmentDamageService.DamageResult(target.hurtServer(player.serverLevel(), source, (float)(amount*scalar)),0);*/
+                    //? if <26.1.2
                     : new EquipmentDamageService.DamageResult(target.hurt(source,(float)(amount*scalar)),0);
             if (result.accepted()) {
                 float knockback = EnchantmentHelper.modifyKnockback(player.serverLevel(),offense.weapon,target,source,(float)offense.knockback)
-                        +(offense.sprinting ? 1 : 0);
+                        +(offense.sprinting && strong ? 1 : 0);
                 if (knockback>0 && target instanceof LivingEntity living) living.knockback(knockback*.5,-direction.x,-direction.z);
                 EnchantmentHelper.doPostAttackEffectsWithItemSource(player.serverLevel(),target,source,offense.weapon);
                 if (critical) player.crit(target);
@@ -92,8 +108,15 @@ public final class WeaponActionDamage {
     public static void wear(ServerPlayer owner, ItemStack original, int slot) {
         TwoHandedEquipmentService.enterCombat();
         try {
-            if (owner.getMainHandItem()==original && owner.getInventory().selected==slot)
+            if (owner.getMainHandItem()==original && selectedSlot(owner)==slot)
                 original.hurtAndBreak(1,owner,EquipmentSlot.MAINHAND);
         } finally { TwoHandedEquipmentService.exitCombat(); }
+    }
+
+    private static int selectedSlot(ServerPlayer player) {
+        //? if >=26.1.2
+        /*return player.getInventory().getSelectedSlot();*/
+        //? if <26.1.2
+        return player.getInventory().selected;
     }
 }

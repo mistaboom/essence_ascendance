@@ -81,6 +81,9 @@ public final class DormantGuidebookTest {
 
         AtomicInteger drops = new AtomicInteger();
         ItemStack fits = archive();
+        //? if >=26.1.2
+        /*Inventory inventory = new Inventory(null, new net.minecraft.world.entity.EntityEquipment());*/
+        //? if <26.1.2
         Inventory inventory = new Inventory(null);
         check(DormantGuidebookService.placeBook(fits, inventory, book -> {
             drops.incrementAndGet();
@@ -90,7 +93,7 @@ public final class DormantGuidebookTest {
         check(inventory.getItem(0).is(ARCHIVE)
                         && inventory.getItem(0).getCount() == 1,
                 "Inventory success did not insert the real Archive");
-        for (int slot = 0; slot < inventory.items.size(); slot++) inventory.setItem(slot, new ItemStack(net.minecraft.world.item.Items.STONE, 64));
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) inventory.setItem(slot, new ItemStack(net.minecraft.world.item.Items.STONE, 64));
         ItemStack full = archive();
         check(DormantGuidebookService.placeBook(full, inventory, book -> {
             check(book.is(ARCHIVE)
@@ -104,12 +107,15 @@ public final class DormantGuidebookTest {
                 "Canceled fallback drop counted as delivery");
 
         // Fail if insertion reaches Minecraft's Creative-specific discard path.
+        //? if >=26.1.2
+        /*Inventory creativeFull = new Inventory(null, new net.minecraft.world.entity.EntityEquipment()) {*/
+        //? if <26.1.2
         Inventory creativeFull = new Inventory(null) {
             @Override public boolean add(int slot, ItemStack stack) {
                 throw new AssertionError("Full Creative inventory must drop directly, never consume an unplaceable book");
             }
         };
-        for (int slot = 0; slot < creativeFull.items.size(); slot++) creativeFull.setItem(slot, new ItemStack(net.minecraft.world.item.Items.STONE, 64));
+        for (int slot = 0; slot < creativeFull.getContainerSize(); slot++) creativeFull.setItem(slot, new ItemStack(net.minecraft.world.item.Items.STONE, 64));
         check(DormantGuidebookService.placeBook(archive(), creativeFull,
                         book -> !book.isEmpty()) == DormantGuidebookService.DeliveryResult.DROPPED,
                 "Full Creative inventory lost its reward");

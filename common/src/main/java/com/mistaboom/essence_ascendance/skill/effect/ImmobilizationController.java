@@ -56,7 +56,11 @@ public final class ImmobilizationController {
         Entry existing = entry(target);
         if (existing != null) return existing.window.refresh(target.level().getGameTime());
         ROOTS.put(target, new Entry(owner, target, duration, maximum, tolerance));
-        target.setDeltaMovement(constrain(target.getDeltaMovement())); target.hasImpulse = true;
+        target.setDeltaMovement(constrain(target.getDeltaMovement()));
+        //? if >=26.1.2
+        /*target.hurtMarked = true;*/
+        //? if <26.1.2
+        target.hasImpulse = true;
         return true;
     }
 

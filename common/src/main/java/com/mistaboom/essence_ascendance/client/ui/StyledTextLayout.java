@@ -6,6 +6,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.ClickEvent;
+//? if >=26.1.2
+/*import net.minecraft.nbt.StringTag;*/
+//? if >=26.1.2
+/*import net.minecraft.resources.Identifier;*/
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.ArrayList;
@@ -14,6 +18,8 @@ import java.util.List;
 /** Component-preserving measurement, fitting and wrapping through Minecraft's text facilities. */
 public final class StyledTextLayout {
     private static final FormattedText ELLIPSIS = FormattedText.of("\u2026");
+    //? if >=26.1.2
+    /*private static final Identifier LINK_ID = Identifier.fromNamespaceAndPath("essence_ascendance", "internal_navigation");*/
 
     private StyledTextLayout() {
     }
@@ -26,7 +32,7 @@ public final class StyledTextLayout {
     public static boolean hasLink(FormattedCharSequence line) {
         boolean[] linked = {false};
         line.accept((index, style, codePoint) -> {
-            linked[0] |= style.getClickEvent() != null && style.getClickEvent().getAction() == ClickEvent.Action.CHANGE_PAGE;
+            linked[0] |= linkTarget(style) != null;
             return !linked[0];
         });
         return linked[0];
@@ -34,8 +40,16 @@ public final class StyledTextLayout {
 
     /** Internal semantic navigation metadata, never a URL or a chat command. */
     public static Component link(Component label, String target) {
+        //? if >=26.1.2
+        /*return label.copy().withStyle(style -> style.withClickEvent(new ClickEvent.Custom(LINK_ID, java.util.Optional.of(StringTag.valueOf(target)))));*/
+        //? if <26.1.2
         return label.copy().withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.CHANGE_PAGE, target)));
     }
+
+    //? if >=26.1.2
+    /*private static String linkTarget(Style style) { if (style.getClickEvent() instanceof ClickEvent.Custom custom && LINK_ID.equals(custom.id()) && custom.payload().orElse(null) instanceof StringTag tag) return tag.value(); return null; }*/
+    //? if <26.1.2
+    private static String linkTarget(Style style) { ClickEvent event = style.getClickEvent(); return event != null && event.getAction() == ClickEvent.Action.CHANGE_PAGE ? event.getValue() : null; }
 
     /** Visual-order glyph measurement makes wrapped, translated and bidi hit regions match drawing. */
     public static List<LinkRegion> links(Font font, List<FormattedCharSequence> lines, int x, int y, int lineStep) {
@@ -46,15 +60,15 @@ public final class StyledTextLayout {
             int lineY = y + lineIndex * lineStep;
             lines.get(lineIndex).accept((index, style, codePoint) -> {
                 int width = font.width(FormattedCharSequence.codepoint(codePoint, style));
-                ClickEvent event = style.getClickEvent();
-                if (event != null && event.getAction() == ClickEvent.Action.CHANGE_PAGE) {
+                String target = linkTarget(style);
+                if (target != null) {
                     UiBounds bounds = new UiBounds(cursor[0], lineY, width, font.lineHeight);
-                    if (!result.isEmpty() && result.getLast().target().equals(event.getValue())
+                    if (!result.isEmpty() && result.getLast().target().equals(target)
                             && result.getLast().bounds().y() == lineY && result.getLast().bounds().right() == cursor[0]) {
                         LinkRegion previous = result.removeLast();
                         bounds = new UiBounds(previous.bounds().x(), lineY, previous.bounds().width() + width, font.lineHeight);
                     }
-                    result.add(new LinkRegion(bounds, event.getValue()));
+                    result.add(new LinkRegion(bounds, target));
                 }
                 cursor[0] += width;
                 return true;

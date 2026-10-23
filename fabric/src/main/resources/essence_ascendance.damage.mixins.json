@@ -5,37 +5,16 @@
   "mixins": [
     "LivingEntityDamageMixin",
     "LivingEntityVitalityMixin",
-    "PlayerVitalityMixin",
-    "MobEffectInstanceDurationMixin",
     "EnchantmentHelperGatheringMixin",
-    "PlayerExperienceMixin",
-    "PlayerSoulboundMixin",
     "ItemStackDurabilityMixin",
-    "PlayerShieldMixin",
-    "LivingEntityShieldGuardMixin",
-    "PlayerSkillCombatMixin",
-    "LivingEntitySkillCombatMixin",
-    "ServerSkillSwingMixin",
-    "ServerPlayerSkillDeathMixin",
-    "EntitySkillRemovalMixin",
+    "NativeShieldDurabilityMixin",
+    "PlayerSkillSweepMixin",
     "VitalityPlayerDamageMixin",
-    "PlayerAbsorptionPoolMixin",
-    "LivingEntityAbsorptionPoolMixin",
     "TraversalMiningMixin"
   ],
   "client": [
     "LatentOreRenderDataMixin",
-    "ItemRendererEmissionMixin",
-    "ItemInHandRendererMixin",
-    "AbstractClientPlayerFovMixin",
-    "ItemStackTooltipMixin",
-    "JeiListElementInfoMixin",
-    "JeiIngredientFilterMixin",
-    "HumanoidArmorLayerTierMixin",
-    "LocalPlayerShieldMovementMixin",
-    "ShieldItemRendererMixin",
-    "SkillEffectHudMixin",
-    "VanillaAttackIndicatorMixin"
+    "HumanoidArmorLayerTierMixin"
   ],
   "injectors": {
     "defaultRequire": 1

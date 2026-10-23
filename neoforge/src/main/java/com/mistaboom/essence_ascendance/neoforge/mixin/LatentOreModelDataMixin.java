@@ -6,6 +6,9 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26.1.2
+/*import net.neoforged.neoforge.model.data.ModelData;*/
+//? if <26.1.2
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.common.extensions.IBlockEntityExtension;
 import org.spongepowered.asm.mixin.Mixin;

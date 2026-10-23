@@ -1,21 +1,26 @@
 // The handoff uses the task's declared archive provider, never a directory glob.
-['fabric', 'neoforge'].each { loader ->
-    tasks.register("packTester${loader.capitalize()}Artifact") {
+productionTargets.findAll { id, target -> target.implemented }.each { id, target ->
+    tasks.register("packTester${id}Artifact") {
         group = 'development tools'
-        description = "Build only the ${loader} production archive and write a private Pack Tester receipt."
-        dependsOn ":${loader}:remapJar"
+        description = "Build only the ${target.minecraft} ${target.loader} production archive and write a private Pack Tester receipt."
+        dependsOn target.archive
         doLast {
             def request = providers.gradleProperty('packTesterRequest').orNull
             if (request == null || !(request ==~ /[0-9a-f-]{36}/))
                 throw new GradleException('Pack Tester requires a UUID packTesterRequest.')
-            def archive = project(":${loader}").tasks.named('remapJar').get().archiveFile.get().asFile
+            def archive = target.archive.get().archiveFile.get().asFile
             def receipt = file(".pack-tester/results/${request}.json")
             receipt.parentFile.mkdirs()
             receipt.text = groovy.json.JsonOutput.toJson([
-                request: request, loader: loader, minecraft: rootProject.minecraft_version,
+                request: request, target: id, task: target.archive.get().path,
+                loader: target.loader, minecraft: target.minecraft,
                 archive: archive.canonicalPath,
                 sha256: java.security.MessageDigest.getInstance('SHA-256').digest(archive.bytes).encodeHex().toString()
             ])
         }
     }
+}
+// Existing 1.21.1 desktop launchers retain their command names.
+['Fabric': '1211Fabric', 'Neoforge': '1211NeoForge'].each { loader, id ->
+    tasks.register("packTester${loader}Artifact") { dependsOn tasks.named("packTester${id}Artifact") }
 }

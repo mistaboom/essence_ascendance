@@ -66,7 +66,7 @@ final class EssenceAdminCommands {
 
     static LiteralArgumentBuilder<CommandSourceStack> build() {
         return group("admin", EssenceAdminCommands::showHelp)
-                .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                .requires(source -> EssenceCommandUtil.hasAdminPermission(source))
                 .then(playerCommands())
                 .then(group("item", EssenceAdminCommands::showItemTierHelp)
                         .then(group("tier", EssenceAdminCommands::showItemTierHelp)
@@ -135,8 +135,7 @@ final class EssenceAdminCommands {
             var provider = status.providers().get(authority);
             if (provider == null) continue;
             Component value = readiness(provider).copy().append(Component.literal(" (" + provider.version() + ")"))
-                    .withStyle(style -> style.withHoverEvent(new net.minecraft.network.chat.HoverEvent(
-                            net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, Component.literal(provider.detail()))));
+                    .withStyle(style -> style.withHoverEvent(EssenceCommandUtil.hoverText(Component.literal(provider.detail()))));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(authority.displayName(), value));
             if (provider.status() != com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.AVAILABLE
                     && provider.status() != com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.ABSENT)

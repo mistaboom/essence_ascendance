@@ -26,6 +26,9 @@ import java.util.Map;
 public final class AscendanceArmorTest {
     private static final String ROOT = "/assets/essence_ascendance/";
     private static final List<String> BONES = List.of("head", "hat", "body", "left_arm", "right_arm", "left_leg", "right_leg");
+    private static void setAllVisible(AscendanceArmorModel<?> model, boolean visible) {
+        for (String name : BONES) bone(model, name).visible = visible;
+    }
     private static final List<Piece> PIECES = List.of(
             new Piece("Head", "head", EquipmentSlot.HEAD, "head", "helmet", 256, 64, 0, 256, 256, 0, 0, true),
             new Piece("Chest", "chest", EquipmentSlot.CHEST, "body", "chestplate", 256, 64, 0, 512, 256, 0, 0, true),
@@ -62,9 +65,10 @@ public final class AscendanceArmorTest {
         }
         check(textures.size() == 17, "Armor uses 17 source masks, including the belt's base-only mask");
         for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
-            var model = new AscendanceArmorModel<LivingEntity>(slot);
+            var model = new AscendanceArmorModel<>(slot);
+            //? if <26.1.2
             model.young = false;
-            model.setAllVisible(false);
+            setAllVisible(model, false);
             int triangleCount = 0;
             for (Piece piece : PIECES) if (piece.slot == slot) {
                 checkMeshAndAnimation(model, piece, elements.get(piece.sourceName));
@@ -77,7 +81,7 @@ public final class AscendanceArmorTest {
                 check(render(model).vertices.isEmpty(), slot + " must not contain geometry on " + name);
                 bone(model, name).visible = false;
             }
-            model.setAllVisible(true);
+            setAllVisible(model, true);
             check(render(model).vertices.size() == triangleCount * 4, slot + " must draw its own geometry exactly once");
             checkTextures(slot, textures);
             checkEmissionTexture(slot, textures);
@@ -89,10 +93,13 @@ public final class AscendanceArmorTest {
 
     private static void checkEmissionModels() {
         for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
-            var parent = new AscendanceArmorModel<LivingEntity>(slot);
-            var normal = new AscendanceArmorModel<LivingEntity>(slot);
-            var emission = new AscendanceArmorModel<LivingEntity>(slot);
+            var parent = new AscendanceArmorModel<>(slot);
+            var normal = new AscendanceArmorModel<>(slot);
+            var emission = new AscendanceArmorModel<>(slot);
             for (boolean young : new boolean[]{false, true}) {
+                //? if >=26.1.2
+                /*parent.head.y = young ? 3 : 0;*/
+                //? if <26.1.2
                 parent.young = young;
                 parent.head.yRot = .7f;
                 parent.body.xRot = .35f;
@@ -100,11 +107,14 @@ public final class AscendanceArmorTest {
                 parent.rightArm.xRot = -.6f;
                 parent.leftLeg.xRot = -.7f;
                 parent.rightLeg.xRot = .6f;
-                parent.body.y = 2;
+                parent.body.y = young ? 4 : 2;
                 // Skin/wooden limbs can be hidden while armor remains visible (default armor stands).
-                parent.setAllVisible(false);
+                setAllVisible(parent, false);
+                //? if >=26.1.2
+                /*ArmorPresentation.prepareModel(parent, normal, slot);*/
+                //? if <26.1.2
                 parent.copyPropertiesTo(normal);
-                normal.setAllVisible(true);
+                setAllVisible(normal, true);
                 if (slot == EquipmentSlot.LEGS) normal.body.visible = false;
                 ArmorPresentation.prepareModel(parent, emission, slot);
                 checkSameVertices(render(normal), render(emission), "Emission matches normal posed mesh including hidden wearer limbs and baby scaling");
@@ -139,7 +149,7 @@ public final class AscendanceArmorTest {
                     "Emission must copy exact accent ARGB, leaving belt/unused pixels zero: " + slot + " " + x + "," + y);
     }
 
-    private static void checkMeshAndAnimation(AscendanceArmorModel<LivingEntity> model, Piece piece,
+    private static void checkMeshAndAnimation(AscendanceArmorModel<?> model, Piece piece,
                                              JsonObject source) throws Exception {
         check(source != null, "Missing source mesh " + piece.sourceName);
         ModelPart bone = bone(model, piece.bone);
@@ -245,7 +255,8 @@ public final class AscendanceArmorTest {
     }
 
     private static void checkBeltGaitIndependence() {
-        var model = new AscendanceArmorModel<LivingEntity>(EquipmentSlot.LEGS);
+        var model = new AscendanceArmorModel<>(EquipmentSlot.LEGS);
+        //? if <26.1.2
         model.young = false;
         RecordingBuffer restingBelt = renderOnly(model, model.body);
         RecordingBuffer restingLeftLeg = renderOnly(model, model.leftLeg);
@@ -270,8 +281,8 @@ public final class AscendanceArmorTest {
         checkMoved(restingRightLeg, renderOnly(model, model.rightLeg), "Right-leg geometry must follow its gait pose");
     }
 
-    private static RecordingBuffer renderOnly(AscendanceArmorModel<LivingEntity> model, ModelPart part) {
-        model.setAllVisible(false);
+    private static RecordingBuffer renderOnly(AscendanceArmorModel<?> model, ModelPart part) {
+        setAllVisible(model, false);
         part.visible = true;
         return render(model);
     }
@@ -301,13 +312,13 @@ public final class AscendanceArmorTest {
         close(a[7], z / length, part + " surface normal Z");
     }
 
-    private static RecordingBuffer render(AscendanceArmorModel<LivingEntity> model) {
+    private static RecordingBuffer render(AscendanceArmorModel<?> model) {
         var buffer = new RecordingBuffer();
         model.renderToBuffer(new PoseStack(), buffer, 15728880, 0, -1);
         return buffer;
     }
 
-    private static ModelPart bone(AscendanceArmorModel<LivingEntity> model, String name) {
+    private static ModelPart bone(AscendanceArmorModel<?> model, String name) {
         return switch (name) {
             case "head" -> model.head;
             case "hat" -> model.hat;
@@ -354,6 +365,8 @@ public final class AscendanceArmorTest {
             vertices.add(new float[]{x, y, z, Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN}); return this;
         }
         public VertexConsumer setColor(int r, int g, int b, int a) { return this; }
+        //? if >=26.1.2
+        /*@Override public VertexConsumer setColor(int argb) { return setColor(argb >>> 16 & 255, argb >>> 8 & 255, argb & 255, argb >>> 24 & 255); }*/
         public VertexConsumer setUv(float u, float v) {
             check(Float.isFinite(u) && Float.isFinite(v) && u >= 0 && u <= 1 && v >= 0 && v <= 1, "Atlas UV outside [0,1]");
             vertices.getLast()[3] = u; vertices.getLast()[4] = v; return this;
@@ -365,5 +378,7 @@ public final class AscendanceArmorTest {
                     && Math.abs(x * x + y * y + z * z - 1) < 1e-5, "Finite unit surface normal");
             vertices.getLast()[5] = x; vertices.getLast()[6] = y; vertices.getLast()[7] = z; return this;
         }
+        //? if >=26.1.2
+        /*@Override public VertexConsumer setLineWidth(float width) { check(Float.isFinite(width) && width > 0, "Finite positive native line width"); return this; }*/
     }
 }

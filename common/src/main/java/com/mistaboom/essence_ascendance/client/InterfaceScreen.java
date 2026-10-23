@@ -4,6 +4,9 @@ import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.team.TeamMenu;
 import com.mistaboom.essence_ascendance.network.TeamInterfacePayload;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -56,7 +59,13 @@ public abstract class InterfaceScreen extends MachineContainerScreen<TeamMenu> {
         previous.visible = next.visible = p != null && p.pages() > 1;
         previous.active = p != null && p.page() > 0; next.active = p != null && p.page() + 1 < p.pages();
     }
+    //? if >=26.1.2
+    /*@Override public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) { MachineScreenUi.panel(graphics, leftPos, topPos, imageWidth, imageHeight); }*/
+    //? if <26.1.2
     @Override protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) { MachineScreenUi.panel(graphics, leftPos, topPos, imageWidth, imageHeight); }
+    //? if >=26.1.2
+    /*@Override protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     @Override protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         drawCentered(graphics, title, 8, MachineScreenUi.TEXT);
         var p = TeamInterfaceClientState.snapshot(menu.containerId);
@@ -64,9 +73,15 @@ public abstract class InterfaceScreen extends MachineContainerScreen<TeamMenu> {
         int y = 30;
         for (var line : p.lines()) {
             var text = TeamInterfaceClientState.text(line);
+            //? if >=26.1.2
+            /*graphics.textWithWordWrap(font, text, 8, y, 214, MachineScreenUi.TEXT);*/
+            //? if <26.1.2
             graphics.drawWordWrap(font, text, 8, y, 214, MachineScreenUi.TEXT);
             y += font.split(text, 214).size() * font.lineHeight + 5;
         }
+        //? if >=26.1.2
+        /*if (p.pages() > 1) graphics.centeredText(font, EssenceText.gui("team.page", p.page() + 1, p.pages()), 115, 221, MachineScreenUi.MUTED);*/
+        //? if <26.1.2
         if (p.pages() > 1) graphics.drawCenteredString(font, EssenceText.gui("team.page", p.page() + 1, p.pages()), 115, 221, MachineScreenUi.MUTED);
     }
     private int contentHeight() {

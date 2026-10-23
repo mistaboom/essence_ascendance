@@ -73,6 +73,9 @@ public final class GatheringToolResolver {
     public static PreviewScope beginPreview(Player player, BlockState state) {
         if (player == null) return PreviewScope.empty();
         Inventory inventory = player.getInventory();
+        //? if >=26.1.2
+        /*int selected = inventory.getSelectedSlot();*/
+        //? if <26.1.2
         int selected = inventory.selected;
         Candidate candidate = resolve(player, state);
         if (candidate == null || candidate.slot() == selected) {
@@ -108,6 +111,9 @@ public final class GatheringToolResolver {
      */
     public static HarvestScope beginHarvest(ServerPlayer player, BlockState state) {
         Inventory inventory = player.getInventory();
+        //? if >=26.1.2
+        /*int selected = inventory.getSelectedSlot();*/
+        //? if <26.1.2
         int selected = inventory.selected;
         Candidate candidate = resolve(player, state);
         if (candidate == null) return new HarvestScope(player, inventory, selected, selected, false, false);

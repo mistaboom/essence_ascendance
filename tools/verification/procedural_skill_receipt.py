@@ -37,7 +37,7 @@ def nbt(path):
 
 environments={}; protected={}
 for loader in ('fabric','neoforge'):
-    run=PROJECT/loader/'run'; mods=[]
+    run=PROJECT/loader/'versions'/'1.21.1'/'run'; mods=[]
     for jar in sorted((run/'mods').glob('*.jar')):
         with zipfile.ZipFile(jar) as archive:
             data=[p for p in archive.namelist() if p.startswith('data/') and not p.endswith('/')]
@@ -47,7 +47,7 @@ for loader in ('fabric','neoforge'):
             entry['recipes']={p:json.loads(archive.read(p)) for p in data if '/recipe/' in p and p.endswith('.json')}
             mods.append(entry)
     worlds=[]
-    for world in sorted((run/'saves').iterdir()):
+    for world in sorted((run/'saves').glob('*')):
         if not world.is_dir(): continue
         entry={'name':world.name,'datapackFiles':[str(p.relative_to(world)) for p in (world/'datapacks').rglob('*') if p.is_file()]}
         level=world/'level.dat'

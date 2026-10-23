@@ -10,6 +10,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentCatalogStacks;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.ore.LatentOreHost;
+import com.mistaboom.essence_ascendance.ore.LatentOreItems;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockCompactingRecipe;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockUncompactingRecipe;
@@ -38,8 +39,10 @@ import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.ISubtypeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
+//? if <26.1.2 {
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+//? }
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
@@ -63,6 +66,7 @@ import java.util.List;
  * display the real Essence + tier variants used by dynamic crafting recipes.
  */
 @JeiPlugin
+//? if <26.1.2
 @Environment(EnvType.CLIENT)
 public final class EssenceAscendanceJeiPlugin implements IModPlugin {
 
@@ -101,14 +105,23 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                             .orElse(null);
                 }
 
+                //? if <26.1.2
                 @Override
+                //? if <26.1.2
                 @SuppressWarnings("removal")
+                //? if <26.1.2
                 public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+                    //? if <26.1.2
                     return EssentiumCarrierData.read(stack)
+                            //? if <26.1.2
                             .map(value -> value.essence().id()
+                                    //? if <26.1.2
                                     + "|" + value.grade().serializedName()
+                                    //? if <26.1.2
                                     + "|" + value.amount())
+                            //? if <26.1.2
                             .orElse("");
+                //? if <26.1.2
                 }
             };
 
@@ -119,10 +132,15 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
             return context == UidContext.Ingredient ? LatentOreHost.read(stack).orElse(null) : null;
         }
 
+        //? if <26.1.2
         @Override
+        //? if <26.1.2
         @SuppressWarnings("removal")
+        //? if <26.1.2
         public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+            //? if <26.1.2
             return "";
+        //? if <26.1.2
         }
     };
 
@@ -135,10 +153,15 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                     : null;
         }
 
+        //? if <26.1.2
         @Override
+        //? if <26.1.2
         @SuppressWarnings("removal")
+        //? if <26.1.2
         public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+            //? if <26.1.2
             return EquipmentTierData.isAscendanceEquipment(stack) ? EquipmentTierData.tier(stack).name() : "";
+        //? if <26.1.2
         }
     };
 
@@ -151,16 +174,21 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
             return tier == null ? "latent" : tier.serializedName();
         }
 
+        //? if <26.1.2
         @Override
+        //? if <26.1.2
         @SuppressWarnings("removal")
+        //? if <26.1.2
         public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+            //? if <26.1.2
             var tier = getSubtypeData(stack, context);
+            //? if <26.1.2
             return tier == null ? "" : tier.toString();
+        //? if <26.1.2
         }
     };
 
     private IJeiRuntime runtime;
-    private List<ItemStack> listedOreVariants = List.of();
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -170,6 +198,11 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     @Override
     public void registerItemSubtypes(ISubtypeRegistration registration) {
         registration.registerSubtypeInterpreter(EssenceInfuserContent.LATENT_ORE_ITEM.get(), LATENT_ORE_SUBTYPE);
+        // Each fixed host has its own registry ID, but states of that host can
+        // still differ by saved properties (for example, a pillar's axis).
+        for (var item : LatentOreItems.items()) {
+            registration.registerSubtypeInterpreter(item, LATENT_ORE_SUBTYPE);
+        }
         for (var item : AscendanceItems.tieredCatalogItems()) {
             registration.registerSubtypeInterpreter(item, EQUIPMENT_TIER_SUBTYPE);
         }
@@ -194,7 +227,8 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.NUGGET, 1));
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.INGOT, 1));
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.BLOCK, 1));
-        variants.addAll(LatentOreHost.creativeStacks());
+        // The four fixed vanilla host items are discovered by JEI's registry scan.
+        // Server-selected modded hosts are added by the runtime catalog below.
         // JEI already discovers each item's ordinary untagged Latent stack.
         // Add only the component-bearing upgrades to avoid a duplicate Latent entry.
         variants.addAll(EquipmentCatalogStacks.allTiers(AscendanceItems.tieredCatalogItems()).stream()
@@ -233,9 +267,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         hideTagInformationCategories(jeiRuntime);
         runtime = jeiRuntime;
         JeiCatalogOrder.INSTANCE.runtimeAvailable();
-        listedOreVariants = jeiRuntime.getIngredientManager().getAllItemStacks().stream()
-                .filter(stack -> stack.is(EssenceInfuserContent.LATENT_ORE_ITEM.get()))
-                .map(ItemStack::copy).toList();
         LatentOreClientCatalog.setIngredientRefreshListener(this::refreshLatentOreIngredients);
         refreshLatentOreIngredients();
     }
@@ -245,7 +276,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         LatentOreClientCatalog.setIngredientRefreshListener(null);
         JeiCatalogOrder.INSTANCE.clear();
         runtime = null;
-        listedOreVariants = List.of();
     }
 
     /** Reconcile either startup order: JEI may start before or after the server catalog arrives. */
@@ -253,15 +283,27 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         if (runtime == null) return;
         var manager = runtime.getIngredientManager();
         var desired = LatentOreHost.creativeStacks();
-        var existing = listedOreVariants;
+        // Inspect the actual viewer each time: another startup stage may have added
+        // its default ingredients after an earlier catalog snapshot was reconciled.
+        var existing = manager.getAllItemStacks().stream()
+                .filter(LatentOreItems::isOre).map(ItemStack::copy).toList();
+        var changes = oreCatalogChanges(existing, desired);
+        if (!changes.removed().isEmpty())
+            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, changes.removed());
+        if (!changes.added().isEmpty())
+            manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, changes.added());
+    }
+
+    /** Compare full native item identity and host properties, not a display name or host ID alone. */
+    static OreCatalogChanges oreCatalogChanges(List<ItemStack> existing, List<ItemStack> desired) {
         var removed = existing.stream().filter(stack -> desired.stream()
                 .noneMatch(wanted -> ItemStack.isSameItemSameComponents(stack, wanted))).toList();
         var added = desired.stream().filter(stack -> existing.stream()
                 .noneMatch(known -> ItemStack.isSameItemSameComponents(stack, known))).toList();
-        if (!removed.isEmpty()) manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, removed);
-        if (!added.isEmpty()) manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, added);
-        listedOreVariants = desired;
+        return new OreCatalogChanges(removed, added);
     }
+
+    record OreCatalogChanges(List<ItemStack> removed, List<ItemStack> added) { }
 
     @Override
     public void registerVanillaCategoryExtensions(
@@ -456,6 +498,17 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
             this.width = width;
             this.height = height;
         }
+
+        //? if >=26.1.2
+        /*@Override public List<net.minecraft.world.item.crafting.display.SlotDisplay> getIngredients(RecipeHolder<CraftingRecipe> recipeHolder) {*/
+            //? if >=26.1.2
+            /*List<net.minecraft.world.item.crafting.display.SlotDisplay> choices = carrierVariants(inputForm, 1).stream().map(stack -> (net.minecraft.world.item.crafting.display.SlotDisplay) new net.minecraft.world.item.crafting.display.SlotDisplay.ItemStackSlotDisplay(net.minecraft.world.item.ItemStackTemplate.fromNonEmptyStack(stack))).toList();*/
+            //? if >=26.1.2
+            /*net.minecraft.world.item.crafting.display.SlotDisplay slot = new net.minecraft.world.item.crafting.display.SlotDisplay.Composite(choices);*/
+            //? if >=26.1.2
+            /*return java.util.Collections.nCopies(inputSlots, slot);*/
+        //? if >=26.1.2
+        /*}*/
 
         @Override
         public void setRecipe(

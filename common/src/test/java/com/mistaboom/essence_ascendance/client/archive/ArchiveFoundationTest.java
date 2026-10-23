@@ -299,6 +299,9 @@ public final class ArchiveFoundationTest {
     }
 
     private static void yieldBrowserLayout() {
+        //? if >=26.1.2
+        /*Font metricFont = new Font(new Font.Provider() { public net.minecraft.client.gui.GlyphSource glyphs(net.minecraft.network.chat.FontDescription description) { return null; } public net.minecraft.client.gui.font.glyphs.EffectGlyph effect() { return null; } }) {*/
+        //? if <26.1.2
         Font metricFont = new Font(ignored -> null, false) {
             @Override public int width(FormattedText text) { return text.getString().length() * 6; }
             @Override public List<FormattedCharSequence> split(FormattedText text, int width) {
@@ -515,12 +518,18 @@ public final class ArchiveFoundationTest {
         check(!table.scroll(-1) && table.scroll(1),
                 "A table at its lower edge yields downward wheel input and still scrolls back upward");
 
+        //? if >=26.1.2
+        /*Font metricFont = new Font(new Font.Provider() { public net.minecraft.client.gui.GlyphSource glyphs(net.minecraft.network.chat.FontDescription description) { return null; } public net.minecraft.client.gui.font.glyphs.EffectGlyph effect() { return null; } }) {*/
+        //? if <26.1.2
         Font metricFont = new Font(ignored -> null, false) {
             @Override public int width(FormattedText text) { return text.getString().length() * 6; }
             @Override public List<FormattedCharSequence> split(FormattedText text, int width) {
                 return List.of(FormattedCharSequence.forward(text.getString(), Style.EMPTY));
             }
         };
+        //? if >=26.1.2
+        /*Font wrappingFont = new Font(new Font.Provider() { public net.minecraft.client.gui.GlyphSource glyphs(net.minecraft.network.chat.FontDescription description) { return null; } public net.minecraft.client.gui.font.glyphs.EffectGlyph effect() { return null; } }) {*/
+        //? if <26.1.2
         Font wrappingFont = new Font(ignored -> null, false) {
             @Override public int width(FormattedText text) { return text.getString().length() * 6; }
             @Override public List<FormattedCharSequence> split(FormattedText text, int width) {
@@ -546,6 +555,9 @@ public final class ArchiveFoundationTest {
         check(uniformHeight > ReadOnlyDataTableView.ROW_HEIGHT && wrappedView.rowHeight() == uniformHeight,
                 "Wrapped table rows did not share the height required by their longest value");
         var measuredLinks = new java.util.ArrayList<Component>();
+        //? if >=26.1.2
+        /*Font linkFont = new Font(new Font.Provider() { public net.minecraft.client.gui.GlyphSource glyphs(net.minecraft.network.chat.FontDescription description) { return null; } public net.minecraft.client.gui.font.glyphs.EffectGlyph effect() { return null; } }) {*/
+        //? if <26.1.2
         Font linkFont = new Font(ignored -> null, false) {
             @Override public int width(FormattedText text) { return text.getString().length() * 6; }
             @Override public List<FormattedCharSequence> split(FormattedText text, int width) {

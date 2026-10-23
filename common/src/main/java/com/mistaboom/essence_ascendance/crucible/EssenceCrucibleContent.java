@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.crucible;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -33,11 +34,11 @@ public final class EssenceCrucibleContent {
             BLOCKS.register(
                     "essence_crucible",
                     () -> new EssenceCrucibleBlock(
-                            BlockBehaviour.Properties.of()
+                            ContentRegistrationCompat.block("essence_crucible", BlockBehaviour.Properties.of()
                                     .requiresCorrectToolForDrops()
                                     .strength(3.5F)
                                     .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
-                                    .pushReaction(PushReaction.BLOCK)
+                                    .pushReaction(PushReaction.BLOCK))
                     )
             );
 
@@ -46,17 +47,17 @@ public final class EssenceCrucibleContent {
                     "essence_crucible",
                     () -> new BlockItem(
                             ESSENCE_CRUCIBLE.get(),
-                            new Item.Properties()
+                            ContentRegistrationCompat.blockItem("essence_crucible", new Item.Properties())
                     )
             );
 
     public static final RegistrySupplier<BlockEntityType<EssenceCrucibleBlockEntity>> ESSENCE_CRUCIBLE_BLOCK_ENTITY =
             BLOCK_ENTITIES.register(
                     "essence_crucible",
-                    () -> BlockEntityType.Builder.of(
+                    () -> ContentRegistrationCompat.blockEntityType(
                             EssenceCrucibleBlockEntity::new,
                             ESSENCE_CRUCIBLE.get()
-                    ).build(null)
+                    )
             );
 
     public static final RegistrySupplier<MenuType<EssenceCrucibleMenu>> ESSENCE_CRUCIBLE_MENU =

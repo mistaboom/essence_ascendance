@@ -44,7 +44,7 @@ public final class CrucibleVisuals {
 
         MachineVisualState.Crucible state = crucible.visualState();
         double age = level.getGameTime() + partialTick;
-        boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
+        boolean close = ClientCameraCompat.position(Minecraft.getInstance().gameRenderer.getMainCamera())
                 .distanceToSqr(Vec3.atCenterOf(crucible.getBlockPos())) <= DETAIL_DISTANCE_SQUARED;
 
         double fill = Math.clamp(state.reservoirFillBasisPoints() / 10_000.0, 0.0, 1.0);
@@ -161,8 +161,8 @@ public final class CrucibleVisuals {
                                           MachineVisualState.Crucible state, double throughput,
                                           int networkLevel, double refinement) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        Vector3f left = camera.getLeftVector();
-        Vector3f cameraUp = camera.getUpVector();
+        Vector3f left = ClientCameraCompat.left(camera);
+        Vector3f cameraUp = ClientCameraCompat.up(camera);
         Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());
         Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z());
         int count = networkLevel == 0 ? (state.active() ? 2 : 1)
@@ -212,8 +212,8 @@ public final class CrucibleVisuals {
                                            int accent, int core, MachineVisualState.Crucible state,
                                            int networkLevel, double refinement) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        Vector3f left = camera.getLeftVector();
-        Vector3f cameraUp = camera.getUpVector();
+        Vector3f left = ClientCameraCompat.left(camera);
+        Vector3f cameraUp = ClientCameraCompat.up(camera);
         Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());
         Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z());
         int count = Math.min(5, networkLevel + (state.active() && networkLevel > 0 ? 1 : 0));

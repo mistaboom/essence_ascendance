@@ -6,6 +6,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.player.Player;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 
@@ -39,6 +42,9 @@ public final class ProjectileOwnership {
         Entity responsible = actual instanceof TamableAnimal pet && pet.getOwner() != null ? pet.getOwner() : actual;
         boolean self = actual == defender || responsible == defender;
         boolean allied = defender.isAlliedTo(actual) || defender.isAlliedTo(responsible);
+        //? if >=26.1.2
+        /*boolean pvp = !(responsible instanceof Player player) || defender.serverLevel().isPvpAllowed()*/
+        //? if <26.1.2
         boolean pvp = !(responsible instanceof Player player) || defender.server.isPvpAllowed()
                 && defender.canHarmPlayer(player) && player.canHarmPlayer(defender);
         return classify(true, true, true, false, self, allied, pvp);
@@ -54,7 +60,7 @@ public final class ProjectileOwnership {
         if (!validDefender(defender) || defender.level() != projectile.level())
             return new Resolution(Decision.INVALID_DEFENDER, null);
         Entity actual = projectile.getOwner();
-        boolean declaredOwner = ((ProjectileNativeAccess) projectile).essenceAscendance$ownerUUID() != null;
+        boolean declaredOwner = declaredOwnerId(projectile) != null;
         if (actual == null) return new Resolution(declaredOwner ? Decision.UNRESOLVED_OWNER : Decision.OWNERLESS_DAMAGING, null);
         if (!(actual instanceof LivingEntity living) || !actual.isAlive() || actual.isRemoved()
                 || actual.level() != projectile.level() || actual.isSpectator()) return new Resolution(Decision.INVALID_OWNER, null);
@@ -63,6 +69,14 @@ public final class ProjectileOwnership {
             return new Resolution(Decision.INVALID_OWNER, living);
         return new Resolution(relationship(defender, actual), living);
     }
+    public static java.util.UUID declaredOwnerId(Projectile projectile) {
+        var nativeAccess = (ProjectileNativeAccess) projectile;
+        //? if >=26.1.2
+        /*var reference = nativeAccess.essenceAscendance$ownerReference(); return reference == null ? null : reference.getUUID();*/
+        //? if <26.1.2
+        return nativeAccess.essenceAscendance$ownerUUID();
+    }
+
     public static boolean validDefender(ServerPlayer player) {
         return player.isAlive() && !player.isRemoved() && !player.isSpectator() && !player.getAbilities().invulnerable
                 && player.server.getPlayerList().getPlayer(player.getUUID()) == player;

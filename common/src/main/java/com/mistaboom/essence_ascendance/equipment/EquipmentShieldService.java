@@ -42,6 +42,9 @@ public final class EquipmentShieldService {
                 && (!(holder instanceof Player player) || stack != player.getOffhandItem()
                     || TwoHandedEquipmentService.permitsHeldShield(player))
                 && functional(stack) && (!(holder instanceof Player player)
+                //? if >=26.1.2
+                /*|| !player.getCooldowns().isOnCooldown(stack));*/
+                //? if <26.1.2
                 || !player.getCooldowns().isOnCooldown(stack.getItem()));
     }
 
@@ -208,12 +211,24 @@ public final class EquipmentShieldService {
                         EssenceConfigManager.get().shieldBalance().minimumDisableTicks());
             }
             // One registered item means every tier/hand/slot/copy shares the same native player cooldown.
+            //? if >=26.1.2
+            /*cooldowns.addCooldown(disabledStack, duration);*/
+            //? if <26.1.2
             cooldowns.addCooldown(disabledStack.getItem(), duration);
             // Switching to a vanilla shield must not bypass an Ascendance guard break.
+            //? if >=26.1.2
+            /*cooldowns.addCooldown(new ItemStack(Items.SHIELD), duration);*/
+            //? if <26.1.2
             cooldowns.addCooldown(Items.SHIELD, duration);
         } else {
+            //? if >=26.1.2
+            /*cooldowns.addCooldown(new ItemStack(originalItem), ticks);*/
+            //? if <26.1.2
             cooldowns.addCooldown(originalItem, ticks);
             if (originalItem == Items.SHIELD) {
+                //? if >=26.1.2
+                /*cooldowns.addCooldown(new ItemStack(AscendanceItems.ASCENDANCE_SHIELD.get()), ticks);*/
+                //? if <26.1.2
                 cooldowns.addCooldown(AscendanceItems.ASCENDANCE_SHIELD.get(), ticks);
             }
         }

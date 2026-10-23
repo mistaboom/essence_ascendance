@@ -71,7 +71,11 @@ public final class MobilityFlightEffects {
         if (Double.compare(before.x, next.x()) == 0 && Double.compare(before.y, next.y()) == 0
                 && Double.compare(before.z, next.z()) == 0) return false;
         player.setDeltaMovement(new Vec3(next.x(), next.y(), next.z()));
+        //? if >=26.1.2
+        /*player.fallDistance = MovementImpulseMath.fallDistance((float) player.fallDistance, before.y, next.y());*/
+        //? if <26.1.2
         player.fallDistance = MovementImpulseMath.fallDistance(player.fallDistance, before.y, next.y());
+        //? if <26.1.2
         player.hasImpulse = true;
         player.hurtMarked = true;
         player.connection.send(new ClientboundSetEntityMotionPacket(player));

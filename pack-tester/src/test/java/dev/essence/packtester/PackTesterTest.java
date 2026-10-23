@@ -18,26 +18,39 @@ public final class PackTesterTest {
         }
         project = Path.of(args[0]).toAbsolutePath().normalize();
         fixtures = Files.createTempDirectory(project.resolve("pack-tester/build"), "fixtures & (space) ! % ü ");
+        Files.createDirectories(fixtures.resolve("gradle"));
+        Files.copy(project.resolve("gradle/targets.json"), fixtures.resolve("gradle/targets.json"));
         if (args.length > 1 && args[1].equals("production-smoke")) { productionSmoke(); return; }
-        discovery(); compatibility(); deployment(); orchestration(); lockedDestination(); arguments();
+        discovery(); compatibility(); deployment(); orchestration(); lockedDestination(); arguments(); receipts();
         System.out.println("PASS: " + checks + " Pack Tester checks. Fixtures: " + fixtures);
     }
+    private static List<TargetCatalog.Target> implementedTargets() throws IOException {
+        var catalog = com.google.gson.JsonParser.parseString(Files.readString(project.resolve("gradle/targets.json"))).getAsJsonObject();
+        List<TargetCatalog.Target> targets = new ArrayList<>();
+        for (var value : catalog.getAsJsonArray("targets")) {
+            var target = value.getAsJsonObject();
+            if (target.get("implemented").getAsBoolean())
+                targets.add(TargetCatalog.require(project, target.get("minecraft").getAsString(), target.get("loader").getAsString()));
+        }
+        return targets;
+    }
     private static void productionSmoke() throws Exception {
-        for (String loader : List.of("neoforge", "fabric")) {
-            var target = instance(fixtures.resolve("production " + loader), null, loader, "1.21.1", "minecraft");
+        for (var definition : implementedTargets()) {
+            String minecraft = definition.minecraft(), loader = definition.loader();
+            var target = instance(fixtures.resolve("production " + minecraft + " " + loader), null, loader, minecraft, "minecraft");
             // Run this main directly, outside Gradle, to exercise the actual wrapper backend.
             var service = new PackService(project, new ProductionBuild()::build, new Deployment(), new PackService.Launcher() {
                 public void prepare(PrismDiscovery.Instance t, Path exe, java.util.function.Consumer<String> log) { throw new AssertionError("No Prism launch in smoke tests"); }
                 public void launch(PrismDiscovery.Instance t, Path exe, java.util.function.Consumer<String> log) { throw new AssertionError("No Prism launch in smoke tests"); }
             }, (t, c) -> { if (!t.directory().startsWith(fixtures)) throw new AssertionError("Only fixtures may be deployed"); });
             var result = service.execute(target, true, false, null, new Cancellation(), System.out::println);
-            ModMetadata.production(result.destination(), loader);
+            ModMetadata.production(result.destination(), loader, minecraft);
             try (var zip = new ZipFile(result.destination().toFile())) {
                 check(zip.stream().noneMatch(e -> e.getName().startsWith("dev/essence/packtester/") || e.getName().startsWith("org/tomlj/")), loader + " production artifact excludes developer tooling");
             }
             check(FilesEx.hash(result.destination()).equals(result.hash()), loader + " real wrapper build + receipt + fixture deployment");
         }
-        System.out.println("PASS: both real production workflows; only fixture destinations written. " + fixtures);
+        System.out.println("PASS: " + implementedTargets().size() + " real production workflows; only fixture destinations written. " + fixtures);
     }
     private static void check(boolean result, String label) {
         if (!result) throw new AssertionError(label);
@@ -52,21 +65,30 @@ public final class PackTesterTest {
         Files.createDirectories(path.resolve(layout).resolve("mods"));
         Files.writeString(path.resolve("instance.cfg"), "[General]\nConfigVersion=1.3\nInstanceType=OneSix\nname=Duplicate display name\n");
         String uid = switch (loader) { case "fabric" -> "net.fabricmc.fabric-loader"; case "neoforge" -> "net.neoforged"; case "forge" -> "net.minecraftforge"; default -> "org.quiltmc.quilt-loader"; };
-        String version = loader.equals("fabric") ? "0.19.3" : "21.1.251";
+        var profiles = com.google.gson.JsonParser.parseString(Files.readString(project.resolve("gradle/targets.json")))
+                .getAsJsonObject().getAsJsonObject("versions");
+        // Negative compatibility fixtures deliberately use undeclared versions/loaders.
+        var profile = profiles.getAsJsonObject(profiles.has(minecraft) ? minecraft : "1.21.1");
+        String version = profile.get(loader.equals("fabric") ? "fabricLoader" : "neoforge").getAsString();
         Files.writeString(path.resolve("mmc-pack.json"), "{\"formatVersion\":1,\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"" + minecraft + "\"},{\"uid\":\"" + uid + "\",\"version\":\"" + version + "\"}]}");
         var target = new PrismDiscovery().inspect(path, root);
-        jar(target.mods().resolve("arbitrary-dependency-name.jar"), loader, "architectury", "13.0.11", "dep", false);
-        if (loader.equals("fabric")) jar(target.mods().resolve("fabric-api.jar"), loader, "fabric-api", "0.116.15+1.21.1", "dep", false);
+        jar(target.mods().resolve("arbitrary-dependency-name.jar"), loader, "architectury", profile.get("architecturyApi").getAsString(), "dep", false);
+        if (loader.equals("fabric")) jar(target.mods().resolve("fabric-api.jar"), loader, "fabric-api", profile.get("fabricApi").getAsString(), "dep", false);
         return target;
     }
     private static PrismDiscovery.Instance fixture(String label) throws IOException {
         return instance(fixtures.resolve(label), null, "neoforge", "1.21.1", "minecraft");
     }
     private static Path jar(Path path, String loader, String id, String version, String content, boolean bundle) throws IOException {
+        return jar(path, loader, id, version, content, bundle, "1.21.1");
+    }
+    private static Path jar(Path path, String loader, String id, String version, String content, boolean bundle, String minecraft) throws IOException {
         Files.createDirectories(path.getParent());
         try (var zip = new ZipOutputStream(Files.newOutputStream(path))) {
-            if (loader.equals("fabric")) entry(zip, "fabric.mod.json", "{\"schemaVersion\":1,\"id\":\"" + id + "\",\"version\":\"" + version + "\"}");
-            else entry(zip, loader.equals("neoforge") ? "META-INF/neoforge.mods.toml" : "META-INF/mods.toml", "modLoader=\"javafml\"\nloaderVersion=\"[4,)\"\n[[mods]]\nmodId=\"" + id + "\"\nversion=\"" + version + "\"\n" + (bundle ? "[[mods]]\nmodId=\"another_mod\"\nversion=\"1\"\n" : ""));
+            if (loader.equals("fabric")) entry(zip, "fabric.mod.json", "{\"schemaVersion\":1,\"id\":\"" + id + "\",\"version\":\"" + version + "\""
+                    + (id.equals(ModMetadata.OWN) ? ",\"depends\":{\"minecraft\":\"" + minecraft + "\"}" : "") + "}");
+            else entry(zip, loader.equals("neoforge") ? "META-INF/neoforge.mods.toml" : "META-INF/mods.toml", "modLoader=\"javafml\"\nloaderVersion=\"[4,)\"\n[[mods]]\nmodId=\"" + id + "\"\nversion=\"" + version + "\"\n" + (bundle ? "[[mods]]\nmodId=\"another_mod\"\nversion=\"1\"\n" : "")
+                    + (id.equals(ModMetadata.OWN) ? "[[dependencies.essence_ascendance]]\nmodId=\"minecraft\"\ntype=\"required\"\nversionRange=\"[" + minecraft + "]\"\n" : ""));
             entry(zip, "content.txt", content);
             if (id.equals(ModMetadata.OWN)) entry(zip, "com/mistaboom/essence_ascendance/" + loader + "/EssenceAscendance" + (loader.equals("fabric") ? "Fabric" : "NeoForge") + ".class", "fixture-only");
         }
@@ -107,8 +129,15 @@ public final class PackTesterTest {
         check(c.instance(fixture("compatible")).status().equals("SUPPORTED"), "NeoForge metadata and dependencies supported");
         check(c.instance(instance(fixtures.resolve("fabric"), null, "fabric", "1.21.1", ".minecraft")).status().equals("SUPPORTED"), "Fabric remains supported");
         check(c.instance(instance(fixtures.resolve("wrong mc"), null, "neoforge", "1.21.2", "minecraft")).status().equals("INCOMPATIBLE"), "Different Minecraft target blocked despite broad mod range");
+        for (var definition : implementedTargets()) {
+            var selected = instance(fixtures.resolve("catalog " + definition.id()), null, definition.loader(), definition.minecraft(), "minecraft");
+            check(c.instance(selected).status().equals("SUPPORTED"), definition.id() + " exact metadata and dependencies supported");
+            check(c.instance(selected).detail().contains("Java must be " + definition.javaVersion()), definition.id() + " reports catalog Java");
+            var wrongJava = List.of(new ModMetadata.Requirement("java", ">=" + (definition.javaVersion() + 1)));
+            check(c.requirements(selected, wrongJava).status().equals("UNRESOLVED"), definition.id() + " rejects mismatched artifact Java metadata");
+        }
         check(c.instance(instance(fixtures.resolve("forge"), null, "forge", "1.21.1", "minecraft")).status().equals("INCOMPATIBLE"), "Forge is not NeoForge");
-        var old = fixture("old loader"); Files.writeString(old.directory().resolve("mmc-pack.json"), Files.readString(old.directory().resolve("mmc-pack.json")).replace("21.1.251", "20.4.1"));
+        var old = fixture("old loader"); Files.writeString(old.directory().resolve("mmc-pack.json"), Files.readString(old.directory().resolve("mmc-pack.json")).replace(old.loaderVersion(), "20.4.1"));
         check(c.instance(new PrismDiscovery().inspect(old.directory(), null)).status().equals("INCOMPATIBLE"), "Old loader blocked");
         var missing = fixture("missing dependency"); Files.delete(missing.mods().resolve("arbitrary-dependency-name.jar"));
         check(c.instance(missing).status().equals("INCOMPATIBLE"), "Missing required Architectury blocks deployment");
@@ -136,6 +165,8 @@ public final class PackTesterTest {
         check(c.instance(placeholder).status().equals("UNRESOLVED"), "Empty placeholder does not bypass ambiguous own-mod bundle refusal");
         legacyTemplates(c);
         check(Compatibility.satisfies("13.0.11", "[13.0.11,)"), "Maven inclusive minimum");
+        check(Compatibility.satisfies("1.21.1", "[1.21.1]"), "Maven exact version");
+        check(!Compatibility.satisfies("1.21.2", "[1.21.1]"), "Maven exact version excludes another Minecraft release");
         check(!Compatibility.satisfies("0.19.2", ">=0.19.3"), "Fabric minimum enforced");
         fails(() -> Compatibility.satisfies("13.0.11-beta", "[13.0.11,)"), "Unknown version qualifier is unresolved");
         fails(() -> Compatibility.satisfies("1.0", "^1.0"), "Unknown range does not silently pass");
@@ -267,6 +298,7 @@ public final class PackTesterTest {
         check(launches.get() == 1, "All failure and cancellation paths preserve launch gate");
         Path brokenProject = fixtures.resolve("broken wrapper project & spaces");
         Files.createDirectories(brokenProject.resolve("gradle/wrapper"));
+        Files.copy(project.resolve("gradle/targets.json"), brokenProject.resolve("gradle/targets.json"));
         Files.writeString(brokenProject.resolve("gradle/wrapper/gradle-wrapper.jar"), "invalid wrapper fixture");
         var realFailedBuild = new PackService(project, (p,t,c,l) -> new ProductionBuild().build(brokenProject, t, c, l), new Deployment(), launch, closed);
         String installedHash = FilesEx.hash(target.mods().resolve("essence_ascendance-neoforge.jar"));
@@ -294,7 +326,12 @@ public final class PackTesterTest {
         check(PrismLaunch.identifiesPrism("PrismLauncher 11.1.0") && PrismLaunch.identifiesPrism("Prism Launcher 11.1.0"), "Verified real Prism version output accepted with either product spelling");
         check(!PrismLaunch.identifiesPrism("Not Prism Launcher") && !PrismLaunch.identifiesPrism("Other Launcher 11"), "Unidentified executable output rejected");
         String request = UUID.randomUUID().toString();
-        var command = ProductionBuild.command(fixtures, "neoforge", request);
+        var command = ProductionBuild.command(fixtures, "1.21.1", "neoforge", request);
+        check(command.contains(":packTester1211NeoForgeArtifact")
+                && ProductionBuild.command(fixtures, "1.21.1", "fabric", request).contains(":packTester1211FabricArtifact"), "Explicit version and loader select their declared receipt tasks");
+        check(ProductionBuild.command(fixtures, "26.1.2", "fabric", request).contains(":packTester2612FabricArtifact")
+                && ProductionBuild.command(fixtures, "26.1.2", "neoforge", request).contains(":packTester2612NeoForgeArtifact"),
+                "Both 26.1.2 loaders select their own production receipt tasks");
         check(command.get(4).equals("org.gradle.wrapper.GradleWrapperMain") && command.contains(fixtures.resolve("gradle/wrapper/gradle-wrapper.jar").toString()), "Wrapper invoked without a shell, with exact path argument");
         check(command.stream().noneMatch(s -> s.equals("clean") || s.equals("build") || s.equals("check")), "Routine production command excludes clean/build/check");
         List<String> tricky = List.of("spaces & (parens) ! %PATH% ü", "C:\\trailing slash\\", "$(should-not-execute)");
@@ -309,5 +346,41 @@ public final class PackTesterTest {
         check(args.equals(List.of(exe.toString(), "--dir", root.toString(), "--launch", "actual ID & 10")), "Prism uses verified application root and actual folder ID");
         instance(root.resolve("extra/actual ID & 10"), root, "neoforge", "1.21.1", "minecraft");
         fails(() -> new PrismLaunch().command(target, exe), "Duplicate IDs across configured directories block ambiguous launch");
+    }
+    private static void receipts() throws Exception {
+        for (var target : implementedTargets()) receiptTarget(target.minecraft(), target.loader());
+    }
+    private static void receiptTarget(String minecraft, String loader) throws Exception {
+        Path repository = fixtures.resolve("receipt project " + minecraft + " " + loader);
+        Files.createDirectories(repository.resolve("gradle"));
+        Files.copy(project.resolve("gradle/targets.json"), repository.resolve("gradle/targets.json"));
+        var target = TargetCatalog.require(repository, minecraft, loader);
+        Path archive = jar(repository.resolve(loader + "/versions/" + minecraft + "/build/libs/production.jar"), loader, ModMetadata.OWN, "1", "receipt", false, minecraft);
+        String request = UUID.randomUUID().toString(), hash = FilesEx.hash(archive);
+        var receipt = new ProductionBuild.Receipt(request, target.id(), ":" + loader + ":" + minecraft + ":" + target.archiveTask(), loader, minecraft, archive.toString(), hash);
+        check(ProductionBuild.validateReceipt(repository, target, request, receipt).path().equals(archive.toRealPath()), "Exact receipt validates identity, target, output and hash");
+        fails(() -> ProductionBuild.validateReceipt(repository, target, "different", receipt), "Receipt request identity enforced");
+        String otherMinecraft = minecraft.equals("1.21.1") ? "26.1.2" : "1.21.1";
+        String otherLoader = loader.equals("fabric") ? "neoforge" : "fabric";
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), receipt.task(), loader, otherMinecraft, archive.toString(), hash)), "Receipt Minecraft cannot be substituted");
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), receipt.task(), otherLoader, minecraft, archive.toString(), hash)), "Receipt loader cannot be substituted");
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), ":" + loader + ":" + minecraft + ":jar", loader, minecraft, archive.toString(), hash)), "Receipt must name the real distributable task");
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), receipt.task(), loader, minecraft, archive.toString(), "0".repeat(64))), "Receipt hash enforced");
+        Path outside = repository.resolve(loader + "/versions/" + minecraft + "/build/escaped.jar"); Files.copy(archive, outside);
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), receipt.task(), loader, minecraft, outside.toString(), hash)), "Receipt output restricted to exact target build/libs");
+        Path notJar = archive.resolveSibling("production.txt"); Files.copy(archive, notJar);
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), receipt.task(), loader, minecraft, notJar.toString(), hash)), "Receipt rejects non-JAR outputs");
+        Path wrongVersion = jar(archive.resolveSibling("wrong-version.jar"), loader, ModMetadata.OWN, "1", "wrong", false, otherMinecraft);
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), receipt.task(), loader, minecraft, wrongVersion.toString(), FilesEx.hash(wrongVersion))), "Receipt rejects wrong Minecraft metadata");
+        Path wrongLoader = jar(archive.resolveSibling("wrong-loader.jar"), otherLoader, ModMetadata.OWN, "1", "wrong", false, minecraft);
+        fails(() -> ProductionBuild.validateReceipt(repository, target, request,
+                new ProductionBuild.Receipt(request, target.id(), receipt.task(), loader, minecraft, wrongLoader.toString(), FilesEx.hash(wrongLoader))), "Receipt rejects wrong loader metadata");
     }
 }

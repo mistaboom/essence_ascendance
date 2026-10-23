@@ -6,6 +6,10 @@ import com.mistaboom.essence_ascendance.equipment.WeaponActionPresentation;
 import com.mistaboom.essence_ascendance.network.WeaponActionStatePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.HumanoidModel;
+//? if >=26.1.2
+/*import net.minecraft.client.model.player.PlayerModel;*/
+//? if <26.1.2
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
@@ -28,7 +32,11 @@ public final class GlaivePlayerAnimation {
     }
     public static WeaponActionPresentation.Frame frame(Player player,float partial) {
         var entry=WeaponActionStatePayload.presentation(player);
-        if(entry==null || entry.state().selectedSlot()!=player.getInventory().selected) return null;
+        if(entry==null || entry.state().selectedSlot()!=
+                //? if >=26.1.2
+                /*player.getInventory().getSelectedSlot()) return null;*/
+                //? if <26.1.2
+                player.getInventory().selected) return null;
         var frame=entry.frame(player.level().getGameTime(),partial);
         return WeaponActionPresentation.extended(frame.phase()) ? frame:null;
     }
@@ -72,15 +80,29 @@ public final class GlaivePlayerAnimation {
         return new Solution(rotation,distance,reachable);
     }
     /** Called after native setupAnim, with the final body/posture/scale matrix, before any model layer draws. */
+    //? if >=26.1.2
+    /*public static void model(Player player,PlayerModel model,PoseStack body,float partial) {*/
+    //? if <26.1.2
     public static void model(Player player,PlayerModel<?> model,PoseStack body,float partial) {
+        modelArm(player,model,body,partial);
+    }
+    /** The deferred 26.1 armor draw resets its model independently of the player's skin model. */
+    public static void armorModel(Player player,HumanoidModel<?> model,PoseStack body,float partial) {
+        modelArm(player,model,body,partial);
+    }
+    private static void modelArm(Player player,HumanoidModel<?> model,PoseStack body,float partial) {
         var frame=frame(player,partial);if(frame==null || frame.blend()<=0) return;
-        var camera=Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        var camera=Minecraft.getInstance().gameRenderer.getMainCamera()
+                //? if >=26.1.2
+                /*.position();*/
+                //? if <26.1.2
+                .getPosition();
         poseArm(model,player.getMainArm(),body,camera,frame.pose(),GlaiveFirstPersonBody.rendering() ? 1:frame.blend());
     }
-    public static void poseArm(PlayerModel<?> model,HumanoidArm main,PoseStack body,Vec3 camera,Pose attack) {
+    public static void poseArm(HumanoidModel<?> model,HumanoidArm main,PoseStack body,Vec3 camera,Pose attack) {
         poseArm(model,main,body,camera,attack,1);
     }
-    public static void poseArm(PlayerModel<?> model,HumanoidArm main,PoseStack body,Vec3 camera,Pose attack,float blend) {
+    public static void poseArm(HumanoidModel<?> model,HumanoidArm main,PoseStack body,Vec3 camera,Pose attack,float blend) {
         if(attack==null || blend<=0) return;
         var arm=main==HumanoidArm.RIGHT ? model.rightArm:model.leftArm;
         var inverse=new Matrix4f(body.last().pose()).invert();
@@ -91,7 +113,9 @@ public final class GlaivePlayerAnimation {
         var rotation=new Quaternionf().rotationZYX(arm.zRot,arm.yRot,arm.xRot).slerp(solution.rotation(),blend);
         var angles=armAngles(rotation);
         arm.setRotation(angles.x,angles.y,angles.z);
-        (main==HumanoidArm.RIGHT ? model.rightSleeve:model.leftSleeve).copyFrom(arm);
+        // 1.21.1 sleeves are sibling parts; 26.1 sleeves are children and inherit the arm transform.
+        //? if <26.1.2
+        if (model instanceof PlayerModel<?> playerModel) (main==HumanoidArm.RIGHT ? playerModel.rightSleeve:playerModel.leftSleeve).copyFrom(arm);
     }
     public static Vector3f vector(Vec3 v) { return new Vector3f((float)v.x,(float)v.y,(float)v.z); }
 }

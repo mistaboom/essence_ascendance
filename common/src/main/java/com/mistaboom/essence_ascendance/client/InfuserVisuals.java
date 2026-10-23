@@ -14,14 +14,17 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if <26.1.2 {
 import net.minecraft.client.renderer.entity.ItemRenderer;
+//? }
 import net.minecraft.core.BlockPos;
+//? if <26.1.2 {
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+//? }
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
@@ -41,7 +44,7 @@ public final class InfuserVisuals {
 
     private InfuserVisuals() { }
 
-    public static void render(EssenceInfuserBlockEntity infuser, ItemRenderer itemRenderer,
+    public static void render(EssenceInfuserBlockEntity infuser,
                               float partialTick, PoseStack pose,
                               MultiBufferSource.BufferSource buffers,
                               int packedOverlay) {
@@ -50,7 +53,7 @@ public final class InfuserVisuals {
 
         MachineVisualState.Infuser state = infuser.visualState();
         double age = level.getGameTime() + partialTick;
-        boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
+        boolean close = ClientCameraCompat.position(Minecraft.getInstance().gameRenderer.getMainCamera())
                 .distanceToSqr(Vec3.atCenterOf(infuser.getBlockPos())) <= DETAIL_DISTANCE_SQUARED;
 
         // Absence of a procedural field is the deliberate unlinked read.
@@ -63,7 +66,7 @@ public final class InfuserVisuals {
         if (!state.focus().installed()) {
             renderEmpty(pose, buffers, age, close);
         } else {
-            renderFunctional(infuser.getBlockPos(), state, frame, itemRenderer, level, pose, buffers,
+            renderFunctional(infuser.getBlockPos(), state, frame, level, pose, buffers,
                     packedOverlay, age, close);
         }
         pose.popPose();
@@ -95,7 +98,7 @@ public final class InfuserVisuals {
 
     private static void renderFunctional(BlockPos pos, MachineVisualState.Infuser state,
                                          PylonLocalFrame localFrame,
-                                         ItemRenderer itemRenderer, Level level,
+                                         Level level,
                                          PoseStack pose, MultiBufferSource.BufferSource buffers,
                                          int packedOverlay, double age, boolean close) {
         MachineVisualState.Focus focus = state.focus();
@@ -145,35 +148,8 @@ public final class InfuserVisuals {
         }
     }
 
-    /** Physical item prepass, shared by every machine before any depth-writing linework. */
-    public static void renderWorkpiece(EssenceInfuserBlockEntity infuser, ItemRenderer itemRenderer,
-                                      float partialTick, PoseStack pose,
-                                      MultiBufferSource.BufferSource buffers, int overlay) {
-        Level level = infuser.getLevel();
-        MachineVisualState.Infuser state = infuser.visualState();
-        if (level == null || !state.linked() || !state.focus().installed() || state.workpiece() == null) return;
-        double progress = state.requiredTicks() <= 0 ? 0.0
-                : Math.clamp(state.processingTicks() / (double) state.requiredTicks(), 0.0, 1.0);
-        double intensity = state.processing()
-                ? 0.56 + throughput(state.throughputPerSecond()) * 0.24 + progress * 0.20 : 0.24;
-        pose.pushPose();
-        PylonRenderTransform.applyAroundBlockCenter(pose, HorizontalMachineBlock.frame(
-                infuser.getBlockState().getValue(HorizontalMachineBlock.FACING)));
-        renderWorkpiece(state, itemRenderer, level, infuser.getBlockPos(), pose, buffers,
-                overlay, level.getGameTime() + partialTick, state.processing(), intensity);
-        pose.popPose();
-    }
-
-    private static void renderWorkpiece(MachineVisualState.Infuser state,
-                                        ItemRenderer itemRenderer, Level level, BlockPos pos,
-                                        PoseStack pose, MultiBufferSource.BufferSource buffers,
-                                        int overlay, double age, boolean active,
-                                        double intensity) {
-        Item item = BuiltInRegistries.ITEM.get(state.workpiece());
-        ItemStack stack = item.getDefaultInstance();
-        if (stack.isEmpty()) return;
-
-        pose.pushPose();
+    /** Same hover, orientation, and size for the native item render paths on both versions. */
+    public static void applyWorkpiecePose(PoseStack pose, double age, boolean active) {
         double hover = ProceduralMotion.oscillate(age * (active ? 0.13 : 0.075),
                 active ? 0.028 : 0.015);
         pose.translate(WORK_CENTER.x, WORK_CENTER.y + hover, WORK_CENTER.z);
@@ -182,7 +158,37 @@ public final class InfuserVisuals {
                 ? ProceduralMotion.oscillate(age * 0.055, 5.0) : -3.0)));
         float scale = (float) (0.43 + (active ? ProceduralMotion.oscillate(age * 0.19, 0.012) : 0));
         pose.scale(scale, scale, scale);
-        int light = LevelRenderer.getLightColor(level, pos.above());
+    }
+
+    // 1.21.1 renders the contained item in the deferred physical prepass. On 26.1.2
+    // the native block-entity submit path owns its ItemStackRenderState instead.
+    //? if <26.1.2 {
+    /** Physical item prepass, shared by every machine before any depth-writing linework. */
+    public static void renderWorkpiece(EssenceInfuserBlockEntity infuser, ItemRenderer itemRenderer,
+                                      float partialTick, PoseStack pose,
+                                      MultiBufferSource.BufferSource buffers, int overlay) {
+        Level level = infuser.getLevel();
+        MachineVisualState.Infuser state = infuser.visualState();
+        if (level == null || !state.linked() || !state.focus().installed() || state.workpiece() == null) return;
+        pose.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(pose, HorizontalMachineBlock.frame(
+                infuser.getBlockState().getValue(HorizontalMachineBlock.FACING)));
+        renderWorkpiece(state, itemRenderer, level, infuser.getBlockPos(), pose, buffers,
+                overlay, level.getGameTime() + partialTick, state.processing());
+        pose.popPose();
+    }
+
+    private static void renderWorkpiece(MachineVisualState.Infuser state,
+                                        ItemRenderer itemRenderer, Level level, BlockPos pos,
+                                        PoseStack pose, MultiBufferSource.BufferSource buffers,
+                                        int overlay, double age, boolean active) {
+        Item item = BuiltInRegistries.ITEM.get(state.workpiece());
+        ItemStack stack = item.getDefaultInstance();
+        if (stack.isEmpty()) return;
+
+        pose.pushPose();
+        applyWorkpiecePose(pose, age, active);
+        int light = ClientLightCompat.packed(level, pos.above());
         itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, light, overlay,
                 pose, buffers, level, pos.hashCode());
         pose.popPose();
@@ -193,6 +199,7 @@ public final class InfuserVisuals {
         // fail normally while fragments physically in front still pass.
         buffers.endBatch();
     }
+    //? }
 
     private static void renderCompressionBands(PoseStack pose, VertexConsumer planes,
                                                double age, double phase, int rgb, int luminous,
@@ -238,8 +245,8 @@ public final class InfuserVisuals {
                                           int tier, boolean hasWorkpiece, boolean active,
                                           double intensity) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        Vector3f left = camera.getLeftVector();
-        Vector3f cameraUp = camera.getUpVector();
+        Vector3f left = ClientCameraCompat.left(camera);
+        Vector3f cameraUp = ClientCameraCompat.up(camera);
         Vec3 right = frame.worldVectorToLocal(new Vec3(-left.x(), -left.y(), -left.z()));
         Vec3 up = frame.worldVectorToLocal(new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z()));
         int count = tier == 0 ? 0 : (hasWorkpiece ? Math.min(6, tier + 1) : Math.min(4, tier));

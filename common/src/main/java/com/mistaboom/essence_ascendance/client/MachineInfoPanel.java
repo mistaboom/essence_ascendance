@@ -5,6 +5,9 @@ import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.client.ui.UiViewport;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -78,14 +81,17 @@ public final class MachineInfoPanel {
                         || localX < line.x() || localX >= line.x() + line.width()) {
                     continue;
                 }
-                return font.getSplitter().componentStyleAtWidth(
-                        line.text(),
-                        (int) localX - line.x()
-                );
+                //? if >=26.1.2
+                /*return styleAtWidth(font, line.text(), (int) localX - line.x());*/
+                //? if <26.1.2
+                return font.getSplitter().componentStyleAtWidth(line.text(), (int) localX - line.x());
             }
             return null;
         }
     }
+
+    //? if >=26.1.2
+    /*private static Style styleAtWidth(Font font, FormattedCharSequence text, int x) { float[] offset = {0}; Style[] result = {null}; text.accept((index, style, codePoint) -> { float advance = font.getSplitter().stringWidth(FormattedCharSequence.codepoint(codePoint, style)); if (x < offset[0] + advance) { result[0] = style; return false; } offset[0] += advance; return true; }); return result[0]; }*/
 
     private final List<Entry> entries = new ArrayList<>();
 
@@ -154,6 +160,9 @@ public final class MachineInfoPanel {
     }
 
     public void render(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             UiBounds bounds,
@@ -175,6 +184,9 @@ public final class MachineInfoPanel {
                         if (renderedY + font.lineHeight <= clip.y() || renderedY >= clip.bottom()) {
                             continue;
                         }
+                        //? if >=26.1.2
+                        /*graphics.text(*/
+                        //? if <26.1.2
                         graphics.drawString(
                                 font,
                                 line.text(),

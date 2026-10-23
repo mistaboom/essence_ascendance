@@ -2,18 +2,27 @@ package com.mistaboom.essence_ascendance.item;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.equipment.EquipmentCatalogStacks;
+import com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EquipmentSlot;
+//? if <26.1.2
 import net.minecraft.world.item.ArmorItem;
+//? if >=26.1.2
+/*import net.minecraft.world.item.equipment.ArmorType;*/
 import net.minecraft.world.item.CreativeModeTabs;
+//? if <26.1.2
 import net.minecraft.world.item.AxeItem;
+//? if <26.1.2
 import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.Item;
+//? if <26.1.2
 import net.minecraft.world.item.PickaxeItem;
+//? if <26.1.2
 import net.minecraft.world.item.ShovelItem;
+//? if <26.1.2
 import net.minecraft.world.item.SwordItem;
 
 import java.util.ArrayList;
@@ -44,7 +53,8 @@ public final class AscendanceItems {
             );
 
     public static final RegistrySupplier<AscendanceArchiveItem> ASCENDANCE_ARCHIVE =
-            ITEMS.register("ascendance_archive", () -> new AscendanceArchiveItem(new Item.Properties().stacksTo(1)));
+            ITEMS.register("ascendance_archive", () -> new AscendanceArchiveItem(
+                    ContentRegistrationCompat.item("ascendance_archive", new Item.Properties().stacksTo(1))));
 
 
     /*
@@ -55,7 +65,7 @@ public final class AscendanceItems {
 
     public static final RegistrySupplier<AscendanceGlaiveItem> ASCENDANCE_GLAIVE =
             ITEMS.register("ascendance_glaive", () -> new AscendanceGlaiveItem(
-                    new Item.Properties().durability(WEAPON_DURABILITY).fireResistant()));
+                    glaiveProperties()));
 
     public static final RegistrySupplier<AscendanceSwordItem>
             ASCENDANCE_SWORD =
@@ -64,15 +74,7 @@ public final class AscendanceItems {
                     () ->
                             new AscendanceSwordItem(
                                     AscendanceToolTier.INSTANCE,
-                                    new Item.Properties()
-                                            .attributes(
-                                                    SwordItem.createAttributes(
-                                                            AscendanceToolTier.INSTANCE,
-                                                            0,
-                                                            0.0F
-                                                    )
-                                            )
-                                            .fireResistant()
+                                    swordProperties()
                             )
             );
 
@@ -83,11 +85,11 @@ public final class AscendanceItems {
                     "ascendance_ranged_weapon",
                     () ->
                             new AscendanceRangedWeaponItem(
-                                    new Item.Properties()
+                                    ContentRegistrationCompat.item("ascendance_ranged_weapon", new Item.Properties()
                                             .durability(
                                                     WEAPON_DURABILITY
                                             )
-                                            .fireResistant()
+                                            .fireResistant())
                             )
             );
 
@@ -98,11 +100,7 @@ public final class AscendanceItems {
                     "ascendance_caster",
                     () ->
                             new AscendanceCasterItem(
-                                    new Item.Properties()
-                                            .durability(
-                                                    WEAPON_DURABILITY
-                                            )
-                                            .fireResistant()
+                                    casterProperties()
                             )
             );
 
@@ -131,15 +129,7 @@ public final class AscendanceItems {
                     () ->
                             new AscendancePickaxeItem(
                                     AscendanceToolTier.INSTANCE,
-                                    new Item.Properties()
-                                            .attributes(
-                                                    PickaxeItem.createAttributes(
-                                                            AscendanceToolTier.INSTANCE,
-                                                            0.0F,
-                                                            0.0F
-                                                    )
-                                            )
-                                            .fireResistant()
+                                    pickaxeProperties()
                             )
             );
 
@@ -151,15 +141,7 @@ public final class AscendanceItems {
                     () ->
                             new AscendanceAxeItem(
                                     AscendanceToolTier.INSTANCE,
-                                    new Item.Properties()
-                                            .attributes(
-                                                    AxeItem.createAttributes(
-                                                            AscendanceToolTier.INSTANCE,
-                                                            0.0F,
-                                                            0.0F
-                                                    )
-                                            )
-                                            .fireResistant()
+                                    axeProperties()
                             )
             );
 
@@ -171,15 +153,7 @@ public final class AscendanceItems {
                     () ->
                             new AscendanceShovelItem(
                                     AscendanceToolTier.INSTANCE,
-                                    new Item.Properties()
-                                            .attributes(
-                                                    ShovelItem.createAttributes(
-                                                            AscendanceToolTier.INSTANCE,
-                                                            0.0F,
-                                                            0.0F
-                                                    )
-                                            )
-                                            .fireResistant()
+                                    shovelProperties()
                             )
             );
 
@@ -191,15 +165,7 @@ public final class AscendanceItems {
                     () ->
                             new AscendanceHoeItem(
                                     AscendanceToolTier.INSTANCE,
-                                    new Item.Properties()
-                                            .attributes(
-                                                    HoeItem.createAttributes(
-                                                            AscendanceToolTier.INSTANCE,
-                                                            0.0F,
-                                                            0.0F
-                                                    )
-                                            )
-                                            .fireResistant()
+                                    hoeProperties()
                             )
             );
 
@@ -214,6 +180,9 @@ public final class AscendanceItems {
             ASCENDANCE_HELMET =
             registerArmor(
                     "ascendance_helmet",
+                    //? if >=26.1.2
+                    /*ArmorType.HELMET,*/
+                    //? if <26.1.2
                     ArmorItem.Type.HELMET,
                     EquipmentSlot.HEAD
             );
@@ -223,6 +192,9 @@ public final class AscendanceItems {
             ASCENDANCE_CHESTPLATE =
             registerArmor(
                     "ascendance_chestplate",
+                    //? if >=26.1.2
+                    /*ArmorType.CHESTPLATE,*/
+                    //? if <26.1.2
                     ArmorItem.Type.CHESTPLATE,
                     EquipmentSlot.CHEST
             );
@@ -232,6 +204,9 @@ public final class AscendanceItems {
             ASCENDANCE_LEGGINGS =
             registerArmor(
                     "ascendance_leggings",
+                    //? if >=26.1.2
+                    /*ArmorType.LEGGINGS,*/
+                    //? if <26.1.2
                     ArmorItem.Type.LEGGINGS,
                     EquipmentSlot.LEGS
             );
@@ -241,6 +216,9 @@ public final class AscendanceItems {
             ASCENDANCE_BOOTS =
             registerArmor(
                     "ascendance_boots",
+                    //? if >=26.1.2
+                    /*ArmorType.BOOTS,*/
+                    //? if <26.1.2
                     ArmorItem.Type.BOOTS,
                     EquipmentSlot.FEET
             );
@@ -248,37 +226,103 @@ public final class AscendanceItems {
 
     public static final RegistrySupplier<AscendanceShieldItem> ASCENDANCE_SHIELD =
             ITEMS.register("ascendance_shield", () -> new AscendanceShieldItem(
-                    new Item.Properties().durability(336).fireResistant()));
+                    shieldProperties()));
 
     public static final RegistrySupplier<AscendanceFishingRodItem> ASCENDANCE_FISHING_ROD =
-            ITEMS.register("ascendance_fishing_rod", () -> new AscendanceFishingRodItem(new Item.Properties().durability(64)));
+            ITEMS.register("ascendance_fishing_rod", () -> new AscendanceFishingRodItem(
+                    ContentRegistrationCompat.item("ascendance_fishing_rod", new Item.Properties().durability(64))));
+
+    private static Item.Properties swordProperties() {
+        //? if >=26.1.2
+        /*return ContentRegistrationCompat.item("ascendance_sword", new Item.Properties().sword(AscendanceToolTier.INSTANCE, 0.0F, 0.0F).fireResistant());*/
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_sword", new Item.Properties().attributes(SwordItem.createAttributes(AscendanceToolTier.INSTANCE, 0, 0.0F)).fireResistant());
+    }
+
+    private static Item.Properties pickaxeProperties() {
+        //? if >=26.1.2
+        /*return ContentRegistrationCompat.item("ascendance_pickaxe", new Item.Properties().pickaxe(AscendanceToolTier.INSTANCE, 0.0F, 0.0F).fireResistant());*/
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_pickaxe", new Item.Properties().attributes(PickaxeItem.createAttributes(AscendanceToolTier.INSTANCE, 0.0F, 0.0F)).fireResistant());
+    }
+
+    private static Item.Properties axeProperties() {
+        //? if >=26.1.2
+        /*return ContentRegistrationCompat.item("ascendance_axe", new Item.Properties().axe(AscendanceToolTier.INSTANCE, 0.0F, 0.0F).fireResistant());*/
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_axe", new Item.Properties().attributes(AxeItem.createAttributes(AscendanceToolTier.INSTANCE, 0.0F, 0.0F)).fireResistant());
+    }
+
+    private static Item.Properties shovelProperties() {
+        //? if >=26.1.2
+        /*return ContentRegistrationCompat.item("ascendance_shovel", new Item.Properties().shovel(AscendanceToolTier.INSTANCE, 0.0F, 0.0F).fireResistant());*/
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_shovel", new Item.Properties().attributes(ShovelItem.createAttributes(AscendanceToolTier.INSTANCE, 0.0F, 0.0F)).fireResistant());
+    }
+
+    private static Item.Properties hoeProperties() {
+        //? if >=26.1.2
+        /*return ContentRegistrationCompat.item("ascendance_hoe", new Item.Properties().hoe(AscendanceToolTier.INSTANCE, 0.0F, 0.0F).fireResistant());*/
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_hoe", new Item.Properties().attributes(HoeItem.createAttributes(AscendanceToolTier.INSTANCE, 0.0F, 0.0F)).fireResistant());
+    }
 
     private AscendanceItems() {
+    }
+
+    private static Item.Properties glaiveProperties() {
+        //? if >=26.1.2
+        /*return ContentRegistrationCompat.item("ascendance_glaive", new Item.Properties().durability(WEAPON_DURABILITY).enchantable(15).fireResistant());*/
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_glaive", new Item.Properties().durability(WEAPON_DURABILITY).fireResistant());
+    }
+
+    private static Item.Properties casterProperties() {
+        //? if >=26.1.2
+        /*return ContentRegistrationCompat.item("ascendance_caster", new Item.Properties().durability(WEAPON_DURABILITY).enchantable(15).fireResistant());*/
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_caster", new Item.Properties().durability(WEAPON_DURABILITY).fireResistant());
+    }
+
+    private static Item.Properties shieldProperties() {
+        //? if >=26.1.2 {
+        /*return ContentRegistrationCompat.item("ascendance_shield", new Item.Properties()
+                .durability(336).fireResistant().enchantable(15)
+                .equippableUnswappable(EquipmentSlot.OFFHAND)
+                .repairable(net.minecraft.tags.ItemTags.WOODEN_TOOL_MATERIALS)
+                .component(net.minecraft.core.component.DataComponents.BANNER_PATTERNS,
+                        net.minecraft.world.level.block.entity.BannerPatternLayers.EMPTY)
+                .delayedComponent(net.minecraft.core.component.DataComponents.BLOCKS_ATTACKS,
+                        lookup -> new net.minecraft.world.item.component.BlocksAttacks(
+                                0.25F, 1.0F,
+                                java.util.List.of(new net.minecraft.world.item.component.BlocksAttacks.DamageReduction(
+                                        90.0F, java.util.Optional.empty(), 0.0F, 1.0F)),
+                                new net.minecraft.world.item.component.BlocksAttacks.ItemDamageFunction(
+                                        3.0F, 1.0F, 1.0F),
+                                java.util.Optional.of(lookup.getOrThrow(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD)),
+                                java.util.Optional.of(net.minecraft.sounds.SoundEvents.SHIELD_BLOCK),
+                                java.util.Optional.of(net.minecraft.sounds.SoundEvents.SHIELD_BREAK)))
+                .component(net.minecraft.core.component.DataComponents.BREAK_SOUND,
+                        net.minecraft.sounds.SoundEvents.SHIELD_BREAK));
+        *///? }
+        //? if <26.1.2
+        return ContentRegistrationCompat.item("ascendance_shield", new Item.Properties().durability(336).fireResistant());
     }
 
 
     private static RegistrySupplier<AscendanceArmorItem>
     registerArmor(
             String id,
+            //? if >=26.1.2
+            /*ArmorType type,*/
+            //? if <26.1.2
             ArmorItem.Type type,
             EquipmentSlot slot
     ) {
-
-        return ITEMS.register(
-                id,
-                () ->
-                        new AscendanceArmorItem(
-                                AscendanceArmorMaterials.ASCENDANCE,
-                                type,
-                                slot,
-                                new Item.Properties()
-                                        .durability(
-                                                type.getDurability(
-                                                        ARMOR_DURABILITY_FACTOR
-                                                )
-                                        )
-                        )
-        );
+        //? if >=26.1.2
+        /*return ITEMS.register(id, () -> new AscendanceArmorItem(AscendanceArmorMaterials.ASCENDANCE, type, slot, ContentRegistrationCompat.item(id, new Item.Properties().humanoidArmor(AscendanceArmorMaterials.ASCENDANCE, type))));*/
+        //? if <26.1.2
+        return ITEMS.register(id, () -> new AscendanceArmorItem(AscendanceArmorMaterials.ASCENDANCE, type, slot, ContentRegistrationCompat.item(id, new Item.Properties().durability(type.getDurability(ARMOR_DURABILITY_FACTOR)))));
     }
 
 

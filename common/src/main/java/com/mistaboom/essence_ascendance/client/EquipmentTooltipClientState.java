@@ -256,6 +256,9 @@ public final class EquipmentTooltipClientState {
         enchantments.addToTooltip(
                 tooltipContext,
                 generated::add,
+                //? if >=26.1.2
+                /*tooltipFlag, stack*/
+                //? if <26.1.2
                 tooltipFlag
         );
 

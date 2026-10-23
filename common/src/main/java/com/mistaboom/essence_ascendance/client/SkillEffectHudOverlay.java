@@ -5,6 +5,9 @@ import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -38,6 +41,9 @@ public final class SkillEffectHudOverlay {
 
     private SkillEffectHudOverlay() { }
 
+    //? if >=26.1.2
+    /*public static void render(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     public static void render(GuiGraphics graphics) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.options.hideGui) {
@@ -102,6 +108,9 @@ public final class SkillEffectHudOverlay {
                 .filter(card -> card.present).count();
         if (presentOverflow > 0) {
             String more = Component.translatable("hud.essence_ascendance.more_effects", presentOverflow).getString();
+            //? if >=26.1.2
+            /*graphics.text(minecraft.font, fit(more, WIDTH - 14), graphics.guiWidth() - WIDTH + 1,*/
+            //? if <26.1.2
             graphics.drawString(minecraft.font, fit(more, WIDTH - 14), graphics.guiWidth() - WIDTH + 1,
                     bottom + GAP, MUTED, false);
         }
@@ -204,12 +213,18 @@ public final class SkillEffectHudOverlay {
 
     private static int height(SkillEffectHudEntry entry) { return SkillEffectHudLayout.height(entry.lines().size()); }
 
+    //? if >=26.1.2
+    /*private static void renderCard(GuiGraphicsExtractor graphics, SkillEffectHudEntry entry, int x, int y,*/
+    //? if <26.1.2
     private static void renderCard(GuiGraphics graphics, SkillEffectHudEntry entry, int x, int y,
                                    int visibleHeight, long now) {
         renderPresentationCard(graphics, new CardContent(entry.accent(), entry.title(), entry.badge(), entry.lines(), entry.meter()), x, y, visibleHeight, now);
     }
 
     public record CardContent(int accent, Text title, Text badge, List<Text> lines, SkillEffectHudEntry.Meter meter) {}
+    //? if >=26.1.2
+    /*public static void renderPresentationCard(GuiGraphicsExtractor graphics, CardContent entry, int x, int y, int visibleHeight, long now) {*/
+    //? if <26.1.2
     public static void renderPresentationCard(GuiGraphics graphics, CardContent entry, int x, int y, int visibleHeight, long now) {
         int fullHeight = SkillEffectHudLayout.height(entry.lines().size());
         int clippedHeight = Math.clamp(visibleHeight, 1, fullHeight);
@@ -244,6 +259,9 @@ public final class SkillEffectHudOverlay {
                     int timerY = font.width(badge) + SkillEffectHudLayout.STATUS_GAP + timerWidth <= SkillEffectHudLayout.CONTENT_WIDTH
                             ? statusY : y + SkillEffectHudLayout.TITLE_Y;
                     if (timerY == statusY || font.width(resolve(entry.title())) + SkillEffectHudLayout.STATUS_GAP + timerWidth <= SkillEffectHudLayout.CONTENT_WIDTH)
+                        //? if >=26.1.2
+                        /*graphics.text(font, timer, x + WIDTH - SkillEffectHudLayout.PADDING - timerWidth,*/
+                        //? if <26.1.2
                         graphics.drawString(font, timer, x + WIDTH - SkillEffectHudLayout.PADDING - timerWidth,
                                 timerY, remaining > 0L ? primary : secondary, true);
                 }
@@ -271,8 +289,14 @@ public final class SkillEffectHudOverlay {
                 key -> Component.translatable(key).getString());
     }
 
+    //? if >=26.1.2
+    /*private static void drawRow(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {*/
+    //? if <26.1.2
     private static void drawRow(GuiGraphics graphics, String text, int x, int y, int color) {
         if (Minecraft.getInstance().font.width(text) <= SkillEffectHudLayout.CONTENT_WIDTH)
+            //? if >=26.1.2
+            /*graphics.text(Minecraft.getInstance().font, text, x + SkillEffectHudLayout.PADDING, y, color, true);*/
+            //? if <26.1.2
             graphics.drawString(Minecraft.getInstance().font, text, x + SkillEffectHudLayout.PADDING, y, color, true);
     }
 

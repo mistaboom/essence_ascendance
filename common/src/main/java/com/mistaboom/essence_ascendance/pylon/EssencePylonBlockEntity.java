@@ -1,4 +1,5 @@
 package com.mistaboom.essence_ascendance.pylon;
+import com.mistaboom.essence_ascendance.network.PlayerMessageCompat;
 
 import com.mistaboom.essence_ascendance.machine.*;
 import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
@@ -10,6 +11,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+//? if >=26.1.2
+/*import net.minecraft.core.UUIDUtil;*/
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -26,6 +29,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueOutput;*/
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,6 +65,9 @@ public final class EssencePylonBlockEntity extends BlockEntity
                 state
         );
     }
+
+    //? if >=26.1.2
+    /*@Override public void preRemoveSideEffects(BlockPos pos, BlockState state) { invalidateLinkedCrucible(); if (level instanceof ServerLevel server) Block.popResource(server, pos, MachineProtection.takePickup(this)); super.preRemoveSideEffects(pos, state); }*/
 
     public static void serverTick(
             ServerLevel level,
@@ -224,7 +234,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
             InteractionHand hand
     ) {
         if (!ServerMenuAccess.canReach(player, this) || !authorize(player, MachineAction.FOCUS)) {
-            player.displayClientMessage(
+            PlayerMessageCompat.send(player,
                     Component.translatable("message.essence_ascendance.pylon_private"),
                     true
             );
@@ -279,16 +289,25 @@ public final class EssencePylonBlockEntity extends BlockEntity
     }
 
     @Override
-    protected void saveAdditional(
-            CompoundTag tag,
-            HolderLookup.Provider registries
-    ) {
+    //? if >=26.1.2
+    /*protected void saveAdditional(ValueOutput tag) {*/
+    //? if <26.1.2
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*super.saveAdditional(tag);*/
+        //? if <26.1.2
         super.saveAdditional(tag, registries);
+        //? if >=26.1.2
+        /*ContainerHelper.saveAllItems(tag, items);*/
+        //? if <26.1.2
         ContainerHelper.saveAllItems(tag, items, registries);
         binding.save(tag);
         link.save(tag);
 
         if (ownerId != null) {
+            //? if >=26.1.2
+            /*tag.store(OWNER_TAG, UUIDUtil.CODEC, ownerId);*/
+            //? if <26.1.2
             tag.putUUID(OWNER_TAG, ownerId);
         }
         if (!ownerName.isBlank()) {
@@ -298,27 +317,44 @@ public final class EssencePylonBlockEntity extends BlockEntity
     }
 
     @Override
-    protected void loadAdditional(
-            CompoundTag tag,
-            HolderLookup.Provider registries
-    ) {
+    //? if >=26.1.2
+    /*protected void loadAdditional(ValueInput tag) {*/
+    //? if <26.1.2
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*super.loadAdditional(tag);*/
+        //? if <26.1.2
         super.loadAdditional(tag, registries);
         /* Empty update tags must actively clear a previously-rendered Focus. */
         items.clear();
+        //? if >=26.1.2
+        /*ContainerHelper.loadAllItems(tag, items);*/
+        //? if <26.1.2
         ContainerHelper.loadAllItems(tag, items, registries);
         binding.load(tag);
         link.load(tag);
 
+        //? if >=26.1.2
+        /*ownerId = tag.read(OWNER_TAG, UUIDUtil.CODEC).orElse(null);*/
+        //? if <26.1.2
         ownerId = tag.hasUUID(OWNER_TAG) ? tag.getUUID(OWNER_TAG) : null;
         ownerName = tag.getString(OWNER_NAME_TAG);
         linkedCruciblePos = link.target() == null ? null : link.target().pos();
+        //? if >=26.1.2
+        /*clientVisualState = tag.read(MachineVisualState.TAG, CompoundTag.CODEC).map(MachineVisualState.Pylon::read).orElse(null);*/
+        //? if <26.1.2
         clientVisualState = tag.contains(MachineVisualState.TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)
+                //? if <26.1.2
                 ? MachineVisualState.Pylon.read(tag.getCompound(MachineVisualState.TAG)) : null;
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*CompoundTag tag = saveCustomOnly(registries);*/
+        //? if <26.1.2
         CompoundTag tag = new CompoundTag();
+        //? if <26.1.2
         saveAdditional(tag, registries);
         MachineVisualState.Pylon visual = visualState();
         if (visual != null) tag.put(MachineVisualState.TAG, visual.save());

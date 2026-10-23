@@ -1,0 +1,51 @@
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'fabric-world-join-2612'
+def jeiPath = gradle.startParameter.projectProperties['jeiFixtureJar']
+def jeiJar = jeiPath == null ? null : new File(jeiPath).canonicalFile
+if (jeiJar != null && (!new File(jeiPath).isAbsolute() || !jeiJar.isFile()))
+    throw new GradleException('jeiFixtureJar must name an existing absolute JEI jar')
+def runLabel = gradle.startParameter.projectProperties['fabricWorldJoinRunLabel']
+if (runLabel != null && !(runLabel ==~ /[a-z0-9-]+/))
+    throw new GradleException('fabricWorldJoinRunLabel must contain only lowercase letters, digits and hyphens')
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.path != ':fabric:26.1.2') return
+        def suffix = runLabel ?: (jeiJar == null ? 'base-v2' : 'jei-v2')
+        def run = p.file("build/native-fixtures/fabric-world-join-${suffix}-run").canonicalFile
+        def sourceWorld = p.rootProject.file('build/packaged-fabric2612-server/world').canonicalFile
+        def metadata = p.file('build/native-fixtures/fabric-world-join-metadata')
+        def compile = p.tasks.register('compileFabricWorldJoin2612', JavaCompile) {
+            dependsOn(p.tasks.named('classes'))
+            source(p.rootProject.file('gradle/native-fixtures/FabricWorldJoin2612.java'))
+            classpath = p.sourceSets.main.compileClasspath + p.sourceSets.main.output
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/fabric-world-join-classes')
+            options.release = 25
+            javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+        }
+        def fixture = p.tasks.register('fabricWorldJoin2612Jar', Jar) {
+            dependsOn(compile)
+            archiveFileName = 'fabric-world-join-fixture.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            from(compile.flatMap { it.destinationDirectory })
+            from(metadata)
+            doFirst {
+                metadata.mkdirs()
+                new File(metadata, 'fabric.mod.json').text = '''{"schemaVersion":1,"id":"essence_fabric_world_join_test","version":"1","environment":"client","entrypoints":{"client":["com.mistaboom.essence_ascendance.fixture.FabricWorldJoin2612"]},"depends":{"essence_ascendance":"*"}}'''
+            }
+        }
+        p.tasks.named('runClient').configure { t ->
+            t.internalRunDir.set(run)
+            def added = [p.file('build/native-fixtures/fabric-world-join-fixture.jar').canonicalFile]
+            if (jeiJar != null) added.add(jeiJar)
+            t.jvmArgs('-Dfabric.addMods=' + added.collect { it.path }.join(File.pathSeparator))
+            t.dependsOn(fixture)
+            t.doFirst {
+                if (!sourceWorld.isDirectory()) throw new GradleException('Packaged Fabric world must exist before client join probe')
+                if (t.internalRunDir.asFile.get().canonicalFile != run) throw new GradleException('Unexpected Fabric client fixture run directory')
+                def destination = new File(run, 'saves/world')
+                if (destination.exists()) throw new GradleException('Isolated client world already exists; use a fresh fixture suffix')
+                p.copy { from(sourceWorld); into(destination) }
+            }
+        }
+    }
+}

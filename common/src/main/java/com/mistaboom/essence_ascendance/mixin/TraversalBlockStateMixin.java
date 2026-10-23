@@ -19,6 +19,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(BlockBehaviour.BlockStateBase.class)
 abstract class TraversalBlockStateMixin {
     @Inject(method = "entityInside", at = @At("HEAD"), cancellable = true)
+    //? if >=26.1.2
+    /*private void essenceAscendance$terrainInside(Level level, BlockPos pos, Entity entity, net.minecraft.world.entity.InsideBlockEffectApplier effects, boolean moved, CallbackInfo ci) {*/
+    //? if <26.1.2
     private void essenceAscendance$terrainInside(Level level, BlockPos pos, Entity entity, CallbackInfo ci) {
         if (TraversalService.ignoresInside(entity, (BlockState)(Object)this)) ci.cancel();
     }

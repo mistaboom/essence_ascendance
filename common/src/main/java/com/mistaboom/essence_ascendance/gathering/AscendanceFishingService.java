@@ -12,6 +12,11 @@ import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.FishingHook;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.vehicle.boat.Boat;*/
+//? if >=26.1.2
+/*import net.minecraft.world.entity.vehicle.minecart.AbstractMinecart;*/
+//? if <26.1.2
 import net.minecraft.world.entity.vehicle.*;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.*;
@@ -34,6 +39,9 @@ public final class AscendanceFishingService {
     public static boolean movable(ServerPlayer owner, Entity target) {
         if (target == null || target == owner || !target.isAlive() || target.isRemoved() || target.isSpectator()
                 || target.level() != owner.level() || target.isPassenger() || target.isVehicle()
+                //? if >=26.1.2
+                /*|| target.getType().builtInRegistryHolder().is(CrowdControlEligibility.IMMUNE)) return false;*/
+                //? if <26.1.2
                 || target.getType().is(CrowdControlEligibility.IMMUNE)) return false;
         if (target instanceof LivingEntity living)
             return !(living instanceof ArmorStand) && CrowdControlEligibility.canControl(owner, living);
@@ -88,7 +96,11 @@ public final class AscendanceFishingService {
         // Counter native gravity only while held beneath an anchor. Near-anchor radial force eases;
         // ordinary directional input, collisions and native drag continue to control the player.
         if (Double.isFinite(force.lengthSqr()) && force.lengthSqr() > 0) {
-            moved.setDeltaMovement(before.add(force)); moved.hasImpulse = true;
+            moved.setDeltaMovement(before.add(force));
+            //? if >=26.1.2
+            /*moved.hurtMarked = true;*/
+            //? if <26.1.2
+            moved.hasImpulse = true;
             if (moved instanceof ServerPlayer other) {
                 PlayerMotionTracker.forced(other);
                 com.mistaboom.essence_ascendance.network.RodForcePayload.send(other, hook.getId(), player.getId(), force);
@@ -108,6 +120,9 @@ public final class AscendanceFishingService {
         // maintenance and artifact fracture remain owned by their established hooks.
         state.poweredTicks = state.poweredTicks >= Integer.MAX_VALUE - 1 ? policy.forceRampTicks() : state.poweredTicks + 1;
         if (state.poweredTicks % policy.wearIntervalTicks() == 0) {
+            //? if >=26.1.2
+            /*state.castStack.hurtAndBreak(policy.wearPerInterval(), player, state.hand);*/
+            //? if <26.1.2
             state.castStack.hurtAndBreak(policy.wearPerInterval(), player, LivingEntity.getSlotForHand(state.hand));
             if (!EquipmentFishingRodService.functional(state.castStack)) hook.discard();
         }

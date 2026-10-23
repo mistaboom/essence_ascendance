@@ -17,7 +17,13 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(FoodData.class)
 public abstract class FoodDataRecoveryMixin implements com.mistaboom.essence_ascendance.vitality.NaturalRecoveryClockAccess {
     @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            //? if >=26.1.2
+            /*target = "Lnet/minecraft/server/level/ServerPlayer;heal(F)V"), require = 2)*/
+            //? if <26.1.2
             target = "Lnet/minecraft/world/entity/player/Player;heal(F)V"), require = 2)
+    //? if >=26.1.2
+    /*private void essenceAscendance$foodOrigin(net.minecraft.server.level.ServerPlayer player, float amount, Operation<Void> original) {*/
+    //? if <26.1.2
     private void essenceAscendance$foodOrigin(Player player, float amount, Operation<Void> original) {
         if (player instanceof net.minecraft.server.level.ServerPlayer server)
             com.mistaboom.essence_ascendance.vitality.ConsumableRecoveryService.withFoodHealing(server,
@@ -25,7 +31,13 @@ public abstract class FoodDataRecoveryMixin implements com.mistaboom.essence_asc
         else original.call(player, amount);
     }
     @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            //? if >=26.1.2
+            /*target = "Lnet/minecraft/server/level/ServerPlayer;isHurt()Z"), require = 2, expect = 2, allow = 2)*/
+            //? if <26.1.2
             target = "Lnet/minecraft/world/entity/player/Player;isHurt()Z"), require = 2, expect = 2, allow = 2)
+    //? if >=26.1.2
+    /*private boolean essenceAscendance$recoverQueuedDamage(net.minecraft.server.level.ServerPlayer player, Operation<Boolean> original) {*/
+    //? if <26.1.2
     private boolean essenceAscendance$recoverQueuedDamage(Player player, Operation<Boolean> original) {
         return original.call(player) || player instanceof net.minecraft.server.level.ServerPlayer server
                 && com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.hasRecoverableDebt(server);
@@ -45,6 +57,9 @@ public abstract class FoodDataRecoveryMixin implements com.mistaboom.essence_asc
             @At(value = "FIELD", target = "Lnet/minecraft/world/food/FoodData;tickTimer:I", opcode = Opcodes.PUTFIELD, ordinal = 2)
     }, require = 2)
     private void essenceAscendance$naturalClock(FoodData food, int value, Operation<Void> original,
+                                                //? if >=26.1.2
+                                                /*@Local(argsOnly = true) net.minecraft.server.level.ServerPlayer player) {*/
+                                                //? if <26.1.2
                                                 @Local(argsOnly = true) Player player) {
         original.call(food, VitalityRecoveryEffects.advanceNaturalTimer(player, food, value));
     }
@@ -56,6 +71,9 @@ public abstract class FoodDataRecoveryMixin implements com.mistaboom.essence_asc
             @At(value = "FIELD", target = "Lnet/minecraft/world/food/FoodData;tickTimer:I", opcode = Opcodes.PUTFIELD, ordinal = 6)
     }, require = 5)
     private void essenceAscendance$endNaturalClock(FoodData food, int value, Operation<Void> original,
+                                                   //? if >=26.1.2
+                                                   /*@Local(argsOnly = true) net.minecraft.server.level.ServerPlayer player) {*/
+                                                   //? if <26.1.2
                                                    @Local(argsOnly = true) Player player) {
         original.call(food, VitalityRecoveryEffects.leaveNaturalTimer(player, food, value));
     }

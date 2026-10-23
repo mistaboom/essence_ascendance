@@ -7,15 +7,84 @@ repositories {
 }
 
 architectury {
-    common rootProject.enabled_platforms.split(',')
+    common rootProject.targetCatalog.targets.findAll { it.minecraft == project.targetMinecraft }.collect { it.loader }
 }
 
 apply from: rootProject.file('gradle/assets.gradle')
 
+if (project.targetResourceFormat == '26.1') {
+    tasks.named('compileTestJava', JavaCompile) {
+        options.compilerArgs += ['-Xmaxerrs', '10000']
+    }
+    // Historical focused names reuse the complete normal source set and original suites.
+    // The temporary second compiler/source whitelist is no longer needed.
+    [
+            focusedFullscreenComposition2612: 'fullscreenCompositionInvariants',
+            focusedInventoryItemAssets2612: 'inventoryItemAssetInvariants',
+            focusedTooltipPresentation2612: 'balanceTooltipPresentationInvariants',
+            focusedSharedPresentation2612: 'sharedPresentationInvariants',
+            focusedLatentOreResources2612: 'latentOreResourceInvariants',
+            focusedFullscreenNavigation2612: 'fullscreenNavigationInvariants',
+            focusedNexusBonusPresentation2612: 'bonusTrackPresentationInvariants'
+    ].each { alias, original ->
+        tasks.register(alias) {
+            group = 'verification'
+            dependsOn original
+        }
+    }
+    tasks.register('glaiveRenderContract2612', JavaExec) {
+        group = 'verification'
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = 'com.mistaboom.essence_ascendance.client.GlaiveRenderContract2612Test'
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.targetJava) }
+    }
+}
+
 // Both loaders bundle common resources; keep the launcher icon's source in branding.
 tasks.named('processResources') {
+    inputs.property 'resourceFormat', project.targetResourceFormat
+    inputs.property 'fabricNativeAccess', rootProject.targetCatalog.versions[project.targetMinecraft].nativeAccess.fabric ?: false
+    if (!rootProject.targetCatalog.versions[project.targetMinecraft].nativeAccess.fabric) exclude 'essence_ascendance.accesswidener'
     from(rootProject.file('art/branding/essence_ascendance_logo_256.png')) {
         rename { 'icon.png' }
+    }
+    if (project.targetResourceFormat == '26.1') {
+        // Vanilla's 26.1 ingredient codec uses item IDs and #tag IDs directly.
+        // Convert only the target output so the authored 1.21.1 recipes remain valid.
+        doLast {
+            def recipeDir = new File(destinationDir, 'data/essence_ascendance/recipe')
+            fileTree(recipeDir).matching { include '*.json' }.files.each { recipeFile ->
+                def recipe = new groovy.json.JsonSlurper().parse(recipeFile)
+                if (recipe.type == 'minecraft:crafting_shaped') {
+                    recipe.key.replaceAll { symbol, ingredient ->
+                        ingredient.item ?: "#${ingredient.tag}"
+                    }
+                } else if (recipe.type == 'minecraft:crafting_shapeless') {
+                    recipe.ingredients = recipe.ingredients.collect { ingredient ->
+                        ingredient.item ?: "#${ingredient.tag}"
+                    }
+                } else if (recipe.type in ['minecraft:smelting', 'minecraft:blasting']) {
+                    recipe.ingredient = recipe.ingredient.item ?: "#${recipe.ingredient.tag}"
+                } else {
+                    return
+                }
+                recipeFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(recipe)) + '\n'
+            }
+            // 26.1 special item models use these authored display transforms as a base.
+            // The removed builtin/entity parent is not a renderable vanilla model anymore.
+            ['essence_pylon', 'essence_infuser', 'essence_focus', 'essence_crucible',
+             'ascendance_nexus'].each { name ->
+                def modelFile = new File(destinationDir, "assets/essence_ascendance/models/item/${name}.json")
+                def model = new groovy.json.JsonSlurper().parse(modelFile)
+                if (model.parent != 'builtin/entity')
+                    throw new GradleException("Expected authored special item transform base: ${modelFile}")
+                model.remove('parent')
+                def particle = name == 'essence_focus' ? 'item/focus' : "block/${name}"
+                model.textures = [particle: "essence_ascendance:${particle}"]
+                modelFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(model)) + '\n'
+            }
+        }
     }
 }
 
@@ -23,26 +92,31 @@ def armorSource = rootProject.file('art/source/models/armor/ascendance_armor.bbm
 def armorMaskDirectory = layout.buildDirectory.dir('asset-work/armor-masks').get().asFile
 
 dependencies {
-    // Verified 1.21.1 API only: never placed on a development runtime or bundled.
-    modCompileOnly('dev.ftb.mods:ftb-teams:2101.1.11') { transitive = false }
-    modCompileOnly('dev.ftb.mods:ftb-library:2101.1.30') { transitive = false }
+    def optionalApi = project.targetRemap ? 'modCompileOnly' : 'compileOnly'
+    def runtimeMod = project.targetRemap ? 'modImplementation' : 'implementation'
+    add(optionalApi, "dev.ftb.mods:ftb-teams:${project.targetFtbTeams}") { transitive = false }
+    add(optionalApi, "dev.ftb.mods:ftb-library:${project.targetFtbLibrary}") { transitive = false }
+    if (!project.targetRemap) {
+        // The optional API boundary fixture runs against the selected unremapped tuple.
+        testImplementation("dev.ftb.mods:ftb-teams:${project.targetFtbTeams}") { transitive = false }
+        testImplementation("dev.ftb.mods:ftb-library:${project.targetFtbLibrary}") { transitive = false }
+    }
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    add(runtimeMod, "net.fabricmc:fabric-loader:${project.targetFabricLoader}")
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
-    modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
+    add(runtimeMod, "dev.architectury:architectury:${project.targetArchitecturyApi}")
 
     // Optional JEI API only. JEI is not bundled or required at runtime.
-    // Keep a fallback here so older checkouts without jei_version in gradle.properties still configure cleanly.
-    def jeiVersion = rootProject.findProperty('jei_version') ?: '19.43.0.395'
-    compileOnly "mezz.jei:jei-1.21.1-common-api:${jeiVersion}"
-    testImplementation "mezz.jei:jei-1.21.1-common-api:${jeiVersion}"
+    compileOnly "mezz.jei:jei-${project.targetMinecraft}-common-api:${project.targetJeiCommonApi}"
+    testImplementation "mezz.jei:jei-${project.targetMinecraft}-common-api:${project.targetJeiCommonApi}"
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/essence_ascendance.accesswidener")
+    if (rootProject.targetCatalog.versions[project.targetMinecraft].nativeAccess.fabric)
+        accessWidenerPath = rootProject.file('common/src/main/resources/essence_ascendance.accesswidener')
 }
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
@@ -52,6 +126,7 @@ def balanceInvariantMains = [
         crucibleChannelSelectionInvariants: 'com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelectionTest',
         machineBindingInvariants: 'com.mistaboom.essence_ascendance.machine.MachineBindingTest',
         reservoirAccountingInvariants: 'com.mistaboom.essence_ascendance.team.ReservoirAccountingTest',
+        savedNbtCompatibilityInvariants: 'com.mistaboom.essence_ascendance.data.NbtVersionCompatTest',
         membershipProviderInvariants: 'com.mistaboom.essence_ascendance.team.MembershipProviderTest',
         multiplayerFoundationInvariants: 'com.mistaboom.essence_ascendance.team.MultiplayerFoundationTest',
         personalizedEquipmentInvariants: 'com.mistaboom.essence_ascendance.equipment.PersonalizedEquipmentTest',
@@ -67,6 +142,7 @@ def balanceInvariantMains = [
         jeiSearchRefreshInvariants: 'com.mistaboom.essence_ascendance.client.JeiSearchRefreshTest',
         equipmentInventoryCatalogInvariants: 'com.mistaboom.essence_ascendance.compat.jei.EquipmentInventoryCatalogTest',
         creativeVariantInvariants: 'com.mistaboom.essence_ascendance.item.CreativeVariantRegistryTest',
+        glaiveTimingInvariants: 'com.mistaboom.essence_ascendance.projectile.GlaiveTimingTest',
         inventoryItemAssetInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemAssetsTest',
         inventoryItemEmissionInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemEmissionTest',
         ascendanceArmorInvariants: 'com.mistaboom.essence_ascendance.client.armor.AscendanceArmorTest',
@@ -162,6 +238,8 @@ balanceInvariantMains.each { taskName, className ->
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
+        systemProperty 'essence.minecraft', project.targetMinecraft
+        systemProperty 'essence.neoforge.version', project.targetNeoForge
         if (taskName == 'balanceDocumentStreamingInvariants') maxHeapSize = '128m'
         if (taskName == 'balanceGeneratedSectionsInvariants') { maxHeapSize = '128m'; args '--stress' }
         if (taskName == 'nativeEquipmentHeadroomInvariants') maxHeapSize = '2g'
@@ -177,8 +255,8 @@ balanceInvariantMains.each { taskName, className ->
 }
 tasks.register('ascendanceHelmetInvariants') { dependsOn tasks.named('ascendanceArmorInvariants') }
 // The shield hook test inspects both native loaders, including on a fresh common-only run.
-tasks.named('ascendanceShieldInvariants') { dependsOn ':fabric:compileJava', ':neoforge:compileJava' }
-tasks.named('jeiSearchRefreshInvariants') { dependsOn ':fabric:compileJava', ':neoforge:compileJava' }
+tasks.named('ascendanceShieldInvariants') { dependsOn ":fabric:${project.targetMinecraft}:compileJava", ":neoforge:${project.targetMinecraft}:compileJava" }
+tasks.named('jeiSearchRefreshInvariants') { dependsOn ":fabric:${project.targetMinecraft}:compileJava", ":neoforge:${project.targetMinecraft}:compileJava" }
 // These eight suites own local fixtures only: no game bootstrap or installed runtime profile.
 // Keep each original JavaExec task for isolated debugging. Never run both paths from check.
 def lightweightTasks = [
@@ -319,10 +397,12 @@ tasks.named('test', Test) {
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
+        systemProperty 'essence.minecraft', project.targetMinecraft
+        systemProperty 'essence.neoforge.version', project.targetNeoForge
     }
 }
 // A passing parity check must inspect a real mapped NeoForge class, never an absent-cache substitute.
-tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ':fabric:compileJava', ':neoforge:compileJava' }
+tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ":fabric:${project.targetMinecraft}:compileJava", ":neoforge:${project.targetMinecraft}:compileJava" }
 
 // Focused opt-in traversal checks; deliberately do not add work to normal build/check.
 [
@@ -338,10 +418,10 @@ tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ':fabric:comp
         mainClass = className
     }
 }
-tasks.named('traversalNativeHookShapeInvariants') { dependsOn ':neoforge:compileJava' }
+tasks.named('traversalNativeHookShapeInvariants') { dependsOn ":neoforge:${project.targetMinecraft}:compileJava" }
 
 // All shape checks require real mapped classes for both loaders, including on a fresh common-only run.
-nativeShapeTasks.each { name -> tasks.named(name) { dependsOn ':neoforge:compileJava' } }
+nativeShapeTasks.each { name -> tasks.named(name) { dependsOn ":neoforge:${project.targetMinecraft}:compileJava" } }
 
 tasks.register('vitalityInvariants') {
     group = 'verification'
@@ -416,7 +496,9 @@ tasks.register('skillProgressionAudit', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.mistaboom.essence_ascendance.skill.balance.SkillProgressionAudit'
     doFirst {
-        args rootProject.file(rootProject.findProperty('skillAuditOutput') ?: 'build/procedural-skill-audit/current.json').absolutePath
+        def output = rootProject.hasProperty('skillAuditOutput') ? rootProject.file(rootProject.property('skillAuditOutput')).absolutePath
+                : layout.buildDirectory.file('procedural-skill-audit/current.json').get().asFile.absolutePath
+        args output
         if (rootProject.hasProperty('skillAuditProfile')) args rootProject.file(rootProject.property('skillAuditProfile')).absolutePath
     }
 }
@@ -439,3 +521,21 @@ tasks.register('salvageConservationInvariants', JavaExec) {
 tasks.named('balanceInvariants') { dependsOn 'salvageConservationInvariants' }
 
 repositories { maven { url = 'https://chocolateminecraft.com/maven' } }
+apply from: rootProject.file('gradle/test-inputs.gradle')
+
+// Standalone 26.1 JavaExec checks do not pass through a loader. Minecraft now
+// binds built-in item components after registry bootstrap, so provide that
+// lifecycle step before invoking each original invariant main with its args.
+if (project.targetResourceFormat == '26.1') {
+    tasks.withType(JavaExec).configureEach {
+        doFirst {
+            def invariantMain = mainClass.orNull
+            if (invariantMain != null && invariantMain.startsWith('com.mistaboom.essence_ascendance.')
+                    && invariantMain != 'com.mistaboom.essence_ascendance.verification.NativeTestLauncher2612') {
+                def invariantArgs = args.collect { it.toString() }
+                mainClass = 'com.mistaboom.essence_ascendance.verification.NativeTestLauncher2612'
+                setArgs([invariantMain] + invariantArgs)
+            }
+        }
+    }
+}

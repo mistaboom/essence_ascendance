@@ -38,6 +38,9 @@ import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.ChatFormatting;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import dev.architectury.networking.NetworkManager;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
@@ -282,6 +285,9 @@ public final class AscendanceNexusScreen
         return builder.build();
     }
 
+    //? if >=26.1.2
+    /*private void renderNexusPage(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     private void renderNexusPage(GuiGraphics graphics, int mouseX, int mouseY) {
         hoveredSkillId = null;
         hoveredTrack = null;
@@ -300,6 +306,9 @@ public final class AscendanceNexusScreen
     @Override protected void beforeFullscreenFrame() { consumeTransactionResult(); }
 
     @Override
+    //? if >=26.1.2
+    /*protected void renderFullscreenTooltips(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     protected void renderFullscreenTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (navigation.mode() == NexusMode.ASCENDANCE) {
             attunementView.renderTooltip(graphics, font, mouseX, mouseY, width);
@@ -313,6 +322,9 @@ public final class AscendanceNexusScreen
         } else renderPrimaryActionTooltip(graphics, mouseX, mouseY);
     }
 
+    //? if >=26.1.2
+    /*private boolean renderTierLabelTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     private boolean renderTierLabelTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         var categories = categories();
         if (categories.isEmpty()) return false;
@@ -326,6 +338,9 @@ public final class AscendanceNexusScreen
             var label = new UiBounds(layout.tracksRight() + 3, geometry.bandCenterY(i) - font.lineHeight / 2,
                     Math.max(0, layout.right() - layout.tracksRight() - 6), font.lineHeight + 1);
             if (label.contains(mouseX, mouseY)) {
+                //? if >=26.1.2
+                /*graphics.setTooltipForNextFrame(font, Component.literal(tierDisplayName(track.checkpoints().get(i).tierId())), mouseX, mouseY);*/
+                //? if <26.1.2
                 graphics.renderTooltip(font, Component.literal(tierDisplayName(track.checkpoints().get(i).tierId())), mouseX, mouseY);
                 return true;
             }
@@ -461,6 +476,9 @@ public final class AscendanceNexusScreen
                 if (hoveredSkillId != null && hoveredSkillId.equals(tooltipSkillId) && skillTooltipMaximumScroll > 0 && dy != 0) {
                     skillTooltipScroll = UiViewport.create(skillTooltipMaximumScroll + 1, 1, skillTooltipScroll)
                             .scrollBy(-(int) Math.signum(dy) * 3).offset();
+                //? if >=26.1.2
+                /*} else viewport.scroll(dx, dy, SKILL_SCROLL_STEP, net.minecraft.client.Minecraft.getInstance().hasShiftDown(), true);*/
+                //? if <26.1.2
                 } else viewport.scroll(dx, dy, SKILL_SCROLL_STEP, hasShiftDown(), true);
                 return true;
             }
@@ -502,14 +520,23 @@ public final class AscendanceNexusScreen
         return state.ready() && com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.progressionAvailable(state.tierId());
     }
 
+    //? if >=26.1.2
+    /*private void renderWaitingState(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     private void renderWaitingState(GuiGraphics graphics) {
         UiBounds bounds = FullscreenLayout.centered(fullscreenFrame().screen(), 320, 54, SAFE_MARGIN);
         FullscreenControls.panel(graphics, bounds, PANEL, BORDER);
+        //? if >=26.1.2
+        /*graphics.centeredText(font, EssenceText.gui("nexus.synchronizing"),*/
+        //? if <26.1.2
         graphics.drawCenteredString(font, EssenceText.gui("nexus.synchronizing"),
                 bounds.x() + bounds.width() / 2, bounds.y() + 24, TEXT);
     }
 
     private void renderAscensionPage(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int mouseX,
             int mouseY
@@ -545,6 +572,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderAscensionTransition(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             ClientEssenceState.Snapshot snapshot,
             ClientEssenceState.ProgressSnapshot progress,
@@ -589,13 +619,21 @@ public final class AscendanceNexusScreen
                                 (layout.sectionHeight() - lineHeight) / 2.0F
                         );
 
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
-        graphics.pose().translate(
-                (layout.left() + layout.right()) / 2.0F,
-                y,
-                0.0F
-        );
+        //? if >=26.1.2
+        /*graphics.pose().translate((layout.left() + layout.right()) / 2.0F, y);*/
+        //? if <26.1.2
+        graphics.pose().translate((layout.left() + layout.right()) / 2.0F, y, 0.0F);
+        //? if >=26.1.2
+        /*graphics.pose().scale(scale, scale);*/
+        //? if <26.1.2
         graphics.pose().scale(scale, scale, 1.0F);
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 rendered,
@@ -603,6 +641,9 @@ public final class AscendanceNexusScreen
                 0,
                 TEXT
         );
+        //? if >=26.1.2
+        /*graphics.pose().popMatrix();*/
+        //? if <26.1.2
         graphics.pose().popPose();
     }
 
@@ -612,6 +653,9 @@ public final class AscendanceNexusScreen
                 && snapshot.attunement().ready();
     }
 
+    //? if >=26.1.2
+    /*private void renderAscendanceStatus(GuiGraphicsExtractor graphics, ClientEssenceState.ProgressSnapshot progress,*/
+    //? if <26.1.2
     private void renderAscendanceStatus(GuiGraphics graphics, ClientEssenceState.ProgressSnapshot progress,
                                          NexusPageLayout layout) {
         NexusAscendanceAction action = ascendanceAction();
@@ -646,6 +690,9 @@ public final class AscendanceNexusScreen
                 status = EssenceText.gui("nexus.requirements_incomplete");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
             }
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     StyledTextLayout.fit(
@@ -683,6 +730,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderAscensionConfigurationError(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusPageLayout layout
     ) {
@@ -691,6 +741,9 @@ public final class AscendanceNexusScreen
         int centerY =
                 (layout.middleTop() + layout.middleBottom()) / 2;
 
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 EssenceText.gui("nexus.ascension_unavailable").getString(),
@@ -703,12 +756,18 @@ public final class AscendanceNexusScreen
                 .wrap(font, Math.max(80, layout.width() - 24));
         for (int index = 0; index < guidance.size(); index++) {
             FormattedCharSequence line = guidance.get(index);
+            //? if >=26.1.2
+            /*graphics.text(font, line, centerX - font.width(line) / 2,*/
+            //? if <26.1.2
             graphics.drawString(font, line, centerX - font.width(line) / 2,
                     centerY + 5 + index * (font.lineHeight + 2), MUTED, false);
         }
     }
 
     private void renderEssenceCategory(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             int mouseX,
@@ -747,6 +806,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillsCategory(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             int mouseX,
@@ -767,6 +829,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillLegend(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusPageLayout layout
     ) {
@@ -777,11 +842,17 @@ public final class AscendanceNexusScreen
                 List.of(SkillNodeVisualState.OWNED_ACTIVE, SkillNodeVisualState.OWNED_INACTIVE,
                         SkillNodeVisualState.SUSPENDED, SkillNodeVisualState.REPLACED),
                 List.of("active", "inactive", "suspended", "replaced"));
+        //? if >=26.1.2
+        /*graphics.centeredText(font, StyledTextLayout.fit(font, EssenceText.gui("nexus.skills.legend.hud"),*/
+        //? if <26.1.2
         graphics.drawCenteredString(font, StyledTextLayout.fit(font, EssenceText.gui("nexus.skills.legend.hud"),
                         Math.max(0, layout.right() - layout.tracksLeft() - 8)),
                 (layout.tracksLeft() + layout.right()) / 2, layout.middleTop() + 22, MUTED);
     }
 
+    //? if >=26.1.2
+    /*private void renderSkillLegendRow(GuiGraphicsExtractor graphics, NexusPageLayout layout, int y,*/
+    //? if <26.1.2
     private void renderSkillLegendRow(GuiGraphics graphics, NexusPageLayout layout, int y,
                                       List<SkillNodeVisualState> states, List<String> labels) {
         var bounds = new UiBounds(layout.tracksLeft() + 4, y,
@@ -792,19 +863,31 @@ public final class AscendanceNexusScreen
             var cell = cells.get(i);
             if (cell.width() < 9) continue;
             drawSkillGlyph(graphics, states.get(i), cell.x(), y, MUTED);
+            //? if >=26.1.2
+            /*graphics.text(font, StyledTextLayout.fit(font, text.get(i), cell.width() - 10), cell.x() + 10, y, MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, StyledTextLayout.fit(font, text.get(i), cell.width() - 10), cell.x() + 10, y, MUTED, false);
         }
     }
 
+    //? if >=26.1.2
+    /*private void drawSkillGlyph(GuiGraphicsExtractor graphics, SkillNodeVisualState state, int x, int y, int color) {*/
+    //? if <26.1.2
     private void drawSkillGlyph(GuiGraphics graphics, SkillNodeVisualState state, int x, int y, int color) {
         if (state == SkillNodeVisualState.OWNED_ACTIVE)
             com.mistaboom.essence_ascendance.client.ui.PixelSymbol.CHECK.draw(graphics, x, y, color);
         else if (state == SkillNodeVisualState.REPLACED)
             com.mistaboom.essence_ascendance.client.ui.PixelSymbol.REPLACED.draw(graphics, x, y, color);
+        //? if >=26.1.2
+        /*else graphics.text(font, state.glyph(), x, y, color, false);*/
+        //? if <26.1.2
         else graphics.drawString(font, state.glyph(), x, y, color, false);
     }
 
     private void renderSkillTree(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             NexusPageLayout layout,
@@ -831,6 +914,9 @@ public final class AscendanceNexusScreen
         List<SkillDefinition> definitions =
                 SkillRegistry.values(category.essence().id());
         if (definitions.isEmpty()) {
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     EssenceText.gui("nexus.skills.none").getString(),
@@ -1022,6 +1108,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillChoiceGroups(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             List<SkillChoiceFrame> frames
     ) {
@@ -1059,6 +1148,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillConnections(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusSkillTreeLayout.Layout tree,
             UiBounds viewport,
@@ -1441,6 +1533,9 @@ public final class AscendanceNexusScreen
      * grid. Choice frames are first-class obstacles, not decoration.
      */
     private void drawSkillConnection(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int routeIndex,
             SkillRoute skillRoute,
@@ -2450,6 +2545,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillTierHeaders(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusSkillTreeLayout.Layout tree,
             UiBounds viewport,
@@ -2462,6 +2560,9 @@ public final class AscendanceNexusScreen
                     + column * (NexusSkillTreeLayout.NODE_WIDTH
                     + NexusSkillTreeLayout.COLUMN_GAP)
                     + NexusSkillTreeLayout.NODE_WIDTH / 2;
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     StyledTextLayout.fitPlain(font,
@@ -2477,6 +2578,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillNode(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             SkillDefinition definition,
             SkillNodeVisualState state,
@@ -2506,6 +2610,9 @@ public final class AscendanceNexusScreen
                 Math.max(1, bounds.width() - 18)
         );
         drawSkillGlyph(graphics, state, bounds.left() + 4, bounds.top() + 4, state.textColor());
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 lines[0],
@@ -2514,6 +2621,9 @@ public final class AscendanceNexusScreen
                 state.textColor()
         );
         if (!lines[1].isBlank()) {
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     lines[1],
@@ -2525,6 +2635,9 @@ public final class AscendanceNexusScreen
 
         if (hudControlVisible(definition)) {
             var receipt = ClientEssenceState.snapshot().ownedSkills().get(definition.id());
+            //? if >=26.1.2
+            /*graphics.text(font, com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.glyph(receipt.hudEnabled()),*/
+            //? if <26.1.2
             graphics.drawString(font, com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.glyph(receipt.hudEnabled()),
                     bounds.right() - 11, bounds.bottom() - 11, MUTED, false);
         }
@@ -2534,6 +2647,9 @@ public final class AscendanceNexusScreen
         String renderedCost = SkillTooltipPresentation.nodePurchaseLabel(definition, currentBalanceProfile(snapshot),
                 purchase == null ? 0 : purchase.rank(),
                 amount -> formatLongForWidth(amount, Math.max(1, bounds.width() - 28))).getString();
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 renderedCost,
@@ -2544,6 +2660,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillScrollIndicators(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusSkillTreeLayout.Layout tree,
             UiBounds viewport,
@@ -2566,8 +2685,17 @@ public final class AscendanceNexusScreen
              * skill and choice-frame rectangles. Isolate these generated-tree
              * indicators on a foreground layer below the modal layer.
              */
+            //? if >=26.1.2
+            /*graphics.nextStratum();*/
+            //? if <26.1.2
             graphics.flush();
+            //? if >=26.1.2
+            /*graphics.pose().pushMatrix();*/
+            //? if <26.1.2
             graphics.pose().pushPose();
+            //? if >=26.1.2
+            /*graphics.nextStratum();*/
+            //? if <26.1.2
             graphics.pose().translate(0.0F, 0.0F, SKILL_OVERLAY_RENDER_DEPTH);
             try {
                 if (canScrollLeft) {
@@ -2593,22 +2721,46 @@ public final class AscendanceNexusScreen
                         viewport.y() + SKILL_SCROLL_ARROW_INSET + SKILL_SCROLL_ARROW_WIDTH / 2, "‹");
                 if (canScrollDown) renderVerticalSkillScrollArrow(graphics, centerX,
                         viewport.bottom() - SKILL_SCROLL_ARROW_INSET - SKILL_SCROLL_ARROW_WIDTH / 2, "›");
+                //? if >=26.1.2
+                /*graphics.nextStratum();*/
+                //? if <26.1.2
                 graphics.flush();
             } finally {
+                //? if >=26.1.2
+                /*graphics.pose().popMatrix();*/
+                //? if <26.1.2
                 graphics.pose().popPose();
             }
         }
     }
 
+    //? if >=26.1.2
+    /*private void renderVerticalSkillScrollArrow(GuiGraphicsExtractor graphics, int centerX, int centerY, String glyph) {*/
+    //? if <26.1.2
     private void renderVerticalSkillScrollArrow(GuiGraphics graphics, int centerX, int centerY, String glyph) {
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
+        //? if >=26.1.2
+        /*graphics.pose().translate(centerX, centerY);*/
+        //? if <26.1.2
         graphics.pose().translate(centerX, centerY, 0);
+        //? if >=26.1.2
+        /*graphics.pose().rotate((float) (Math.PI / 2));*/
+        //? if <26.1.2
         graphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(90));
         renderSkillScrollArrow(graphics, -SKILL_SCROLL_ARROW_WIDTH / 2, -SKILL_SCROLL_ARROW_HEIGHT / 2, glyph);
+        //? if >=26.1.2
+        /*graphics.pose().popMatrix();*/
+        //? if <26.1.2
         graphics.pose().popPose();
     }
 
     private void renderSkillScrollArrow(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int x,
             int y,
@@ -2618,22 +2770,32 @@ public final class AscendanceNexusScreen
                 SKILL_SCROLL_ARROW_HEIGHT
                         - font.lineHeight * SKILL_SCROLL_ARROW_GLYPH_SCALE
         ) / 2.0F;
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
-        graphics.pose().translate(
-                x + SKILL_SCROLL_ARROW_WIDTH / 2.0F,
-                glyphY,
-                0.0F
-        );
-        graphics.pose().scale(
-                SKILL_SCROLL_ARROW_GLYPH_SCALE,
-                SKILL_SCROLL_ARROW_GLYPH_SCALE,
-                1.0F
-        );
+        //? if >=26.1.2
+        /*graphics.pose().translate(x + SKILL_SCROLL_ARROW_WIDTH / 2.0F, glyphY);*/
+        //? if <26.1.2
+        graphics.pose().translate(x + SKILL_SCROLL_ARROW_WIDTH / 2.0F, glyphY, 0.0F);
+        //? if >=26.1.2
+        /*graphics.pose().scale(SKILL_SCROLL_ARROW_GLYPH_SCALE, SKILL_SCROLL_ARROW_GLYPH_SCALE);*/
+        //? if <26.1.2
+        graphics.pose().scale(SKILL_SCROLL_ARROW_GLYPH_SCALE, SKILL_SCROLL_ARROW_GLYPH_SCALE, 1.0F);
+        //? if >=26.1.2
+        /*graphics.centeredText(font, glyph, 0, 0, TEXT);*/
+        //? if <26.1.2
         graphics.drawCenteredString(font, glyph, 0, 0, TEXT);
+        //? if >=26.1.2
+        /*graphics.pose().popMatrix();*/
+        //? if <26.1.2
         graphics.pose().popPose();
     }
 
     private void renderSkillsFooter(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusPageLayout layout
     ) {
@@ -2654,6 +2816,9 @@ public final class AscendanceNexusScreen
             text = EssenceText.gui("nexus.skills.footer_default").getString();
         }
 
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 StyledTextLayout.fitPlain(font, text, Math.max(0, departureFooter().list().width() - 8)),
@@ -2798,6 +2963,9 @@ public final class AscendanceNexusScreen
     }
 
     private int drawLine(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int startX,
             int startY,
@@ -2841,6 +3009,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderCategoryTitle(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             NexusPageLayout layout
@@ -2874,13 +3045,21 @@ public final class AscendanceNexusScreen
                                 (layout.sectionHeight() - scaledLineHeight) / 2.0F
                         );
 
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
-        graphics.pose().translate(
-                (layout.left() + layout.right()) / 2.0F,
-                titleY,
-                0.0F
-        );
+        //? if >=26.1.2
+        /*graphics.pose().translate((layout.left() + layout.right()) / 2.0F, titleY);*/
+        //? if <26.1.2
+        graphics.pose().translate((layout.left() + layout.right()) / 2.0F, titleY, 0.0F);
+        //? if >=26.1.2
+        /*graphics.pose().scale(scale, scale);*/
+        //? if <26.1.2
         graphics.pose().scale(scale, scale, 1.0F);
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 rendered,
@@ -2888,10 +3067,16 @@ public final class AscendanceNexusScreen
                 0,
                 AscendancePalette.categoryArgb(category.essence().id())
         );
+        //? if >=26.1.2
+        /*graphics.pose().popMatrix();*/
+        //? if <26.1.2
         graphics.pose().popPose();
     }
 
     private void renderAvailableGauge(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             NexusPageLayout layout
@@ -2913,6 +3098,9 @@ public final class AscendanceNexusScreen
                         availableLabelWidth
                 );
 
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 availableLabel,
@@ -2972,6 +3160,9 @@ public final class AscendanceNexusScreen
                 AscendancePalette.categoryArgb(category.essence().id())
         );
 
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 formatLongForWidth(
@@ -2985,6 +3176,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderTierGuides(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             NexusPageLayout layout
@@ -3021,6 +3215,9 @@ public final class AscendanceNexusScreen
             int tierLabelWidth = Math.max(1, layout.right() - layout.tracksRight() - 6);
             String label = tierDisplayName(resolved.checkpoints().get(boundary).tierId());
             int labelY = geometry.bandCenterY(boundary) - font.lineHeight / 2;
+            //? if >=26.1.2
+            /*graphics.centeredText(font, StyledTextLayout.fitPlain(font, label, tierLabelWidth),*/
+            //? if <26.1.2
             graphics.drawCenteredString(font, StyledTextLayout.fitPlain(font, label, tierLabelWidth),
                     (layout.tracksRight() + layout.right()) / 2, labelY,
                     AscendancePalette.tierMetalArgb(resolved.checkpoints().get(boundary).tierId()));
@@ -3028,6 +3225,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderTracks(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             NexusPageLayout layout,
@@ -3049,6 +3249,9 @@ public final class AscendanceNexusScreen
         );
 
         if (tracks.isEmpty()) {
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     EssenceText.gui("nexus.no_stats").getString(),
@@ -3125,6 +3328,9 @@ public final class AscendanceNexusScreen
                             + end
                             + " / "
                             + tracks.size();
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     page,
@@ -3136,6 +3342,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderTrack(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusProgressionTrack track,
             int absoluteIndex,
@@ -3159,6 +3368,9 @@ public final class AscendanceNexusScreen
                         trackWidth - 6
                 );
 
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 nameLines[0],
@@ -3167,6 +3379,9 @@ public final class AscendanceNexusScreen
                 available ? accent : DIM
         );
         if (!nameLines[1].isBlank()) {
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     nameLines[1],
@@ -3177,6 +3392,9 @@ public final class AscendanceNexusScreen
         }
 
         String cap = formatLongForWidth(track.state().currentInvestmentCap(), Math.max(1, trackWidth - 4));
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 StyledTextLayout.fitPlain(font, cap, trackWidth - 2),
@@ -3297,21 +3515,42 @@ public final class AscendanceNexusScreen
 
         String bonus = compactBonus(resolved.unit(), stagedScaledBonus(track, stagedTarget));
         float bonusScale = Math.min(1.0F, Math.max(.7F, (trackWidth - 2.0F) / Math.max(1, font.width(bonus))));
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
+        //? if >=26.1.2
+        /*graphics.pose().translate(centerX, bottom + 9);*/
+        //? if <26.1.2
         graphics.pose().translate(centerX, bottom + 9, 0);
+        //? if >=26.1.2
+        /*graphics.pose().scale(bonusScale, bonusScale);*/
+        //? if <26.1.2
         graphics.pose().scale(bonusScale, bonusScale, 1);
+        //? if >=26.1.2
+        /*graphics.centeredText(font, StyledTextLayout.fitPlain(font, bonus, (int) ((trackWidth - 2) / bonusScale)),*/
+        //? if <26.1.2
         graphics.drawCenteredString(font, StyledTextLayout.fitPlain(font, bonus, (int) ((trackWidth - 2) / bonusScale)),
                 0, 0, available ? TEXT : DIM);
+        //? if >=26.1.2
+        /*graphics.pose().popMatrix();*/
+        //? if <26.1.2
         graphics.pose().popPose();
     }
 
     private void renderTrackTooltip(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusProgressionTrack track,
             int mouseX,
             int mouseY
     ) {
         var tooltip = BonusTooltipPresentation.tooltip(track, ClientEssenceState.snapshot().tierId(), stagedInvestment(track));
+        //? if >=26.1.2
+        /*graphics.setTooltipForNextFrame(font, tooltip.wrap(font, TooltipLayout.compactWidth(280, width)), mouseX, mouseY);*/
+        //? if <26.1.2
         graphics.renderTooltip(font, tooltip.wrap(font, TooltipLayout.compactWidth(280, width)), mouseX, mouseY);
     }
 
@@ -3453,6 +3692,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderFooter(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             NexusCategoryView category,
             NexusPageLayout layout
@@ -3474,6 +3716,9 @@ public final class AscendanceNexusScreen
                     : EssenceText.gui("nexus.footer_default").getString();
         }
 
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 StyledTextLayout.fitPlain(font,
@@ -3621,6 +3866,9 @@ public final class AscendanceNexusScreen
             return;
         }
 
+        //? if >=26.1.2
+        /*if (!evaluation.projectedOwned() || (net.minecraft.client.Minecraft.getInstance().hasShiftDown() && evaluation.eligibleToPurchase())) {*/
+        //? if <26.1.2
         if (!evaluation.projectedOwned() || (hasShiftDown() && evaluation.eligibleToPurchase())) {
             long cost = skillCost(skill);
             long available = stagedAvailableEssence(category);
@@ -4384,6 +4632,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderSkillTooltip(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             ResourceLocation skillId,
             int mouseX,
@@ -4412,6 +4663,9 @@ public final class AscendanceNexusScreen
         SemanticTooltip tooltip = new SemanticTooltip();
         tooltip.title(Component.translatable(skill.nameTranslationKey()),
                 AscendancePalette.categoryRgb(skill.essenceId()));
+        //? if >=26.1.2
+        /*boolean shift = net.minecraft.client.Minecraft.getInstance().hasShiftDown();*/
+        //? if <26.1.2
         boolean shift = hasShiftDown();
         skillTooltipPresentation.append(tooltip, skill, evaluations, shift);
         tooltip.field(EssenceText.gui("nexus.skills.tooltip.status",
@@ -4530,6 +4784,9 @@ public final class AscendanceNexusScreen
                     viewport.offset() + 1, viewport.offset() + visible.size() - 1, lines.size() - 1)
                     .withStyle(ChatFormatting.GOLD).getVisualOrderText());
         }
+        //? if >=26.1.2
+        /*graphics.setTooltipForNextFrame(font, visible, mouseX, mouseY);*/
+        //? if <26.1.2
         graphics.renderTooltip(font, visible, mouseX, mouseY);
     }
 
@@ -4638,6 +4895,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderPendingDecision(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int mouseX,
             int mouseY
@@ -4647,6 +4907,9 @@ public final class AscendanceNexusScreen
 
         Component title = EssenceText.gui(pendingDecision == PendingDecision.ARCHIVE
                 ? "nexus.modal.archive_title" : "nexus.modal.exit_title");
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 StyledTextLayout.fit(font, title, layout.width() - 16),
@@ -4662,6 +4925,9 @@ public final class AscendanceNexusScreen
                 draft.purchaseCount(),
                 draft.loadoutChangeCount(snapshot)
         );
+        //? if >=26.1.2
+        /*graphics.centeredText(*/
+        //? if <26.1.2
         graphics.drawCenteredString(
                 font,
                 StyledTextLayout.fit(font, summary, layout.width() - 20),
@@ -4671,6 +4937,9 @@ public final class AscendanceNexusScreen
         );
 
         if (transactionFeedback != null) {
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     StyledTextLayout.fit(
@@ -4682,6 +4951,9 @@ public final class AscendanceNexusScreen
                     AscendanceUiPalette.argb(AscendanceUiPalette.ERROR)
             );
         } else if (pendingRequestId >= 0L) {
+            //? if >=26.1.2
+            /*graphics.centeredText(*/
+            //? if <26.1.2
             graphics.drawCenteredString(
                     font,
                     EssenceText.gui("nexus.transaction.waiting"),
@@ -4705,6 +4977,9 @@ public final class AscendanceNexusScreen
     }
 
     private void renderPrimaryActionTooltip(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int mouseX,
             int mouseY
@@ -4745,6 +5020,9 @@ public final class AscendanceNexusScreen
             appendPendingChangeLines(lines, snapshot);
         }
 
+        //? if >=26.1.2
+        /*graphics.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);*/
+        //? if <26.1.2
         graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
     }
 

@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.compat.jei;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.item.CreativeVariantRegistry;
+import com.mistaboom.essence_ascendance.ore.LatentOreBlockItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusItem;
@@ -24,7 +25,7 @@ public final class JeiCatalogOrder {
             CreativeVariantRegistry::variantItems, CreativeVariantRegistry::revision);
     private final Supplier<Set<Item>> items;
     private final LongSupplier revision;
-    private final Map<Item, Integer> firstIndices = new IdentityHashMap<>();
+    private final Map<Object, Integer> firstIndices = new IdentityHashMap<>();
     private Set<Item> variantItems = Set.of();
     private long indexedRevision = Long.MIN_VALUE;
     private boolean runtimeReady;
@@ -61,8 +62,14 @@ public final class JeiCatalogOrder {
             variantItems = Set.copyOf(items.get());
             indexedRevision = current;
         }
-        if (!variantItems.contains(stack.getItem())) return nativeIndex;
-        Integer first = firstIndices.putIfAbsent(stack.getItem(), nativeIndex);
+        // Fixed vanilla aliases and late modded host stacks use different registry
+        // Items, but belong to the same creative family. The adaptive carrier may
+        // be absent from the initial world catalog, so it cannot establish a new
+        // position when JEI receives that world's modded hosts after startup.
+        boolean latentOre = stack.getItem() instanceof LatentOreBlockItem;
+        if (!latentOre && !variantItems.contains(stack.getItem())) return nativeIndex;
+        Object family = latentOre ? LatentOreBlockItem.class : stack.getItem();
+        Integer first = firstIndices.putIfAbsent(family, nativeIndex);
         if (runtimeReady && first != null) sortPending = true;
         return first == null ? nativeIndex : first;
     }

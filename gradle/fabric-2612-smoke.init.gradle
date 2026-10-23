@@ -1,0 +1,10 @@
+// Isolated Fabric 26 server smoke; optional FTB uses a distinct disposable world.
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.path != ':fabric:26.1.2') return
+        def optionalTeams = p.rootProject.findProperty('fabric2612SmokeFtb') == 'true'
+        p.loom.runs.server.runDir(optionalTeams
+                ? 'build/native-fixtures/fabric2612-ftb-run'
+                : 'build/native-fixtures/fabric2612-smoke-run')
+    }
+}

@@ -273,6 +273,9 @@ final class NativeProgressionCoverage {
                                        boolean multiplied, double scale) {
         double base = NativeBonusMechanics.baseline(attribute);
         double nativeScale = scale * (multiplied ? base : 1);
+        //? if >=26.1.2
+        /*probe(probes, attribute.unwrapKey().orElseThrow().identifier() + "; full supported equipment applicability; no external modifier; "*/
+        //? if <26.1.2
         probe(probes, attribute.unwrapKey().orElseThrow().location() + "; full supported equipment applicability; no external modifier; "
                         + (multiplied ? "ADD_MULTIPLIED_BASE" : "ADD_VALUE")
                         + "; native attribute measurement, not a universal world/loadout outcome",

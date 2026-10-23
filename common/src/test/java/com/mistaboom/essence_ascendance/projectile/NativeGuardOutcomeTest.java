@@ -30,6 +30,9 @@ import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.LivingEntity;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -63,7 +66,7 @@ public final class NativeGuardOutcomeTest {
         check(player.isBlocking() && GuardLifecycle.observe(player).nativeReady(), "Native resolved raise delay actually gates blocking");
         var source = player.damageSources().playerAttack(attacker);
         int durability = shield.getDamageValue();
-        boolean accepted = player.hurt(source, 8);
+        boolean accepted = com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, source, 8);
         var outcome = EquipmentDamageService.lastGuardOutcome(player).orElseThrow();
         check(!accepted && outcome.successfulBlock() && outcome.blocked() == 8, "Actual Player.hurt false return still commits a complete native shield block");
         check(shield.getDamageValue() > durability, "Real native shield durability path executes");
@@ -155,7 +158,7 @@ public final class NativeGuardOutcomeTest {
         player.stopUsingItem();
         player.setHealth(20); player.setAbsorptionAmount(4);
         player.invulnerableTime = 0;
-        check(player.hurt(source, 6), "Actual native lowered-shield hit accepts ordinary health/absorption damage");
+        check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, source, 6), "Actual native lowered-shield hit accepts ordinary health/absorption damage");
         outcome = EquipmentDamageService.lastGuardOutcome(player).orElseThrow();
         equal(outcome.healthLost(), 2, "Native armor/absorption ordering leaves the expected health loss");
         equal(outcome.absorptionLost(), 4, "Native absorption damage is kept separately");
@@ -164,7 +167,7 @@ public final class NativeGuardOutcomeTest {
         equal(outcome.wardExtension(), 0, "A partially damaging hit cannot also add fully-prevented Ward reflection");
         long previousEvent = outcome.eventId();
         ProjectileNativeInterceptionTest.set(ServerPlayer.class, player, "spawnInvulnerableTime", 5);
-        check(!player.hurt(source, 6), "Native ServerPlayer spawn immunity rejects before Player.hurt");
+        check(!com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, source, 6), "Native ServerPlayer spawn immunity rejects before Player.hurt");
         outcome = EquipmentDamageService.lastGuardOutcome(player).orElseThrow();
         check(outcome.eventId() > previousEvent && !outcome.accepted() && outcome.healthLost() == 0
                         && outcome.requestedReflection() == 0 && outcome.echo().requested() == 0,
@@ -185,7 +188,7 @@ public final class NativeGuardOutcomeTest {
         ProjectileNativeInterceptionTest.set(net.minecraft.server.MinecraftServer.class, f.server, "pvp", false);
         check(!ReflectionRouter.source(player, source).eligible(), "Server PvP rejection is preserved by reflection");
         previousEvent = EquipmentDamageService.lastGuardOutcome(player).orElseThrow().eventId();
-        check(!player.hurt(source, 6), "Native ServerPlayer PvP rejection exits before Player.hurt");
+        check(!com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, source, 6), "Native ServerPlayer PvP rejection exits before Player.hurt");
         outcome = EquipmentDamageService.lastGuardOutcome(player).orElseThrow();
         check(outcome.eventId() > previousEvent && !outcome.accepted() && outcome.healthLost() == 0
                         && outcome.requestedReflection() == 0, "Early PvP rejection finalizes a fresh empty outcome");
@@ -367,8 +370,12 @@ public final class NativeGuardOutcomeTest {
         }
         registry.register(ProjectileContent.MAGIC_BOLT_DAMAGE, new DamageType("essence_magic", .1F), RegistrationInfo.BUILT_IN);
         registry.freeze();
-        registry.bindTags(new HashMap<>(java.util.Map.of(DamageTypeTags.IS_PROJECTILE,
-                List.of(registry.getHolderOrThrow(DamageTypes.ARROW)))));
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(registry,
+                java.util.Map.of(DamageTypeTags.IS_PROJECTILE,
+                        //? if >=26.1.2
+                        /*List.of(registry.getOrThrow(DamageTypes.ARROW))));*/
+                        //? if <26.1.2
+                        List.of(registry.getHolderOrThrow(DamageTypes.ARROW))));
         // NeoForge resolves the enchantment registry before iterating even an empty native
         // equipment enchantment map. These fixtures equip no enchanted items: an empty frozen
         // registry faithfully preserves that boundary without replacing native enchantment code.
@@ -401,6 +408,9 @@ public final class NativeGuardOutcomeTest {
         net.minecraft.resources.ResourceLocation lastSkill;
         ServerPlayer lastOwner; boolean lastSecondary;
         private MeasuredTarget() { throw new AssertionError("No player constructor in fixture"); }
+        //? if >=26.1.2
+        /*@Override public boolean hurtServer(net.minecraft.server.level.ServerLevel level, DamageSource source, float amount) {*/
+        //? if <26.1.2
         @Override public boolean hurt(DamageSource source, float amount) {
             hits++; lastRequest = amount;
             var proc = SkillProcDamageService.current();

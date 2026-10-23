@@ -66,6 +66,24 @@ public final class PlayerAttributedBlockHarvestService {
     private PlayerAttributedBlockHarvestService() {
     }
 
+    //? if >=26.1.2 {
+    /*public static List<ItemStack> applyCropYield(BlockState state, ServerLevel level, BlockPos pos,
+            BlockEntity blockEntity, Entity breaker, net.minecraft.world.item.ItemInstance tool, List<ItemStack> baseDrops) {
+        if (tool == null) return baseDrops;
+        ItemStack stack;
+        if (tool instanceof ItemStack live) stack = live;
+        else if (tool instanceof net.minecraft.world.item.ItemStackTemplate template) stack = template.create();
+        else {
+            stack = new ItemStack(tool.typeHolder(), tool.count());
+            var custom = tool.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+            if (custom != null) stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, custom);
+            var enchants = tool.get(net.minecraft.core.component.DataComponents.ENCHANTMENTS);
+            if (enchants != null) stack.set(net.minecraft.core.component.DataComponents.ENCHANTMENTS, enchants);
+        }
+        return applyCropYield(state, level, pos, blockEntity, breaker, stack, baseDrops);
+    }
+    *///?}
+
     public static List<ItemStack> applyCropYield(
             BlockState state,
             ServerLevel level,

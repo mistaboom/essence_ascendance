@@ -37,6 +37,9 @@ public abstract class ItemStackDurabilityMixin {
         try {
             original.call(amount, level, player, onBreak);
             if (!fracturedBefore && FracturedEquipmentData.isFractured(stack) && player != null)
+                //? if >=26.1.2
+                /*player.playSound(stack.getOrDefault(net.minecraft.core.component.DataComponents.BREAK_SOUND, net.minecraft.sounds.SoundEvents.ITEM_BREAK).value());*/
+                //? if <26.1.2
                 player.playSound(stack.getBreakingSound());
         } finally {
             essenceAscendance$durabilityOwner = previous;
@@ -125,6 +128,9 @@ public abstract class ItemStackDurabilityMixin {
     }
 
     @Redirect(
+            //? if >=26.1.2
+            /*method = "processDurabilityChange(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;)I",*/
+            //? if <26.1.2
             method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
             at = @At(
                     value = "INVOKE",

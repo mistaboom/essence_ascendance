@@ -11,7 +11,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** Shared native damage boundary for direct, projectile and player-attributed ability friendly fire. */
 @Mixin(LivingEntity.class)
 public abstract class FriendlyFireWardMixin {
+    //? if >=26.1.2
+    /*@Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)*/
+    //? if <26.1.2
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
+    //? if >=26.1.2
+    /*private void essenceAscendance$friendlyFireWard(net.minecraft.server.level.ServerLevel level, DamageSource source, float amount,*/
+    //? if <26.1.2
     private void essenceAscendance$friendlyFireWard(DamageSource source, float amount,
                                                      CallbackInfoReturnable<Boolean> cir) {
         if (FriendlyDamageService.prevents((LivingEntity) (Object) this, source)) cir.setReturnValue(false);

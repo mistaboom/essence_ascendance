@@ -4,6 +4,9 @@ import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -20,17 +23,26 @@ public final class FullscreenControls {
 
     private FullscreenControls() { }
 
+    //? if >=26.1.2
+    /*public static void panel(GuiGraphicsExtractor graphics, UiBounds bounds, int surface, int border) {*/
+    //? if <26.1.2
     public static void panel(GuiGraphics graphics, UiBounds bounds, int surface, int border) {
         graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), surface);
         outline(graphics, bounds, border);
     }
 
+    //? if >=26.1.2
+    /*public static void modalBackdrop(GuiGraphicsExtractor graphics, UiBounds screen, UiBounds panel) {*/
+    //? if <26.1.2
     public static void modalBackdrop(GuiGraphics graphics, UiBounds screen, UiBounds panel) {
         graphics.fill(screen.x(), screen.y(), screen.right(), screen.bottom(), 0xB0000000);
         panel(graphics, panel, AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE),
                 AscendanceUiPalette.argb(AscendanceUiPalette.BORDER));
     }
 
+    //? if >=26.1.2
+    /*public static void button(GuiGraphicsExtractor graphics, Font font, UiBounds bounds, Component label,*/
+    //? if <26.1.2
     public static void button(GuiGraphics graphics, Font font, UiBounds bounds, Component label,
                               boolean enabled, boolean selected, boolean hovered, boolean focused,
                               Style style, int accent) {
@@ -89,15 +101,27 @@ public final class FullscreenControls {
                 : Math.max(2, (bounds.height() - font.lineHeight) / 2));
         int textColor = text;
         FullscreenViewport.withClip(graphics, bounds, () -> {
+            //? if >=26.1.2
+            /*if (style == Style.LINK) graphics.text(font, fitted, bounds.x() + 5, textY, textColor, false);*/
+            //? if <26.1.2
             if (style == Style.LINK) graphics.drawString(font, fitted, bounds.x() + 5, textY, textColor, false);
+            //? if >=26.1.2
+            /*else graphics.centeredText(font, fitted, bounds.x() + bounds.width() / 2, textY, textColor);*/
+            //? if <26.1.2
             else graphics.drawCenteredString(font, fitted, bounds.x() + bounds.width() / 2, textY, textColor);
         });
     }
 
+    //? if >=26.1.2
+    /*public static void outline(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int color) {*/
+    //? if <26.1.2
     public static void outline(GuiGraphics graphics, int x, int y, int width, int height, int color) {
         outline(graphics, new UiBounds(x, y, Math.max(0, width), Math.max(0, height)), color);
     }
 
+    //? if >=26.1.2
+    /*public static void outline(GuiGraphicsExtractor graphics, UiBounds bounds, int color) {*/
+    //? if <26.1.2
     public static void outline(GuiGraphics graphics, UiBounds bounds, int color) {
         if (bounds.width() <= 0 || bounds.height() <= 0) return;
         graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.y() + 1, color);

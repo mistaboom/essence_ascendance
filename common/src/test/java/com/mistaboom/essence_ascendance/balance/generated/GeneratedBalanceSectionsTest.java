@@ -19,6 +19,9 @@ import com.mistaboom.essence_ascendance.balance.engine.EvidenceFact;
 import com.mistaboom.essence_ascendance.balance.engine.PackEvidence;
 import com.mistaboom.essence_ascendance.balance.engine.ProgressionBand;
 import com.mistaboom.essence_ascendance.balance.engine.ResourceEvidence;
+import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.essence.EssenceTypes;
+import net.minecraft.resources.ResourceLocation;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -28,6 +31,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Exact differential checks against the existing whole-tree canonical serialization contract. */
 public final class GeneratedBalanceSectionsTest {
@@ -63,8 +67,35 @@ public final class GeneratedBalanceSectionsTest {
                 "Large integral value lost precision");
         lazyOutputFailure();
         envelopeRoundTrip(evidence, economy);
+        savedOreAliasMappings();
         if (List.of(args).contains("--stress")) stress();
-        System.out.println("GeneratedBalanceSectionsTest: " + assertions + " canonical streaming assertions PASS");
+        System.out.println("GeneratedBalanceSectionsTest: " + assertions
+                + " canonical streaming and saved ore alias assertions PASS");
+    }
+
+    private static void savedOreAliasMappings() {
+        var adaptive = ResourceLocation.parse("essence_ascendance:adaptive_latent_ore");
+        var stone = ResourceLocation.parse("essence_ascendance:stone_latent_ore");
+        var endStone = ResourceLocation.parse("essence_ascendance:end_stone_latent_ore");
+        Map<EssenceDefinition, Long> canonical = Map.of(EssenceTypes.GATHERING, 3_000_000L);
+        Map<ResourceLocation, Map<EssenceDefinition, Long>> resolved = new LinkedHashMap<>();
+        resolved.put(adaptive, canonical);
+        GeneratedBalanceService.projectSavedOreItemRoutes(resolved, Set.of(adaptive.toString()),
+                List.of(stone, endStone));
+        check(resolved.get(stone).equals(canonical) && resolved.get(endStone).equals(canonical),
+                "An existing saved ore payout reaches new registered host IDs without rebuilding the profile");
+
+        Map<EssenceDefinition, Long> explicit = Map.of(EssenceTypes.DEFENSE, 1_000_000L);
+        resolved.put(stone, explicit);
+        resolved.remove(endStone);
+        GeneratedBalanceService.projectSavedOreItemRoutes(resolved,
+                Set.of(adaptive.toString(), stone.toString(), endStone.toString()), List.of(stone, endStone));
+        check(resolved.get(stone).equals(explicit) && !resolved.containsKey(endStone),
+                "Saved explicit alias payout and explicit zero alias row outrank the inherited ore payout");
+
+        resolved.clear();
+        GeneratedBalanceService.projectSavedOreItemRoutes(resolved, Set.of(), List.of(stone));
+        check(resolved.isEmpty(), "No host alias acquires a payout when the saved adaptive item has none");
     }
 
     private static com.google.gson.JsonObject envelope() {

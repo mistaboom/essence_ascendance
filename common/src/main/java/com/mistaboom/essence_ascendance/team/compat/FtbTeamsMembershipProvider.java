@@ -8,8 +8,11 @@ import net.minecraft.server.MinecraftServer;
 import java.util.*;
 import java.util.function.Consumer;
 
-/** Only this conditionally constructed class links the verified FTB Teams 2101.1.11 public API. */
+/** Only this conditionally constructed class links an audited FTB Teams public API. */
 public final class FtbTeamsMembershipProvider implements MembershipProvider {
+    //? if >=26.1.2
+    /*private static final String VERSION = "26.1.2.4";*/
+    //? if <26.1.2
     private static final String VERSION = "2101.1.11";
     private static TeamManager manager(MinecraftServer server) {
         FTBTeamsAPI.API api = FTBTeamsAPI.api();
@@ -75,19 +78,35 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
         return rank.isMemberOrBetter() && settled.allows(member, PoolCapability.MANAGE) == rank.isOfficerOrBetter();
     }
     @Override public void installInvalidation(Consumer<MinecraftServer> invalidate) {
+        //? if >=26.1.2
+        /*FtbTeamsEventBridge.install(invalidate);*/
+        //? if <26.1.2
         Consumer<TeamEvent> changed = ignored -> {
+            //? if <26.1.2
             FTBTeamsAPI.API api = FTBTeamsAPI.api();
+            //? if <26.1.2
             if (api != null && api.isManagerLoaded()) invalidate.accept(api.getManager().getServer());
+        //? if <26.1.2
         };
+        //? if <26.1.2
         TeamManagerEvent.CREATED.register(e -> invalidate.accept(e.getManager().getServer()));
+        //? if <26.1.2
         TeamManagerEvent.LOADED.register(e -> invalidate.accept(e.getManager().getServer()));
+        //? if <26.1.2
         TeamManagerEvent.DESTROYED.register(e -> invalidate.accept(e.getManager().getServer()));
+        //? if <26.1.2
         TeamEvent.CREATED.register(changed::accept);
+        //? if <26.1.2
         TeamEvent.DELETED.register(changed);
+        //? if <26.1.2
         TeamEvent.PLAYER_CHANGED.register(changed::accept);
+        //? if <26.1.2
         TeamEvent.PLAYER_JOINED_PARTY.register(changed::accept);
+        //? if <26.1.2
         TeamEvent.PLAYER_LEFT_PARTY.register(changed::accept);
+        //? if <26.1.2
         TeamEvent.OWNERSHIP_TRANSFERRED.register(changed::accept);
+        //? if <26.1.2
         TeamEvent.PROPERTIES_CHANGED.register(changed::accept);
     }
 }

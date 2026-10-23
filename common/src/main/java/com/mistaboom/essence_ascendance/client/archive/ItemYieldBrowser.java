@@ -16,6 +16,9 @@ import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -139,6 +142,9 @@ public final class ItemYieldBrowser {
         UiBounds count = new UiBounds(bounds.x() + (third + GAP) * 4, y,
                 Math.max(0, bounds.right() - (bounds.x() + (third + GAP) * 4)), CONTROL_HEIGHT);
         builder.region(new FullscreenComposition.Region("archive/yields/count", count,
+                //? if >=26.1.2
+                /*(graphics, x, ignored, tick) -> graphics.centeredText(font,*/
+                //? if <26.1.2
                 (graphics, x, ignored, tick) -> graphics.drawCenteredString(font,
                         snapshot.ready() ? g("archive.reference.item_yields.result_count", visibleRows.size())
                                 : g("archive.reference.item_yields.unavailable_short"),
@@ -160,8 +166,14 @@ public final class ItemYieldBrowser {
                 tableInput, true)).primaryInput("archive/yields/table");
     }
 
+    //? if >=26.1.2
+    /*public void renderTooltips(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     public void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (table == null || !tableBounds.contains(mouseX, mouseY)) return;
+        //? if >=26.1.2
+        /*table.overflowTextAt(mouseX, mouseY).ifPresent(value -> graphics.setTooltipForNextFrame(*/
+        //? if <26.1.2
         table.overflowTextAt(mouseX, mouseY).ifPresent(value -> graphics.renderTooltip(
                 net.minecraft.client.Minecraft.getInstance().font, value, mouseX, mouseY));
     }
@@ -227,6 +239,9 @@ public final class ItemYieldBrowser {
         if (snapshot.outputsByItem().containsKey(ResourceLocation.parse("minecraft:enchanted_book"))) {
             var client = net.minecraft.client.Minecraft.getInstance();
             if (client != null && client.getConnection() != null) {
+                //? if >=26.1.2
+                /*var registry = client.getConnection().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);*/
+                //? if <26.1.2
                 var registry = client.getConnection().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                 result.addAll(enchantmentRows(snapshot, registry));
             }
@@ -242,18 +257,35 @@ public final class ItemYieldBrowser {
     public static List<BrowserRow> enchantmentRows(ItemEssenceTooltipClientState.YieldSnapshot snapshot,
                                                    net.minecraft.core.Registry<net.minecraft.world.item.enchantment.Enchantment> registry) {
         List<BrowserRow> result = new ArrayList<>();
-        registry.holders().sorted(Comparator.comparing(holder -> holder.key().location())).forEach(holder -> {
+        registry
+                //? if >=26.1.2
+                /*.listElements()*/
+                //? if <26.1.2
+                .holders()
+                .sorted(Comparator.comparing(holder -> {
+                    //? if >=26.1.2
+                    /*return holder.key().identifier().toString();*/
+                    //? if <26.1.2
+                    return holder.key().location().toString();
+                })).forEach(holder -> {
             for (int level = 1; level <= Math.min(255, holder.value().getMaxLevel()); level++) {
                 ItemStack stack = new ItemStack(net.minecraft.world.item.Items.ENCHANTED_BOOK);
                 var enchantments = new net.minecraft.world.item.enchantment.ItemEnchantments.Mutable(net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
                 enchantments.set(holder, level);
                 stack.set(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS, enchantments.toImmutable());
-                var name = displayName(holder.key().location(),
+                var name = displayName(
+                        //? if >=26.1.2
+                        /*holder.key().identifier(),*/
+                        //? if <26.1.2
+                        holder.key().location(),
                         net.minecraft.world.item.enchantment.Enchantment.getFullname(holder, level));
                 Map<ResourceLocation, Long> yields = new LinkedHashMap<>();
                 ItemEssenceTooltipClientState.outputsForStack(stack, snapshot).forEach(output -> yields.put(output.essenceId(), output.microUnits()));
                 var item = ResourceLocation.parse("minecraft:enchanted_book");
                 var key = ResourceLocation.fromNamespaceAndPath("essence_ascendance", "enchanted_book/" +
+                        //? if >=26.1.2
+                        /*holder.key().identifier().getNamespace() + "/" + holder.key().identifier().getPath() + "/" + level);*/
+                        //? if <26.1.2
                         holder.key().location().getNamespace() + "/" + holder.key().location().getPath() + "/" + level);
                 result.add(new BrowserRow(item, name, new ItemPresentation(item, stack.getComponentsPatch(), name), yields, key));
             }

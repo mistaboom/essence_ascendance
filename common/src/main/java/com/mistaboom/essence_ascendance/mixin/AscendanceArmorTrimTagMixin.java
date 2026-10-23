@@ -6,6 +6,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagLoader;
+//? if <26.1.2
 import net.minecraft.world.item.ArmorItem;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,6 +33,9 @@ public abstract class AscendanceArmorTrimTagMixin {
         callback.getReturnValue().computeIfPresent(ItemTags.TRIMMABLE_ARMOR.location(), (id, values) ->
                 values.stream().filter(entry -> {
                     Object value = entry instanceof Holder<?> holder ? holder.value() : entry;
+                    //? if >=26.1.2
+                    /*return !(value instanceof com.mistaboom.essence_ascendance.item.AscendanceArmorItem && value instanceof EquipmentProfileItem);*/
+                    //? if <26.1.2
                     return !(value instanceof ArmorItem && value instanceof EquipmentProfileItem);
                 }).toList());
     }

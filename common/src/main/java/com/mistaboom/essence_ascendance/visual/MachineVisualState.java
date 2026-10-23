@@ -53,7 +53,7 @@ public final class MachineVisualState {
             tag.putBoolean("supplying_infuser", supplyingInfuser);
             net.minecraft.nbt.ListTag players = new net.minecraft.nbt.ListTag();
             for (var stream : playerStreams) {
-                var entry = new CompoundTag(); entry.putUUID("player", stream.player()); entry.putInt("types", stream.essenceMask()); entry.putLong("rate", stream.rate()); players.add(entry);
+                var entry = new CompoundTag(); com.mistaboom.essence_ascendance.data.NbtVersionCompat.putUUID(entry, "player", stream.player()); entry.putInt("types", stream.essenceMask()); entry.putLong("rate", stream.rate()); players.add(entry);
             }
             tag.put("channelers", players);
             tag.putLong("rate", transferRatePerSecond);
@@ -66,7 +66,7 @@ public final class MachineVisualState {
 
         public static Crucible read(CompoundTag tag) {
             List<BlockPos> pylons = new ArrayList<>();
-            for (long pos : tag.getLongArray("pylons")) pylons.add(BlockPos.of(pos));
+            for (long pos : com.mistaboom.essence_ascendance.data.NbtVersionCompat.getLongArray(tag, "pylons")) pylons.add(BlockPos.of(pos));
             List<ResourceLocation> inputs = new ArrayList<>();
             for (String id : tag.getString("inputs").split(";")) {
                 ResourceLocation parsed = ResourceLocation.tryParse(id);

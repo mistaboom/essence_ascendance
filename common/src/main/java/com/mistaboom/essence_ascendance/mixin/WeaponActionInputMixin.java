@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
@@ -35,6 +36,19 @@ abstract class WeaponActionInputMixin {
                     player.level().getGameTime(),com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.clientDecision(player).revision()));
     }
     @Unique private long essenceAscendance$sequence;
+    @WrapOperation(method = "handleKeybinds", at = @At(value = "INVOKE", target =
+            "Lnet/minecraft/client/KeyMapping;consumeClick()Z"))
+    private boolean essenceAscendance$pressConsumed(KeyMapping key, Operation<Boolean> original) {
+        boolean pressed = original.call(key);
+        if (pressed) {
+            var options = ((Minecraft)(Object)this).options;
+            // Release and press can both arrive between ticks. The native click queue keeps
+            // each press, whereas polling isDown alone loses that intervening release.
+            if (key == options.keyAttack) essenceAscendance$attackLatched = false;
+            if (key == options.keyUse) essenceAscendance$useLatched = false;
+        }
+        return pressed;
+    }
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void essenceAscendance$attack(CallbackInfoReturnable<Boolean> cir) {
         if (!essenceAscendance$ownsInput()) return;

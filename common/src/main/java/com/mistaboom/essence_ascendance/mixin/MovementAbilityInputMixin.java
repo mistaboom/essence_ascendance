@@ -10,6 +10,8 @@ import com.mistaboom.essence_ascendance.network.MovementAbilityInputPayload;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.player.Input;*/
 import net.minecraft.resources.ResourceLocation;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,9 +36,10 @@ public abstract class MovementAbilityInputMixin {
         essenceAscendance$suppressNativeJump = false;
     }
 
-    @Inject(method = "aiStep", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/tutorial/Tutorial;onInput(Lnet/minecraft/client/player/Input;)V"),
-            require = 1, expect = 1, allow = 1)
+    //? if >=26.1.2
+    /*@Inject(method = "aiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/tutorial/Tutorial;onInput(Lnet/minecraft/client/player/ClientInput;)V"), require = 1, expect = 1, allow = 1)*/
+    //? if <26.1.2
+    @Inject(method = "aiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/tutorial/Tutorial;onInput(Lnet/minecraft/client/player/Input;)V"), require = 1, expect = 1, allow = 1)
     private void essenceAscendance$routeJump(CallbackInfo ci) {
         LocalPlayer player = (LocalPlayer) (Object) this;
         Minecraft minecraft = Minecraft.getInstance();
@@ -63,10 +66,30 @@ public abstract class MovementAbilityInputMixin {
         // The ordinary Jump binding was sampled above before any local suppression.
         int flags = enabled ? MovementAbilityInput.ENABLED
                 | (jumpDown ? MovementAbilityInput.JUMP : 0)
-                | (player.input.up ? MovementAbilityInput.FORWARD : 0)
-                | (player.input.down ? MovementAbilityInput.BACK : 0)
-                | (player.input.left ? MovementAbilityInput.LEFT : 0)
-                | (player.input.right ? MovementAbilityInput.RIGHT : 0) : 0;
+                | (
+                //? if >=26.1.2
+                /*player.input.keyPresses.forward()*/
+                //? if <26.1.2
+                player.input.up
+                ? MovementAbilityInput.FORWARD : 0)
+                | (
+                //? if >=26.1.2
+                /*player.input.keyPresses.backward()*/
+                //? if <26.1.2
+                player.input.down
+                ? MovementAbilityInput.BACK : 0)
+                | (
+                //? if >=26.1.2
+                /*player.input.keyPresses.left()*/
+                //? if <26.1.2
+                player.input.left
+                ? MovementAbilityInput.LEFT : 0)
+                | (
+                //? if >=26.1.2
+                /*player.input.keyPresses.right()*/
+                //? if <26.1.2
+                player.input.right
+                ? MovementAbilityInput.RIGHT : 0) : 0;
         long now = player.level().getGameTime();
         var settings = EssenceConfigManager.skillEffects();
         MovementAbilityState.Decision decision = MovementAbilityState.Decision.NONE;
@@ -94,13 +117,24 @@ public abstract class MovementAbilityInputMixin {
         essenceAscendance$suppressNativeJump = jumpEnabled && (jumpDown
                 ? decision.action() != MovementAbilityState.Action.NATIVE_JUMP
                 : mode == MovementAbilityState.Mode.CHARGED && supported);
+        //? if >=26.1.2
+        /*if (essenceAscendance$suppressNativeJump) {*/
+            //? if >=26.1.2
+            /*Input nativeInput = player.input.keyPresses;*/
+            //? if >=26.1.2
+            /*player.input.keyPresses = new Input(nativeInput.forward(), nativeInput.backward(), nativeInput.left(), nativeInput.right(), false, nativeInput.shift(), nativeInput.sprint());*/
+        //? if >=26.1.2
+        /*}*/
+        //? if <26.1.2
         if (essenceAscendance$suppressNativeJump) player.input.jumping = false;
     }
 
     /** Vanilla may write synthetic auto-jump later in aiStep. Filter its consumers
      * as well, so a consumed held press cannot be reintroduced before native travel. */
-    @ModifyExpressionValue(method = {"aiStep", "serverAiStep"}, at = @At(value = "FIELD",
-            target = "Lnet/minecraft/client/player/Input;jumping:Z", opcode = Opcodes.GETFIELD), require = 1)
+    //? if >=26.1.2
+    /*@ModifyExpressionValue(method = {"aiStep", "serverAiStep"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Input;jump()Z"), require = 1)*/
+    //? if <26.1.2
+    @ModifyExpressionValue(method = {"aiStep", "serverAiStep"}, at = @At(value = "FIELD", target = "Lnet/minecraft/client/player/Input;jumping:Z", opcode = Opcodes.GETFIELD), require = 1)
     private boolean essenceAscendance$filterNativeJump(boolean jumping) {
         return jumping && !essenceAscendance$suppressNativeJump;
     }

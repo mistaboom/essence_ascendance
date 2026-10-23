@@ -38,12 +38,12 @@ through GitHub Actions.
    older versions so version-write permission is unnecessary.
 6. Complete both project listings: description, icon/screenshots, categories,
    client/server compatibility, license, and links to GitHub source and issues.
-   This repository and the mod metadata use **MIT**, and both jars include the
+   This repository and the mod metadata use **MIT**, and all four jars include the
    license notice. Keep both project listings consistent with that license. Submit the
    projects for review when the first suitable release is ready. Upload automation
    does not bypass either platform's moderation or approval requirements.
 7. Run the **CI** workflow and confirm it succeeds on GitHub. Its downloadable
-   `release-artifacts` bundle contains exactly the two production jars, checksums,
+   `release-artifacts` bundle contains exactly the four production jars, checksums,
    release notes, and build metadata. CI never uploads to mod sites.
 
 ## Each release
@@ -58,33 +58,55 @@ through GitHub Actions.
    version, e.g. `v1.0.0-beta.1`. Add player-facing release notes. Check
    **Set as a pre-release** for alpha/beta versions; leave it unchecked for stable.
    Save a draft while preparing. Publishing the release starts distribution.
-4. The **Publish release** workflow checks version/tag/notes, builds once on Java
-   21, runs `:common:check :fabric:build :neoforge:build` (including existing asset
-   jar checks), and validates/stages the resulting runtime jars. Only after all
+4. The **Publish release** workflow checks version/tag/notes, runs Gradle on Java
+   25 with the declared target toolchains, runs `:checkSupportedTargets` (including
+   all supported versions' normal checks and archive audits), and validates/stages
+   all declared runtime jars. Only after all
    checks pass do its separate jobs attach downloads to GitHub and upload each
-   loader's jar to CurseForge and Modrinth. The four mod-site jobs run one at a
+   loader's jar to CurseForge and Modrinth. The eight mod-site jobs run one at a
    time; GitHub download attachment remains independent. Do not attach jars manually.
-5. Check that all five publishing jobs succeed: GitHub downloads plus Fabric and
-   NeoForge uploads on each mod site. Watch platform review status after upload.
+5. Check that all nine publishing jobs succeed: GitHub downloads plus four target uploads on each mod site. Watch platform review status after upload.
 
 Publishing a GitHub Release makes its announcement visible before the jars finish
 building; allow the workflow to complete before announcing download availability.
 Pushing commits or tags alone does not upload jars. Editing existing release notes
 does not re-publish files.
 
-## What gets published
+## Shared multiversion release preparation (2026-10-22)
 
-| Loader | Jar | Required external mods | Optional integration |
+`gradle/targets.json` is the target authority. `gradle/production-targets.gradle` binds each declared target to its real archive provider; `:writeProductionManifest` writes exact paths and SHA-256 hashes. `tools/release/prepare.py` checks the complete declared set, its metadata and hashes, and stages a fresh directory with the four JARs, `SHA256SUMS`, `CHANGELOG.md` and variant-rich `metadata.json`. The workflows derive their publishing matrix from the validated staged variants.
+
+From the repository root in PowerShell, with Java 25 available to Gradle and Java 21 available as a toolchain:
+
+```powershell
+# Fresh production outputs; run separately so fixture worlds and audit logs survive.
+./gradlew.bat :cleanProductionOutputs --console=plain
+./gradlew.bat :checkSupportedTargets --console=plain
+python -m unittest discover -s tools/release -p "test_*.py"
+python tools/release/prepare.py --stage build/release
+```
+
+The shared CI build installs the distinct Java versions declared in the catalog and
+uses the highest one for Gradle. Local staging never invokes publishing or
+description synchronization. The current workflow edits have been audited locally;
+they require a normal pushed CI run before they count as remote execution evidence.
+
+For a focused artifact refresh, use `./gradlew.bat :writeProductionManifest :assetJarInvariants1211 :assetJarInvariants2612 --console=plain`. Gradle rebuilds changed sources, resources and archives; use a new empty staging destination for each preparation.
+
+| Target | Production provider | Verified output path | SHA-256 |
 | --- | --- | --- | --- |
-| Fabric | `essence_ascendance-fabric-VERSION.jar` | Architectury API, Fabric API | JEI |
-| NeoForge | `essence_ascendance-neoforge-VERSION.jar` | Architectury API | JEI |
+| 1.21.1 fabric | `:fabric:1.21.1:remapJar` | `fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.11+mc1.21.1-fabric.jar` | `0a873e29061a7ef6ba217423909e660ecd2832740889bef116b2a3341808e590` |
+| 1.21.1 neoforge | `:neoforge:1.21.1:remapJar` | `neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.11+mc1.21.1-neoforge.jar` | `b1facb89ccd651d65f938b4d8b948b9f66de77812f27c66e40830e2a9c194ef1` |
+| 26.1.2 fabric | `:fabric:26.1.2:shadowJar` | `fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.11+mc26.1.2-fabric.jar` | `cae1fd77455702652ca1b45d79128a498a30506e2e119919ff292dc5b7384bd0` |
+| 26.1.2 neoforge | `:neoforge:26.1.2:shadowJar` | `neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.11+mc26.1.2-neoforge.jar` | `6154f47c7357b2998d3e74cf322238cde5dfdcc8553076200272f18d8a91675a` |
 
-Files are marked for exactly `minecraft_version` from `gradle.properties` (currently
-`1.21.1`), Java 21, and both client and server. The pipeline does not claim support
-for other Minecraft versions just because the runtime metadata uses a broad range.
-Modrinth version numbers include Minecraft and loader, e.g.
-`1.0.0+mc1.21.1-fabric`, so the two uploads have distinct identifiers. Sources, common,
-dev, and dev-shadow jars are not distributed as installable mod downloads.
+The final local clean gate and fresh `build/release-final-audit` bundle are recorded in the auxiliary `VALIDATION.md` independent-audit section. These hashes are from that clean gate; historical hashes in older handoff sections are superseded.
+
+A future target addition updates `gradle/targets.json`, including `targets`, `release.requiredTargetIds`, the Java/dependency profile, reusable `nativeSources`, `resourceFormat`, `nativeAccess`, and platform dependency data when needed. It also supplies genuine native source/resource and mixin/access boundaries, then verifies the production provider and shared audit. The release script and workflow matrix enumerate the declared targets and refuse a missing member of the required release set.
+
+The publishing inputs preserve required Architectury API, required Fabric API on Fabric, and optional JEI on both sites. CurseForge also lists optional FTB Teams using its separate Fabric and NeoForge project IDs. No official FTB Teams Modrinth project was established, so the Modrinth payload contains the other verified dependencies. This relationship affects listing metadata; the JAR's guarded FTB integration remains optional.
+
+Automated packaged server checks and native fixtures are recorded in the handoff. Interactive client visuals, live multiplayer and restart acceptance remain prerequisites for publishing. GitHub and mod-site publishing also requires the configured platform tokens and approved project listings; these were not accessed here.
 
 ## Failure recovery
 
@@ -109,9 +131,10 @@ the authenticated Modrinth file list; a project awaiting moderation can return
 - If build/validation fails, no jars are uploaded. Fix the issue and use a new
   release version/tag for changed code. Do not move an already published tag.
 - If an individual site/loader job fails, inspect its logs and the platform's file
-  list. Use **Re-run failed jobs** only after confirming that upload did not already
-  succeed. Successful jobs are left alone. Do not re-run the whole workflow after
-  any mod-site upload succeeds: those APIs may create duplicate files/versions.
+  list for the exact `<mod_version>+mc<minecraft>-<loader>` identity. Use **Re-run
+  failed jobs** only after confirming that upload did not already succeed.
+  Successful jobs are left alone. Do not re-run the whole workflow after any
+  mod-site upload succeeds: those APIs may create duplicate files/versions.
 - An upload can succeed even if its HTTP response is lost. Automatic publishing
   retries are disabled. If a file already exists, keep it and resolve the failed
   status without creating another upload; compare the filename/checksum as needed.
@@ -122,6 +145,11 @@ the authenticated Modrinth file list; a project awaiting moderation can return
 - Existing artifacts expire after 30 days. If recovery must happen later, inspect
   which uploads already exist before rebuilding; never silently replace a released
   jar with one rebuilt from changed dependencies.
+
+The GitHub asset job and eight mod-site jobs are independent after the shared build
+gate. A failure can leave some destinations published while others are pending;
+publication across the three platforms is not atomic. Match filenames and checksums
+against `metadata.json` and `SHA256SUMS` before recovering an individual job.
 
 ## Maintenance and security
 

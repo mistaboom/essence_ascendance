@@ -2,6 +2,13 @@ package com.mistaboom.essence_ascendance.item;
 
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+//? if >=26.1.2
+/*import net.minecraft.core.registries.Registries;*/
+//? if >=26.1.2
+/*import net.minecraft.resources.ResourceLocation;*/
+//? if >=26.1.2
+/*import net.minecraft.world.item.ToolMaterial;*/
+//? if <26.1.2
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Block;
@@ -22,10 +29,14 @@ import net.minecraft.world.level.block.Block;
  * require one for their normal Minecraft behavior.
  */
 public final class AscendanceToolTier
-        implements Tier {
+        //? if <26.1.2
+        implements Tier
+{
 
-    public static final AscendanceToolTier INSTANCE =
-            new AscendanceToolTier();
+    //? if >=26.1.2
+    /*public static final ToolMaterial INSTANCE = new ToolMaterial(BlockTags.INCORRECT_FOR_IRON_TOOL, 2031, 6.0F, 0.0F, 15, TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("essence_ascendance", "no_vanilla_repair")));*/
+    //? if <26.1.2
+    public static final AscendanceToolTier INSTANCE = new AscendanceToolTier();
 
 
     /*
@@ -68,6 +79,7 @@ public final class AscendanceToolTier
     }
 
 
+    //? if <26.1.2
     @Override
     public int getUses() {
 
@@ -75,6 +87,7 @@ public final class AscendanceToolTier
     }
 
 
+    //? if <26.1.2
     @Override
     public float getSpeed() {
 
@@ -82,6 +95,7 @@ public final class AscendanceToolTier
     }
 
 
+    //? if <26.1.2
     @Override
     public float getAttackDamageBonus() {
 
@@ -97,6 +111,7 @@ public final class AscendanceToolTier
      * AscendanceToolMiningService synchronizes the ItemStack. The authoritative
      * harvest level still comes from EquipmentBaselineService/config.
      */
+    //? if <26.1.2
     @Override
     public TagKey<Block> getIncorrectBlocksForDrops() {
 
@@ -104,6 +119,7 @@ public final class AscendanceToolTier
     }
 
 
+    //? if <26.1.2
     @Override
     public int getEnchantmentValue() {
 
@@ -115,9 +131,13 @@ public final class AscendanceToolTier
      * Ascendance equipment currently has no vanilla-material
      * repair ingredient.
      */
+    //? if <26.1.2
     @Override
     public Ingredient getRepairIngredient() {
 
+        //? if >=26.1.2
+        /*return Ingredient.of();*/
+        //? if <26.1.2
         return Ingredient.EMPTY;
     }
 }

@@ -6,6 +6,7 @@ import java.util.UUID;
 public final class RecoveryTest {
     private static int checks;
     public static void main(String[] args) {
+        FoodEffectOriginCodecTest.main(args);
         double last = 1;
         for (int i = 0; i <= 2000; i++) {
             double health = 20 - i / 100.0;

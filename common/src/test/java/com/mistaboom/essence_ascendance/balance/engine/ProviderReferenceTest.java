@@ -26,6 +26,8 @@ public final class ProviderReferenceTest {
     private static final BalanceSettings SETTINGS = BalanceSettings.defaults();
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
+        //? if >=26.1.2
+        /*com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, Map.of(net.minecraft.tags.ItemTags.SWORDS, List.of(Items.WOODEN_SWORD.builtInRegistryHolder(), Items.STONE_SWORD.builtInRegistryHolder(), Items.IRON_SWORD.builtInRegistryHolder(), Items.GOLDEN_SWORD.builtInRegistryHolder(), Items.DIAMOND_SWORD.builtInRegistryHolder(), Items.NETHERITE_SWORD.builtInRegistryHolder())));*/
         effectiveDefaultEquipment();
         nativeWeaponFamilies();
         independentCapabilityBands();
@@ -84,24 +86,24 @@ public final class ProviderReferenceTest {
         check(PackEvidenceCollector.measureEquipment(hoe, ProgressionBand.ENTRY, true).axes().get(CapabilityAxis.MINING_SPEED) == 9,
                 "Native hoe rules retain the actual material speed on their matching targets");
         var specialized = new net.minecraft.world.item.ItemStack(Items.WOODEN_PICKAXE);
-        specialized.set(net.minecraft.core.component.DataComponents.TOOL, new net.minecraft.world.item.component.Tool(
-                List.of(net.minecraft.world.item.component.Tool.Rule.overrideSpeed(
+        specialized.set(net.minecraft.core.component.DataComponents.TOOL, com.mistaboom.essence_ascendance.verification.ToolTestCompat.create(
+                List.of(com.mistaboom.essence_ascendance.verification.ToolTestCompat.overrideSpeed(
                         List.of(net.minecraft.world.level.block.Blocks.OAK_LEAVES), 17.5f)), 1, 1));
         check(PackEvidenceCollector.measureEquipment(specialized, ProgressionBand.ENTRY, true).axes().get(CapabilityAxis.MINING_SPEED) == 17.5,
                 "Any native rule target outside the fixed probes can declare its real peak speed");
         var oldTags = new java.util.HashMap<net.minecraft.tags.TagKey<Item>, List<net.minecraft.core.Holder<Item>>>();
-        BuiltInRegistries.ITEM.getTags().forEach(tag -> oldTags.put(tag.getFirst(), tag.getSecond().stream().toList()));
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.ITEM));
         try {
             for (var tag : List.of(net.minecraft.tags.ItemTags.SWORDS, net.minecraft.tags.TagKey.create(
                     net.minecraft.core.registries.Registries.ITEM, ResourceLocation.parse("c:tools/melee_weapon")))) {
                 var tags = new java.util.HashMap<>(oldTags);
                 tags.put(tag, List.of(Items.DIAMOND_PICKAXE.builtInRegistryHolder()));
-                BuiltInRegistries.ITEM.bindTags(tags);
+                com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, tags);
                 check(PackEvidenceCollector.measureEquipment(new net.minecraft.world.item.ItemStack(Items.DIAMOND_PICKAXE),
                                 ProgressionBand.ENTRY, true).slot().equals("mainhand_melee"),
                         "A loaded functional weapon tag may declare a dual-purpose tool: " + tag.location());
             }
-        } finally { BuiltInRegistries.ITEM.bindTags(oldTags); }
+        } finally { com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, oldTags); }
         var tools = new java.util.ArrayList<EquipmentReference>();
         for (int i = 0; i < 5; i++) tools.add(new EquipmentReference("test:tool_band_" + i, "mainhand_tool", ProgressionBand.ENTRY,
                 Map.of(CapabilityAxis.MINING_SPEED, 2.0 + i * 2, CapabilityAxis.SUSTAINED_DAMAGE, 20.0 - i * 4,
@@ -183,13 +185,17 @@ public final class ProviderReferenceTest {
 
     private static void effectiveDefaultEquipment() {
         var chest = new net.minecraft.world.item.ItemStack(Items.DIAMOND_CHESTPLATE);
-        check(chest.getOrDefault(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS,
-                        net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY).modifiers().isEmpty(),
-                "Regression fixture: default vanilla armor lives outside the stack component");
+        //? if >=26.1.2
+        /*check(!chest.getOrDefault(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY).modifiers().isEmpty(), "Native 26 armor defaults are installed on the stack component");*/
+        //? if <26.1.2
+        check(chest.getOrDefault(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY).modifiers().isEmpty(), "Regression fixture: default vanilla armor lives outside the stack component");
         var measured = PackEvidenceCollector.measureEquipment(chest, ProgressionBand.LATE, true);
         check(measured.axes().get(CapabilityAxis.ARMOR) == 8, "Effective item defaults restore diamond chestplate armor");
         check(measured.axes().get(CapabilityAxis.TOUGHNESS) == 2, "Effective item defaults restore diamond chestplate toughness");
         check(measured.slot().equals("chest"), "Armor modifiers use their actual equipped slot");
+        //? if >=26.1.2
+        /*String healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().identifier().toString();*/
+        //? if <26.1.2
         String healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString();
         check(measured.attributeModifiers().containsKey(healthKey)
                         && measured.attributeModifiers().get(healthKey).equals(NativeAttributeContribution.EMPTY),
@@ -235,6 +241,9 @@ public final class ProviderReferenceTest {
         check(PackEvidenceCollector.measureEquipment(chest, ProgressionBand.LATE, true).axes().get(CapabilityAxis.ARMOR) == 11,
                 "Explicit components replace defaults and unrelated equipment slots remain excluded");
         var health = PackEvidenceCollector.measureEquipment(chest, ProgressionBand.LATE, true).attributeModifiers()
+                //? if >=26.1.2
+                /*.get(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().identifier().toString());*/
+                //? if <26.1.2
                 .get(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString());
         check(health.modifiers().size() == 1 && health.apply(20) == 30
                         && health.modifiers().get("test:health").operation()
@@ -253,6 +262,9 @@ public final class ProviderReferenceTest {
                     "human_override", EvidenceFact.Origin.OVERRIDE, 1, 1000, ProgressionBand.LATE, List.of(), "explicit scalar fact"));
             var resolved = PackEvidenceCollector.resolveEquipment(Map.of(nativeRow.itemId(), nativeRow),
                     Map.of(nativeRow.itemId(), resource), sink, SETTINGS).getFirst();
+            //? if >=26.1.2
+            /*String attributeId = attribute.unwrapKey().orElseThrow().identifier().toString();*/
+            //? if <26.1.2
             String attributeId = attribute.unwrapKey().orElseThrow().location().toString();
             check(resolved.axes().get(axis) == 7 && !resolved.attributeModifiers().containsKey(attributeId),
                     "An explicit scalar fact overrides the native modifier bundle for " + axis);

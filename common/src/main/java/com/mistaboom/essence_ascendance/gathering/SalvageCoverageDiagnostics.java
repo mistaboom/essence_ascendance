@@ -50,7 +50,7 @@ public final class SalvageCoverageDiagnostics {
         int opaqueOutputs = 0;
         for (var holder : recipes) {
             try {
-                var output = holder.value().getResultItem(registries);
+                var output = com.mistaboom.essence_ascendance.equipment.RecipeEvidenceCompat.output(holder.value(), registries);
                 if (output != null && !output.isEmpty()) indexed.computeIfAbsent(output.getItem(), k -> new ArrayList<>()).add(holder);
             } catch (RuntimeException unavailable) { opaqueOutputs++; }
         }

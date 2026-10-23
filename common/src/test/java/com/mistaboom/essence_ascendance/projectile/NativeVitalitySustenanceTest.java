@@ -9,6 +9,9 @@ import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.VitalitySustenanceEffects;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.Packet;
+//? if >=26.1.2
+/*import net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket;*/
+//? if <26.1.2
 import net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,6 +28,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
+import net.minecraft.world.food.FoodData;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -38,6 +42,24 @@ import java.util.List;
 /** Virtual automatic food completion, manual-use preservation, and transformed owner-local sustain hooks. */
 public final class NativeVitalitySustenanceTest {
     private static int checks;
+    private static int selected(ServerPlayer player) {
+        //? if >=26.1.2
+        /*return player.getInventory().getSelectedSlot();*/
+        //? if <26.1.2
+        return player.getInventory().selected;
+    }
+    private static void setExhaustion(FoodData food, float value) throws ReflectiveOperationException {
+        //? if >=26.1.2
+        /*var field = FoodData.class.getDeclaredField("exhaustionLevel"); field.setAccessible(true); field.setFloat(food, value);*/
+        //? if <26.1.2
+        food.setExhaustion(value);
+    }
+    private static float exhaustion(FoodData food) throws ReflectiveOperationException {
+        //? if >=26.1.2
+        /*var field = FoodData.class.getDeclaredField("exhaustionLevel"); field.setAccessible(true); return ((Number) field.get(food)).floatValue();*/
+        //? if <26.1.2
+        return food.getExhaustionLevel();
+    }
     public static void run() throws ReflectiveOperationException {
         var f = new ProjectileNativeInterceptionTest.Fixture(FoodPlayer.class);
         NativeGuardOutcomeTest.registry(f);
@@ -72,7 +94,13 @@ public final class NativeVitalitySustenanceTest {
         check(VitalitySustenanceEffects.chooseFood(player.getInventory(), stack -> true) == 2,
                 "selection ignores food outside hotbar");
         var poisoned = new ItemStack(Items.COOKED_BEEF);
+        //? if >=26.1.2
+        /*poisoned.set(DataComponents.FOOD,new FoodProperties.Builder().nutrition(20).build());*/
+        //? if >=26.1.2
+        /*poisoned.set(DataComponents.CONSUMABLE,net.minecraft.world.item.component.Consumable.builder().onConsume(new net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect(new MobEffectInstance(MobEffects.POISON,100))).build());*/
+        //? if <26.1.2
         poisoned.set(DataComponents.FOOD,new FoodProperties.Builder().nutrition(20)
+                //? if <26.1.2
                 .effect(new MobEffectInstance(MobEffects.POISON,100),1).build());
         player.getInventory().setItem(1,poisoned);
         check(VitalitySustenanceEffects.chooseFood(player.getInventory(), stack -> true) == 2,
@@ -89,14 +117,14 @@ public final class NativeVitalitySustenanceTest {
         player.getInventory().setItem(3,ItemStack.EMPTY); player.getInventory().setItem(4,ItemStack.EMPTY);
         hungry(player);
         player.getAbilities().invulnerable = true;
-        check(!player.hurt(player.damageSources().generic(),1) && !player.isUsingItem(),
+        check(!com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, player.damageSources().generic(),1) && !player.isUsingItem(),
                 "native invulnerability rejects damage without starting a meal");
         player.getAbilities().invulnerable = false; player.invulnerableTime = 0;
         player.hurt(player.damageSources().generic(),0);
         check(!player.isUsingItem(),"native zero outcome does not start a meal");
         player.invulnerableTime = 0;
-        check(player.hurt(player.damageSources().generic(),1),"actual native positive hurt accepted");
-        check(!player.isUsingItem() && player.getInventory().selected == 0 && bread.getCount() == 3
+        check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, player.damageSources().generic(),1),"actual native positive hurt accepted");
+        check(!player.isUsingItem() && selected(player) == 0 && bread.getCount() == 3
                         && player.getFoodData().getFoodLevel() == 18,
                 "accepted loss completes a virtual meal without changing the active hand");
         check(listener.carriedItemPackets == 0,
@@ -137,7 +165,7 @@ public final class NativeVitalitySustenanceTest {
         player.getFoodData().setFoodLevel(15);
         advanceMealClock(f);
         SkillEffectRuntime.tick(player);
-        check(!player.isUsingItem() && player.getInventory().selected == 0 && bread.getCount() == 2
+        check(!player.isUsingItem() && selected(player) == 0 && bread.getCount() == 2
                         && player.getFoodData().getFoodLevel() == 20,
                 "full-health Feast completes a useful virtual meal without changing the active hand");
 
@@ -147,7 +175,7 @@ public final class NativeVitalitySustenanceTest {
         player.getFoodData().setSaturation(4);
         advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player, player.damageSources().generic(), 1, 0);
-        check(!player.isUsingItem() && player.getInventory().selected == 0 && bread.getCount() == 1
+        check(!player.isUsingItem() && selected(player) == 0 && bread.getCount() == 1
                         && player.getFoodData().getFoodLevel() == 18,
                 "virtual meals use a visible food deficit even with saturation remaining");
 
@@ -157,13 +185,20 @@ public final class NativeVitalitySustenanceTest {
         int beforeManual = bread.getCount(); advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(player.isUsingItem() && player.getUsedItemHand() == InteractionHand.OFF_HAND
-                        && player.getInventory().selected == 0 && bread.getCount() == beforeManual,
+                        && selected(player) == 0 && bread.getCount() == beforeManual,
                 "automatic meal never interrupts another active use");
         player.stopUsingItem();
-        player.getCooldowns().addCooldown(Items.BREAD,20); advanceMealClock(f);
+        //? if >=26.1.2
+        /*player.getCooldowns().addCooldown(bread,20);*/
+        //? if <26.1.2
+        player.getCooldowns().addCooldown(Items.BREAD,20);
+        advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(player.getFoodData().getFoodLevel() == 15 && bread.getCount() == beforeManual,
                 "cooldown food cannot auto-consume");
+        //? if >=26.1.2
+        /*player.getCooldowns().removeCooldown(player.getCooldowns().getCooldownGroup(bread));*/
+        //? if <26.1.2
         player.getCooldowns().removeCooldown(Items.BREAD);
         advanceMealClock(f); SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(!player.isUsingItem() && bread.getCount() == beforeManual - 1,
@@ -172,11 +207,22 @@ public final class NativeVitalitySustenanceTest {
         // Use a stackable native FOOD component conversion to cover full-inventory container conservation.
         for (int slot=0;slot<36;slot++) player.getInventory().setItem(slot,new ItemStack(Items.STICK,64));
         var meal = new ItemStack(Items.BREAD,2);
+        //? if >=26.1.2
+        /*meal.set(DataComponents.FOOD,new FoodProperties.Builder().nutrition(4).saturationModifier(.5f).build());*/
+        //? if >=26.1.2
+        /*meal.set(DataComponents.USE_REMAINDER,new net.minecraft.world.item.component.UseRemainder(new net.minecraft.world.item.ItemStackTemplate(Items.BOWL)));*/
+        //? if >=26.1.2
+        /*meal.set(DataComponents.CONSUMABLE,net.minecraft.world.item.component.Consumable.builder().onConsume(new net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect(new MobEffectInstance(MobEffects.SPEED,100))).build());*/
+        //? if <26.1.2
         meal.set(DataComponents.FOOD,new FoodProperties.Builder().nutrition(4).saturationModifier(.5f)
+                //? if <26.1.2
                 .usingConvertsTo(Items.BOWL).effect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED,100),1).build());
         player.getInventory().setItem(2,meal); player.setHealth(player.getMaxHealth());
         player.getFoodData().setFoodLevel(15); player.getFoodData().setSaturation(0); advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
+        //? if >=26.1.2
+        /*check(meal.getCount() == 1 && player.getFoodData().getFoodLevel() == 19 && player.hasEffect(MobEffects.SPEED),*/
+        //? if <26.1.2
         check(meal.getCount() == 1 && player.getFoodData().getFoodLevel() == 19 && player.hasEffect(MobEffects.MOVEMENT_SPEED),
                 "real stacked component food preserves nutrition and native food effects");
         check(player.drops.size() == 1 && player.drops.getFirst().is(Items.BOWL),
@@ -206,16 +252,16 @@ public final class NativeVitalitySustenanceTest {
         player.getFoodData().setFoodLevel(20); player.getFoodData().setSaturation(20);
         check(VitalitySustenanceEffects.fullySustained(player), "native full food and saturation activates protection");
         check(!VitalitySustenanceEffects.fullySustained(other), "another player's food/selection cannot borrow protection");
-        player.getFoodData().setExhaustion(0);
+        setExhaustion(player.getFoodData(), 0);
         ProjectileNativeInterceptionTest.set(Entity.class,player,"onGround",true);
         ProjectileNativeInterceptionTest.set(Entity.class,player,"fluidOnEyes",java.util.Set.of()); player.setSprinting(true);
         player.checkMovementStatistics(10,0,0);
-        check(player.getFoodData().getExhaustionLevel()>0, "Actual sprint exertion still costs exhaustion at full saturation");
+        check(exhaustion(player.getFoodData())>0, "Actual sprint exertion still costs exhaustion at full saturation");
         player.causeFoodExhaustion(1);
-        check(player.getFoodData().getExhaustionLevel()>0, "explicit native exhaustion costs remain intact");
-        player.getFoodData().setSaturation(19); player.getFoodData().setExhaustion(0);
+        check(exhaustion(player.getFoodData())>0, "explicit native exhaustion costs remain intact");
+        player.getFoodData().setSaturation(19); setExhaustion(player.getFoodData(), 0);
         player.checkMovementStatistics(10,0,0);
-        check(player.getFoodData().getExhaustionLevel()>0,"ordinary passive exhaustion resumes below full saturation");
+        check(exhaustion(player.getFoodData())>0,"ordinary passive exhaustion resumes below full saturation");
         player.getFoodData().setSaturation(20);
         var sleep = new SleepStatus(); other.sleeping=true;
         sleep.update(List.of(player,other));
@@ -225,6 +271,9 @@ public final class NativeVitalitySustenanceTest {
         check(sleep.areEnoughSleeping(100), "owner may still voluntarily sleep"); player.sleeping=false;
         sleep.update(List.of(player)); check(!sleep.areEnoughSleeping(100), "awake owners do not automatically skip night");
         var phantom = ProjectileNativeInterceptionTest.instance(Phantom.class);
+        //? if >=26.1.2
+        /*check(!TargetingConditions.DEFAULT.test(f.level,phantom,player), "transformed native phantom targeting rejects owning sustained player");*/
+        //? if <26.1.2
         check(!TargetingConditions.DEFAULT.test(phantom,player), "transformed native phantom targeting rejects owning sustained player");
         ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.Mob.class,phantom,"target",player);
         var awareness=Arrays.stream(Phantom.class.getDeclaredMethods()).filter(m->m.getName().contains("releaseSustainedTarget")).findFirst().orElseThrow();
@@ -245,8 +294,8 @@ public final class NativeVitalitySustenanceTest {
         ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.Mob.class,phantom,"target",player);
         awareness.invoke(phantom,new org.spongepowered.asm.mixin.injection.callback.CallbackInfo("aiStep",false));
         check(phantom.getTarget()==player,"deselected owners may again remain native phantom targets");
-        player.getFoodData().setExhaustion(0); player.checkMovementStatistics(10,0,0);
-        check(player.getFoodData().getExhaustionLevel()>0,"deselection immediately restores native movement costs");
+        setExhaustion(player.getFoodData(), 0); player.checkMovementStatistics(10,0,0);
+        check(exhaustion(player.getFoodData())>0,"deselection immediately restores native movement costs");
         sleep.update(List.of(player,other)); check(!sleep.areEnoughSleeping(100), "ordinary multiplayer sleep quorum restored");
         // A native sleep-list query can happen before the first gameplay tick after selecting Inner.
         other.sleeping=false;
@@ -271,6 +320,9 @@ public final class NativeVitalitySustenanceTest {
         private SilentListener() { super(null,null,null,null); throw new AssertionError("No native listener construction"); }
         @Override public void send(Packet<?> packet) {
             packets++;
+            //? if >=26.1.2
+            /*if (packet instanceof ClientboundSetHeldSlotPacket) carriedItemPackets++;*/
+            //? if <26.1.2
             if (packet instanceof ClientboundSetCarriedItemPacket) carriedItemPackets++;
         }
     }
@@ -285,6 +337,9 @@ public final class NativeVitalitySustenanceTest {
         @Override public boolean isSleepingLongEnough() { return sleeping; }
         @Override protected void onEffectAdded(MobEffectInstance effect,Entity source) { effect.getEffect().value().addAttributeModifiers(getAttributes(),effect.getAmplifier()); }
         @Override protected void onEffectUpdated(MobEffectInstance effect,boolean refresh,Entity source) { }
+        //? if >=26.1.2
+        /*@Override protected void onEffectsRemoved(java.util.Collection<MobEffectInstance> effects) { for (var effect : effects) effect.getEffect().value().removeAttributeModifiers(getAttributes()); }*/
+        //? if <26.1.2
         @Override protected void onEffectRemoved(MobEffectInstance effect) { effect.getEffect().value().removeAttributeModifiers(getAttributes()); }
         @Override public ItemEntity drop(ItemStack stack,boolean random,boolean retainOwnership) { drops.add(stack.copy()); return null; }
     }

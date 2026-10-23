@@ -1,15 +1,60 @@
 pluginManagement {
     repositories {
+        mavenCentral()
         maven { url = 'https://maven.fabricmc.net/' }
         maven { url = 'https://maven.architectury.dev/' }
+        maven { url = 'https://maven.neoforged.net/releases/' }
         maven { url = 'https://files.minecraftforge.net/maven/' }
         gradlePluginPortal()
     }
 }
 
+plugins {
+    id 'dev.kikugie.stonecutter' version '0.9.8'
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'essence_ascendance'
 
+// The target catalog owns the Minecraft axis; Stonecutter projects it into
+// loader branches without a second version list in this settings file.
+def targetCatalog = new groovy.json.JsonSlurper().parse(file('gradle/targets.json'))
+if (targetCatalog.schema != 1) throw new GradleException('Unsupported target catalog schema')
+def minecraftVersions = targetCatalog.targets.collect { it.minecraft }.unique()
+def loaders = targetCatalog.targets.collect { it.loader }.unique()
+if (minecraftVersions.toSet() != targetCatalog.versions.keySet().toSet())
+    throw new GradleException('Target catalog versions and target entries disagree')
+if (targetCatalog.targets.collect { it.id }.unique().size() != targetCatalog.targets.size()
+        || targetCatalog.targets.collect { "${it.minecraft}:${it.loader}" }.unique().size() != targetCatalog.targets.size())
+    throw new GradleException('Target catalog contains duplicate IDs or Minecraft/loader pairs')
+targetCatalog.versions.each { minecraft, profile ->
+    if (!(profile.loom in ['remap', 'no-remap']) || !(profile.resourceFormat in ['1.21', '26.1']))
+        throw new GradleException("${minecraft}: unsupported Loom or resource format profile")
+    def versionLoaders = targetCatalog.targets.findAll { it.minecraft == minecraft }.collect { it.loader }
+    (['common'] + versionLoaders).each { module ->
+        def roots = profile.nativeSources[module]
+        if (!(roots instanceof List) || roots.any { !(it ==~ /[A-Za-z0-9][A-Za-z0-9._-]*/) }
+                || roots.unique(false).size() != roots.size())
+            throw new GradleException("${minecraft}: declare unique nativeSources.${module} directory names (or an empty list)")
+    }
+    versionLoaders.each { loader ->
+        if (!(profile.nativeAccess[loader] instanceof Boolean))
+            throw new GradleException("${minecraft}: declare nativeAccess.${loader} explicitly")
+    }
+}
+
 include 'common'
-include 'fabric'
-include 'neoforge'
+loaders.each { include it }
 include 'pack-tester'
+
+stonecutter {
+    create(rootProject) {
+        versions(*minecraftVersions).buildscript('gradle/stonecutter-node-root.gradle')
+        branch('common') { versions(*minecraftVersions).buildscript('build.gradle') }
+        loaders.each { loader ->
+            def loaderVersions = targetCatalog.targets.findAll { it.loader == loader }.collect { it.minecraft }.unique()
+            branch(loader) { versions(*loaderVersions).buildscript('build.gradle') }
+        }
+        vcsVersion = '1.21.1'
+    }
+}

@@ -1,0 +1,2 @@
+// Compatibility entry point; the shared fixture now covers all four native targets.
+apply from: new File(gradle.startParameter.currentDir, 'gradle/latent-ore-native.init.gradle')

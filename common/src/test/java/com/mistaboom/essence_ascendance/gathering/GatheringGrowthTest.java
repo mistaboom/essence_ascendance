@@ -23,7 +23,7 @@ public final class GatheringGrowthTest {
     private static int checks;
     public static void main(String[] arguments) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
-        BuiltInRegistries.BLOCK.bindTags(Map.of(
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, Map.of(
                 BlockTags.CROPS, List.of(Blocks.WHEAT.builtInRegistryHolder(), Blocks.CARROTS.builtInRegistryHolder()),
                 BlockTags.SAPLINGS, List.of(Blocks.OAK_SAPLING.builtInRegistryHolder()),
                 PlayerAttributedBlockHarvestService.CROP_YIELD_EXCLUDED, List.of(Blocks.CARROTS.builtInRegistryHolder())));

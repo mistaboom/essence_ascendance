@@ -32,6 +32,9 @@ public final class EnchantmentYieldTest {
         zeroOnsetBooks(sharp);
         impossibleToolConditions();
         var toolCondition = net.minecraft.world.level.storage.loot.predicates.MatchTool.toolMatches(
+                //? if >=26.1.2
+                /*net.minecraft.advancements.criterion.ItemPredicate.Builder.item().of(net.minecraft.core.registries.BuiltInRegistries.ITEM, Items.IRON_SWORD)).build();*/
+                //? if <26.1.2
                 net.minecraft.advancements.critereon.ItemPredicate.Builder.item().of(Items.IRON_SWORD)).build();
         var conditionalPreservation = Holder.direct(new Enchantment(Component.literal("conditional preservation"), sharp.value().definition(), HolderSet.direct(),
                 DataComponentMap.builder().set(EnchantmentEffectComponents.ITEM_DAMAGE, List.of(
@@ -290,6 +293,8 @@ public final class EnchantmentYieldTest {
                 net.minecraft.world.phys.Vec3.ZERO, LevelBasedValue.constant(3.5f), false,
                 net.minecraft.world.level.Level.ExplosionInteraction.TRIGGER,
                 net.minecraft.core.particles.ParticleTypes.POOF, net.minecraft.core.particles.ParticleTypes.POOF,
+                //? if >=26.1.2
+                /*net.minecraft.util.random.WeightedList.of(),*/
                 Holder.direct(net.minecraft.sounds.SoundEvent.createVariableRangeEvent(ResourceLocation.parse("fixture:burst"))));
         var selfBurst = targeted(template, EnchantmentTarget.ATTACKER, EnchantmentTarget.ATTACKER, explosion);
         var burstOne = NativeCapabilityReader.enchantmentMeasurements("fixture:self_burst", selfBurst.value(), 1, true, new CapabilitySink());
@@ -301,13 +306,20 @@ public final class EnchantmentYieldTest {
         check(EnchantmentSemantics.analyze(selfBurst, 2).routes().containsKey("mobility")
                         && !EnchantmentSemantics.analyze(selfBurst, 2).routes().containsKey("offense"),
                 "Self burst radius displaced movement routing");
+        //? if >=26.1.2
+        /*var hostileStatus = new ApplyMobEffect(HolderSet.direct(net.minecraft.world.effect.MobEffects.SLOWNESS),*/
+        //? if <26.1.2
         var hostileStatus = new ApplyMobEffect(HolderSet.direct(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN),
                 LevelBasedValue.constant(1), LevelBasedValue.constant(2), LevelBasedValue.constant(0), LevelBasedValue.constant(0));
         var control = targeted(template, EnchantmentTarget.ATTACKER, EnchantmentTarget.VICTIM, hostileStatus);
         check(EnchantmentSemantics.analyze(control, 1).routes().containsKey("offense"), "Opposing harmful native status lost control routing");
         check(EnchantmentSemantics.analyze(targeted(template, EnchantmentTarget.ATTACKER, EnchantmentTarget.ATTACKER, hostileStatus), 1).strength() == 0,
                 "Harmful self status received a positive capability premium");
+        //? if >=26.1.2
+        /*var mixedStatus = new ApplyMobEffect(HolderSet.direct(net.minecraft.world.effect.MobEffects.SLOWNESS, net.minecraft.world.effect.MobEffects.SPEED),*/
+        //? if <26.1.2
         var mixedStatus = new ApplyMobEffect(HolderSet.direct(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,
+                        //? if <26.1.2
                         net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED),
                 LevelBasedValue.constant(1), LevelBasedValue.constant(2), LevelBasedValue.constant(0), LevelBasedValue.constant(0));
         check(!EnchantmentSemantics.analyze(targeted(template, EnchantmentTarget.ATTACKER, EnchantmentTarget.VICTIM, mixedStatus), 1).routes().containsKey("offense"),

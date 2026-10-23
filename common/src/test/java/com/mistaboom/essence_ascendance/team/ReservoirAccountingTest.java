@@ -122,13 +122,13 @@ public final class ReservoirAccountingTest {
         saved.reservoirs().reconcile(READY, 1, List.of(team));
         FractionalLedgerSavedData personalRewards = new FractionalLedgerSavedData();
         personalRewards.commit(A, Map.of("gathering/reward", 123456L));
-        var rewardsBefore = personalRewards.save(new CompoundTag(), null);
+        var rewardsBefore = com.mistaboom.essence_ascendance.verification.FractionalLedgerTestCompat.save(personalRewards);
         for (int i = 1; i <= 7; i++) {
             saved.reservoirs().credit(A, Map.of(TYPE, BigInteger.ONE), ReservoirService.NONE);
             check(saved.reservoirs().read(A).units(TYPE).equals(BigInteger.valueOf(i)), "Tiny deposit conserved " + i);
             equalWithinMicro(saved, team);
         }
-        check(personalRewards.save(new CompoundTag(), null).equals(rewardsBefore), "Unrelated reward carry is personal");
+        check(com.mistaboom.essence_ascendance.verification.FractionalLedgerTestCompat.save(personalRewards).equals(rewardsBefore), "Unrelated reward carry is personal");
         var before = save(saved);
         var cached = saved.reservoirs().read(A);
         for (int i = 0; i < 50; i++) check(saved.reservoirs().read(B) == cached, "Read reuses immutable aggregate view");
@@ -247,6 +247,13 @@ public final class ReservoirAccountingTest {
         rejects(() -> EssenceSavedData.load(malformedCarry, null));
         CompoundTag malformedPlayer = stable.copy(); malformedPlayer.getCompound("players").putLong(A.toString(), 1);
         rejects(() -> EssenceSavedData.load(malformedPlayer, null));
+        //? if >=26.1.2 {
+        /*CompoundTag mixedSettlement = stable.copy();
+        var mixedTeams = mixedSettlement.getCompoundOrEmpty("reservoir_settlement").getListOrEmpty("teams");
+        check(!mixedTeams.isEmpty(), "Mixed-list regression starts with a valid saved team");
+        mixedTeams.add(net.minecraft.nbt.StringTag.valueOf("not a team record"));
+        rejects(() -> EssenceSavedData.load(mixedSettlement, null));
+        *///? }
         CompoundTag exhausted = stable.copy();
         exhausted.getCompound("players").getCompound(B.toString()).putLong("reservoir_revision", Long.MAX_VALUE);
         var exhaustedSaved = EssenceSavedData.load(exhausted, null);

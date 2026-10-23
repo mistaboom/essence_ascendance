@@ -8,6 +8,9 @@ import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScroll;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -166,6 +169,9 @@ public final class ReadOnlyDataTableView<R> {
         scroll.configure(table.rows().size() * rowHeight, Math.max(0, bounds.height() - headerHeight - 2));
     }
 
+    //? if >=26.1.2
+    /*public void render(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     public void render(GuiGraphics graphics, Font font, int mouseX, int mouseY) {
         FullscreenControls.panel(graphics, bounds, AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE),
                 AscendanceUiPalette.argb(AscendanceUiPalette.BORDER));
@@ -411,6 +417,9 @@ public final class ReadOnlyDataTableView<R> {
         return List.copyOf(links);
     }
 
+    //? if >=26.1.2
+    /*private void drawCell(GuiGraphicsExtractor graphics, Font font, UiBounds bounds, Component value,*/
+    //? if <26.1.2
     private void drawCell(GuiGraphics graphics, Font font, UiBounds bounds, Component value,
                           ReadOnlyDataTable.Alignment alignment, int color) {
         if (layout != Layout.COMPACT) {
@@ -419,10 +428,16 @@ public final class ReadOnlyDataTableView<R> {
         }
         var fitted = StyledTextLayout.fit(font, value, Math.max(0, bounds.width() - 8));
         int x = alignment == ReadOnlyDataTable.Alignment.RIGHT ? bounds.right() - 4 - font.width(fitted) : bounds.x() + 4;
+        //? if >=26.1.2
+        /*FullscreenViewport.withClip(graphics, bounds, () -> graphics.text(font, fitted,*/
+        //? if <26.1.2
         FullscreenViewport.withClip(graphics, bounds, () -> graphics.drawString(font, fitted,
                 x, bounds.y() + Math.max(0, (bounds.height() - font.lineHeight) / 2), color, false));
     }
 
+    //? if >=26.1.2
+    /*private static void drawWrappedCell(GuiGraphicsExtractor graphics, Font font, UiBounds bounds, Component value,*/
+    //? if <26.1.2
     private static void drawWrappedCell(GuiGraphics graphics, Font font, UiBounds bounds, Component value,
                                         ReadOnlyDataTable.Alignment alignment, int color) {
         int available = Math.max(1, bounds.width() - 8);
@@ -438,6 +453,9 @@ public final class ReadOnlyDataTableView<R> {
             for (FormattedCharSequence line : rendered) {
                 int x = alignment == ReadOnlyDataTable.Alignment.RIGHT
                         ? bounds.right() - 4 - font.width(line) : bounds.x() + 4;
+                //? if >=26.1.2
+                /*graphics.text(font, line, x, lineY, color, false);*/
+                //? if <26.1.2
                 graphics.drawString(font, line, x, lineY, color, false);
                 lineY += lineStep;
             }
@@ -463,6 +481,9 @@ public final class ReadOnlyDataTableView<R> {
         return Math.max(imageHeight, maximumLines * (font.lineHeight + 1) + 5);
     }
 
+    //? if >=26.1.2
+    /*private void renderScrollbar(GuiGraphicsExtractor graphics, UiBounds body, int rowCount) {*/
+    //? if <26.1.2
     private void renderScrollbar(GuiGraphics graphics, UiBounds body, int rowCount) {
         if (scroll.maximumOffset() <= 0 || body.height() <= 0) return;
         int thumbHeight = Math.max(8, (int) ((long) body.height() * body.height() / Math.max(1, rowCount * rowHeight)));

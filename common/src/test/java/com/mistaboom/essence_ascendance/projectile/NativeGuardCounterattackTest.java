@@ -17,6 +17,8 @@ import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.RegistrationInfo;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+//? if >=26.1.2
+/*import net.minecraft.network.protocol.game.ServerboundAttackPacket;*/
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
@@ -69,7 +71,13 @@ public final class NativeGuardCounterattackTest {
             f.player.stopUsingItem();
             check(GuardCounterattackService.bonusReach(f.player) > 0, "Lowering a still-held shield preserves the counterattack");
             var target = f.player(new Vec3(0, 0, 2), "counter_target");
+            //? if >=26.1.2
+            /*check(new ServerboundAttackPacket(target.getId()).entityId() == target.getId(), "Native dedicated attack packet targets the intended entity");*/
+            //? if <26.1.2
             check(GuardCounterattackService.isAttack(ServerboundInteractPacket.createAttackPacket(target, false)), "Native attack packet decode");
+            //? if >=26.1.2
+            /*check(!new ServerboundAttackPacket(target.getId()).type().equals(new ServerboundInteractPacket(target.getId(), InteractionHand.MAIN_HAND, Vec3.ZERO, false).type()), "Native interaction packet remains separate from the dedicated attack path");*/
+            //? if <26.1.2
             check(!GuardCounterattackService.isAttack(ServerboundInteractPacket.createInteractionPacket(target, false, InteractionHand.MAIN_HAND)), "Native interact packet excluded");
             check(GuardCounterattackService.canReach(f.player, target), "Near eligible creature is in range");
             f.level.occluded = true;
@@ -121,11 +129,17 @@ public final class NativeGuardCounterattackTest {
             check(f.player.getDeltaMovement().x > 0, "Native displacement resumes immediately after strike");
 
             arm(f, hand);
+            //? if >=26.1.2
+            /*f.player.getCooldowns().addCooldown(shield, 20);*/
+            //? if <26.1.2
             f.player.getCooldowns().addCooldown(shield.getItem(), 20);
             equal(GuardCounterattackService.bonusReach(f.player), 0, "Disable cooldown immediately invalidates pending Riposte");
             check(!card(SkillEffectRuntime.hudSnapshot(f.player).entries(), SkillIds.STORED_FORCE).active()
                             && !card(SkillEffectRuntime.hudSnapshot(f.player).entries(), SkillIds.RIPOSTE).active(),
                     "Equipment disable returns still-effective skills to inactive HUD defaults");
+            //? if >=26.1.2
+            /*f.player.getCooldowns().removeCooldown(f.player.getCooldowns().getCooldownGroup(shield));*/
+            //? if <26.1.2
             f.player.getCooldowns().removeCooldown(shield.getItem());
             equal(GuardCounterattackService.bonusReach(f.player), 0, "Cooldown ending cannot resurrect discarded arm");
             arm(f, hand);

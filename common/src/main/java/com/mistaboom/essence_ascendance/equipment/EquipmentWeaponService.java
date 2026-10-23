@@ -10,6 +10,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 import com.mistaboom.essence_ascendance.projectile.MagicBoltEntity;
@@ -337,6 +340,9 @@ public final class EquipmentWeaponService {
              * projectile-speed scaling so PROJECTILE_SPEED does not also raise
              * impact damage.
              */
+            //? if >=26.1.2
+            /*double existingBaseDamage = ((com.mistaboom.essence_ascendance.projectile.ArrowBaseDamageAccess) arrow).essenceAscendance$baseDamage();*/
+            //? if <26.1.2
             double existingBaseDamage = arrow.getBaseDamage();
             double extraBaseDamage = Math.max(
                     0.0,
@@ -375,6 +381,9 @@ public final class EquipmentWeaponService {
     ) {
         MagicState state = evaluateMagic(player, stack);
 
+        //? if >=26.1.2
+        /*if (player.getCooldowns().isOnCooldown(stack)) {*/
+        //? if <26.1.2
         if (player.getCooldowns().isOnCooldown(stack.getItem())) {
             MagicCastEvaluation evaluation = new MagicCastEvaluation(
                     false,
@@ -392,6 +401,9 @@ public final class EquipmentWeaponService {
         boolean spawned = player.serverLevel().addFreshEntity(bolt);
         if (!spawned) {
             // Clear a locally predicted timer when the server could not actually create the shot.
+            //? if >=26.1.2
+            /*player.getCooldowns().removeCooldown(player.getCooldowns().getCooldownGroup(stack));*/
+            //? if <26.1.2
             player.getCooldowns().removeCooldown(stack.getItem());
             MagicCastEvaluation evaluation = new MagicCastEvaluation(false, "SPAWN_REJECTED", -1,
                     state.finalDamage(), state.castTicks());
@@ -402,9 +414,15 @@ public final class EquipmentWeaponService {
                 net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME,
                 net.minecraft.sounds.SoundSource.PLAYERS, 0.6F, 1.6F);
 
+        //? if >=26.1.2
+        /*player.getCooldowns().addCooldown(stack, state.castTicks());*/
+        //? if <26.1.2
         player.getCooldowns().addCooldown(
+                //? if <26.1.2
                 stack.getItem(),
+                //? if <26.1.2
                 state.castTicks()
+        //? if <26.1.2
         );
         // One native hand animation per accepted cast, including the shooter's own client.
         player.swing(hand, true);
@@ -412,6 +430,9 @@ public final class EquipmentWeaponService {
         stack.hurtAndBreak(
                 1,
                 player,
+                //? if >=26.1.2
+                /*hand == InteractionHand.MAIN_HAND ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND*/
+                //? if <26.1.2
                 LivingEntity.getSlotForHand(hand)
         );
 

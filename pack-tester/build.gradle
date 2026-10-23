@@ -8,10 +8,14 @@ dependencies {
     implementation 'org.tomlj:tomlj:1.1.1'
 }
 java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
 tasks.withType(JavaCompile).configureEach { options.release = 21 }
+tasks.withType(JavaExec).configureEach {
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+}
 application { mainClass = 'dev.essence.packtester.Main' }
 
 // A stable executable JAR lets IntelliJ launch directly even when ordinary

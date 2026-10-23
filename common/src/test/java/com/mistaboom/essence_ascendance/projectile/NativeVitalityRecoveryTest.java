@@ -13,10 +13,16 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+//? if >=26.1.2
+/*import net.minecraft.world.level.gamerules.GameRules;*/
+//? if <26.1.2
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -26,6 +32,52 @@ import java.util.List;
 public final class NativeVitalityRecoveryTest {
     private static int checks;
     private NativeVitalityRecoveryTest() { }
+    //? if >=26.1.2
+    /*private static net.minecraft.world.entity.animal.cow.Cow cow(Level level) {*/
+    //? if >=26.1.2
+    /*    return new net.minecraft.world.entity.animal.cow.Cow(net.minecraft.world.entity.EntityType.COW, level);*/
+    //? if >=26.1.2
+    /*}*/
+    //? if <26.1.2
+    private static net.minecraft.world.entity.animal.Cow cow(Level level) {
+        //? if <26.1.2
+        return new net.minecraft.world.entity.animal.Cow(net.minecraft.world.entity.EntityType.COW, level);
+    //? if <26.1.2
+    }
+    private static GameRules gameRules() {
+        //? if >=26.1.2
+        /*return new GameRules(net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS);*/
+        //? if <26.1.2
+        return new GameRules();
+    }
+    private static void disableNaturalRegen(GameRules rules) {
+        //? if >=26.1.2
+        /*rules.set(GameRules.NATURAL_HEALTH_REGENERATION, false, null);*/
+        //? if <26.1.2
+        rules.getRule(GameRules.RULE_NATURAL_REGENERATION).set(false, null);
+    }
+    private static float exhaustion(FoodData food) throws ReflectiveOperationException {
+        //? if >=26.1.2
+        /*var field = FoodData.class.getDeclaredField("exhaustionLevel"); field.setAccessible(true); return ((Number) field.get(food)).floatValue();*/
+        //? if <26.1.2
+        return food.getExhaustionLevel();
+    }
+    private static net.minecraft.nbt.CompoundTag foodTag(FoodData food, net.minecraft.core.HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*var output = net.minecraft.world.level.storage.TagValueOutput.createWithContext(new net.minecraft.util.ProblemReporter.Collector(), registries);*/
+        //? if >=26.1.2
+        /*food.addAdditionalSaveData(output); return output.buildResult();*/
+        //? if <26.1.2
+        var tag = new net.minecraft.nbt.CompoundTag(); food.addAdditionalSaveData(tag); return tag;
+    }
+    private static FoodData foodFromTag(net.minecraft.nbt.CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        var food = new FoodData();
+        //? if >=26.1.2
+        /*food.readAdditionalSaveData(net.minecraft.world.level.storage.TagValueInput.create(new net.minecraft.util.ProblemReporter.Collector(), registries, tag));*/
+        //? if <26.1.2
+        food.readAdditionalSaveData(tag);
+        return food;
+    }
     public static void run() throws ReflectiveOperationException {
         if (!Boolean.getBoolean("essence.projectile.nativeHookTest")) throw new IllegalStateException("Explicit native fixture required");
         var f = new ProjectileNativeInterceptionTest.Fixture(NativeGuardOutcomeTest.NativePlayer.class);
@@ -71,7 +123,7 @@ public final class NativeVitalityRecoveryTest {
         equal(player.getHealth(), before, "Fire/status/environment damage cannot steal health");
         var arrow = f.arrow(Arrow.class); ProjectileOwnership.transferNative(arrow, player);
         target.invulnerableTime = 0; target.setHealth(20); before = player.getHealth();
-        check(target.hurt(target.damageSources().arrow(arrow, player), 4), "Native primary projectile accepted");
+        check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(target, target.damageSources().arrow(arrow, player), 4), "Native primary projectile accepted");
         equal(player.getHealth() - before, 4 * tuning.baseHealingFraction(), "Accepted projectile damage uses shared responsible shooter attribution");
         target.invulnerableTime = 0; target.setHealth(20); player.setHealth(player.getMaxHealth() - .01F);
         hit(f, target, 4); equal(player.getHealth(), player.getMaxHealth(), "Healing cannot exceed missing health");
@@ -241,13 +293,13 @@ public final class NativeVitalityRecoveryTest {
         ((com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) effect).essenceAscendance$foodOrigin(true);
         var copy = new net.minecraft.world.effect.MobEffectInstance(effect);
         check(((com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) copy).essenceAscendance$foodOrigin(), "Timed effect copy retains lineage");
-        var loaded = net.minecraft.world.effect.MobEffectInstance.load((net.minecraft.nbt.CompoundTag)copy.save());
+        var loaded = com.mistaboom.essence_ascendance.verification.MobEffectTestCompat.roundtrip(copy, player.registryAccess());
         check(((com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) loaded).essenceAscendance$foodOrigin(), "Timed effect save/load retains lineage");
-        player.setHealth(player.getMaxHealth()-.01F); loaded.tick(player, () -> {});
+        player.setHealth(player.getMaxHealth()-.01F); com.mistaboom.essence_ascendance.verification.MobEffectTestCompat.tick(loaded, player, () -> {});
         equal(player.getFoodData().getFoodLevel() + player.getFoodData().getSaturationLevel(), beforeFood, "Delayed food healing cannot generate food");
         var stronger = new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.REGENERATION, 20, 1);
         effect.update(stronger);
-        var hiddenSaved = net.minecraft.world.effect.MobEffectInstance.load((net.minecraft.nbt.CompoundTag)effect.save());
+        var hiddenSaved = com.mistaboom.essence_ascendance.verification.MobEffectTestCompat.roundtrip(effect, player.registryAccess());
         var hiddenOrigin = (com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) hiddenSaved;
         check(!hiddenOrigin.essenceAscendance$foodOrigin() && hiddenOrigin.essenceAscendance$hiddenOrigin().essenceAscendance$foodOrigin(),
                 "Native stronger independent effect and hidden food effect keep distinct saved provenance");
@@ -294,7 +346,7 @@ public final class NativeVitalityRecoveryTest {
         data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.MASTERWORK_TEMPERING); SkillEffectRuntime.refresh(player);
         equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(tool), capacity-1, "Re-enable never refills buffer");
         com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.resolveWear(tool, 1, 50);
-        var savedTool = ItemStack.parseOptional(player.registryAccess(), (net.minecraft.nbt.CompoundTag)tool.save(player.registryAccess()));
+        var savedTool = com.mistaboom.essence_ascendance.data.ItemStackNbtCompat.parseOptional(player.registryAccess(), com.mistaboom.essence_ascendance.data.ItemStackNbtCompat.save(tool, player.registryAccess()));
         equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.wearDebt(savedTool), .5, "Native item save/load retains fractional wear");
 
         data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.METABOLIC_MENDING); SkillEffectRuntime.refresh(player);
@@ -332,7 +384,7 @@ public final class NativeVitalityRecoveryTest {
         conditions.discardInactiveLineage(id -> false);
         check(conditions.size() == 0, "Inactive source cannot resume stored effects after switching");
 
-        var cow = new net.minecraft.world.entity.animal.Cow(net.minecraft.world.entity.EntityType.COW, f.level);
+        var cow = cow(f.level);
         var fed = (com.mistaboom.essence_ascendance.gathering.AnimalFeedingState) cow;
         check(!fed.essenceAscendance$fed(f.level.tick), "Breeding age is not successful feeding");
         ItemStack wheat = new ItemStack(Items.WHEAT, 2);
@@ -343,9 +395,20 @@ public final class NativeVitalityRecoveryTest {
         cow.setAge(0);
         check(fed.essenceAscendance$fed(fedAt + fed.essenceAscendance$feedWindow() - 1), "Herd recovery cannot shorten fed window");
         check(!fed.essenceAscendance$fed(fedAt + fed.essenceAscendance$feedWindow()), "Fed window expires at native breeding interval");
+        //? if >=26.1.2
+        /*var animalOutput = net.minecraft.world.level.storage.TagValueOutput.createWithContext(new net.minecraft.util.ProblemReporter.Collector(), player.registryAccess());*/
+        //? if >=26.1.2
+        /*var saveAnimal = cow.getClass().getDeclaredMethod("addAdditionalSaveData", net.minecraft.world.level.storage.ValueOutput.class); saveAnimal.setAccessible(true); saveAnimal.invoke(cow, animalOutput);*/
+        //? if >=26.1.2
+        /*var animalData = animalOutput.buildResult();*/
+        //? if <26.1.2
         net.minecraft.nbt.CompoundTag animalData = new net.minecraft.nbt.CompoundTag();
+        //? if <26.1.2
         cow.addAdditionalSaveData(animalData);
-        var cowCopy = new net.minecraft.world.entity.animal.Cow(net.minecraft.world.entity.EntityType.COW, f.level);
+        var cowCopy = cow(f.level);
+        //? if >=26.1.2
+        /*var readAnimal = cowCopy.getClass().getDeclaredMethod("readAdditionalSaveData", net.minecraft.world.level.storage.ValueInput.class); readAnimal.setAccessible(true); readAnimal.invoke(cowCopy, net.minecraft.world.level.storage.TagValueInput.create(new net.minecraft.util.ProblemReporter.Collector(), player.registryAccess(), animalData));*/
+        //? if <26.1.2
         cowCopy.readAdditionalSaveData(animalData);
         check(((com.mistaboom.essence_ascendance.gathering.AnimalFeedingState)cowCopy).essenceAscendance$fedAt() == fedAt,
                 "Native animal save/load retains feed timestamp");
@@ -402,7 +465,7 @@ public final class NativeVitalityRecoveryTest {
         player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_ABSORPTION).setBaseValue(2);
         player.setHealth(20); player.setAbsorptionAmount(2); player.invulnerableTime = 0;
         equal(player.getAbsorptionAmount(), 2, "Native routing fixture starts with absorption");
-        check(player.hurt(source, 4), "Unselected native routing control hit accepted");
+        check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, source, 4), "Unselected native routing control hit accepted");
         equal(player.getHealth(), 18, "Unselected native hit spends absorption before health");
         var skill = SkillRegistry.require(SkillIds.STAGGERED_PAIN);
         data.grantAllSkillsForAdmin(List.of(skill));
@@ -410,7 +473,7 @@ public final class NativeVitalityRecoveryTest {
         SkillEffectRuntime.refresh(player);
         check(SkillEffectRuntime.context(player).isEffective(skill.id()), "Real committed Staggered Pain selection is effective");
         player.setHealth(20); player.setAbsorptionAmount(2); player.invulnerableTime = 0; f.level.tick++;
-        check(player.hurt(source, 4), "Selected native routing hit accepted");
+        check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(player, source, 4), "Selected native routing hit accepted");
         equal(player.getAbsorptionAmount(), 0, "Routing preserves the native absorption spend");
         equal(player.getHealth(), 20, "Routed post-absorption damage changes the actual native health-write local");
         equal(com.mistaboom.essence_ascendance.vitality.VitalityDamageService.ledger(player).delayed.total(), 2,
@@ -431,7 +494,7 @@ public final class NativeVitalityRecoveryTest {
             equal(player.getHealth(), 4, "Natural timer cannot heal early or duplicate ticks");
             f.level.tick++; food.tick(player);
             equal(player.getHealth(), 5, "Only native natural-regeneration timer accelerates");
-            equal(food.getExhaustionLevel(), 6, "Native exhaustion cost per healing event remains exact");
+            equal(exhaustion(food), 6, "Native exhaustion cost per healing event remains exact");
             var recoveryCard = SkillEffectRuntime.hudSnapshot(player).entries().stream()
                     .filter(entry -> entry.sourceSkill().equals(SkillIds.RISING_RECOVERY)).findFirst().orElseThrow();
             check(recoveryCard.active()
@@ -452,8 +515,8 @@ public final class NativeVitalityRecoveryTest {
         for (int i = 0; i < 100; i++) { f.level.tick++; food.tick(player); }
         equal(player.getHealth(), 4, "Insufficient native hunger blocks healing");
         food.setFoodLevel(20); food.setSaturation(20);
-        f.level.memoryGameRules = new GameRules();
-        f.level.memoryGameRules.getRule(GameRules.RULE_NATURAL_REGENERATION).set(false, null);
+        f.level.memoryGameRules = gameRules();
+        disableNaturalRegen(f.level.memoryGameRules);
         for (int i = 0; i < 100; i++) { f.level.tick++; food.tick(player); }
         equal(player.getHealth(), 4, "Natural-regeneration gamerule remains authoritative");
         player.heal(2); equal(player.getHealth(), 6, "External potion/command-style healing is not amplified by Rising Recovery");
@@ -481,15 +544,15 @@ public final class NativeVitalityRecoveryTest {
             var clock = (com.mistaboom.essence_ascendance.vitality.NaturalRecoveryClockAccess) food;
             check(clock.essenceAscendance$naturalTimer() > elapsed, "Native regeneration period contains actual injected acceleration: timer="
                     + clock.essenceAscendance$naturalTimer() + ", elapsed=" + elapsed + ", speed=" + speed);
-            var savedFood = new net.minecraft.nbt.CompoundTag(); food.addAdditionalSaveData(savedFood);
+            var savedFood = foodTag(food, player.registryAccess());
             check(savedFood.getInt("foodTickTimer") == elapsed, "Mid-session save retains ordinary progress and excludes transient skill acceleration");
-            var restoredFood = new FoodData(); restoredFood.readAdditionalSaveData(savedFood);
+            var restoredFood = foodFromTag(savedFood, player.registryAccess());
             check(((com.mistaboom.essence_ascendance.vitality.NaturalRecoveryClockAccess) restoredFood).essenceAscendance$naturalTimer() == elapsed,
                     "Reconnected native food state contains no persisted recovery acceleration");
             if (transition == 0 || transition == 3) { food.setFoodLevel(0); food.setSaturation(0); }
             if (transition == 1) {
-                f.level.memoryGameRules = new GameRules();
-                f.level.memoryGameRules.getRule(GameRules.RULE_NATURAL_REGENERATION).set(false, null);
+                f.level.memoryGameRules = gameRules();
+                disableNaturalRegen(f.level.memoryGameRules);
             }
             if (transition == 2) { food.setFoodLevel(17); food.setSaturation(0); }
             if (transition == 3) {
@@ -637,7 +700,7 @@ public final class NativeVitalityRecoveryTest {
     private static void rawHit(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer target, float amount) {
         var source = f.player.damageSources().playerAttack(f.player);
         EquipmentDamageService.runPrimarySkillAttack(f.player, target, () -> EquipmentDamageService.observePrimarySkillHit(target, source,
-                () -> target.hurt(source, amount)));
+                () -> com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(target, source, amount)));
     }
     private static void select(ProjectileNativeInterceptionTest.Fixture f, ResourceLocation id) {
         f.saved.getPlayerData(f.player.getUUID()).setLoadoutSelection(SkillGroups.VITALITY_RECOVERY, id); SkillEffectRuntime.refresh(f.player);

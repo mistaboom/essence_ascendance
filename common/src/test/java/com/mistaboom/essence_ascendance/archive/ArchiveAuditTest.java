@@ -65,8 +65,8 @@ public final class ArchiveAuditTest {
                 check(!text.getString().matches("(?s).*%[0-9]+\\$s.*"), "Unfilled semantic argument: " + entry.id());
                 for (var run : StyledTextLayout.runs(text)) {
                     var click = run.style().getClickEvent();
-                    if (click != null) check(ArchiveCatalog.DEFAULT.entry(ResourceLocation.tryParse(click.getValue())) != null,
-                            "Inline reference has no real destination: " + click.getValue());
+                    if (click != null) check(ArchiveCatalog.DEFAULT.entry(ResourceLocation.tryParse(ArchiveClickTestCompat.target(click))) != null,
+                            "Inline reference has no real destination: " + ArchiveClickTestCompat.target(click));
                 }
             }
             for (int width : List.of(160, 300, 480, 800)) {
@@ -401,6 +401,9 @@ public final class ArchiveAuditTest {
     }
     private static final class MetricFont extends Font {
         private final StringSplitter splitter = new StringSplitter((codePoint, style) -> 6);
+        //? if >=26.1.2
+        /*private MetricFont() { super(new Font.Provider() { public net.minecraft.client.gui.GlyphSource glyphs(net.minecraft.network.chat.FontDescription description) { return null; } public net.minecraft.client.gui.font.glyphs.EffectGlyph effect() { return null; } }); }*/
+        //? if <26.1.2
         private MetricFont() { super(ignored -> null, false); }
         @Override public int width(String text) { return (int) splitter.stringWidth(text); }
         @Override public int width(FormattedText text) { return (int) splitter.stringWidth(text); }

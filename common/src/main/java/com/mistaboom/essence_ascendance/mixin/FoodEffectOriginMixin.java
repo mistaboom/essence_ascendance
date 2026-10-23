@@ -42,6 +42,16 @@ public abstract class FoodEffectOriginMixin implements FoodEffectOrigin {
         if (changed && replaces) essenceAscendance$food = ((FoodEffectOrigin)source).essenceAscendance$foodOrigin();
         return changed;
     }
+    //? if >=26.1.2 {
+    /*
+    @Shadow @org.spongepowered.asm.mixin.Final @org.spongepowered.asm.mixin.Mutable
+    public static com.mojang.serialization.Codec<MobEffectInstance> CODEC;
+    @Inject(method = "<clinit>", at = @At("RETURN"))
+    private static void essenceAscendance$persistFoodOrigin(CallbackInfo ci) {
+        CODEC = com.mistaboom.essence_ascendance.vitality.FoodEffectOriginCodec.wrap(CODEC);
+    }
+
+    *///?} else {
     @Inject(method = "save", at = @At("RETURN"))
     private void essenceAscendance$save(CallbackInfoReturnable<Tag> ci) {
         if (ci.getReturnValue() instanceof CompoundTag tag) {
@@ -63,10 +73,24 @@ public abstract class FoodEffectOriginMixin implements FoodEffectOrigin {
             part = part.essenceAscendance$hiddenOrigin(); depth++;
         }
     }
+
+    //?}
+    //? if >=26.1.2
+    /*@WrapMethod(method = "tickServer")*/
+    //? if <26.1.2
     @WrapMethod(method = "tick")
+    //? if >=26.1.2
+    /*private boolean essenceAscendance$tick(net.minecraft.server.level.ServerLevel level, LivingEntity target, Runnable changed, Operation<Boolean> original) {*/
+    //? if <26.1.2
     private boolean essenceAscendance$tick(LivingEntity target, Runnable changed, Operation<Boolean> original) {
+        //? if >=26.1.2
+        /*if (!essenceAscendance$food || !(target instanceof ServerPlayer player)) return original.call(level, target, changed);*/
+        //? if <26.1.2
         if (!essenceAscendance$food || !(target instanceof ServerPlayer player)) return original.call(target, changed);
         boolean[] result = {false};
+        //? if >=26.1.2
+        /*ConsumableRecoveryService.withFoodHealing(player, () -> result[0] = original.call(level, target, changed));*/
+        //? if <26.1.2
         ConsumableRecoveryService.withFoodHealing(player, () -> result[0] = original.call(target, changed));
         return result[0];
     }

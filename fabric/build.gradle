@@ -25,25 +25,33 @@ configurations {
 }
 
 dependencies {
-    modCompileOnly('dev.ftb.mods:ftb-teams-fabric:2101.1.11') { transitive = false }
-    modCompileOnly('dev.ftb.mods:ftb-library-fabric:2101.1.30') { transitive = false }
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    def optionalApi = project.targetRemap ? 'modCompileOnly' : 'compileOnly'
+    def runtimeMod = project.targetRemap ? 'modImplementation' : 'implementation'
+    add(optionalApi, "dev.ftb.mods:ftb-teams-fabric:${project.targetFtbTeams}") { transitive = false }
+    add(optionalApi, "dev.ftb.mods:ftb-library-fabric:${project.targetFtbLibrary}") { transitive = false }
+    add(runtimeMod, "net.fabricmc:fabric-loader:${project.targetFabricLoader}")
+    add(runtimeMod, "net.fabricmc.fabric-api:fabric-api:${project.targetFabricApi}")
+    add(runtimeMod, "dev.architectury:architectury-fabric:${project.targetArchitecturyApi}")
 
     // Fabric API. This is technically optional, but you probably want it anyway.
-    modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
-    modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
-
-    common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
-    shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+    if (project.targetRemap)
+        common(project(path: project.targetCommon.path, configuration: 'namedElements')) { transitive = false }
+    else
+        common(project(path: project.targetCommon.path)) { transitive = false }
+    shadowBundle project(path: project.targetCommon.path, configuration: 'transformProductionFabric')
 }
 
 repositories { maven { url = 'https://maven.ftb.dev/releases' } }
 
 loom {
-    accessWidenerPath = project(":common").file("src/main/resources/essence_ascendance.accesswidener")
+    if (project.targetNativeAccess)
+        accessWidenerPath = rootProject.file('common/src/main/resources/essence_ascendance.accesswidener')
     runs {
+        server {
+            ideConfigGenerated = false
+        }
         progressionAuditServer {
             server()
             name = 'Isolated progression audit server'
@@ -58,7 +66,7 @@ loom {
             programArg "--uuid"
             programArg "0e0b750fe8aa3304aa414466ca4fc44e"
 
-            ideConfigGenerated = true
+            ideConfigGenerated = false
         }
     }
 }
@@ -66,14 +74,30 @@ loom {
 apply from: rootProject.file('gradle/team-development.gradle')
 
 processResources {
-    inputs.property 'version', project.version
+    def metadata = [version: project.version,
+                    fabric_loader_requirement: ">=${project.targetFabricLoader}",
+                    minecraft_requirement: project.targetMinecraft,
+                    java_requirement: ">=${project.targetJava}",
+                    architectury_requirement: ">=${project.targetArchitecturyApi}"]
+    inputs.properties(metadata)
 
     // Fabric resolves the declared access widener inside this mod's resource root.
     // Pointing Loom at common's source file alone does not copy it for dev launches.
-    from(loom.accessWidenerPath)
+    inputs.property 'nativeAccess', project.targetNativeAccess
+    if (project.targetNativeAccess) from(loom.accessWidenerPath)
 
     filesMatching('fabric.mod.json') {
-        expand version: inputs.properties.version
+        expand metadata
+    }
+    if (!project.targetNativeAccess) {
+        // The widened 1.21.1 trade classes no longer exist, and Projectile's
+        // constructor is public in official 26.1.2. Do not declare a stale AW.
+        doLast {
+            def metadataFile = new File(destinationDir, 'fabric.mod.json')
+            def metadataJson = new groovy.json.JsonSlurper().parse(metadataFile)
+            metadataJson.remove('accessWidener')
+            metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadataJson)) + '\n'
+        }
     }
 }
 
@@ -87,8 +111,14 @@ shadowJar {
     }
 }
 
-remapJar {
-    inputFile.set shadowJar.archiveFile
+if (project.targetRemap) {
+    remapJar {
+        inputFile.set shadowJar.archiveFile
+    }
+} else {
+    shadowJar.archiveClassifier = ''
+    jar.archiveClassifier = 'dev'
+    tasks.named('build') { dependsOn tasks.named('shadowJar') }
 }
 
 repositories { maven { url = 'https://chocolateminecraft.com/maven' } }

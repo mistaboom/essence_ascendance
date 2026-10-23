@@ -250,8 +250,8 @@ public final class EssenceCommandTest {
     private static void verifyHelpLinks(CommandDispatcher<CommandSourceStack> dispatcher, Component component, CommandSourceStack source) {
         ClickEvent click = component.getStyle().getClickEvent();
         if (click != null) {
-            check(click.getAction() == ClickEvent.Action.SUGGEST_COMMAND, "Help must never execute a mutation immediately");
-            String input = click.getValue().strip();
+            check(CommandClickTestCompat.isSuggest(click), "Help must never execute a mutation immediately");
+            String input = CommandClickTestCompat.value(click).strip();
             check(input.startsWith("/essence"), "Help suggests a command outside the Essence domain: " + input);
             check(!input.contains("<") && !input.contains("[") && !input.contains("|"), "Help pasted argument notation: " + input);
             var parsed = dispatcher.parse(input.substring(1), source);
@@ -266,6 +266,9 @@ public final class EssenceCommandTest {
     }
 
     private static CommandSourceStack source(int permission, CommandSource output) {
+        //? if >=26.1.2
+        /*return new CommandSourceStack(output, Vec3.ZERO, Vec2.ZERO, null, net.minecraft.server.permissions.LevelBasedPermissionSet.forLevel(net.minecraft.server.permissions.PermissionLevel.byId(permission)),*/
+        //? if <26.1.2
         return new CommandSourceStack(output, Vec3.ZERO, Vec2.ZERO, null, permission,
                 "CommandInvariant", Component.literal("CommandInvariant"), null, null);
     }
@@ -300,9 +303,9 @@ public final class EssenceCommandTest {
                         .equals(TextColor.fromLegacyFormat(ChatFormatting.GRAY)), "Unstyled label did not receive standard gray");
         check(colored.getString().equals("Offense"), "Rendering mutated the caller's label");
         Component remoteRow = EssenceCommandUtil.suggest(colored, "/essence debug player attunement show offense TestPlayer");
-        check(remoteRow.getStyle().getClickEvent().getValue().equals("/essence debug player attunement show offense TestPlayer"),
+        check(CommandClickTestCompat.value(remoteRow.getStyle().getClickEvent()).equals("/essence debug player attunement show offense TestPlayer"),
                 "Concrete diagnostic row dropped the inspected player from its follow-up");
-        check(remoteRow.getStyle().getClickEvent().getAction() == ClickEvent.Action.SUGGEST_COMMAND,
+        check(CommandClickTestCompat.isSuggest(remoteRow.getStyle().getClickEvent()),
                 "Clickable diagnostic row executed its command immediately");
         check(remoteRow.getStyle().getColor().equals(TextColor.fromLegacyFormat(ChatFormatting.RED))
                         && remoteRow.getString().equals("Offense") && colored.getStyle().getClickEvent() == null,
@@ -315,8 +318,8 @@ public final class EssenceCommandTest {
                 "/essence debug player summary", "/essence debug player summary").entrySet()) {
             check(EssenceCommandUtil.commandSuggestion(sample.getKey()).equals(sample.getValue()), "Help syntax leaked into suggested command");
             var style = EssenceCommandUtil.command(sample.getKey(), "Details").getSiblings().getFirst().getStyle();
-            check(style.getClickEvent().getAction() == ClickEvent.Action.SUGGEST_COMMAND, "Help click must suggest, not execute");
-            check(style.getClickEvent().getValue().equals(sample.getValue()), "Unexpected help click payload");
+            check(CommandClickTestCompat.isSuggest(style.getClickEvent()), "Help click must suggest, not execute");
+            check(CommandClickTestCompat.value(style.getClickEvent()).equals(sample.getValue()), "Unexpected help click payload");
             check(style.getHoverEvent() != null, "Command is missing its click hint");
         }
         check(EssenceCommandUtil.command("README_REPORTS.txt", "File guide").getSiblings().getFirst().getStyle().getClickEvent() == null,
@@ -366,9 +369,9 @@ public final class EssenceCommandTest {
                     "Status leaked record dumps or untranslated labels into chat");
             var activation = recorded.messages.stream().flatMap(message -> message.getSiblings().stream())
                     .map(Component::getStyle).map(style -> style.getClickEvent()).filter(java.util.Objects::nonNull)
-                    .filter(click -> click.getValue().contains("membership activate")).findFirst().orElseThrow();
-            check(activation.getAction() == ClickEvent.Action.SUGGEST_COMMAND
-                            && activation.getValue().equals("/essence admin membership activate " + token),
+                    .filter(click -> CommandClickTestCompat.value(click).contains("membership activate")).findFirst().orElseThrow();
+            check(CommandClickTestCompat.isSuggest(activation)
+                            && CommandClickTestCompat.value(activation).equals("/essence admin membership activate " + token),
                     "Activation link lost its current receipt or executed a mutation directly");
             recorded.messages.clear();
             EssenceAdminCommands.showMembershipStatus(source(2, recorded),
@@ -455,8 +458,12 @@ public final class EssenceCommandTest {
         CompoundTag saved = ledger.save();
         CompoundTag result = new CompoundTag();
         result.putLong("progress", ledger.progress(category));
-        result.put("recent", saved.getCompound("recent").getList(category, net.minecraft.nbt.Tag.TAG_COMPOUND).copy());
-        result.put("history", saved.getCompound("history").getList(category, net.minecraft.nbt.Tag.TAG_COMPOUND).copy());
+        result.put("recent", com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(
+                com.mistaboom.essence_ascendance.data.NbtVersionCompat.getCompound(saved, "recent"),
+                category, net.minecraft.nbt.Tag.TAG_COMPOUND).copy());
+        result.put("history", com.mistaboom.essence_ascendance.data.NbtVersionCompat.getList(
+                com.mistaboom.essence_ascendance.data.NbtVersionCompat.getCompound(saved, "history"),
+                category, net.minecraft.nbt.Tag.TAG_COMPOUND).copy());
         CompoundTag methods = new CompoundTag();
         AttunementActivityRegistry.values().stream().filter(activity -> activity.categoryId().equals(category))
                 .forEach(activity -> methods.putLong(activity.id(), ledger.methodProgress(activity.id())));

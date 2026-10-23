@@ -7,6 +7,9 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
@@ -14,28 +17,60 @@ import net.minecraft.world.phys.EntityHitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+//? if <26.1.2 {
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+//?}
+//? if >=26.1.2
+/*import com.mistaboom.essence_ascendance.visual.EntityPresentationBridge2612;*/
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Only opted-in, skill-managed arrows use the shared sweep. Unmodified bows keep the whole native tick. */
 @Mixin(AbstractArrow.class)
-public abstract class ArrowProjectilePathMixin extends Projectile implements com.mistaboom.essence_ascendance.projectile.ProjectileStateAccess {
+public abstract class ArrowProjectilePathMixin extends Projectile implements com.mistaboom.essence_ascendance.projectile.ProjectileStateAccess
+        //? if >=26.1.2
+        /*, com.mistaboom.essence_ascendance.projectile.ArrowBaseDamageAccess*/
+{
+    //? if >=26.1.2
+    /*@Shadow private double baseDamage;*/
+    //? if >=26.1.2
+    /*@Override public double essenceAscendance$baseDamage() { return baseDamage; }*/
+    //? if <26.1.2 {
     @Unique private static final EntityDataAccessor<Float> essenceAscendance$flightScale =
             SynchedEntityData.defineId(AbstractArrow.class, EntityDataSerializers.FLOAT);
-    @Override public float essenceAscendance$flightScale() { return getEntityData().get(essenceAscendance$flightScale); }
-    @Override public void essenceAscendance$flightScale(float scale) { getEntityData().set(essenceAscendance$flightScale, scale); }
     @Inject(method = "defineSynchedData", at = @At("RETURN"))
     private void essenceAscendance$defineFlightScale(SynchedEntityData.Builder builder, CallbackInfo ci) {
         builder.define(essenceAscendance$flightScale, 1.0F);
     }
+    //?}
+    @Override public float essenceAscendance$flightScale() {
+        //? if >=26.1.2
+        /*return EntityPresentationBridge2612.get(this).arrowScale();*/
+        //? if <26.1.2
+        return getEntityData().get(essenceAscendance$flightScale);
+    }
+    @Override public void essenceAscendance$flightScale(float scale) {
+        //? if >=26.1.2
+        /*EntityPresentationBridge2612.set(this, EntityPresentationBridge2612.get(this).withArrowScale(scale));*/
+        //? if <26.1.2
+        getEntityData().set(essenceAscendance$flightScale, scale);
+    }
+    //? if >=26.1.2
+    /*@Shadow public abstract boolean isInGround();*/
+    //? if <26.1.2
     @Shadow protected boolean inGround;
+    @Unique private boolean essenceAscendance$inGround() {
+        //? if >=26.1.2
+        /*return isInGround();*/
+        //? if <26.1.2
+        return inGround;
+    }
     @Shadow private IntOpenHashSet piercingIgnoreEntityIds;
     @Shadow protected abstract float getWaterInertia();
-    @Override public boolean essenceAscendance$embedded() { return inGround; }
+    @Override public boolean essenceAscendance$embedded() { return essenceAscendance$inGround(); }
     @Override public int[] essenceAscendance$nativeHitIds() { return piercingIgnoreEntityIds == null ? new int[0] : piercingIgnoreEntityIds.toIntArray(); }
     protected ArrowProjectilePathMixin(EntityType<? extends Projectile> type, Level level) { super(type, level); }
 
@@ -43,19 +78,22 @@ public abstract class ArrowProjectilePathMixin extends Projectile implements com
     private void essenceAscendance$flight(CallbackInfo ci) {
         if (level().isClientSide) return;
         var state = ProjectileRuntime.state(this);
-        if (state != null && state.managed() && state.ended && !inGround) {
+        if (state != null && state.managed() && state.ended && !essenceAscendance$inGround()) {
             discard(); ci.cancel(); return;
         }
-        if (!ProjectileRuntime.managed(this) || inGround) return;
+        if (!ProjectileRuntime.managed(this) || essenceAscendance$inGround()) return;
         super.tick();
         if (isInWaterOrRain() || level().getBlockState(blockPosition()).is(net.minecraft.world.level.block.Blocks.POWDER_SNOW)) clearFire();
         ProjectileRuntime.move(this);
-        if (!isRemoved() && !inGround) {
+        if (!isRemoved() && !essenceAscendance$inGround()) {
             var physicsInput = getDeltaMovement();
             double inertia = isInWater() ? getWaterInertia() : 0.99F;
             setDeltaMovement(physicsInput.scale(inertia));
             applyGravity();
             com.mistaboom.essence_ascendance.projectile.ProjectileControlService.afterNativePhysics(this, physicsInput, inertia);
+            //? if >=26.1.2
+            /*applyEffectsFromBlocks();*/
+            //? if <26.1.2
             checkInsideBlocks();
         }
         ci.cancel();
@@ -63,7 +101,7 @@ public abstract class ArrowProjectilePathMixin extends Projectile implements com
 
     @Inject(method = "tick", at = @At("RETURN"))
     private void essenceAscendance$slowNativePhysics(CallbackInfo ci) {
-        if (!ProjectileRuntime.managed(this) && !inGround)
+        if (!ProjectileRuntime.managed(this) && !essenceAscendance$inGround())
             com.mistaboom.essence_ascendance.projectile.ProjectileControlService.afterNativeArrowFlight(this,
                     isInWater() ? getWaterInertia() : 0.99F);
     }
@@ -79,11 +117,17 @@ public abstract class ArrowProjectilePathMixin extends Projectile implements com
         if (ProjectileRuntime.nativeImpact(this) && piercingIgnoreEntityIds != null) piercingIgnoreEntityIds.clear();
     }
     @WrapOperation(method = "onHitEntity", at = @At(value = "INVOKE",
+            //? if >=26.1.2
+            /*target = "Lnet/minecraft/world/entity/Entity;hurtOrSimulate(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))*/
+            //? if <26.1.2
             target = "Lnet/minecraft/world/entity/Entity;hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
     private boolean essenceAscendance$nativeDamage(Entity victim, DamageSource source, float amount, Operation<Boolean> original) {
         return ProjectileRuntime.damage(victim, source, amount, scaled -> original.call(victim, source, scaled));
     }
     @WrapOperation(method = "onHitEntity", at = @At(value = "INVOKE",
+            //? if >=26.1.2
+            /*target = "Lnet/minecraft/world/entity/projectile/arrow/AbstractArrow;discard()V", ordinal = 1))*/
+            //? if <26.1.2
             target = "Lnet/minecraft/world/entity/projectile/AbstractArrow;discard()V", ordinal = 1))
     private void essenceAscendance$resolveContinuation(AbstractArrow arrow, Operation<Void> original) {
         // Only native's successful, non-piercing removal. Failed impacts and foreign removals are never undone.

@@ -5,6 +5,10 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.*;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.resources.ResourceLocation;
+//? if >=26.1.2
+/*import net.minecraft.resources.ResourceKey;*/
+//? if >=26.1.2
+/*import net.minecraft.core.registries.Registries;*/
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.*;
@@ -21,7 +25,20 @@ public final class EffectiveProductionTest {
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("EffectiveProductionTest: "+checks+" generic recipe checks PASS");
     }
     private static RecipeHolder<?> shapeless(String id, Item output, int count, Ingredient... inputs) {
+        //? if >=26.1.2
+        /*return holder(id, new ShapelessRecipe(new Recipe.CommonInfo(true),*/
+        //? if >=26.1.2
+        /*        new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""),*/
+        //? if >=26.1.2
+        /*        new ItemStackTemplate(output, count), Arrays.asList(inputs)));*/
+        //? if <26.1.2
         return new RecipeHolder<>(ResourceLocation.parse(id),new ShapelessRecipe("",CraftingBookCategory.MISC,new ItemStack(output,count),NonNullList.of(Ingredient.EMPTY,inputs)));
+    }
+    private static <T extends Recipe<?>> RecipeHolder<T> holder(String id, T recipe) {
+        //? if >=26.1.2
+        /*return new RecipeHolder<>(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(id)), recipe);*/
+        //? if <26.1.2
+        return new RecipeHolder<>(ResourceLocation.parse(id), recipe);
     }
     private static ProductionGraph collect(RecipeHolder<?>... recipes) {
         return EffectiveProduction.collect(List.of(recipes),registries,(family,reason)->{});
@@ -38,7 +55,17 @@ public final class EffectiveProductionTest {
         check(collect().processes().isEmpty(),"Removed recipe cannot be resurrected from old files");
     }
     private static void countsAndRemainders() {
-        var shaped=new RecipeHolder<>(ResourceLocation.parse("fixture:shaped"),new ShapedRecipe("",CraftingBookCategory.MISC,
+        //? if >=26.1.2
+        /*var shaped=holder("fixture:shaped",new ShapedRecipe(new Recipe.CommonInfo(true),*/
+        //? if >=26.1.2
+        /*        new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""),*/
+        //? if >=26.1.2
+        /*        ShapedRecipePattern.of(Map.of('X',Ingredient.of(Items.COPPER_INGOT)),"XXX","XXX","XXX"),*/
+        //? if >=26.1.2
+        /*        ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.COPPER_BLOCK))));*/
+        //? if <26.1.2
+        var shaped=holder("fixture:shaped",new ShapedRecipe("",CraftingBookCategory.MISC,
+                //? if <26.1.2
                 ShapedRecipePattern.of(Map.of('X',Ingredient.of(Items.COPPER_INGOT)),"XXX","XXX","XXX"),new ItemStack(Items.COPPER_BLOCK)));
         var packed=collect(shaped).processes().getFirst();
         check(packed.inputs().size()==9&&packed.outputs().getFirst().count()==1,"Repeated shaped slots retain nine material units");
@@ -47,34 +74,95 @@ public final class EffectiveProductionTest {
         check(returned.outputs().stream().anyMatch(x->x.itemId().equals("minecraft:bucket")&&x.count()==1&&x.byproduct()),"Crafting container remainder shares the output bill");
         var alternatives=collect(shapeless("fixture:alternatives",Items.BREAD,1,Ingredient.of(Items.STONE,Items.DIRT))).processes().getFirst();
         check(alternatives.inputs().getFirst().alternatives().equals(List.of("minecraft:dirt","minecraft:stone")),"Every ordinary alternative is retained deterministically");
-        var cooking=new RecipeHolder<>(ResourceLocation.parse("fixture:cooking"),new SmeltingRecipe("",CookingBookCategory.MISC,Ingredient.of(Items.STONE),new ItemStack(Items.DIAMOND,2),.1F,200));
+        //? if >=26.1.2
+        /*var cooking=holder("fixture:cooking",new SmeltingRecipe(new Recipe.CommonInfo(true),*/
+        //? if >=26.1.2
+        /*        new AbstractCookingRecipe.CookingBookInfo(CookingBookCategory.MISC, ""),*/
+        //? if >=26.1.2
+        /*        Ingredient.of(Items.STONE),ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.DIAMOND,2)),.1F,200));*/
+        //? if <26.1.2
+        var cooking=holder("fixture:cooking",new SmeltingRecipe("",CookingBookCategory.MISC,Ingredient.of(Items.STONE),new ItemStack(Items.DIAMOND,2),.1F,200));
         var cooked=collect(cooking).processes().getFirst();
         check(cooked.conservationComplete()&&cooked.outputs().getFirst().count()==2&&cooked.duration()==200,"Native cooking count and duration retained without invented fuel value");
-        var milkCooking=new RecipeHolder<>(ResourceLocation.parse("fixture:cook_container"),new SmeltingRecipe("",CookingBookCategory.MISC,Ingredient.of(Items.MILK_BUCKET),new ItemStack(Items.DIAMOND),.1F,200));
+        //? if >=26.1.2
+        /*var milkCooking=holder("fixture:cook_container",new SmeltingRecipe(new Recipe.CommonInfo(true),*/
+        //? if >=26.1.2
+        /*        new AbstractCookingRecipe.CookingBookInfo(CookingBookCategory.MISC, ""),*/
+        //? if >=26.1.2
+        /*        Ingredient.of(Items.MILK_BUCKET),ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.DIAMOND)),.1F,200));*/
+        //? if <26.1.2
+        var milkCooking=holder("fixture:cook_container",new SmeltingRecipe("",CookingBookCategory.MISC,Ingredient.of(Items.MILK_BUCKET),new ItemStack(Items.DIAMOND),.1F,200));
         check(collect(milkCooking).processes().getFirst().outputs().size()==1,"Cooking consumes its ingredient without inventing a crafting-container return");
-        var stonecutting=new RecipeHolder<>(ResourceLocation.parse("fixture:cut"),new StonecutterRecipe("",Ingredient.of(Items.STONE),new ItemStack(Items.STONE_SLAB,2)));
+        //? if >=26.1.2
+        /*var stonecutting=holder("fixture:cut",new StonecutterRecipe(new Recipe.CommonInfo(true),*/
+        //? if >=26.1.2
+        /*        Ingredient.of(Items.STONE),ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.STONE_SLAB,2))));*/
+        //? if <26.1.2
+        var stonecutting=holder("fixture:cut",new StonecutterRecipe("",Ingredient.of(Items.STONE),new ItemStack(Items.STONE_SLAB,2)));
         check(collect(stonecutting).processes().getFirst().outputs().getFirst().count()==2,"Stonecutting actual output count retained");
-        var smithing=new RecipeHolder<>(ResourceLocation.parse("fixture:smith"),new SmithingTransformRecipe(Ingredient.of(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),Ingredient.of(Items.DIAMOND_SWORD),Ingredient.of(Items.NETHERITE_INGOT),new ItemStack(Items.NETHERITE_SWORD)));
+        //? if >=26.1.2
+        /*var smithing=holder("fixture:smith",new SmithingTransformRecipe(new Recipe.CommonInfo(true),*/
+        //? if >=26.1.2
+        /*        Optional.of(Ingredient.of(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE)),Ingredient.of(Items.DIAMOND_SWORD),*/
+        //? if >=26.1.2
+        /*        Optional.of(Ingredient.of(Items.NETHERITE_INGOT)),ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.NETHERITE_SWORD))));*/
+        //? if <26.1.2
+        var smithing=holder("fixture:smith",new SmithingTransformRecipe(Ingredient.of(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),Ingredient.of(Items.DIAMOND_SWORD),Ingredient.of(Items.NETHERITE_INGOT),new ItemStack(Items.NETHERITE_SWORD)));
         var smith=collect(smithing).processes().getFirst();
         check(smith.inputs().size()==3&&smith.conservationComplete(),"Native smithing template, base and addition all pay material cost");
     }
     private static void opaqueAndFailure() {
+        //? if >=26.1.2
+        /*var custom=new ShapelessRecipe(new Recipe.CommonInfo(true), new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""),*/
+        //? if >=26.1.2
+        /*        ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.GOLD_INGOT,4)),List.of(Ingredient.of(Items.STONE))) { };*/
+        //? if <26.1.2
         var custom=new ShapelessRecipe("",CraftingBookCategory.MISC,new ItemStack(Items.GOLD_INGOT,4),NonNullList.of(Ingredient.EMPTY,Ingredient.of(Items.STONE))) { };
-        var graph=collect(new RecipeHolder<>(ResourceLocation.parse("anything:custom"),custom));
+        var graph=collect(holder("anything:custom",custom));
         check(graph.processes().size()==1&&!graph.processes().getFirst().conservationComplete(),"Custom subclass is a nominal estimate, not a native behavior proof");
         Recipe<RecipeInput> empty=new Recipe<>() {
             public boolean matches(RecipeInput input,net.minecraft.world.level.Level world){throw new AssertionError("must not simulate recipe");}
+            //? if >=26.1.2
+            /*public ItemStack assemble(RecipeInput input){throw new AssertionError("must not execute recipe");}*/
+            //? if <26.1.2
             public ItemStack assemble(RecipeInput input,HolderLookup.Provider registry){throw new AssertionError("must not execute recipe");}
+            //? if >=26.1.2
+            /*public boolean showNotification(){return true;}*/
+            //? if >=26.1.2
+            /*public String group(){return "";}*/
+            //? if >=26.1.2
+            /*public PlacementInfo placementInfo(){return PlacementInfo.NOT_PLACEABLE;}*/
+            //? if >=26.1.2
+            /*public RecipeBookCategory recipeBookCategory(){return RecipeBookCategories.CRAFTING_MISC;}*/
+            //? if <26.1.2
             public boolean canCraftInDimensions(int a,int b){return true;}
+            //? if <26.1.2
             public ItemStack getResultItem(HolderLookup.Provider registry){return new ItemStack(Items.DIAMOND);}
+            //? if >=26.1.2
+            /*public RecipeSerializer<? extends Recipe<RecipeInput>> getSerializer(){return null;}*/
+            //? if >=26.1.2
+            /*public RecipeType<? extends Recipe<RecipeInput>> getType(){return null;}*/
+            //? if <26.1.2
             public RecipeSerializer<?> getSerializer(){return RecipeSerializer.SHAPELESS_RECIPE;}
+            //? if <26.1.2
             public RecipeType<?> getType(){return RecipeType.CRAFTING;}
         };
-        check(collect(new RecipeHolder<>(ResourceLocation.parse("fixture:opaque"),empty)).processes().isEmpty(),"Opaque empty inputs cannot create a free-source constraint");
+        check(collect(holder("fixture:opaque",empty)).processes().isEmpty(),"Opaque empty inputs cannot create a free-source constraint");
+        //? if >=26.1.2
+        /*var failure=new ShapelessRecipe(new Recipe.CommonInfo(true), new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""),*/
+        //? if >=26.1.2
+        /*        ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.GOLD_INGOT)),List.of(Ingredient.of(Items.STONE))) {*/
+        //? if >=26.1.2
+        /*    @Override public ItemStack assemble(CraftingInput input){throw new IllegalStateException("unavailable getter");}*/
+        //? if >=26.1.2
+        /*};*/
+        //? if <26.1.2
         var failure=new ShapelessRecipe("",CraftingBookCategory.MISC,new ItemStack(Items.GOLD_INGOT),NonNullList.of(Ingredient.EMPTY,Ingredient.of(Items.STONE))) {
+            //? if <26.1.2
             @Override public ItemStack getResultItem(HolderLookup.Provider registry){throw new IllegalStateException("unavailable getter");}
+        //? if <26.1.2
         };
-        var safe=collect(new RecipeHolder<>(ResourceLocation.parse("fixture:failed"),failure),shapeless("fixture:valid",Items.BREAD,1,Ingredient.of(Items.WHEAT)));
+        var safe=collect(holder("fixture:failed",failure),shapeless("fixture:valid",Items.BREAD,1,Ingredient.of(Items.WHEAT)));
         check(safe.processes().size()==1&&safe.warnings().stream().anyMatch(x->x.contains("failed")),"Failed nominal getter cannot suppress independent standard recipes");
     }
     private static void check(boolean condition,String message){checks++;if(!condition)throw new AssertionError(message);}

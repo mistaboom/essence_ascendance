@@ -45,6 +45,9 @@ public final class NativeFishingRodTest {
             }
             player.setItemInHand(InteractionHand.OFF_HAND, rod);
             var result = rod.getItem().use(f.level, player, InteractionHand.OFF_HAND);
+            //? if >=26.1.2
+            /*check(result.consumesAction() && player.fishing instanceof RodHookAccess && player.isUsingItem(), "Real item use casts a native hook and latches the press");*/
+            //? if <26.1.2
             check(result.getResult().consumesAction() && player.fishing instanceof RodHookAccess && player.isUsingItem(), "Real item use casts a native hook and latches the press");
             FishingHook hook = player.fishing; RodHookAccess access = (RodHookAccess) hook;
             check(access.essenceAscendance$rodHand()==2 && AscendanceFishingService.valid(player,hook), "Actual offhand cast identity stays valid");
@@ -105,6 +108,9 @@ public final class NativeFishingRodTest {
             // Existing artifact fracture is exercised by the real native damage method.
             rod.setDamageValue(rod.getMaxDamage()-1); rod.hurtAndBreak(10,player,EquipmentSlot.OFFHAND);
             check(!rod.isEmpty() && FracturedEquipmentData.isFractured(rod) && !EquipmentFishingRodService.functional(rod), "Native breakage retains a Fractured rod");
+            //? if >=26.1.2
+            /*check(rod.getItem().use(f.level,player,InteractionHand.OFF_HAND)==net.minecraft.world.InteractionResult.FAIL, "Fractured rod cannot cast");*/
+            //? if <26.1.2
             check(rod.getItem().use(f.level,player,InteractionHand.OFF_HAND).getResult()==net.minecraft.world.InteractionResult.FAIL, "Fractured rod cannot cast");
             // Real shared traversal query recognizes ordinary and Ascendance rods in either hand.
             saved.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.TERRAIN_FREEDOM),SkillRegistry.require(SkillIds.AQUATIC_BODY),SkillRegistry.require(SkillIds.SURFACE_TENSION)));
@@ -132,8 +138,8 @@ public final class NativeFishingRodTest {
                 net.minecraft.data.registries.VanillaRegistries.createLookup().lookupOrThrow(net.minecraft.core.registries.Registries.DIMENSION_TYPE)
                         .getOrThrow(net.minecraft.world.level.dimension.BuiltinDimensionTypes.OVERWORLD));
         var oldTags=new HashMap<net.minecraft.tags.TagKey<net.minecraft.world.level.material.Fluid>,List<Holder<net.minecraft.world.level.material.Fluid>>>();
-        BuiltInRegistries.FLUID.getTags().forEach(e->oldTags.put(e.getFirst(),e.getSecond().stream().toList()));
-        var tags=new HashMap<>(oldTags);tags.put(net.minecraft.tags.FluidTags.WATER,List.of(Fluids.WATER.builtInRegistryHolder(),Fluids.FLOWING_WATER.builtInRegistryHolder()));BuiltInRegistries.FLUID.bindTags(tags);
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.FLUID));
+        var tags=new HashMap<>(oldTags);tags.put(net.minecraft.tags.FluidTags.WATER,List.of(Fluids.WATER.builtInRegistryHolder(),Fluids.FLOWING_WATER.builtInRegistryHolder()));com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.FLUID, tags);
         var rod=new ItemStack(AscendanceItems.ASCENDANCE_FISHING_ROD.get());EquipmentTierData.setTier(rod,EquipmentTier.TRANSCENDENT);
         var player=f.player;player.stopUsingItem();player.setItemInHand(InteractionHand.MAIN_HAND,rod);player.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);
         f.level.entities.clear();f.level.memoryBlocks.clear();
@@ -165,7 +171,7 @@ public final class NativeFishingRodTest {
             rod.getItem().use(f.level,player,InteractionHand.MAIN_HAND);hook=player.fishing;hook.setPos(.5,.5,.5);hook.setDeltaMovement(new Vec3(0,0,3));hook.tick();access=(RodHookAccess)hook;
             check(access.essenceAscendance$attachment()==1 && !hook.isRemoved(),"Swept native solid collision attaches at its impact point");
             AscendanceFishingService.forget(player);player.stopUsingItem();
-        } finally {BuiltInRegistries.FLUID.bindTags(oldTags);f.level.memoryBlocks.clear();f.level.nativeBlockClip=false;}
+        } finally {com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.FLUID, oldTags);f.level.memoryBlocks.clear();f.level.nativeBlockClip=false;}
     }
     private static void creativeCatalog() {
         var combat=new ArrayList<ItemStack>();
@@ -215,12 +221,12 @@ public final class NativeFishingRodTest {
     @SuppressWarnings("unchecked")
     private static void fluidBuoyancy(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
         var oldTags=new HashMap<net.minecraft.tags.TagKey<net.minecraft.world.level.material.Fluid>,List<Holder<net.minecraft.world.level.material.Fluid>>>();
-        BuiltInRegistries.FLUID.getTags().forEach(entry->oldTags.put(entry.getFirst(),entry.getSecond().stream().toList()));
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.FLUID));
         var tags=new HashMap<>(oldTags);
         tags.put(TraversalService.SURFACE_FLUIDS,List.of(Fluids.WATER.builtInRegistryHolder(),Fluids.FLOWING_WATER.builtInRegistryHolder(),Fluids.LAVA.builtInRegistryHolder(),Fluids.FLOWING_LAVA.builtInRegistryHolder()));
         tags.put(net.minecraft.tags.FluidTags.WATER,List.of(Fluids.WATER.builtInRegistryHolder(),Fluids.FLOWING_WATER.builtInRegistryHolder()));
         tags.put(net.minecraft.tags.FluidTags.LAVA,List.of(Fluids.LAVA.builtInRegistryHolder(),Fluids.FLOWING_LAVA.builtInRegistryHolder()));
-        BuiltInRegistries.FLUID.bindTags(tags);
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.FLUID, tags);
         var player=f.player; player.setShiftKeyDown(false); player.setSprinting(false);
         player.setItemInHand(InteractionHand.OFF_HAND,new ItemStack(Items.FISHING_ROD));
         var updateEyes=Entity.class.getDeclaredMethod("updateFluidOnEyes");updateEyes.setAccessible(true);
@@ -241,7 +247,7 @@ public final class NativeFishingRodTest {
             player.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);
             check(!TraversalService.surfaceBuoyancyEligible(player),"Rod removal stops native buoyancy");
             f.level.memoryBlocks.clear();
-        } finally {BuiltInRegistries.FLUID.bindTags(oldTags);}
+        } finally {com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.FLUID, oldTags);}
     }
     static void infusionTransactions(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
         int beforeChecks = checks;
@@ -257,7 +263,7 @@ public final class NativeFishingRodTest {
         machine.machineBinding().start(f.saved, f.player.getUUID(), f.player.getUUID());
         var installedFocus = new ItemStack(com.mistaboom.essence_ascendance.pylon.EssencePylonContent.ESSENCE_FOCUS.get());
         com.mistaboom.essence_ascendance.pylon.EssenceFocusData.setTier(installedFocus, com.mistaboom.essence_ascendance.pylon.EssenceFocusTier.values()[com.mistaboom.essence_ascendance.pylon.EssenceFocusTier.values().length-1]);
-        machine.setItem(type.getField("FOCUS_SLOT").getInt(null), installedFocus);
+        machine.setItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("FOCUS_SLOT"), null), installedFocus);
         var grantField = type.getDeclaredField("grantRemaining"); grantField.setAccessible(true);
         var transfer=type.getDeclaredMethod("transferEquipmentEssence",net.minecraft.server.level.ServerLevel.class,EquipmentInfusionRecipe.class,long.class); transfer.setAccessible(true);
         var complete=type.getDeclaredMethod("completeEquipmentInfusion",EquipmentInfusionRecipe.class); complete.setAccessible(true);
@@ -265,21 +271,21 @@ public final class NativeFishingRodTest {
         for(var tier:EquipmentTier.values()) {
             check(EquipmentTierData.tier(work)==tier && work.getMaxDamage()==EssenceConfigManager.get().fishingRodBalance().tier(tier).durability(),"Evolving rod reaches actual generated tier "+tier);
             var recipe=EquipmentInfusionRecipe.forWorkpiece(work).orElse(null); if(recipe==null)break;
-            machine.setItem(type.getField("INPUT_SLOT").getInt(null),work);
+            machine.setItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("INPUT_SLOT"), null),work);
             machine.setProcessingEnabled(f.player, true);
-            machine.setItem(type.getField("OUTPUT_SLOT").getInt(null),ItemStack.EMPTY);
-            machine.setItem(type.getField("COMPONENT_SLOT").getInt(null),new ItemStack(com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent.ASCENDANCE_MATRIX.get(),recipe.matrixCount()+1));
+            machine.setItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("OUTPUT_SLOT"), null),ItemStack.EMPTY);
+            machine.setItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("COMPONENT_SLOT"), null),new ItemStack(com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent.ASCENDANCE_MATRIX.get(),recipe.matrixCount()+1));
             for(var entry:recipe.requirements().entrySet()) f.saved.addCrucibleStored(f.player.getUUID(),com.mistaboom.essence_ascendance.essence.EssenceRegistry.get(entry.getKey()).orElseThrow(),entry.getValue());
             grantField.setLong(machine, recipe.totalRequired());
             long first=(long)transfer.invoke(machine,f.level,recipe,recipe.totalRequired()-1);
-            work=machine.getItem(type.getField("INPUT_SLOT").getInt(null));
+            work=machine.getItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("INPUT_SLOT"), null));
             check(first==recipe.totalRequired()-1 && SoulboundEquipmentData.isSoulbound(work),"Real streamed transfer reserves exact Essence and binds owner");
             complete.invoke(machine,recipe);
-            check(EquipmentTierData.tier(work)==tier && machine.getItem(type.getField("COMPONENT_SLOT").getInt(null)).getCount()==recipe.matrixCount()+1,"Incomplete infusion changes neither tier nor matrices");
+            check(EquipmentTierData.tier(work)==tier && machine.getItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("COMPONENT_SLOT"), null)).getCount()==recipe.matrixCount()+1,"Incomplete infusion changes neither tier nor matrices");
             check((long)transfer.invoke(machine,f.level,recipe,1L)==1,"Final missing Essence is withdrawn once"); complete.invoke(machine,recipe);
-            work=machine.getItem(type.getField("OUTPUT_SLOT").getInt(null));
+            work=machine.getItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("OUTPUT_SLOT"), null));
             check(EquipmentTierData.tier(work)==recipe.targetTier() && com.mistaboom.essence_ascendance.infuser.EquipmentInfusionData.read(work).isEmpty(),"Native transaction publishes completed tier and clears only upgrade progress");
-            check(machine.getItem(type.getField("COMPONENT_SLOT").getInt(null)).getCount()==1 && SoulboundEquipmentData.read(work).orElseThrow().ownerId().equals(f.player.getUUID()),"Matrices consumed once; original Soulbound identity retained");
+            check(machine.getItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("COMPONENT_SLOT"), null)).getCount()==1 && SoulboundEquipmentData.read(work).orElseThrow().ownerId().equals(f.player.getUUID()),"Matrices consumed once; original Soulbound identity retained");
             for(var id:recipe.requirements().keySet())check(f.saved.getPlayerData(f.player.getUUID()).getCrucibleStored(com.mistaboom.essence_ascendance.essence.EssenceRegistry.get(id).orElseThrow())==0,"Exact category balance settled");
         }
         // Exercise the production Infuser participant, including failure after a partial inventory/job mutation.
@@ -291,7 +297,7 @@ public final class NativeFishingRodTest {
             costs.put(essence.id(),3L);
         }
         var itemsField=type.getDeclaredField("items");itemsField.setAccessible(true);
-        machine.setItem(type.getField("INPUT_SLOT").getInt(null), new ItemStack(com.mistaboom.essence_ascendance.pylon.EssencePylonContent.ESSENCE_FOCUS.get()));
+        machine.setItem(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(type.getField("INPUT_SLOT"), null), new ItemStack(com.mistaboom.essence_ascendance.pylon.EssencePylonContent.ESSENCE_FOCUS.get()));
         machine.setProcessingEnabled(f.player, true);
         @SuppressWarnings("unchecked") var inventory=(List<ItemStack>)itemsField.get(machine);
         var beforeInventory=inventory.stream().map(ItemStack::copy).toList();
@@ -305,18 +311,19 @@ public final class NativeFishingRodTest {
         grantField.setLong(machine, 100L);
         check(!(boolean)pay.invoke(machine,f.saved,costs,fail),"Production Infuser rejects failed inventory mutation");
         for(int i=0;i<inventory.size();i++)check(ItemStack.matches(inventory.get(i),beforeInventory.get(i)),"Production rollback restores exact native stack/components");
-        check(ticksField.getInt(machine)==17 && f.saved.save(new net.minecraft.nbt.CompoundTag(),null).equals(beforeMoney),"Production rollback preserves timer and all six monetary records/revisions");
+        check(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(ticksField, machine)==17 && f.saved.save(new net.minecraft.nbt.CompoundTag(),null).equals(beforeMoney),"Production rollback preserves timer and all six monetary records/revisions");
         costs.put(com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED.getLast().id(),4L);
         check(!(boolean)pay.invoke(machine,f.saved,costs,(Runnable)() -> { throw new AssertionError("Unfunded operation touched inventory"); }),"Production six-type validation precedes inventory");
         f.saved.reservoirs().pause(new com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness(
                 com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.NOT_READY,"fixture","Roster temporarily unavailable"));
         com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity.serverTick(f.level,machine.getBlockPos(),machine.getBlockState(),machine);
-        check(ticksField.getInt(machine)==17 && f.saved.save(new net.minecraft.nbt.CompoundTag(),null).equals(beforeMoney),
+        check(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(ticksField, machine)==17 && f.saved.save(new net.minecraft.nbt.CompoundTag(),null).equals(beforeMoney),
                 "Unavailable authoritative roster pauses native machine without timer or monetary mutation");
         com.mistaboom.essence_ascendance.team.MembershipPublication.publish(f.saved, com.mistaboom.essence_ascendance.team.NativeMembershipService.READY,
                 f.saved.reservoirs().settledTeams().stream().map(com.mistaboom.essence_ascendance.team.MembershipRoster::from).toList());
         var provider=net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
-        var loaded=ItemStack.parse(provider,work.save(provider)).orElseThrow();
+        var loaded=com.mistaboom.essence_ascendance.data.ItemStackNbtCompat.parse(provider,
+                com.mistaboom.essence_ascendance.data.ItemStackNbtCompat.save(work, provider)).orElseThrow();
         check(EquipmentTierData.tier(loaded)==EquipmentTier.TRANSCENDENT && SoulboundEquipmentData.read(loaded).equals(SoulboundEquipmentData.read(work)),"Native ItemStack save/load preserves completed rod and ownership");
         FracturedEquipmentData.markFractured(work); work.setDamageValue(work.getMaxDamage()-1);
         var repair=com.mistaboom.essence_ascendance.infuser.RepairInfusionRecipe.forWorkpiece(work).orElseThrow();

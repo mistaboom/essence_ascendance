@@ -37,6 +37,9 @@ public final class HotbarLightPlacementService {
         int slot = hotbarLight(player);
         if (slot < 0) return false;
         var inventory = player.getInventory();
+        //? if >=26.1.2
+        /*int selected = inventory.getSelectedSlot();*/
+        //? if <26.1.2
         int selected = inventory.selected;
         boolean swapped = slot != selected;
         if (swapped) {
@@ -82,6 +85,9 @@ public final class HotbarLightPlacementService {
         int localBrightness = level.isThundering()
                 ? level.getMaxLocalRawBrightness(pos, 10)
                 : level.getMaxLocalRawBrightness(pos);
+        //? if >=26.1.2
+        /*return localBrightness <= level.dimensionType().monsterSpawnLightTest().maxInclusive();*/
+        //? if <26.1.2
         return localBrightness <= level.dimensionType().monsterSpawnLightTest().getMaxValue();
     }
 

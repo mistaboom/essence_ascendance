@@ -67,7 +67,7 @@ public record WeaponActionStatePayload(ResourceLocation dimension,int entityId,U
                 boolean continueReturn=previous!=null && previous.payload.dimension().equals(payload.dimension())
                         && previous.state().selectedSlot()==payload.state().selectedSlot()
                         && previous.state().phase()!=WeaponActionRuntime.Phase.CANCELLED
-                        && Double.isFinite(previous.timeline.returnAt());
+                        && previous.timeline.returnAt()<=payload.state().acceptedAt();
                 preceding=continueReturn ? previous.timeline:null;
                 timeline=new WeaponActionPresentation.Timeline(payload.state(),receivedAt,
                         continueReturn ? previous.timeline.returnAt():Double.NEGATIVE_INFINITY);

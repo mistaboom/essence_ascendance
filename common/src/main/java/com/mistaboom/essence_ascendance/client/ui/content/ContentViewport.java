@@ -10,6 +10,9 @@ import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScroll;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -190,6 +193,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
         prepareInteractiveChildren();
     }
 
+    //? if >=26.1.2
+    /*public void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         FullscreenControls.panel(graphics, bounds, AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE),
                 AscendanceUiPalette.argb(focused ? AscendanceUiPalette.INTERACTIVE : AscendanceUiPalette.BORDER));
@@ -317,10 +323,16 @@ public final class ContentViewport implements FullscreenComposition.Input {
     }
 
     /** Called by the host's foreground tooltip pass, after article/table scissors are released. */
+    //? if >=26.1.2
+    /*public void renderTooltips(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     public void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (!bounds.inset(1).contains(mouseX, mouseY)) return;
         for (ItemHit hit : itemHits) {
             if (!hit.bounds().contains(mouseX, mouseY)) continue;
+            //? if >=26.1.2
+            /*graphics.setTooltipForNextFrame(font, font.split(hit.label(), Math.max(1, Math.min(320, graphics.guiWidth() - 24))),*/
+            //? if <26.1.2
             graphics.renderTooltip(font, font.split(hit.label(), Math.max(1, Math.min(320, graphics.guiWidth() - 24))),
                     mouseX, mouseY);
             return;
@@ -329,6 +341,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
             if (!(block.detail() instanceof ReadOnlyDataTableView<?> table)) continue;
             var overflow = table.overflowTextAt(mouseX, mouseY);
             if (overflow.isPresent()) {
+                //? if >=26.1.2
+                /*graphics.setTooltipForNextFrame(font, font.split(overflow.get(), Math.max(1, Math.min(320, graphics.guiWidth() - 24))),*/
+                //? if <26.1.2
                 graphics.renderTooltip(font, font.split(overflow.get(), Math.max(1, Math.min(320, graphics.guiWidth() - 24))),
                         mouseX, mouseY);
                 return;
@@ -336,6 +351,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
         }
     }
 
+    //? if >=26.1.2
+    /*private void renderBlock(GuiGraphicsExtractor graphics, BlockLayout measured, int y,*/
+    //? if <26.1.2
     private void renderBlock(GuiGraphics graphics, BlockLayout measured, int y,
                              int mouseX, int mouseY, float partialTick) {
         int x = bounds.x() + PADDING;
@@ -358,6 +376,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
             List<List<FormattedCharSequence>> all = castNestedLines(measured.detail());
             for (int index = 0; index < all.size(); index++) {
                 Component marker = Component.translatable("gui.essence_ascendance.content.step", index + 1);
+                //? if >=26.1.2
+                /*graphics.text(font, marker, x, lineY,*/
+                //? if <26.1.2
                 graphics.drawString(font, marker, x, lineY,
                         AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE), false);
                 drawLines(graphics, all.get(index), x + 22, lineY, font.lineHeight + 2,
@@ -373,6 +394,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
             };
             FullscreenControls.panel(graphics, calloutBounds,
                     AscendanceUiPalette.controlHoverArgb(accent), AscendanceUiPalette.argb(accent));
+            //? if >=26.1.2
+            /*graphics.text(font, callout.title(), x + 7, y + 5, AscendanceUiPalette.argb(accent), false);*/
+            //? if <26.1.2
             graphics.drawString(font, callout.title(), x + 7, y + 5, AscendanceUiPalette.argb(accent), false);
             drawLines(graphics, castLines(measured.detail()), x + 7, y + font.lineHeight + 10,
                     font.lineHeight + 2, AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
@@ -390,15 +414,30 @@ public final class ContentViewport implements FullscreenComposition.Input {
             UiBounds figure = new UiBounds(x + 2, y + 2, 20, 20);
             SemanticDocument.Illustration adapter = new SemanticDocument.Illustration(
                     icon.resource(), Component.empty(), 20, 20);
+            //? if >=26.1.2
+            /*graphics.nextStratum();*/
+            //? if <26.1.2
             graphics.flush();
+            //? if >=26.1.2
+            /*graphics.pose().pushMatrix();*/
+            //? if <26.1.2
             graphics.pose().pushPose();
             try {
                 FullscreenViewport.withClip(graphics, figure,
                         () -> illustrations.render(graphics, adapter, figure, partialTick));
+                //? if >=26.1.2
+                /*graphics.nextStratum();*/
+                //? if <26.1.2
                 graphics.flush();
             } finally {
+                //? if >=26.1.2
+                /*graphics.pose().popMatrix();*/
+                //? if <26.1.2
                 graphics.pose().popPose();
             }
+            //? if >=26.1.2
+            /*graphics.text(font, icon.label(), x + 29, y + 7,*/
+            //? if <26.1.2
             graphics.drawString(font, icon.label(), x + 29, y + 7,
                     AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
         } else if (block instanceof SemanticDocument.ItemRow items) {
@@ -416,6 +455,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
                         AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT));
                 int valueY = rowY + 3;
                 for (FormattedCharSequence line : row.value()) {
+                    //? if >=26.1.2
+                    /*graphics.text(font, line, x + width - 4 - font.width(line), valueY,*/
+                    //? if <26.1.2
                     graphics.drawString(font, line, x + width - 4 - font.width(line), valueY,
                             AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
                     valueY += font.lineHeight + 1;
@@ -435,6 +477,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 };
                 Component status = Component.translatable("gui.essence_ascendance.requirement."
                         + requirement.status().name().toLowerCase(java.util.Locale.ROOT));
+                //? if >=26.1.2
+                /*graphics.text(font, status, x + 4, rowY + 3, AscendanceUiPalette.argb(color), false);*/
+                //? if <26.1.2
                 graphics.drawString(font, status, x + 4, rowY + 3, AscendanceUiPalette.argb(color), false);
                 drawLines(graphics, row.label(), x + 25, rowY + 3, font.lineHeight + 1,
                         AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
@@ -557,6 +602,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 illustration.preferredWidth(), illustration.preferredHeight());
     }
 
+    //? if >=26.1.2
+    /*private void renderScrollbar(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     private void renderScrollbar(GuiGraphics graphics) {
         if (scroll.maximumOffset() <= 0 || bounds.height() <= 2) return;
         int trackHeight = bounds.height() - 2;
@@ -572,9 +620,15 @@ public final class ContentViewport implements FullscreenComposition.Input {
         return Math.max(lineHeight, font.split(component, Math.max(1, width)).size() * lineHeight);
     }
 
+    //? if >=26.1.2
+    /*private void drawLines(GuiGraphicsExtractor graphics, List<FormattedCharSequence> lines,*/
+    //? if <26.1.2
     private void drawLines(GuiGraphics graphics, List<FormattedCharSequence> lines,
                            int x, int y, int lineHeight, int color) {
         for (FormattedCharSequence line : lines) {
+            //? if >=26.1.2
+            /*graphics.text(font, line, x, y, color, false);*/
+            //? if <26.1.2
             graphics.drawString(font, line, x, y, color, false);
             y += lineHeight;
         }

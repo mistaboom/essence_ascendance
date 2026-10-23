@@ -21,6 +21,9 @@ import java.util.*;
 public final class EnchantmentYieldDiagnostics {
     private EnchantmentYieldDiagnostics() { }
     public static int run(CommandSourceStack source) {
+        //? if >=26.1.2
+        /*var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);*/
+        //? if <26.1.2
         var registry = source.getServer().registryAccess().registryOrThrow(Registries.ENCHANTMENT);
         JsonObject report = new JsonObject();
         report.addProperty("policy", EnchantedStackYields.POLICY);
@@ -33,6 +36,9 @@ public final class EnchantmentYieldDiagnostics {
         List<String> failures = new ArrayList<>();
         var retained = new TreeMap<String, ItemStack>();
         for (String id : List.of("sharpness", "protection", "efficiency", "mending", "unbreaking", "binding_curse")) {
+            //? if >=26.1.2
+            /*var holder = registry.get(ResourceLocation.withDefaultNamespace(id));*/
+            //? if <26.1.2
             var holder = registry.getHolder(ResourceLocation.withDefaultNamespace(id));
             if (holder.isEmpty()) continue;
             for (int level : List.of(1, 2, 5)) {
@@ -49,7 +55,13 @@ public final class EnchantmentYieldDiagnostics {
                 }
             }
         }
+        //? if >=26.1.2
+        /*var sharpness = registry.get(ResourceLocation.withDefaultNamespace("sharpness"));*/
+        //? if <26.1.2
         var sharpness = registry.getHolder(ResourceLocation.withDefaultNamespace("sharpness"));
+        //? if >=26.1.2
+        /*var protection = registry.get(ResourceLocation.withDefaultNamespace("protection"));*/
+        //? if <26.1.2
         var protection = registry.getHolder(ResourceLocation.withDefaultNamespace("protection"));
         if (sharpness.isPresent() && protection.isPresent()) {
             var mixed = book(Map.of(sharpness.get(), 1, protection.get(), 1));
@@ -67,6 +79,9 @@ public final class EnchantmentYieldDiagnostics {
         List<String> unsupported = new ArrayList<>();
         List<String> decreasing = new ArrayList<>();
         List<String> lateOnsetPositive = new ArrayList<>();
+        //? if >=26.1.2
+        /*registry.listElements().sorted(Comparator.comparing(holder -> holder.key().identifier())).forEach(holder -> {*/
+        //? if <26.1.2
         registry.holders().sorted(Comparator.comparing(holder -> holder.key().location())).forEach(holder -> {
             JsonObject levels = new JsonObject();
             long previous = -1;

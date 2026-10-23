@@ -48,9 +48,34 @@ public final class LatentOreJeiTest {
                 "Missing host is not silently identified as stone");
         check(interpreter.getSubtypeData(ItemStack.EMPTY, UidContext.Ingredient) == null,
                 "Empty stacks are safe");
+        catalogVariants();
         catalogOrder();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
                 .println("LatentOreJeiTest: " + checks + " subtype, shared-recipe and late catalog order checks PASS");
+    }
+
+    private static void catalogVariants() {
+        var stone = stack(Blocks.STONE.defaultBlockState());
+        var deepslate = stack(Blocks.DEEPSLATE.defaultBlockState());
+        var unusedAlias = new ItemStack(Items.COAL);
+        var legacyWithoutHost = new ItemStack(Items.STONE);
+        var changes = EssenceAscendanceJeiPlugin.oreCatalogChanges(
+                List.of(stone.copy(), unusedAlias, legacyWithoutHost), List.of(stone, deepslate));
+        check(changes.removed().equals(List.of(unusedAlias, legacyWithoutHost)),
+                "Unused registered aliases and the bare legacy item leave JEI's browse list");
+        check(changes.added().equals(List.of(deepslate)),
+                "Only the missing selected host is added to JEI");
+        var stable = EssenceAscendanceJeiPlugin.oreCatalogChanges(List.of(stone, deepslate),
+                List.of(stone.copy(), deepslate.copy()));
+        check(stable.removed().isEmpty() && stable.added().isEmpty(),
+                "A repeated catalog refresh does not duplicate unchanged host entries");
+        var sideways = stack(Blocks.DEEPSLATE.defaultBlockState()
+                .setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        var changedState = EssenceAscendanceJeiPlugin.oreCatalogChanges(
+                List.of(deepslate), List.of(sideways));
+        check(changedState.removed().equals(List.of(deepslate))
+                        && changedState.added().equals(List.of(sideways)),
+                "JEI replaces an alias entry when its saved host-state properties change");
     }
 
     private static void catalogOrder() {

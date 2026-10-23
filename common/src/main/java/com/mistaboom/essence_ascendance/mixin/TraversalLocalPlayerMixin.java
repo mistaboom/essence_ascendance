@@ -18,6 +18,9 @@ abstract class TraversalLocalPlayerMixin {
         TraversalFluidRenderState.refresh();
     }
     // canStartSprinting delegates to the impulse helper; it has no direct underwater query.
+    //? if >=26.1.2
+    /*@ModifyExpressionValue(method = {"aiStep", "canStartSprinting"},*/
+    //? if <26.1.2
     @ModifyExpressionValue(method = {"aiStep", "hasEnoughImpulseToStartSprinting"},
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;isUnderWater()Z"))
     private boolean essenceAscendance$nativeSwimmingInput(boolean original) {

@@ -10,12 +10,20 @@ import java.util.function.BiConsumer;
 public final class MembershipProviders {
     public record Entry(MembershipAuthority authority, String modId, String adapter, List<Map<String, String>> versions) { }
     public record Installed(ProviderReadiness readiness, MembershipProvider provider) { }
+    private static List<Map<String, String>> auditedFtbVersions() {
+        //? if >=26.1.2
+        /*return List.of(Map.of("ftbteams", "26.1.2.4", "ftblibrary", "26.1.2.9"));*/
+        //? if <26.1.2
+        return List.of(Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.30"),
+                //? if <26.1.2
+                Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.36"),
+                //? if <26.1.2
+                Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.37"));
+    }
     private static final List<Entry> ENTRIES = List.of(
             new Entry(MembershipAuthority.FTB_TEAMS, "ftbteams",
                     "com.mistaboom.essence_ascendance.team.compat.FtbTeamsMembershipProvider",
-                    List.of(Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.30"),
-                            Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.36"),
-                            Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.37"))));
+                    auditedFtbVersions()));
     private MembershipProviders() { }
     public static List<Entry> entries() { return ENTRIES; }
     public static ProviderReadiness support(Entry entry, Map<String, String> mods, String loader) {
@@ -26,7 +34,7 @@ public final class MembershipProviders {
                         .allMatch(v -> v.getValue().equals(mods.get(v.getKey())))))
             return status(ProviderReadiness.Status.UNSUPPORTED, version,
                     "Installed " + entry.authority().id() + " unsupported on " + loader + ": " + mods
-                            + "; audited Minecraft 1.21.1 requirements " + entry.versions());
+                            + "; audited target requirements " + entry.versions());
         return status(ProviderReadiness.Status.NOT_READY, version, entry.authority().id() + " supported; awaiting server startup");
     }
     public static Map<MembershipAuthority, Installed> discover(Map<String, String> mods, String loader,

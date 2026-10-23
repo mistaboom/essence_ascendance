@@ -14,9 +14,7 @@ import static com.mistaboom.essence_ascendance.equipment.WeaponActionGeometry.*;
 public final class NativeGlaivePresentationTest {
     private static int checks;
     public static void run() throws Exception {
-        gripGeometry();
-        continuousPlayback();
-        animationKeyframes();
+        runPlaybackAndInput();
         var stack=new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get());
         var profile=new PersonalizedEquipmentDefinition("presentation_fixture",UUID.randomUUID(),
                 "essence_ascendance:ascendance_glaive","transcendent","Fixture",0x0d0967,0xb6f800,Map.of());
@@ -68,6 +66,15 @@ public final class NativeGlaivePresentationTest {
         if (dev.architectury.platform.Platform.getEnvironment()==dev.architectury.utils.Env.CLIENT) Client.checkHooks();
         System.out.println("NativeGlaivePresentationTest: "+checks+" material, playback, interest, lifecycle and client hooks PASS");
     }
+    /** Can run at a loaded title screen before 26.1.2 binds item components to a world registry. */
+    public static void runPlaybackAndInput() throws Exception {
+        gripGeometry();
+        continuousPlayback();
+        animationKeyframes();
+        interruptedPlayback();
+        if (dev.architectury.platform.Platform.getEnvironment()==dev.architectury.utils.Env.CLIENT) Client.checkRapidPresses();
+        System.out.println("NativeGlaivePresentationTest: "+checks+" world-free playback and input checks PASS");
+    }
     private static void gripGeometry() {
         for (var main:net.minecraft.world.entity.HumanoidArm.values()) for (double yaw:new double[]{0,90,179,270})
             for (double pitch:new double[]{-90,-45,0,45,90}) {
@@ -103,26 +110,26 @@ public final class NativeGlaivePresentationTest {
     private static void continuousPlayback() {
         var timeline=new WeaponActionPresentation.Timeline(timed(0,WeaponActionRuntime.Phase.SWEEP),100);
         timeline.add(timed(1,WeaponActionRuntime.Phase.SWEEP));
-        var before=timeline.frame(102,.5F);
+        var before=timeline.frame(101,.5F);
         check(Math.abs(before.pose().sweepDegrees()-5)<1e-9,"Buffered playback interpolates within the recorded interval");
         timeline.add(timed(2,WeaponActionRuntime.Phase.SWEEP));
-        check(timeline.frame(102,.5F).equals(before),"New packets cannot restart the displayed interval");
+        check(timeline.frame(101,.5F).equals(before),"New packets cannot restart the displayed interval");
         timeline.add(timed(3,WeaponActionRuntime.Phase.SWEEP));
         timeline.add(timed(4,WeaponActionRuntime.Phase.SWEEP));
-        check(Math.abs(timeline.frame(103,.25F).pose().sweepDegrees()-12.5)<1e-9,
+        check(Math.abs(timeline.frame(102,.25F).pose().sweepDegrees()-12.5)<1e-9,
                 "Batched packets retain intermediate sweep history instead of skipping it");
         var shortening=timed(3,WeaponActionRuntime.Phase.SWEEP);
         var knots=List.of(new Knot(0,shortening.previous()),new Knot(.5,shortening.current().withDistance(2)),new Knot(1,shortening.current()));
         var obstacle=new WeaponActionPresentation.Timeline(new WeaponActionRuntime.Snapshot(1,shortening.mode(),shortening.phase(),
                 0,20,3,0,shortening.tier(),64,shortening.previous(),shortening.current(),knots,true,-1),103);
-        check(obstacle.frame(104,.5F).pose().tipDistance()==2,"Timeline preserves collision minima inside a tick");
+        check(obstacle.frame(103,.5F).pose().tipDistance()==2,"Timeline preserves collision minima inside a tick");
         timeline.add(timed(5,WeaponActionRuntime.Phase.RECOVERY));
-        check(timeline.frame(106,.5F).phase()==WeaponActionRuntime.Phase.RETRACT,"Terminal packet finishes the recorded return before idle");
-        check(timeline.frame(107,0).phase()==WeaponActionRuntime.Phase.RECOVERY,"Return completes at its actual endpoint");
+        check(timeline.frame(105,.5F).phase()==WeaponActionRuntime.Phase.RETRACT,"Terminal packet finishes the recorded return before idle");
+        check(timeline.frame(106,0).phase()==WeaponActionRuntime.Phase.RECOVERY,"Return completes at its actual endpoint");
         var idle=new WeaponActionPresentation.Timeline(timed(5,WeaponActionRuntime.Phase.IDLE),105);
-        check(idle.frame(106,.5F).phase()==WeaponActionRuntime.Phase.RETRACT,"Ready-at-return idle packets also retain the final return interval");
+        check(idle.frame(105,.5F).phase()==WeaponActionRuntime.Phase.RETRACT,"Ready-at-return idle packets also retain the final return interval");
         timeline.add(timed(6,WeaponActionRuntime.Phase.CANCELLED));
-        check(timeline.frame(107,0).phase()==WeaponActionRuntime.Phase.CANCELLED,"Cancellation hides buffered geometry immediately");
+        check(timeline.frame(106,0).phase()==WeaponActionRuntime.Phase.CANCELLED,"Cancellation hides buffered geometry immediately");
         for(int i=7;i<40;i++) timeline.add(timed(i,WeaponActionRuntime.Phase.SWEEP));
         check(timeline.size()==16,"Presentation history has a fixed memory bound");
         var early=timed(2,WeaponActionRuntime.Phase.RETRACT);
@@ -146,22 +153,22 @@ public final class NativeGlaivePresentationTest {
             var slow=new WeaponActionPresentation.Timeline(animationState(mode,0,500),100);
             var fast=new WeaponActionPresentation.Timeline(animationState(mode,0,end+1),100);
             check(slow.frame(100,0).blend()==0,"Preparation begins at native rest: "+mode);
-            check(Math.abs(slow.frame(101,0).blend()-.5)<1e-6,"Preparation pivots through the intermediate keyframe: "+mode);
-            check(slow.frame(102,0).blend()==1,"Full attack pose reached before damaging playback: "+mode);
+            check(Math.abs(slow.frame(100,.5F).blend()-.5)<1e-6,"Preparation pivots within the first buffered tick: "+mode);
+            check(slow.frame(101,0).blend()==1,"Full attack pose reached before damaging playback: "+mode);
             for (int t=1;t<=end+1;t++) { slow.add(animationState(mode,t,500));fast.add(animationState(mode,t,end+1)); }
-            var active=slow.frame(102+outward-1,.5F);
+            var active=slow.frame(101+outward-1,.5F);
             check(active.blend()==1 && active.pose().tipDistance()==8,
                     "Damage interval preserves the exact solved blade pose: "+mode);
-            check(active.equals(fast.frame(102+outward-1,.5F)),"Recharge duration never changes active playback: "+mode);
-            var returning=slow.frame(102+outward,1);
+            check(active.equals(fast.frame(101+outward-1,.5F)),"Recharge duration never changes active playback: "+mode);
+            var returning=slow.frame(101+outward,1);
             check(returning.blend()>0 && returning.blend()<1,"Retraction interpolates back toward native rest: "+mode);
-            var complete=slow.frame(102+end,.5F);
+            var complete=slow.frame(101+end,.5F);
             check(complete.blend()==0 && complete.phase()==WeaponActionRuntime.Phase.RECOVERY,
                     "First recovery interval releases the final pose before readiness: "+mode);
             check(animationState(mode,end+1,500).readiness(end+1)<.1,"Fixture still has a long recharge remaining");
             for (int t=end+2;t<end+35;t++) {
                 slow.add(animationState(mode,t,500));
-                var idle=slow.frame(102+t-1,.5F);
+                var idle=slow.frame(101+t-1,.5F);
                 check(idle.phase()==WeaponActionRuntime.Phase.RECOVERY && idle.blend()==0,
                         "Later recovery packets cannot resurrect the attack, including after history eviction: "+mode+" tick "+t);
             }
@@ -175,10 +182,8 @@ public final class NativeGlaivePresentationTest {
             WeaponActionStatePayload.accept(new WeaponActionStatePayload(dimension,12345,owner,next),101+end);
             var nextAction=WeaponActionStatePayload.presentation(owner);
             var tail=nextAction.frame(101+end,0);
-            check(tail.phase()==WeaponActionRuntime.Phase.RETRACT && tail.blend()>0 && tail.blend()<1,
-                    "Fast next action finishes the buffered non-damaging return before preparing: "+mode);
-            check(nextAction.frame(102+end,0).blend()==0,"Fast actions meet at the same native rest keyframe: "+mode);
-            check(nextAction.frame(102+end,.5F).blend()>0 && nextAction.frame(103+end,0).blend()==1,
+            check(tail.blend()==0,"Fast actions meet at the same native rest keyframe: "+mode);
+            check(nextAction.frame(101+end,.5F).blend()>0 && nextAction.frame(102+end,0).blend()==1,
                     "Fast preparation uses the available gap without delaying damage playback: "+mode);
             WeaponActionStatePayload.clearClient();
         }
@@ -195,6 +200,35 @@ public final class NativeGlaivePresentationTest {
         return new WeaponActionRuntime.Snapshot(1,mode,phase,0,ready,time,0,EquipmentTier.TRANSCENDENT,8,
                 previous,pose,knots,false,-1);
     }
+    private static void interruptedPlayback() {
+        var dimension=ResourceLocation.withDefaultNamespace("overworld");
+        for (var before:WeaponActionRuntime.Mode.values()) for (var after:WeaponActionRuntime.Mode.values()) {
+            var timing=before==WeaponActionRuntime.Mode.STAB ? GlaiveTuning.STAB:GlaiveTuning.SWIPE;
+            int outward=timing.extensionTicks()+timing.outwardTicks();
+            for (int interruptedAt:new int[]{2,outward+1,outward+timing.retractionTicks()+1}) {
+                WeaponActionStatePayload.clearClient();
+                var owner=UUID.randomUUID();
+                for (int tick=0;tick<=interruptedAt;tick++) WeaponActionStatePayload.accept(
+                        new WeaponActionStatePayload(dimension,12345,owner,animationState(before,tick,500)),100+tick);
+                var initial=animationState(after,0,500);
+                var next=new WeaponActionRuntime.Snapshot(2,after,initial.phase(),interruptedAt,500,interruptedAt,0,
+                        initial.tier(),initial.range(),initial.previous(),initial.current(),initial.knots(),false,-1);
+                var packet=new WeaponActionStatePayload(dimension,12345,owner,next);
+                check(WeaponActionStatePayload.accept(packet,100+interruptedAt),"New press replaces active/retracting/recharging "+before+" with "+after);
+                var presentation=WeaponActionStatePayload.presentation(owner);
+                check(presentation.frame(100+interruptedAt,0).blend()==0,"Restart begins its own preparation without finishing the old action");
+                var midway=presentation.frame(100+interruptedAt,.5F);
+                check(Math.abs(midway.blend()-.5)<1e-6,"Replacement prepares immediately, including interruption during return");
+                check(!WeaponActionStatePayload.accept(packet,101+interruptedAt)
+                        && presentation.frame(100+interruptedAt,.5F).equals(midway),"Duplicate replacement packet never restarts the new animation");
+                check(presentation.frame(101+interruptedAt,0).blend()==1,"Replacement reaches its attack pose in one buffered tick");
+                check(!WeaponActionStatePayload.accept(new WeaponActionStatePayload(dimension,12345,owner,
+                        animationState(before,interruptedAt+1,500)),102+interruptedAt),"Late old-action packet cannot resurrect the interrupted swing");
+                check(WeaponActionStatePayload.presentation(owner).state().actionId()==2,"Replacement keeps its identity after stale traffic");
+            }
+        }
+        WeaponActionStatePayload.clearClient();
+    }
     private static WeaponActionRuntime.Snapshot snapshot(long id,List<Knot> knots) {
         return new WeaponActionRuntime.Snapshot(id,WeaponActionRuntime.Mode.SWIPE,WeaponActionRuntime.Phase.SWEEP,
                 0,20,4,0,EquipmentTier.TRANSCENDENT,64,knots.getFirst().pose(),knots.getLast().pose(),knots,true,-1);
@@ -208,6 +242,42 @@ public final class NativeGlaivePresentationTest {
                     "net.minecraft.client.renderer.entity.LivingEntityRenderer","glaiveShoulder").entrySet()) {
                 check(Arrays.stream(Class.forName(entry.getKey()).getDeclaredMethods())
                         .anyMatch(m->m.getName().contains(entry.getValue())),"Transformed native client hook "+entry.getValue());
+            }
+        }
+        private static void checkRapidPresses() throws Exception {
+            var client=net.minecraft.client.Minecraft.getInstance();
+            var type=client.getClass();
+            var consume=Arrays.stream(type.getDeclaredMethods()).filter(m->m.getName().contains("pressConsumed")).findFirst().orElseThrow();
+            consume.setAccessible(true);
+            var clicks=net.minecraft.client.KeyMapping.class.getDeclaredField("clickCount");
+            clicks.setAccessible(true);
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Boolean> nativeConsume=
+                    arguments->((net.minecraft.client.KeyMapping)arguments[0]).consumeClick();
+            for (String name:List.of("attackLatched","useLatched")) {
+                var field=Arrays.stream(type.getDeclaredFields()).filter(f->f.getName().endsWith(name)).findFirst().orElseThrow();
+                field.setAccessible(true);
+                var key=name.equals("attackLatched") ? client.options.keyAttack:client.options.keyUse;
+                boolean originalLatch=(boolean)field.get(client);
+                int originalClicks=(int)clicks.get(key),originalJumpClicks=(int)clicks.get(client.options.keyJump);
+                try {
+                    clicks.setInt(key,3);
+                    for (int click=0;click<3;click++) {
+                        field.setBoolean(client,true);
+                        check((boolean)consume.invoke(client,key,nativeConsume) && !(boolean)field.get(client)
+                                        && (int)clicks.get(key)==2-click,
+                                "Every consumed native click releases "+name+" even within one tick");
+                    }
+                    field.setBoolean(client,true);
+                    check(!(boolean)consume.invoke(client,key,nativeConsume) && (boolean)field.get(client),
+                            "Holding a key without another click preserves the one-press latch");
+                    clicks.setInt(client.options.keyJump,1);
+                    check((boolean)consume.invoke(client,client.options.keyJump,nativeConsume) && (boolean)field.get(client),
+                            "Unrelated clicks cannot release the combat latch");
+                } finally {
+                    field.setBoolean(client,originalLatch);
+                    clicks.setInt(key,originalClicks);
+                    clicks.setInt(client.options.keyJump,originalJumpClicks);
+                }
             }
         }
     }

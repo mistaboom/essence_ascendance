@@ -13,11 +13,17 @@ import org.spongepowered.asm.mixin.Mixin;
 @Mixin(MobEffect.class)
 public abstract class StatusInstantEffectMixin {
     @WrapMethod(method = "applyInstantenousEffect")
+    //? if >=26.1.2
+    /*private void essenceAscendance$instant(net.minecraft.server.level.ServerLevel level, Entity direct, Entity owner, LivingEntity target, int amplifier,*/
+    //? if <26.1.2
     private void essenceAscendance$instant(Entity direct, Entity owner, LivingEntity target, int amplifier,
                                            double potency, Operation<Void> original) {
         MobEffect effect = (MobEffect)(Object)this;
         double resolvedPotency = UtilityPotionService.consumedInstantPotency(effect, target, amplifier, potency);
         StatusInterceptionService.instant(effect, direct, owner, target, amplifier, resolvedPotency,
+                //? if >=26.1.2
+                /*() -> original.call(level, direct, owner, target, amplifier, resolvedPotency));*/
+                //? if <26.1.2
                 () -> original.call(direct, owner, target, amplifier, resolvedPotency));
     }
 }

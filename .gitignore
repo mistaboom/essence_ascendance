@@ -2,6 +2,13 @@
 .gradle/
 **/.gradle/
 **/build/
+.architectury-transformer/
+
+# Stonecutter's generated version projections (authored sources stay in each module's src/).
+/versions/
+/common/versions/
+/fabric/versions/
+/neoforge/versions/
 
 # IntelliJ IDEA
 .idea/

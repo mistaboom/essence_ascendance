@@ -10,8 +10,17 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Pose;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.SpectralArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.SpectralArrow;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;

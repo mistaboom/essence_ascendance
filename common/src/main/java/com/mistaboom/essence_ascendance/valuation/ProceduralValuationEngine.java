@@ -114,15 +114,27 @@ public final class ProceduralValuationEngine {
         if (stack.is(ProceduralValuationTags.CROPS) || stack.is(ProceduralValuationTags.SEEDS) || stack.is(ProceduralValuationTags.SAPLINGS)) { vote(route,"gathering",2); vote(route,"vitality",1); priority = Math.max(priority, 3); signals.add("plant material tag; growth/access not inferred"); }
         if (stack.is(ProceduralValuationTags.LOGS) || stack.is(ProceduralValuationTags.LEAVES)) { vote(route,"gathering",2); vote(route,"utility",1); priority = Math.max(priority, 3); signals.add("wood/leaf material tag"); }
         if (stack.has(DataComponents.FOOD)) { var food = stack.get(DataComponents.FOOD); base = Math.max(base, Math.round(24 + 8 * food.nutrition() + 8 * food.saturation())); vote(route,"vitality",4); priority = Math.max(priority, 3); signals.add("native food component"); }
+        //? if >=26.1.2
+        /*if (stack.has(DataComponents.TOOL) && !stack.is(net.minecraft.tags.ItemTags.SWORDS) || item instanceof ShearsItem || item instanceof BrushItem || item instanceof FishingRodItem || stack.is(ProceduralValuationTags.MINING_TOOLS)) {*/
+        //? if <26.1.2
         if (item instanceof DiggerItem || item instanceof ShearsItem || item instanceof BrushItem || item instanceof FishingRodItem || stack.is(ProceduralValuationTags.MINING_TOOLS)) {
             base = Math.max(base, ProceduralValuationSettings.TOOL_BASE); vote(route,"gathering",4); priority = Math.max(priority,3); signals.add("harvesting tool type/tag");
         }
+        //? if >=26.1.2
+        /*if (stack.is(net.minecraft.tags.ItemTags.SWORDS) || stack.has(DataComponents.WEAPON) && !stack.has(DataComponents.TOOL) || item instanceof BowItem || item instanceof CrossbowItem || item instanceof TridentItem || item instanceof MaceItem || item instanceof ArrowItem || stack.is(ProceduralValuationTags.MELEE_WEAPONS) || stack.is(ProceduralValuationTags.RANGED_WEAPONS)) {*/
+        //? if <26.1.2
         if (item instanceof SwordItem || item instanceof BowItem || item instanceof CrossbowItem || item instanceof TridentItem || item instanceof MaceItem || item instanceof ArrowItem || stack.is(ProceduralValuationTags.MELEE_WEAPONS) || stack.is(ProceduralValuationTags.RANGED_WEAPONS)) {
             base = Math.max(base, ProceduralValuationSettings.WEAPON_BASE); vote(route,"offense",4); priority = Math.max(priority,3); signals.add("weapon type/tag");
         }
+        //? if >=26.1.2
+        /*if (stack.is(net.minecraft.tags.ItemTags.HEAD_ARMOR) || stack.is(net.minecraft.tags.ItemTags.CHEST_ARMOR) || stack.is(net.minecraft.tags.ItemTags.LEG_ARMOR) || stack.is(net.minecraft.tags.ItemTags.FOOT_ARMOR) || stack.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY).modifiers().stream().anyMatch(modifier -> modifier.attribute().equals(Attributes.ARMOR) || modifier.attribute().equals(Attributes.ARMOR_TOUGHNESS)) || stack.has(DataComponents.BLOCKS_ATTACKS) || stack.is(ProceduralValuationTags.ARMORS)) {*/
+        //? if <26.1.2
         if (item instanceof ArmorItem || item instanceof ShieldItem || stack.is(ProceduralValuationTags.ARMORS)) {
             base = Math.max(base, ProceduralValuationSettings.ARMOR_BASE); vote(route,"defense",4); priority = Math.max(priority,3); signals.add("armor type/tag");
         }
+        //? if >=26.1.2
+        /*if (item instanceof BoatItem || item instanceof MinecartItem || stack.has(DataComponents.GLIDER) || item instanceof EnderpearlItem || item instanceof FireworkRocketItem*/
+        //? if <26.1.2
         if (item instanceof BoatItem || item instanceof MinecartItem || item instanceof ElytraItem || item instanceof EnderpearlItem || item instanceof FireworkRocketItem
                 || item instanceof BlockItem block && (block.getBlock() instanceof BaseRailBlock || block.getBlock().defaultBlockState().is(ProceduralValuationTags.CLIMBABLE))) {
             base = Math.max(base, ProceduralValuationSettings.TRANSPORT_BASE); vote(route,"mobility",4); priority = Math.max(priority,3); signals.add("transport/climbable type/tag");
@@ -146,9 +158,15 @@ public final class ProceduralValuationEngine {
         Double override = ValuationGenerationInputs.economicValue(item);
         if (override != null && Double.isFinite(override) && override > 0) { base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(1, Math.round(override))); priority = 5; signals.add("explicit resource-value override"); }
         if (route.isEmpty()) { vote(route,"utility",1); signals.add("generic positive fallback; item name and namespace unused"); }
+        //? if >=26.1.2
+        /*Item remainder = item.getCraftingRemainder() == null ? null : item.getCraftingRemainder().item().value();*/
+        //? if <26.1.2
         Item remainder = item.getCraftingRemainingItem();
         Map<String, Long> retained = new TreeMap<>();
         if (remainder != null) { retained.put(BuiltInRegistries.ITEM.getKey(remainder).toString(), 1L); signals.add("native crafting container retained in material estimate"); }
+        //? if >=26.1.2
+        /*if (item == Items.ENCHANTED_BOOK || stack.has(DataComponents.STORED_ENCHANTMENTS)) {*/
+        //? if <26.1.2
         if (item instanceof EnchantedBookItem || stack.has(DataComponents.STORED_ENCHANTMENTS)) {
             retained.merge(BuiltInRegistries.ITEM.getKey(Items.BOOK).toString(), ProceduralValuationSettings.STORED_ENCHANTMENT_CARRIER_BUDGET, Math::max);
             signals.add("native stored-enchantment carrier plus shared premium ceiling; actual effects and levels determine realized yield");

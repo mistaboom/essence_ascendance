@@ -41,7 +41,11 @@ final class ProceduralValuationIndex {
         List<IngredientChoice> inputs = new ArrayList<>();
         for (var input : process.inputs()) {
             List<Item> alternatives = input.alternatives().stream().map(ResourceLocation::tryParse).filter(Objects::nonNull)
-                    .filter(BuiltInRegistries.ITEM::containsKey).map(BuiltInRegistries.ITEM::get)
+                    .filter(BuiltInRegistries.ITEM::containsKey)
+                    //? if >=26.1.2
+                    /*.map(BuiltInRegistries.ITEM::getValue).filter(Objects::nonNull)*/
+                    //? if <26.1.2
+                    .map(BuiltInRegistries.ITEM::get)
                     .filter(item -> item != Items.AIR && ValuationGenerationInputs.itemAllowed(item)).toList();
             if (alternatives.size() != input.alternatives().size()) return List.of();
             inputs.add(new IngredientChoice(alternatives, input.count(), input.consumed()));

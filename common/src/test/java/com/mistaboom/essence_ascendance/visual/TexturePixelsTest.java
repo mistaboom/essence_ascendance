@@ -94,6 +94,8 @@ public final class TexturePixelsTest {
         catch (IllegalArgumentException expected) { rejected = true; }
         check(rejected, "Fully invisible hosts must be rejected");
         originalMasks();
+        originalTransitionAppearance();
+        faceMaskOrientation();
         essentiumRegression();
         System.out.println("TexturePixelsTest: " + assertions + " checks PASS");
     }
@@ -122,6 +124,64 @@ public final class TexturePixelsTest {
             if (nativeOre >>> 24 == 0 && border >>> 24 == 0)
                 check(finalPixel == host[0], "Actual artwork leaves exposed host intact");
         }
+    }
+
+    /** The authored transition retains its original host-relative tint for every baseline host. */
+    private static void originalTransitionAppearance() throws IOException {
+        BufferedImage ore = image("block/latent_ore/latent_ore_base.png");
+        BufferedImage transition = image("block/latent_ore/latent_ore_transition.png");
+        int width = ore.getWidth(), height = ore.getHeight();
+        int[] orePixels = ore.getRGB(0, 0, width, height, null, 0, width);
+        int[] transitionPixels = transition.getRGB(0, 0, width, height, null, 0, width);
+        for (int hostRgb : new int[]{0xFF7E7E7E, 0xFF505052, 0xFF622626, 0xFFDBDF9E}) {
+            int[] hostPixels = new int[width * height];
+            Arrays.fill(hostPixels, hostRgb);
+            int[] composed = TexturePixels.composeLatentOre(hostPixels, width, height,
+                    transitionPixels, width, height, orePixels, width, height);
+            int transitionLuminance = 0, transitionCount = 0;
+            for (int i = 0; i < composed.length; i++) {
+                if (orePixels[i] >>> 24 == 255) {
+                    check(composed[i] == orePixels[i],
+                            "The original transition must preserve the authored ore core for every host");
+                } else if (transitionPixels[i] >>> 24 == 0) {
+                    check(composed[i] == hostRgb,
+                            "The original transition must preserve uncovered native host pixels");
+                } else {
+                    transitionLuminance += testLuminance(composed[i]);
+                    transitionCount++;
+                }
+            }
+            check(transitionCount == 95,
+                    "The original authored transition ring must remain complete for host "
+                            + Integer.toHexString(hostRgb));
+            check(Math.abs((transitionLuminance + transitionCount / 2) / transitionCount
+                            - Math.min(255, testLuminance(hostRgb) + 16)) <= 1,
+                    "The original authored transition must retain its +16 host-relative luminance for host "
+                            + Integer.toHexString(hostRgb));
+        }
+    }
+
+    private static void faceMaskOrientation() {
+        int[] host = new int[9];
+        Arrays.fill(host, 0xFF123456);
+        int[] transition = new int[9];
+        int[] ore = new int[9];
+        ore[0] = 0xFFEEDDCC;
+        int[] nativeFace = TexturePixels.composeLatentOre(host, 3, 3, transition, 3, 3, ore, 3, 3);
+        int[] uDown = TexturePixels.composeLatentOre(host, 3, 3, transition, 3, 3, ore, 3, 3, 1);
+        int[] uUp = TexturePixels.composeLatentOre(host, 3, 3, transition, 3, 3, ore, 3, 3, -1);
+        int[] vUp = TexturePixels.composeLatentOre(host, 3, 3, transition, 3, 3, ore, 3, 3, 2);
+        check(nativeFace[0] == ore[0] && uDown[6] == ore[0] && uUp[2] == ore[0] && vUp[8] == ore[0],
+                "World/item orientation variants rotate only the ore mask to the expected face corner");
+        for (int i = 0; i < host.length; i++) {
+            if (i != 6) check(uDown[i] == host[i], "Clockwise mask leaves uncovered host pixels native");
+            if (i != 2) check(uUp[i] == host[i], "Counterclockwise mask leaves uncovered host pixels native");
+            if (i != 8) check(vUp[i] == host[i], "Half-turn mask leaves uncovered host pixels native");
+        }
+        boolean rejected = false;
+        try { TexturePixels.composeLatentOre(host, 3, 3, transition, 3, 3, ore, 3, 3, 3); }
+        catch (IllegalArgumentException expected) { rejected = true; }
+        check(rejected, "Unsupported mask orientation is rejected");
     }
 
     private static String resourceHash(String path) throws Exception {

@@ -39,6 +39,9 @@ public final class PylonVisuals {
         if (!state.linked()) return;
         PylonLocalFrame frame = PylonLocalFrame.of(pylon.getBlockState());
         double age = level.getGameTime() + partialTick;
+        //? if >=26.1.2
+        /*boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().position()*/
+        //? if <26.1.2
         boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
                 .distanceToSqr(Vec3.atCenterOf(pylon.getBlockPos())) <= DETAIL_DISTANCE_SQUARED;
         pose.pushPose();

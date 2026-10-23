@@ -133,7 +133,7 @@ public final class NativeInfuserStartTest {
             check(!machine.processingEnabled() && !SoulboundEquipmentData.isSoulbound(machine.getItem(0)),
                     "Committed Fabric equipment insertion disarms an already running machine");
             var saved = machine.saveWithFullMetadata(f.level.registryAccess()); saved.putBoolean("processing_enabled", true);
-            machine.loadWithComponents(saved, f.level.registryAccess());
+            com.mistaboom.essence_ascendance.verification.BlockEntityTestNbtCompat.load(machine, saved, f.level.registryAccess());
             check(!machine.processingEnabled(), "Legacy armed unbound equipment cannot bind itself on load");
             System.out.println("NativeInfuserStartTest: " + checks + " assertions passed");
         } finally { f.close(); }

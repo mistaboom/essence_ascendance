@@ -10,8 +10,8 @@ The BBModel contains one `Shield` mesh and two complementary grayscale masks: `a
 | --- | --- |
 | Editable geometry and embedded masks | `art/source/models/item/ascendance_shield.bbmodel` |
 | Source registration and coordinate mapping | `art/asset-manifest.json` |
-| Runtime mesh | `common/build/generated-resources/assets/assets/essence_ascendance/meshes/item/ascendance_shield.eamesh` |
-| Six tier textures and emission mask | `common/build/generated-resources/assets/assets/essence_ascendance/textures/item/ascendance_shield/` |
+| Runtime mesh | `common/versions/1.21.1/build/generated-resources/assets/assets/essence_ascendance/meshes/item/ascendance_shield.eamesh` |
+| Six tier textures and emission mask | `common/versions/1.21.1/build/generated-resources/assets/assets/essence_ascendance/textures/item/ascendance_shield/` |
 | Hand-authored item display configuration | `common/src/main/resources/assets/essence_ascendance/models/item/ascendance_shield{,_blocking}.json` |
 
 The six normal textures are named `latent.png`, `dormant.png`, `awakened.png`, `resonant.png`, `ascendant.png`, and `transcendent.png`. `MaskedTextureWriter` composes the embedded masks with the same canonical base and accent colors as armor. Latent receives the existing light gray base tint. This produces one complete normally lit surface; complementary masks are never drawn as separate ordinary surfaces, avoiding seams between their pixels.
@@ -33,8 +33,8 @@ Accent lighting directly reuses `ArmorEmission` and `ArmorRenderTypes`. The curr
 Save changes in Blockbench, then run:
 
 ```powershell
-.\gradlew.bat :common:generateAssets
-.\gradlew.bat :common:assetPipelineInvariants :common:ascendanceShieldInvariants
+.\gradlew.bat :common:1.21.1:generateAssets
+.\gradlew.bat :common:1.21.1:assetPipelineInvariants :common:1.21.1:ascendanceShieldInvariants
 .\gradlew.bat assetJarInvariants
 ```
 

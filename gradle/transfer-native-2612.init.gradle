@@ -1,0 +1,70 @@
+// Loader-initialized NeoForge 26.1.2 transfer probe. Produces two isolated
+// fixture archives for a disposable packaged server; never changes shadowJar.
+if (gradle.ext.has('essenceNativeFixture'))
+    throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'transfer2612'
+
+gradle.projectsEvaluated {
+    def target = rootProject.project(':neoforge:26.1.2')
+    def output = target.layout.buildDirectory.dir('native-fixtures/transfer2612')
+    def compile = target.tasks.register('compileTransferNative2612Fixture', JavaCompile) {
+        dependsOn target.tasks.named('classes')
+        source rootProject.files(
+                'tools/verification/stonecutter/MachineTransfer2612Test.java',
+                'gradle/native-fixtures/Neo2612TransferNativeMod.java')
+        classpath = target.sourceSets.main.compileClasspath + target.sourceSets.main.output
+        destinationDirectory = target.layout.buildDirectory.dir('native-fixtures/transfer2612/classes')
+        options.release = 25
+        javaCompiler = target.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+    }
+    def patched = target.tasks.register('transferNative2612EssenceFixtureJar', Jar) {
+        dependsOn compile, target.tasks.named('shadowJar')
+        archiveFileName = 'essence-neo2612-native-transfer-fixture.jar'
+        destinationDirectory = output
+        from({ target.zipTree(target.tasks.named('shadowJar').get().archiveFile.get().asFile) }) {
+            exclude 'META-INF/MANIFEST.MF'
+        }
+        from(compile.flatMap { it.destinationDirectory }) {
+            include 'com/mistaboom/essence_ascendance/neoforge/MachineTransfer2612Test*.class'
+        }
+        manifest.attributes(target.tasks.named('shadowJar').get().manifest.attributes)
+        duplicatesStrategy = DuplicatesStrategy.FAIL
+    }
+    def metadata = target.layout.buildDirectory.dir('native-fixtures/transfer2612/probe-metadata')
+    def probe = target.tasks.register('transferNative2612ProbeJar', Jar) {
+        dependsOn compile
+        archiveFileName = 'transfer-native-probe.jar'
+        destinationDirectory = output
+        from(compile.flatMap { it.destinationDirectory }) {
+            include 'com/mistaboom/essence_ascendance/nativefixture2612/Neo2612TransferNativeMod.class'
+        }
+        from(metadata)
+        doFirst {
+            def meta = new File(metadata.get().asFile, 'META-INF')
+            meta.mkdirs()
+            new File(meta, 'neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_transfer_native_test"
+version="1"
+displayName="NeoForge 26.1.2 transfer native fixture"
+[[dependencies.essence_transfer_native_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1.0.0-beta.1,)"
+ordering="AFTER"
+side="BOTH"
+'''
+        }
+    }
+    target.tasks.register('transferNative2612FixtureArtifacts') {
+        group = 'verification'
+        description = 'Builds isolated loader-initialized 26.1.2 transfer fixture archives.'
+        dependsOn patched, probe
+        doLast {
+            target.logger.lifecycle('NeoForge 26.1.2 native fixture archives: ' +
+                    patched.get().archiveFile.get().asFile + ', ' + probe.get().archiveFile.get().asFile)
+        }
+    }
+}

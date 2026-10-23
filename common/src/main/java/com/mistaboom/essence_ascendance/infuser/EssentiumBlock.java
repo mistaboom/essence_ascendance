@@ -84,6 +84,9 @@ public final class EssentiumBlock extends Block implements EntityBlock {
             }
         }
 
+        //? if >=26.1.2
+        /*return InteractionResult.SUCCESS;*/
+        //? if <26.1.2
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
@@ -116,13 +119,21 @@ public final class EssentiumBlock extends Block implements EntityBlock {
         return 0xFFFFFFFF;
     }
 
+    //? if <26.1.2
     public static int tint(
+            //? if <26.1.2
             BlockState state,
+            //? if <26.1.2
             net.minecraft.world.level.BlockAndTintGetter level,
+            //? if <26.1.2
             BlockPos pos,
+            //? if <26.1.2
             int tintIndex
+    //? if <26.1.2
     ) {
+        //? if <26.1.2
         return tint(state, tintIndex);
+    //? if <26.1.2
     }
 
     private static int tierPrimaryRgb(EssenceFocusTier tier) {
@@ -179,24 +190,43 @@ public final class EssentiumBlock extends Block implements EntityBlock {
         return super.playerWillDestroy(level, pos, state, player);
     }
 
+    //? if <26.1.2
     @Override
+    //? if <26.1.2
     protected void onRemove(
+            //? if <26.1.2
             BlockState state,
+            //? if <26.1.2
             Level level,
+            //? if <26.1.2
             BlockPos pos,
+            //? if <26.1.2
             BlockState newState,
+            //? if <26.1.2
             boolean movedByPiston
+    //? if <26.1.2
     ) {
+        //? if <26.1.2
         if (!state.is(newState.getBlock())
+                //? if <26.1.2
                 && !level.isClientSide
+                //? if <26.1.2
                 && level.getBlockEntity(pos) instanceof EssentiumBlockEntity blockEntity
+                //? if <26.1.2
                 && !blockEntity.isDropSuppressed()) {
+            //? if <26.1.2
             ItemStack carrier = blockEntity.carrierStack();
+            //? if <26.1.2
             if (!carrier.isEmpty()) {
+                //? if <26.1.2
                 popResource(level, pos, carrier);
+            //? if <26.1.2
             }
+        //? if <26.1.2
         }
+        //? if <26.1.2
         super.onRemove(state, level, pos, newState, movedByPiston);
+    //? if <26.1.2
     }
 
     @Override

@@ -38,10 +38,19 @@ public final class SkillProcDamageService {
                 || !EquipmentDamageService.canSkillHarm(owner, target)) return false;
         DamageSource source = kind == DamageKind.BURNING
                 ? owner.damageSources().onFire()
+                //? if >=26.1.2
+                /*: new DamageSource(owner.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)*/
+                //? if <26.1.2
                 : new DamageSource(owner.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE)
+                        //? if >=26.1.2
+                        /*.getOrThrow(Objects.requireNonNull(kind.damageType(), "Native returned shots keep their existing damage source")),*/
+                        //? if <26.1.2
                         .getHolderOrThrow(Objects.requireNonNull(kind.damageType(), "Native returned shots keep their existing damage source")),
                         owner, owner);
         var result = EquipmentDamageService.measureDamage(target, source,
+                //? if >=26.1.2
+                /*() -> withAttributedDamage(owner, sourceSkill, kind, root, generation, () -> target.hurtServer(owner.serverLevel(), source, amount)));*/
+                //? if <26.1.2
                 () -> withAttributedDamage(owner, sourceSkill, kind, root, generation, () -> target.hurt(source, amount)));
         if (result.accepted() && result.loss() > 0)
             SkillHudEvents.record(owner, sourceSkill, "damage", result.loss());

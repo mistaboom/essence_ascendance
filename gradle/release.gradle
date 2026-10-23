@@ -1,5 +1,9 @@
 // Include the repository's license notice in the production jars for both loaders.
-configure([project(':fabric'), project(':neoforge')]) {
+configure(['fabric', 'neoforge'].collectMany { loader ->
+    rootProject.targetCatalog.versions.keySet().collect { minecraft ->
+        project(":${loader}:${minecraft}")
+    }
+}) {
     plugins.withId('com.gradleup.shadow') {
         tasks.named('shadowJar') {
             from(rootProject.file('LICENSE'))

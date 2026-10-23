@@ -1,6 +1,9 @@
 package com.mistaboom.essence_ascendance.client.procedural;
 
 import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 
 /** Pixel-aligned Ascendance primitives for any GUI. All positions use screen coordinates. */
@@ -12,6 +15,9 @@ public final class GuiProceduralGeometry {
     private GuiProceduralGeometry() { }
 
     /** Original one-pixel DDA beam, including its endpoint. */
+    //? if >=26.1.2
+    /*public static void beam(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int color) {*/
+    //? if <26.1.2
     public static void beam(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
         int steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
         if (steps == 0) { graphics.fill(x1, y1, x1 + 1, y1 + 1, color); return; }
@@ -23,6 +29,9 @@ public final class GuiProceduralGeometry {
     }
 
     /** Polygonal ellipse; a small side count creates the existing faceted sigil vocabulary. */
+    //? if >=26.1.2
+    /*public static void orbit(GuiGraphicsExtractor graphics, int x, int y, double rx, double ry,*/
+    //? if <26.1.2
     public static void orbit(GuiGraphics graphics, int x, int y, double rx, double ry,
                              int sides, double rotation, int color) {
         int segments = Math.clamp(sides, 3, 96);
@@ -35,6 +44,9 @@ public final class GuiProceduralGeometry {
     }
 
     /** Connected polygonal sweep; a sweep smaller than a full turn leaves a deliberate gap. */
+    //? if >=26.1.2
+    /*public static void arc(GuiGraphicsExtractor graphics, int x, int y, double rx, double ry,*/
+    //? if <26.1.2
     public static void arc(GuiGraphics graphics, int x, int y, double rx, double ry,
                            double start, double sweep, int segments, int color) {
         if (segments < 1) return;
@@ -49,6 +61,9 @@ public final class GuiProceduralGeometry {
         }
     }
 
+    //? if >=26.1.2
+    /*public static void brokenOrbit(GuiGraphicsExtractor graphics, int x, int y, double rx, double ry,*/
+    //? if <26.1.2
     public static void brokenOrbit(GuiGraphics graphics, int x, int y, double rx, double ry,
                                    int pieces, int segmentsPerPiece, double rotation,
                                    double gapFraction, int color) {
@@ -59,6 +74,9 @@ public final class GuiProceduralGeometry {
             arc(graphics, x, y, rx, ry, rotation + sector * i, visible, segmentsPerPiece, color);
     }
 
+    //? if >=26.1.2
+    /*public static void spokes(GuiGraphicsExtractor graphics, int x, int y, double innerRadius,*/
+    //? if <26.1.2
     public static void spokes(GuiGraphics graphics, int x, int y, double innerRadius,
                               double outerRadius, int count, double rotation, int color) {
         if (count < 1) return;
@@ -73,6 +91,9 @@ public final class GuiProceduralGeometry {
     }
 
     /** Compact polygon and radial ticks around an arbitrary screen point. */
+    //? if >=26.1.2
+    /*public static void sigil(GuiGraphicsExtractor graphics, int x, int y, double radius,*/
+    //? if <26.1.2
     public static void sigil(GuiGraphics graphics, int x, int y, double radius,
                              int sides, int ticks, double rotation, int color) {
         orbit(graphics, x, y, radius, radius, sides, rotation, color);
@@ -80,6 +101,9 @@ public final class GuiProceduralGeometry {
     }
 
     /** Radius interpolation supports both expansion and contraction. */
+    //? if >=26.1.2
+    /*public static void changingOrbit(GuiGraphicsExtractor graphics, int x, int y,*/
+    //? if <26.1.2
     public static void changingOrbit(GuiGraphics graphics, int x, int y,
                                      double startRadius, double endRadius, double progress,
                                      int sides, double rotation, int color) {
@@ -88,12 +112,18 @@ public final class GuiProceduralGeometry {
     }
 
     /** Rising faceted diamond. Empty-facet and glint colors can be supplied by another screen. */
+    //? if >=26.1.2
+    /*public static void crystal(GuiGraphicsExtractor graphics, int x, int y, int radius,*/
+    //? if <26.1.2
     public static void crystal(GuiGraphics graphics, int x, int y, int radius,
                                double fraction, int color) {
         crystal(graphics, x, y, radius, fraction, color,
                 DEFAULT_EMPTY_LEFT, DEFAULT_EMPTY_RIGHT, DEFAULT_GLINT);
     }
 
+    //? if >=26.1.2
+    /*public static void crystal(GuiGraphicsExtractor graphics, int x, int y, int radius, double fraction,*/
+    //? if <26.1.2
     public static void crystal(GuiGraphics graphics, int x, int y, int radius, double fraction,
                                int color, int emptyLeft, int emptyRight, int glint) {
         int r = Math.max(1, radius);
@@ -116,6 +146,9 @@ public final class GuiProceduralGeometry {
     }
 
     /** A faceted pulse along a straight GUI path. Keep phase selection with the owning effect. */
+    //? if >=26.1.2
+    /*public static void travelingCrystal(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2,*/
+    //? if <26.1.2
     public static void travelingCrystal(GuiGraphics graphics, int x1, int y1, int x2, int y2,
                                         double phase, int radius, double fraction, int color) {
         int x = x1 + (int) ((x2 - x1) * phase);
@@ -128,6 +161,9 @@ public final class GuiProceduralGeometry {
     }
 
     /** Restore the previous scissor stack even if drawing throws. Coordinates are screen pixels. */
+    //? if >=26.1.2
+    /*public static void clipped(GuiGraphicsExtractor graphics, int left, int top, int right, int bottom,*/
+    //? if <26.1.2
     public static void clipped(GuiGraphics graphics, int left, int top, int right, int bottom,
                                Runnable draw) {
         graphics.enableScissor(left, top, right, bottom);
@@ -136,13 +172,28 @@ public final class GuiProceduralGeometry {
     }
 
     /** A scoped pose transform for transient effects anchored to a point or slot center. */
+    //? if >=26.1.2
+    /*public static void transformed(GuiGraphicsExtractor graphics, double x, double y, float scale,*/
+    //? if <26.1.2
     public static void transformed(GuiGraphics graphics, double x, double y, float scale,
                                    Runnable draw) {
+        //? if >=26.1.2
+        /*graphics.pose().pushMatrix();*/
+        //? if <26.1.2
         graphics.pose().pushPose();
         try {
+            //? if >=26.1.2
+            /*graphics.pose().translate((float) x, (float) y);*/
+            //? if <26.1.2
             graphics.pose().translate(x, y, 0);
+            //? if >=26.1.2
+            /*graphics.pose().scale(scale, scale);*/
+            //? if <26.1.2
             graphics.pose().scale(scale, scale, 1);
             draw.run();
+        //? if >=26.1.2
+        /*} finally { graphics.pose().popMatrix(); }*/
+        //? if <26.1.2
         } finally { graphics.pose().popPose(); }
     }
 }

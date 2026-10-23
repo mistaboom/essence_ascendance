@@ -163,6 +163,9 @@ public final class NaturalOreDropService {
     }
 
     private static void addTagged(LinkedHashSet<Block> blocks, TagKey<Block> tag) {
+        //? if >=26.1.2
+        /*((net.minecraft.core.HolderGetter<Block>) BuiltInRegistries.BLOCK).get(tag).ifPresent(entries ->*/
+        //? if <26.1.2
         BuiltInRegistries.BLOCK.getTag(tag).ifPresent(entries ->
                 entries.forEach(holder -> blocks.add(holder.value())));
     }

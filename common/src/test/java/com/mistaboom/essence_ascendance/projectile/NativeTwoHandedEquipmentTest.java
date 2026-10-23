@@ -29,12 +29,12 @@ public final class NativeTwoHandedEquipmentTest {
         NativeGuardOutcomeTest.registry(f);
         var p = (PolicyPlayer) f.player;
         var oldTags = new HashMap<TagKey<Item>, List<Holder<Item>>>();
-        BuiltInRegistries.ITEM.getTags().forEach(t -> oldTags.put(t.getFirst(), t.getSecond().stream().toList()));
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.ITEM));
         var tags = new HashMap<>(oldTags);
         tags.put(TwoHandedEquipmentPolicy.PASSIVE_OFFHAND, List.of(Items.TOTEM_OF_UNDYING.builtInRegistryHolder(),
                 Items.SHIELD.builtInRegistryHolder(), Items.IRON_SWORD.builtInRegistryHolder(), Items.BOW.builtInRegistryHolder(),
                 Items.APPLE.builtInRegistryHolder(), Items.FISHING_ROD.builtInRegistryHolder()));
-        BuiltInRegistries.ITEM.bindTags(tags);
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, tags);
         TwoHandedEquipmentPolicy.rulesChanged();
         try {
             disconnectedPlayers(f);
@@ -55,13 +55,33 @@ public final class NativeTwoHandedEquipmentTest {
             } finally { buffer.release(); }
             long before = TwoHandedEquipmentPolicy.classifications();
             int damage = glaive.getDamageValue();
+            int starts=0;
+            long lastIdentity=0;
             for (int i = 0; i < 100; i++) {
                 check(TwoHandedEquipmentService.validateAttack(p), "Cached compatible validation");
-                check(WeaponActionRuntime.attempt(p, false)==(i==0), "Only the first ready swipe press accepts; repeats never queue");
+                boolean expected=starts<WeaponActionRuntime.MAX_ACTION_STARTS_PER_TICK;
+                boolean accepted=WeaponActionRuntime.attempt(p,false);
+                check(accepted==expected,"Distinct rapid presses restart until the native packet budget is reached");
+                if (accepted) {
+                    starts++;
+                    long identity=WeaponActionRuntime.snapshot(p).actionId();
+                    check(identity>lastIdentity,"Each accepted press receives a fresh server action identity");
+                    lastIdentity=identity;
+                }
                 p.attack(p);
+                expected=starts<WeaponActionRuntime.MAX_ACTION_STARTS_PER_TICK;
+                long identity=WeaponActionRuntime.snapshot(p).actionId();
+                check((identity>lastIdentity)==expected,"Native attack fallback obeys the same bounded restart contract");
+                if (expected) { starts++; lastIdentity=identity; }
             }
+            check(starts==WeaponActionRuntime.MAX_ACTION_STARTS_PER_TICK,"Native fallback input remains bounded within one server tick");
+            f.level.tick++;
+            check(WeaponActionRuntime.attempt(p,true)
+                    && WeaponActionRuntime.snapshot(p).actionId()>lastIdentity
+                    && WeaponActionRuntime.snapshot(p).mode()==WeaponActionRuntime.Mode.STAB,
+                    "A new server tick restores the press budget and can replace the prior attack mode");
             check(before == TwoHandedEquipmentPolicy.classifications(), "Repeated attack and active-action checks never classify");
-            check(glaive.getDamageValue() == damage, "Rejected actions do not spend durability");
+            check(glaive.getDamageValue() == damage, "Restarts without physical contact do not spend durability");
             for (Item item : List.of(Items.SHIELD, Items.IRON_SWORD, Items.BOW, Items.FISHING_ROD, Items.APPLE,
                     Items.IRON_AXE, Items.TRIDENT, AscendanceItems.ASCENDANCE_CASTER.get(), Items.STICK)) {
                 var stack = new ItemStack(item);
@@ -113,10 +133,10 @@ public final class NativeTwoHandedEquipmentTest {
 
             // Reload the actual bound tags, exercising generation refresh without any equipment mutation.
             tags.put(TwoHandedEquipmentPolicy.PASSIVE_OFFHAND, List.of());
-            BuiltInRegistries.ITEM.bindTags(tags); TwoHandedEquipmentPolicy.rulesChanged();
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, tags); TwoHandedEquipmentPolicy.rulesChanged();
             check(!valid(p), "Rule/tag generation refreshes cached compatibility");
             tags.put(TwoHandedEquipmentPolicy.PASSIVE_OFFHAND, List.of(Items.TOTEM_OF_UNDYING.builtInRegistryHolder()));
-            BuiltInRegistries.ITEM.bindTags(tags); TwoHandedEquipmentPolicy.rulesChanged();
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, tags); TwoHandedEquipmentPolicy.rulesChanged();
             check(valid(p), "Passive membership restored without a tick");
 
             EquipmentStatProviderRegistry.register(new EquipmentStatProvider() {
@@ -151,8 +171,12 @@ public final class NativeTwoHandedEquipmentTest {
             p.getInventory().setItem(1, shield);
             before = TwoHandedEquipmentPolicy.classifications();
             f.listener.handleContainerClick(new ServerboundContainerClickPacket(p.inventoryMenu.containerId,
-                    p.inventoryMenu.getStateId(), 45, 1, ClickType.SWAP, ItemStack.EMPTY,
-                    new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>()));
+                    p.inventoryMenu.getStateId(), (short) 45, (byte) 1, ClickType.SWAP,
+                    //? if >=26.1.2
+                    /*new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>(), net.minecraft.network.HashedStack.EMPTY*/
+                    //? if <26.1.2
+                    ItemStack.EMPTY, new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>()
+            ));
             check(p.getOffhandItem() == shield && !valid(p), "Number-key passive-to-shield packet resolves at completion");
             check(TwoHandedEquipmentPolicy.classifications() == before + 1, "Multi-write native menu swap classifies only its completed hands");
             p.inventoryMenu.clicked(45, 1, ClickType.SWAP, p);
@@ -172,6 +196,9 @@ public final class NativeTwoHandedEquipmentTest {
                     BlockPos.ZERO, Direction.DOWN));
             check(p.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && p.getOffhandItem() == glaive,
                     "F swap works with a full inventory and glaive may reside in offhand");
+            //? if >=26.1.2
+            /*check(glaive.use(f.level, p, InteractionHand.OFF_HAND) == net.minecraft.world.InteractionResult.FAIL,*/
+            //? if <26.1.2
             check(glaive.use(f.level, p, InteractionHand.OFF_HAND).getResult() == net.minecraft.world.InteractionResult.FAIL,
                     "A glaive residing in offhand cannot attack");
             check(valid(p) && TwoHandedEquipmentService.decision(p).offhandUse(), "Offhand glaive imposes no two-hand main policy");
@@ -239,10 +266,11 @@ public final class NativeTwoHandedEquipmentTest {
                     && EquipmentDamageService.evaluateStats(p).damageReflectionPercent() > armorReflection,
                     "Switching away restores ordinary lowered shield reflection");
 
-            // Deliberately bypass a supported setter: stale reads fail pending without classification/message.
+            // Deliberately bypass every observed setter: stale reads fail pending
+            // without classification/message on both native inventory layouts.
             p.setItemInHand(InteractionHand.MAIN_HAND, glaive);
             p.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.TOTEM_OF_UNDYING));
-            p.getInventory().offhand.set(0, shield);
+            bypassObservedOffhandSetter(p, shield);
             before = TwoHandedEquipmentPolicy.classifications(); int messages = p.messages;
             check(TwoHandedEquipmentService.decision(p).status() == TwoHandedEquipmentService.Status.PENDING
                     && !TwoHandedEquipmentService.validateAttack(p), "Unexpected unobserved mutation is pending");
@@ -265,17 +293,33 @@ public final class NativeTwoHandedEquipmentTest {
             p.removeAllEffects(); p.setAbsorptionAmount(0); p.setHealth(20); p.invulnerableTime = 0;
             p.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.TOTEM_OF_UNDYING));
             before = TwoHandedEquipmentPolicy.classifications();
-            check(p.hurt(p.damageSources().generic(), 1000) && p.getHealth() == 1 && p.getOffhandItem().isEmpty(),
+            check(com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat.hurt(p, p.damageSources().generic(), 1000) && p.getHealth() == 1 && p.getOffhandItem().isEmpty(),
                     "Actual lethal Player.hurt reaches native totem survival with two-handed main");
             check(valid(p) && f.level.totemActivations == 2 && before == TwoHandedEquipmentPolicy.classifications(),
                     "Complete lethal damage path preserves activation and cached valid-to-empty transition");
             if (dev.architectury.platform.Platform.getEnvironment() == dev.architectury.utils.Env.CLIENT) ClientInput.run();
             System.out.println("NativeTwoHandedEquipmentTest: " + checks + " cache, mutation, input, shield and native totem checks PASS");
         } finally {
-            BuiltInRegistries.ITEM.bindTags(oldTags); TwoHandedEquipmentPolicy.rulesChanged();
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, oldTags); TwoHandedEquipmentPolicy.rulesChanged();
             for (var player : f.onlinePlayers) TwoHandedEquipmentService.forget(player);
             f.close();
         }
+    }
+
+    private static void bypassObservedOffhandSetter(PolicyPlayer player, ItemStack stack)
+            throws ReflectiveOperationException {
+        //? if >=26.1.2 {
+        /*var equipmentField = net.minecraft.world.entity.player.Inventory.class.getDeclaredField("equipment");
+        equipmentField.setAccessible(true);
+        var equipment = (EntityEquipment) equipmentField.get(player.getInventory());
+        var itemsField = EntityEquipment.class.getDeclaredField("items");
+        itemsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        var items = (EnumMap<EquipmentSlot, ItemStack>) itemsField.get(equipment);
+        items.put(EquipmentSlot.OFFHAND, stack);
+        *///?} else {
+        player.getInventory().offhand.set(0, stack);
+        //?}
     }
     private static boolean valid(ServerPlayer p) { return TwoHandedEquipmentService.decision(p).mayAttack(); }
     @SuppressWarnings("unchecked")
@@ -332,6 +376,9 @@ public final class NativeTwoHandedEquipmentTest {
             check(WeaponActionRuntime.snapshot(p) == null, "Right-click interaction animation cannot start a glaive swipe");
             var frame = new net.minecraft.world.entity.decoration.ItemFrame(f.level, new BlockPos(0, 1, 1), Direction.NORTH);
             f.level.entities.add(frame);
+            //? if >=26.1.2
+            /*f.listener.handleInteract(new ServerboundInteractPacket(frame.getId(), InteractionHand.MAIN_HAND, Vec3.ZERO, false));*/
+            //? if <26.1.2
             f.listener.handleInteract(ServerboundInteractPacket.createInteractionPacket(frame, false, InteractionHand.MAIN_HAND));
             check(!frame.isRemoved() && frame.getItem().is(item) && p.getMainHandItem().isEmpty(),
                     "Native item frame accepts the weapon without an attack: " + item);
@@ -348,10 +395,13 @@ public final class NativeTwoHandedEquipmentTest {
         var previousRenderer = client.gameRenderer;
         var local = ProjectileNativeInterceptionTest.instance(net.minecraft.client.player.LocalPlayer.class);
         var mode = ProjectileNativeInterceptionTest.instance(InputGameMode.class);
+        //? if >=26.1.2
+        /*var inventory = new net.minecraft.world.entity.player.Inventory(local, new net.minecraft.world.entity.EntityEquipment());*/
+        //? if <26.1.2
         var inventory = new net.minecraft.world.entity.player.Inventory(local);
         ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.player.Player.class, local, "inventory", inventory);
-        inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
-        inventory.offhand.set(0, new ItemStack(Items.SHIELD));
+        inventory.setItem(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
+        inventory.setItem(40, new ItemStack(Items.SHIELD));
         try {
             client.player = local;
             client.level = ProjectileNativeInterceptionTest.instance(InputLevel.class);
@@ -364,7 +414,7 @@ public final class NativeTwoHandedEquipmentTest {
             var attack = net.minecraft.client.Minecraft.class.getDeclaredMethod("startAttack"); attack.setAccessible(true);
             var mine = net.minecraft.client.Minecraft.class.getDeclaredMethod("continueAttack", boolean.class); mine.setAccessible(true);
             for (var item : List.of(AscendanceItems.ASCENDANCE_GLAIVE.get(), AscendanceItems.ASCENDANCE_FISHING_ROD.get())) {
-                inventory.items.set(0, new ItemStack(item));
+                inventory.setItem(0, new ItemStack(item));
                 client.hitResult = new BlockHitResult(Vec3.ZERO, Direction.UP, BlockPos.ZERO, false);
                 mode.blockResult = net.minecraft.world.InteractionResult.CONSUME;
                 int blocks = mode.blockUses, casts = mode.itemUses;
@@ -377,23 +427,23 @@ public final class NativeTwoHandedEquipmentTest {
                 use.invoke(client);
                 check(mode.entityUses == entities + 1 && mode.itemUses == casts, "Client item-frame interaction precedes weapon fallback: " + item);
             }
-            inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
+            inventory.setItem(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
             client.hitResult = BlockHitResult.miss(Vec3.ZERO, Direction.UP, BlockPos.ZERO);
             use.invoke(client);
             int blockUses = mode.blockUses;
             client.hitResult = new BlockHitResult(Vec3.ZERO, Direction.UP, BlockPos.ZERO, false);
             use.invoke(client);
             check(mode.blockUses == blockUses && mode.itemUses == 0, "Glaive air stab latches the press without native use or offhand fallback");
-            inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_FISHING_ROD.get()));
+            inventory.setItem(0, new ItemStack(AscendanceItems.ASCENDANCE_FISHING_ROD.get()));
             client.hitResult = BlockHitResult.miss(Vec3.ZERO, Direction.UP, BlockPos.ZERO);
             use.invoke(client);
             check(mode.itemUses == 1, "Rod air use reaches the native cast/reel fallback exactly once");
             client.hitResult = new BlockHitResult(Vec3.ZERO, Direction.UP, BlockPos.ZERO, false);
             use.invoke(client);
             check(mode.itemUses == 1 && mode.blockUses == blockUses, "Rod cast/reel latches the press before repeated block or item use");
-            inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
+            inventory.setItem(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
             check(!(boolean)attack.invoke(client), "Actual client attack press remains owned by the weapon");
-            mine.invoke(client, true); check(inventory.offhand.getFirst().is(Items.SHIELD), "Actual client mining input consumed without moving offhand");
+            mine.invoke(client, true); check(inventory.getItem(40).is(Items.SHIELD), "Actual client mining input consumed without moving offhand");
             var decision = new TwoHandedEquipmentService.Decision(TwoHandedEquipmentService.Status.INCOMPATIBLE,
                     true, true, false, false, 9, TwoHandedEquipmentPolicy.generation());
             com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.accept(local, decision);
@@ -401,7 +451,7 @@ public final class NativeTwoHandedEquipmentTest {
                     && !com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.clientDecision(local).offhandVisible(),
                     "Client use/presentation consume the shared server decision");
             local.startUsingItem(InteractionHand.OFF_HAND);
-            check(inventory.offhand.getFirst().is(Items.SHIELD), "Native client active-use setter is suppressed by shared decision");
+            check(inventory.getItem(40).is(Items.SHIELD), "Native client active-use setter is suppressed by shared decision");
         } finally {
             client.player = previous; client.level = previousLevel; client.gameMode = previousMode; client.hitResult = previousHit;
             ProjectileNativeInterceptionTest.set(net.minecraft.client.Minecraft.class, client, "gameRenderer", previousRenderer);
@@ -416,14 +466,23 @@ public final class NativeTwoHandedEquipmentTest {
         @Override public void stopDestroyBlock() { }
         @Override public net.minecraft.world.InteractionResult useItemOn(net.minecraft.client.player.LocalPlayer player,
                 InteractionHand hand, BlockHitResult hit) { blockUses++; return blockResult; }
+        //? if <26.1.2
         @Override public net.minecraft.world.InteractionResult interactAt(net.minecraft.world.entity.player.Player player,
+                //? if <26.1.2
                 Entity entity, EntityHitResult hit, InteractionHand hand) { return net.minecraft.world.InteractionResult.PASS; }
+        //? if >=26.1.2
+        /*@Override public net.minecraft.world.InteractionResult interact(net.minecraft.world.entity.player.Player player, Entity entity, EntityHitResult hit, InteractionHand hand) { entityUses++; return net.minecraft.world.InteractionResult.CONSUME; }*/
+        //? if <26.1.2
         @Override public net.minecraft.world.InteractionResult interact(net.minecraft.world.entity.player.Player player,
+                //? if <26.1.2
                 Entity entity, InteractionHand hand) { entityUses++; return net.minecraft.world.InteractionResult.CONSUME; }
         @Override public net.minecraft.world.InteractionResult useItem(net.minecraft.world.entity.player.Player player,
                 InteractionHand hand) { itemUses++; return net.minecraft.world.InteractionResult.CONSUME; }
     }
     private static final class InputLevel extends net.minecraft.client.multiplayer.ClientLevel {
+        //? if >=26.1.2
+        /*private InputLevel() { super(null, null, null, null, 0, 0, null, false, 0, 0); throw new AssertionError("Fixture only"); }*/
+        //? if <26.1.2
         private InputLevel() { super(null, null, null, null, 0, 0, null, null, false, 0); throw new AssertionError("Fixture only"); }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS; }
         @Override public net.minecraft.world.level.border.WorldBorder getWorldBorder() { return new net.minecraft.world.level.border.WorldBorder(); }
@@ -433,7 +492,13 @@ public final class NativeTwoHandedEquipmentTest {
     static final class PolicyPlayer extends ServerPlayer {
         int messages, openedMenus; String messageKey;
         private PolicyPlayer() { super(null, null, null, null); throw new AssertionError("Fixture only"); }
-        @Override public void displayClientMessage(Component message, boolean actionBar) {
+        //? if >=26.1.2
+        /*@Override public void sendOverlayMessage(Component message) { recordMessage(message); }*/
+        //? if >=26.1.2
+        /*@Override public void sendSystemMessage(Component message) { recordMessage(message); }*/
+        //? if <26.1.2
+        @Override public void displayClientMessage(Component message, boolean actionBar) { recordMessage(message); }
+        private void recordMessage(Component message) {
             messages++; messageKey = message.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents c ? c.getKey() : message.getString();
         }
         @Override public void awardStat(Stat<?> statistic, int amount) { }

@@ -12,10 +12,16 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityShieldDamageMixin {
+    //? if >=26.1.2
+    /*@WrapOperation(method = "applyItemBlocking", at = @At(value = "INVOKE", remap = false,*/
+    //? if <26.1.2
     @WrapOperation(method = "hurt", at = @At(value = "INVOKE", remap = false,
             target = "Lnet/neoforged/neoforge/common/damagesource/DamageContainer;setBlockedDamage(Lnet/neoforged/neoforge/event/entity/living/LivingShieldBlockEvent;)V"))
     private void essenceAscendance$completedBlock(DamageContainer container, LivingShieldBlockEvent event,
                                                  Operation<Void> original) {
+        //? if >=26.1.2
+        /*boolean eligible = event.getOriginalBlock() && event.getBlocked();*/
+        //? if <26.1.2
         boolean eligible = !event.isCanceled() && event.getOriginalBlock() && event.getBlocked();
         if (eligible && (Object) this instanceof ServerPlayer player) {
             EquipmentDamageService.captureBlockingShield(player, container.getSource());

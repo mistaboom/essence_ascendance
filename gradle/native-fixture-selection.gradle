@@ -1,0 +1,27 @@
+// Applied once to root by explicit native fixture init scripts. Never allow an
+// unrecognized selector to fall through to an ordinary gameplay launch.
+def requested = gradle.startParameter.taskNames.collect { (it.startsWith(':') ? it : ":${it}").toString() }
+if (requested.size() != 1)
+    throw new GradleException('Native fixtures require exactly one explicit <loader>:<minecraft>:runClient or runServer task; aliases and extra tasks are not supported.')
+def selected = requested.first()
+def target = rootProject.targetCatalog.targets.find { candidate ->
+    candidate.implemented && selected in [":${candidate.loader}:${candidate.minecraft}:runClient".toString(),
+                                         ":${candidate.loader}:${candidate.minecraft}:runServer".toString()]
+}
+if (target == null || !(target.loader in ['fabric', 'neoforge']))
+    throw new GradleException("Native fixture target must be an explicit implemented catalog loader/version run task (no aliases or abbreviations): ${selected}")
+def fixture = gradle.ext.essenceNativeFixture
+def modern = rootProject.targetCatalog.versions[target.minecraft].resourceFormat == '26.1'
+def expectedRun
+switch (fixture) {
+    case 'projectile': expectedRun = target.loader == 'neoforge' && !modern ? 'runClient' : 'runServer'; break
+    case 'membership': expectedRun = 'runServer'; break
+    case 'guard-movement':
+    case 'glaive': expectedRun = 'runClient'; break
+    default: throw new GradleException("Unknown native fixture selection contract: ${fixture}")
+}
+def expected = ":${target.loader}:${target.minecraft}:${expectedRun}".toString()
+if (selected != expected)
+    throw new GradleException("${fixture} requires its isolated native lifecycle: use ${expected}")
+ext.nativeFixtureSelection = [projectPath: ":${target.loader}:${target.minecraft}".toString(),
+                              taskPaths: requested]

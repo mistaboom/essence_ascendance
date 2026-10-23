@@ -133,4 +133,11 @@ final class ModMetadata {
             if (zip.getEntry(entry) == null) throw new IOException("Archive has no loader entrypoint class: " + entry);
         }
     }
+    static void production(Path jar, String loader, String minecraft) throws IOException {
+        production(jar, loader);
+        var requirements = read(jar, loader).required().stream().filter(r -> r.id().equals("minecraft")).toList();
+        String expected = loader.equals("fabric") ? minecraft : "[" + minecraft + "]";
+        if (requirements.size() != 1 || !expected.equals(requirements.getFirst().range()))
+            throw new IOException("Archive does not declare the exact requested Minecraft target: " + minecraft);
+    }
 }

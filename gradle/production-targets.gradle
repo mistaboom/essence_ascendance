@@ -1,0 +1,255 @@
+// The one production archive map. Callers use these task providers, never a build/libs glob.
+def definitions = targetCatalog.targets.collectEntries { [(it.id): it] }
+ext.productionTargets = definitions.collectEntries { id, details ->
+    def node = project(":${details.loader}:${details.minecraft}")
+    [(id): details + [project: node, archive: node.tasks.named(details.archiveTask)]]
+}
+
+productionTargets.each { id, target ->
+    target.archive.configure {
+        archiveFileName = "${rootProject.archives_name}-${rootProject.mod_version}+mc${target.minecraft}-${target.loader}.jar"
+    }
+}
+
+productionTargets.each { id, target ->
+    tasks.register("production${id}Jar") {
+        group = 'build'
+        description = "Builds the ${target.minecraft} ${target.loader} distributable archive."
+        if (target.implemented) dependsOn target.archive
+        else doFirst { throw new GradleException("${target.minecraft} ${target.loader} production is planned but not implemented.") }
+    }
+}
+
+tasks.register('writeProduction1211Manifest') {
+    group = 'build'
+    description = 'Records the two current release archives from their declared task providers.'
+    dependsOn tasks.named('production1211FabricJar'), tasks.named('production1211NeoForgeJar')
+    def manifest = layout.buildDirectory.file('production-artifacts-1.21.1.json')
+    outputs.file(manifest)
+    // Archive tasks can rebuild after metadata or license changes; never reuse a stale receipt.
+    outputs.upToDateWhen { false }
+    doLast {
+        def targets = productionTargets.values().findAll { it.minecraft == '1.21.1' }.collect { target ->
+            def id = target.id
+            def archive = target.archive.get().archiveFile.get().asFile.canonicalFile
+            if (!archive.isFile()) throw new GradleException("Missing ${id} production archive: ${archive}")
+            [target: id, minecraft: target.minecraft, loader: target.loader,
+             task: target.archive.get().path, archive: archive.path,
+             sha256: java.security.MessageDigest.getInstance('SHA-256').digest(archive.bytes).encodeHex().toString()]
+        }
+        def output = manifest.get().asFile
+        output.parentFile.mkdirs()
+        output.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([schema: 1, targets: targets])) + '\n'
+    }
+}
+
+tasks.register('writeProductionManifest') {
+    group = 'build'
+    description = 'Records every declared production task provider and archive hash.'
+    productionTargets.each { id, target -> dependsOn tasks.named("production${id}Jar") }
+    def manifest = layout.buildDirectory.file('production-artifacts-all.json')
+    outputs.file(manifest)
+    outputs.upToDateWhen { false }
+    doLast {
+        def targets = productionTargets.collect { id, target ->
+            def archive = target.archive.get().archiveFile.get().asFile.canonicalFile
+            def outputDir = target.project.layout.buildDirectory.dir('libs').get().asFile.canonicalFile
+            if (!archive.isFile() || archive.parentFile != outputDir)
+                throw new GradleException("${id}: production archive is missing or outside exact target build/libs")
+            [target: id, minecraft: target.minecraft, loader: target.loader,
+             java: targetCatalog.versions[target.minecraft].java,
+             task: target.archive.get().path, archive: archive.path, bytes: archive.length(),
+             sha256: java.security.MessageDigest.getInstance('SHA-256').digest(archive.bytes).encodeHex().toString()]
+        }
+        def output = manifest.get().asFile
+        output.parentFile.mkdirs()
+        output.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([schema: 1, targets: targets])) + '\n'
+    }
+}
+
+// Both the aggregate and the independently shippable NeoForge audit use the
+// same processed-resource ownership and byte-for-byte package rules.
+def processedRuntimeAssets = { common, minecraft ->
+    def resourceRoot = common.tasks.named('processResources').get().destinationDir
+    def expected = [:]
+    fileTree(resourceRoot).matching { include 'assets/**', 'data/**' }.visit { entry ->
+        if (!entry.directory) expected[entry.relativePath.pathString] = entry.file
+    }
+    if (expected.isEmpty()) throw new GradleException("${minecraft}: processed common assets are missing")
+    def sourcePaths = [] as Set
+    common.sourceSets.main.resources.matching { include 'assets/**', 'data/**' }.visit { entry ->
+        if (!entry.directory) sourcePaths.add(entry.relativePath.pathString)
+    }
+    if (sourcePaths != expected.keySet())
+        throw new GradleException("${minecraft}: processed assets differ from source/generated ownership: missing="
+                + (sourcePaths - expected.keySet()) + ', stale=' + (expected.keySet() - sourcePaths))
+    expected
+}
+def verifyPackagedRuntimeAssets = { zip, names, counts, expected, loader ->
+    def unexpected = names.findAll { (it.startsWith('assets/essence_ascendance/') || it.startsWith('data/essence_ascendance/'))
+            && !it.endsWith('/') && !expected.containsKey(it) }
+    if (!unexpected.empty) throw new GradleException("${loader}: stale/unowned runtime assets ${unexpected}")
+    expected.each { name, source ->
+        if (counts[name] != 1) throw new GradleException("${loader}: missing or duplicate runtime asset ${name}")
+        if (!java.util.Arrays.equals(source.bytes, zip.getInputStream(zip.getEntry(name)).bytes))
+            throw new GradleException("${loader}: stale runtime asset ${name}")
+    }
+    if (names.any { it.startsWith('art/') || it.endsWith('.bbmodel')
+            || it.contains('textures/armor/ascendance/source/')
+            || it.contains('textures/models/armor/source/') })
+        throw new GradleException("${loader}: packaged asset authoring files")
+}
+
+// Every exact target uses one archive audit; version aggregates only select providers.
+productionTargets.each { id, target ->
+    tasks.register("assetJarInvariants${id}") {
+        group = 'verification'
+        description = "Audit the exact ${target.minecraft} ${target.loader} production provider."
+        def minecraft = target.minecraft
+        def common = target.project.targetCommon
+        dependsOn common.tasks.named('processResources'), common.tasks.named('testClasses'), target.archive
+        doLast {
+            def expected = processedRuntimeAssets(common, minecraft)
+            def testClasses = [] as Set
+            common.sourceSets.test.output.classesDirs.each { directory ->
+                fileTree(directory).matching { include '**/*.class' }.visit { entry ->
+                    if (!entry.directory) testClasses.add(entry.relativePath.pathString)
+                }
+            }
+            def jar = target.archive.get().archiveFile.get().asFile
+            new java.util.zip.ZipFile(jar).withCloseable { zip ->
+                def names = zip.entries().collect { it.name }
+                def nameCounts = names.countBy { it }
+                def leakedTests = names.findAll { testClasses.contains(it)
+                        || it.startsWith('com/mistaboom/essence_ascendance/fixture/')
+                        || it.startsWith('com/mistaboom/essence_ascendance/membershipfixture/')
+                        || it.startsWith('dev/essence/packtester/') || it.startsWith('org/tomlj/')
+                        || it.startsWith('dev/ftb/mods/') || it.startsWith('mezz/jei/') }
+                if (!leakedTests.empty) throw new GradleException("${target.loader}: test/tool/optional API classes packaged: ${leakedTests}")
+                def ownClasses = names.findAll { it.startsWith('com/mistaboom/essence_ascendance/') && it.endsWith('.class') }
+                if (ownClasses.empty) throw new GradleException("${minecraft} ${target.loader}: no mod classes")
+                def expectedMajor = target.project.targetJava + 44
+                ownClasses.each { name ->
+                    zip.getInputStream(zip.getEntry(name)).withCloseable { stream ->
+                        def header = stream.readNBytes(8)
+                        if (header.length != 8 || header[0..3] != [0xCA, 0xFE, 0xBA, 0xBE].collect { (byte) it }
+                                || (((header[6] & 0xff) << 8) | (header[7] & 0xff)) != expectedMajor)
+                            throw new GradleException("${minecraft} ${target.loader}: wrong Java class level in ${name}")
+                    }
+                }
+                def mixinFiles = ['essence_ascendance.mixins.json', target.loader == 'fabric'
+                        ? 'essence_ascendance.damage.mixins.json' : 'essence_ascendance.vitality.mixins.json']
+                mixinFiles.each { mixinFile ->
+                    if (nameCounts[mixinFile] != 1) throw new GradleException("${minecraft} ${target.loader}: missing required ${mixinFile}")
+                    def config = new groovy.json.JsonSlurper().parseText(zip.getInputStream(zip.getEntry(mixinFile)).text)
+                    if (config.required != true || config.injectors?.defaultRequire != 1
+                            || config.compatibilityLevel != "JAVA_${target.project.targetJava}")
+                        throw new GradleException("${minecraft} ${target.loader}: weakened or wrong mixin config ${mixinFile}")
+                    if (mixinFile == 'essence_ascendance.mixins.json'
+                            && !config.client.contains('ArmorPresentationMixin'))
+                        throw new GradleException("${minecraft} ${target.loader}: missing armor presentation hook")
+                }
+                if (target.loader == 'fabric') {
+                    if (names.contains('META-INF/neoforge.mods.toml') || nameCounts['fabric.mod.json'] != 1)
+                        throw new GradleException("${minecraft} Fabric: wrong loader metadata")
+                    def metadata = new groovy.json.JsonSlurper().parseText(zip.getInputStream(zip.getEntry('fabric.mod.json')).text)
+                    if (metadata.id != 'essence_ascendance' || metadata.depends.minecraft != minecraft
+                            || metadata.depends.java != ">=${target.project.targetJava}")
+                        throw new GradleException("${minecraft} Fabric: wrong Minecraft or Java metadata")
+                    if (!metadata.mixins.containsAll(mixinFiles))
+                        throw new GradleException("${minecraft} Fabric: required mixin configurations are not registered")
+                    if (target.project.targetNativeAccess && (metadata.accessWidener != 'essence_ascendance.accesswidener'
+                            || nameCounts['essence_ascendance.accesswidener'] != 1))
+                        throw new GradleException("${minecraft} Fabric: missing required access widener")
+                    if (!target.project.targetNativeAccess && (metadata.containsKey('accessWidener')
+                            || names.contains('essence_ascendance.accesswidener')))
+                        throw new GradleException("${minecraft} Fabric: obsolete access widener packaged")
+                } else {
+                    if (names.contains('fabric.mod.json') || nameCounts['META-INF/neoforge.mods.toml'] != 1)
+                        throw new GradleException("${minecraft} NeoForge: wrong loader metadata")
+                    def metadata = zip.getInputStream(zip.getEntry('META-INF/neoforge.mods.toml')).text
+                    if (!metadata.contains('modId = "essence_ascendance"')
+                            || !metadata.contains("versionRange = \"[${minecraft}]\""))
+                        throw new GradleException("${minecraft} NeoForge: wrong Minecraft metadata")
+                    mixinFiles.each { mixinFile ->
+                        if (!(metadata =~ /(?m)^config\s*=\s*"${java.util.regex.Pattern.quote(mixinFile)}"\s*$/).find())
+                            throw new GradleException("${minecraft} NeoForge: required mixin configuration is not registered: ${mixinFile}")
+                    }
+                    if (target.project.targetNativeAccess && (nameCounts['META-INF/accesstransformer.cfg'] != 1
+                            || !metadata.contains('[[accessTransformers]]')
+                            || !(metadata =~ /(?m)^file\s*=\s*"META-INF\/accesstransformer\.cfg"\s*$/).find()))
+                        throw new GradleException("${minecraft} NeoForge: missing required access transformer")
+                    if (!target.project.targetNativeAccess && (metadata.contains('[[accessTransformers]]')
+                            || names.contains('META-INF/accesstransformer.cfg')))
+                        throw new GradleException("${minecraft} NeoForge: obsolete access transformer packaged")
+                }
+                def configuredMixins = [] as Set
+                if (ownClasses.any { nameCounts[it] != 1 })
+                    throw new GradleException("${minecraft} ${target.loader}: duplicate production classes")
+                mixinFiles.each { configFile ->
+                    def config = new groovy.json.JsonSlurper().parseText(zip.getInputStream(zip.getEntry(configFile)).text)
+                    (config.mixins + config.client).each { name ->
+                        def qualified = config.package.replace('.', '/') + '/' + name.replace('.', '/')
+                        if (!configuredMixins.add(qualified))
+                            throw new GradleException("${minecraft} ${target.loader}: mixin registered twice: ${qualified}")
+                        if (nameCounts[qualified + '.class'] != 1)
+                            throw new GradleException("${minecraft} ${target.loader}: missing/duplicate mixin class ${qualified}")
+                    }
+                }
+                verifyPackagedRuntimeAssets(zip, names, nameCounts, expected, target.loader)
+                if (!names.contains('com/mistaboom/essence_ascendance/mixin/ArmorPresentationMixin.class'))
+                    throw new GradleException("${target.loader}: missing common armor presentation hook")
+                if (names.any { it.startsWith('com/mistaboom/essence_ascendance/client/armor/ArmorOrnaments')
+                        || it.startsWith('com/mistaboom/essence_ascendance/visual/ArmorVisualStyle') })
+                    throw new GradleException("${target.loader}: obsolete floating armor ornament classes packaged")
+                logger.lifecycle("${minecraft} ${target.loader}: all ${expected.size()} runtime assets/data resources match processed resources; authoring files excluded")
+            }
+        }
+    }
+}
+
+targetCatalog.versions.keySet().each { minecraft ->
+    def suffix = minecraft.replaceAll('[^0-9]', '')
+    tasks.register("assetJarInvariants${suffix}") {
+        group = 'verification'
+        description = "Audit all declared ${minecraft} production targets."
+        dependsOn productionTargets.findAll { id, target -> target.minecraft == minecraft }.collect { id, target ->
+            tasks.named("assetJarInvariants${id}")
+        }
+    }
+}
+
+tasks.register('assetJarInvariants') {
+    group = 'verification'
+    description = 'Verify every declared production target and its processed resources.'
+    dependsOn productionTargets.keySet().collect { id -> tasks.named("assetJarInvariants${id}") }
+}
+tasks.register('armorJarInvariants') {
+    group = 'verification'
+    description = 'Compatibility alias for complete production asset verification.'
+    dependsOn tasks.named('assetJarInvariants')
+}
+
+// A fresh production gate must not erase disposable fixture worlds or prior audit receipts.
+// Run this task in a separate invocation before checkSupportedTargets (never beside it).
+tasks.register('cleanProductionOutputs', Delete) {
+    group = 'build'
+    description = 'Removes only target production/compiler/generated outputs; preserves fixture worlds, runs and audit evidence.'
+    def outputDirectories = ['classes', 'resources', 'libs', 'devlibs', 'generated', 'generated-resources',
+                             'asset-work', 'asset-pipeline', 'asset-pipeline-tests', 'stonecutter-cache', 'processIncludeJars']
+    def nodes = productionTargets.values().collectMany { [it.project, it.project.targetCommon] }.unique()
+    def outputsToDelete = nodes.collectMany { node ->
+        def buildRoot = node.layout.buildDirectory.get().asFile.canonicalFile
+        outputDirectories.collect { name ->
+            def output = new File(buildRoot, name).canonicalFile
+            if (output.parentFile != buildRoot)
+                throw new GradleException("Production cleanup escaped target build directory: ${output}")
+            output
+        }
+    }
+    delete outputsToDelete
+    doFirst {
+        if (gradle.startParameter.taskNames.any { it.tokenize(':').last() != 'cleanProductionOutputs' })
+            throw new GradleException('Run cleanProductionOutputs alone, then run the production verification gate separately.')
+    }
+}

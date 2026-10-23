@@ -15,6 +15,9 @@ import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.*;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.monster.zombie.Zombie;*/
+//? if <26.1.2
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.*;
 import net.minecraft.world.phys.Vec3;
@@ -22,6 +25,20 @@ import java.util.*;
 
 /** Real owner-held activation, native mob despawn and loader-transformed motion tracking. */
 public final class NativePersonalizedEquipmentTest {
+    //? if >=26.1.2
+    /*private static ServerEntity.Synchronizer trackingSynchronizer(List<Packet<?>> packets) {*/
+        //? if >=26.1.2
+        /*return new ServerEntity.Synchronizer() {*/
+            //? if >=26.1.2
+            /*@Override public void sendToTrackingPlayers(Packet<? super ClientGamePacketListener> packet) { packets.add(packet); }*/
+            //? if >=26.1.2
+            /*@Override public void sendToTrackingPlayersAndSelf(Packet<? super ClientGamePacketListener> packet) { packets.add(packet); }*/
+            //? if >=26.1.2
+            /*@Override public void sendToTrackingPlayersFiltered(Packet<? super ClientGamePacketListener> packet, java.util.function.Predicate<net.minecraft.server.level.ServerPlayer> filter) { packets.add(packet); }*/
+        //? if >=26.1.2
+        /*};*/
+    //? if >=26.1.2
+    /*}*/
     private static int checks;
     public static void run(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
         inventoryOverlay(f);
@@ -140,6 +157,9 @@ public final class NativePersonalizedEquipmentTest {
             check(mob.getDeltaMovement().equals(kick), "Repeated tick cannot duplicate the gift impulse");
             vance.releaseUsingItem(); check(hook.isRemoved() && mob.getDeltaMovement().equals(kick), "Release retains the entire launch impulse");
             List<Packet<?>> packets = new ArrayList<>();
+            //? if >=26.1.2
+            /*var tracker = new ServerEntity(f.level, mob, 3, true, trackingSynchronizer(packets));*/
+            //? if <26.1.2
             var tracker = new ServerEntity(f.level, mob, 3, true, packets::add);
             tracker.sendChanges();
             check(packets.getLast() instanceof ClientboundCustomPayloadPacket packet
@@ -153,6 +173,9 @@ public final class NativePersonalizedEquipmentTest {
                 check(decoded.velocity().equals(kick) && decoded.entityUuid().equals(mob.getUUID()), "Native outgoing packet retains full velocity and mob identity");
             } finally { buffer.release(); }
             check(packets.stream().anyMatch(packet -> packet instanceof ClientboundSetEntityMotionPacket velocity
+                    //? if >=26.1.2
+                    /*&& Math.abs(velocity.movement().y - 3.9) < 1e-8 && velocity.movement().y < kick.y),*/
+                    //? if <26.1.2
                     && Math.abs(velocity.getYa() - 3.9) < 1e-8 && velocity.getYa() < kick.y),
                     "Test exercises the real native velocity representation limit");
             double maximum = 0;
@@ -210,6 +233,9 @@ public final class NativePersonalizedEquipmentTest {
             var unchanged = stack.copy();
             owner.getInventory().setItem(0, stack);
             for (int selected : new int[]{0, 1, 8}) {
+                //? if >=26.1.2
+                /*owner.getInventory().setSelectedSlot(selected);*/
+                //? if <26.1.2
                 owner.getInventory().selected = selected;
                 check(PersonalizedEquipmentService.active(owner, stack).orElseThrow().equals(profile),
                         "Shared overlay survives hotbar selection: " + profile.id());

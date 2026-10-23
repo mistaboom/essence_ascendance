@@ -1,0 +1,100 @@
+// Explicit registry/world fixture for any implemented loader/Minecraft target.
+if (gradle.ext.has('essenceNativeFixture'))
+    throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'latentOre'
+def configuredOreFixture = false
+
+allprojects { p ->
+    p.afterEvaluate {
+        if (!(p.path.startsWith(':fabric:') || p.path.startsWith(':neoforge:')) ||
+                !p.gradle.startParameter.taskNames.any { it == "${p.path}:runServer" }) return
+        if (!p.targetImplemented) throw new GradleException('Latent Ore fixture requires an implemented target')
+        if (configuredOreFixture) throw new GradleException('Run one native ore target per invocation')
+        configuredOreFixture = true
+        def common = p.targetCommon
+        def fabric = p.path.startsWith(':fabric:')
+        def metadata = p.file('build/native-fixtures/latent-ore-metadata')
+        def commonFixture = null
+        if (!fabric) {
+            p.apply from: p.rootProject.file('gradle/native-fixture-support.gradle')
+            commonFixture = p.useNativeFixtureCommon('latentOre', ['com/mistaboom/essence_ascendance/ore/LatentOreNativeFixture*.class'])
+        }
+        def compile = p.tasks.register('compileLatentOreNativeFixture', JavaCompile) {
+            dependsOn(common.tasks.named('testClasses'), p.tasks.named('classes'))
+            source(p.rootProject.file('gradle/native-fixtures/' +
+                    (fabric ? 'FabricLatentOreNativeMod.java' : 'NeoForgeLatentOreNativeMod.java')))
+            classpath = p.sourceSets.main.compileClasspath + p.sourceSets.main.output + common.sourceSets.test.output
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/latent-ore-classes')
+            options.release = p.targetJava
+            javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+        }
+        def fixture = p.tasks.register('latentOreNativeFixtureJar', Jar) {
+            dependsOn(compile)
+            archiveFileName = 'latent-ore-fixture.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            from(compile.flatMap { it.destinationDirectory })
+            if (fabric) from(common.sourceSets.test.output) {
+                include 'com/mistaboom/essence_ascendance/ore/LatentOreNativeFixture*.class'
+            }
+            from(metadata)
+            doFirst {
+                metadata.mkdirs()
+                def nestedTag = new File(metadata, 'data/essence_latent_ore_item_test/tags/item/nested_ores.json')
+                nestedTag.parentFile.mkdirs()
+                nestedTag.text = '{"values":["#essence_ascendance:latent_ores"]}\n'
+                if (fabric) {
+                    new File(metadata, 'fabric.mod.json').text = '''{"schemaVersion":1,"id":"essence_latent_ore_item_test","version":"1","environment":"server","entrypoints":{"main":["com.mistaboom.essence_ascendance.fixture.FabricLatentOreNativeMod"]},"depends":{"essence_ascendance":"*"}}'''
+                } else {
+                    new File(metadata, 'META-INF').mkdirs()
+                    new File(metadata, 'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_latent_ore_item_test"
+version="1"
+displayName="Registry-bound Latent Ore fixture"
+[[dependencies.essence_latent_ore_item_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1.0.0-beta.1,)"
+ordering="AFTER"
+side="SERVER"
+'''
+                }
+            }
+        }
+        p.tasks.named('runServer').configure { t ->
+            def run = p.file('build/native-fixtures/latent-ore-world-run').canonicalFile
+            t.internalRunDir.set(run)
+            t.dependsOn(fixture)
+            if (fabric) t.jvmArgs('-Dfabric.addMods=' + p.file('build/native-fixtures/latent-ore-fixture.jar').canonicalPath)
+            if (!fabric) {
+                t.dependsOn(commonFixture)
+                def original = common.tasks.named('jar').get().archiveFile.get().asFile.canonicalFile
+                def originalClasspath = t.classpath.files.findAll { it.canonicalFile != original }
+                t.classpath = p.files(originalClasspath, commonFixture.flatMap { it.archiveFile })
+            }
+            t.doFirst {
+                if (t.internalRunDir.asFile.get().canonicalFile != run)
+                    throw new GradleException('Unexpected Latent Ore fixture directory')
+                if (!fabric) {
+                    def original = common.tasks.named('jar').get().archiveFile.get().asFile.canonicalFile
+                    def actual = t.classpath.files*.canonicalFile
+                    if (actual.contains(original) || !actual.contains(commonFixture.get().archiveFile.get().asFile.canonicalFile))
+                        throw new GradleException('Latent Ore native classes are not isolated')
+                }
+                run.mkdirs()
+                new File(run, 'eula.txt').text = 'eula=true\n'
+                new File(run, 'server.properties').text = 'server-ip=127.0.0.1\nserver-port=0\nonline-mode=false\nview-distance=2\nsimulation-distance=2\n'
+                if (!fabric) {
+                    def mods = new File(run, 'mods'); mods.mkdirs()
+                    p.copy { from(fixture.get().archiveFile); into(mods) }
+                }
+            }
+        }
+    }
+}
+gradle.projectsEvaluated {
+    if (!configuredOreFixture)
+        throw new GradleException('Select one exact implemented :fabric:<minecraft>:runServer or :neoforge:<minecraft>:runServer task')
+}

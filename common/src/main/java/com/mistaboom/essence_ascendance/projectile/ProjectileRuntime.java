@@ -15,6 +15,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileDeflection;
@@ -177,7 +180,7 @@ public final class ProjectileRuntime {
                     LivingEntity next = ProjectileTargeting.retarget(projectile, owner, state);
                     if (next != null && state.ricochet()) {
                         projectile.setDeltaMovement(next.getBoundingBox().getCenter().subtract(destination).normalize().scale(speed));
-                        projectile.hasImpulse = true;
+                        ProjectileMotionSync.mark(projectile);
                         continuing = true;
                         CombatVisualFeedback.link(owner.serverLevel(), TransientVisualIds.WORLD_PROJECTILE_REDIRECT,
                                 destination, null, null, next.getBoundingBox().getCenter(), projectile.getDeltaMovement(),

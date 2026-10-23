@@ -1,0 +1,48 @@
+// One native resource projection for common and both loader nodes. Only the
+// processed output changes; authored 1.21.1 configuration remains selectable.
+def appendAfter = { List entries, String anchor, List additions ->
+    int index = entries.indexOf(anchor)
+    if (index < 0) throw new GradleException("Missing native mixin anchor ${anchor}")
+    entries.addAll(index + 1, additions)
+}
+
+tasks.named('processResources') {
+    inputs.property 'mixinProjectionFormat', project.targetResourceFormat
+    inputs.property 'mixinProjectionJava', project.targetJava
+    doLast {
+        fileTree(destinationDir).matching { include '**/*.mixins.json' }.files.each { configFile ->
+            def sources = sourceSets.main.resources.matching { include "**/${configFile.name}" }.files
+            if (sources.size() != 1)
+                throw new GradleException("Expected one authored ${configFile.name}, got ${sources}")
+            def config = new groovy.json.JsonSlurper().parse(sources.first())
+            config.compatibilityLevel = "JAVA_${project.targetJava}"
+            if (project.targetResourceFormat == '26.1') {
+                switch (configFile.name) {
+                    case 'essence_ascendance.mixins.json':
+                        appendAfter(config.client, 'GlaivePlayerModelMixin',
+                                ['GlaivePlayerDrawPoseMixin', 'GlaiveBodyRenderMixin'])
+                        // Native 26 item components choose the model; the old bakery hook is 1.21-only.
+                        config.client.remove('LatentOreModelBakeryMixin')
+                        // Native special-model codecs replace the old shield renderer.
+                        config.client.remove('ShieldItemRendererMixin')
+                        appendAfter(config.client, 'ItemRendererEmissionMixin', ['ItemStackEmissionLayerMixin'])
+                        break
+                    case 'essence_ascendance.damage.mixins.json':
+                        appendAfter(config.mixins, 'TraversalMiningMixin', ['AttunementBrewingInventorySetMixin'])
+                        config.mixins.remove('NativeShieldDurabilityMixin')
+                        appendAfter(config.client, 'HumanoidArmorLayerTierMixin', ['ArmorTierTextureMixin'])
+                        appendAfter(config.client, 'LatentOreRenderDataMixin',
+                                ['BlockColorsMixin', 'SpecialModelRenderersAccessor',
+                                 'RangeSelectItemModelPropertiesAccessor', 'ItemTintSourcesAccessor'])
+                        break
+                    case 'essence_ascendance.vitality.mixins.json':
+                        appendAfter(config.mixins, 'TraversalMiningMixin', ['AttunementBrewingTransferMixin', 'NeoForgeEquipmentPolicyMixin'])
+                        config.client.remove('AscendanceArmorItemClientMixin')
+                        config.client.remove('NeoForgeGuardSprintKeyMixin')
+                        break
+                }
+            }
+            configFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config)) + '\n'
+        }
+    }
+}

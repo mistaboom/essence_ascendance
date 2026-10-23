@@ -3,6 +3,9 @@ package com.mistaboom.essence_ascendance.client.ui.fullscreen;
 import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.client.ui.UiViewport;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import org.lwjgl.glfw.GLFW;
 
@@ -134,23 +137,41 @@ public final class FullscreenViewport {
         };
     }
 
-    /** Scissors are stacked by GuiGraphics and always restored, including after renderer failure. */
+    /** Scissors are stacked by the native GUI extractor and always restored, including after renderer failure. */
+    //? if >=26.1.2
+    /*public static void withClip(GuiGraphicsExtractor graphics, UiBounds bounds, Runnable render) {*/
+    //? if <26.1.2
     public static void withClip(GuiGraphics graphics, UiBounds bounds, Runnable render) {
         GuiProceduralGeometry.clipped(graphics, bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), render);
     }
 
+    //? if >=26.1.2
+    /*public void renderContent(GuiGraphicsExtractor graphics, boolean centerX, boolean centerY, Runnable render) {*/
+    //? if <26.1.2
     public void renderContent(GuiGraphics graphics, boolean centerX, boolean centerY, Runnable render) {
         withClip(graphics, bounds, () -> {
+            //? if >=26.1.2
+            /*graphics.pose().pushMatrix();*/
+            //? if <26.1.2
             graphics.pose().pushPose();
             try {
+                //? if >=26.1.2
+                /*graphics.pose().translate((float) originX(centerX), (float) originY(centerY));*/
+                //? if <26.1.2
                 graphics.pose().translate(originX(centerX), originY(centerY), 0.0);
                 render.run();
             } finally {
+                //? if >=26.1.2
+                /*graphics.pose().popMatrix();*/
+                //? if <26.1.2
                 graphics.pose().popPose();
             }
         });
     }
 
+    //? if >=26.1.2
+    /*public void renderContent(GuiGraphicsExtractor graphics, Runnable render) {*/
+    //? if <26.1.2
     public void renderContent(GuiGraphics graphics, Runnable render) {
         renderContent(graphics, false, false, render);
     }

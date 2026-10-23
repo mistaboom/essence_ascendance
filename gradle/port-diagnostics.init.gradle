@@ -1,0 +1,61 @@
+import groovy.json.JsonOutput
+
+// Diagnostic compilation includes every common and loader production source.
+// It avoids the failing common task dependency without omitting its source.
+gradle.projectsEvaluated {
+    def common = rootProject.project(':common:26.1.2')
+    common.tasks.named('compileJava', JavaCompile) {
+        options.compilerArgs += ['-Xmaxerrs', '10000']
+    }
+    ['fabric', 'neoforge'].each { loader ->
+        def target = rootProject.project(":${loader}:26.1.2")
+        target.tasks.register('portAllSourceDiagnostics', JavaCompile) {
+            dependsOn common.tasks.named('stonecutterGenerate'), target.tasks.named('stonecutterGenerate')
+            source common.sourceSets.main.java, target.sourceSets.main.java
+            // Every common class is supplied as source. Do not consume stale/partial common class output.
+            classpath = rootProject.files({ (target.sourceSets.main.compileClasspath.files + common.sourceSets.main.compileClasspath.files).findAll {
+                it.exists() && !common.sourceSets.main.output.files.contains(it)
+            } })
+            destinationDirectory = target.layout.buildDirectory.dir('port-all-source-diagnostics')
+            javaCompiler = target.tasks.named('compileJava', JavaCompile).get().javaCompiler
+            options.release = 25
+            options.compilerArgs += ['-proc:none', '-Xmaxerrs', '10000']
+            doFirst {
+                def receipt = [loader: loader, classpath: classpath.files.collect { it.canonicalPath },
+                    javaHome: javaCompiler.get().metadata.installationPath.asFile.canonicalPath,
+                    sourceRoots: (common.sourceSets.main.java.srcDirs + target.sourceSets.main.java.srcDirs).collect { it.canonicalPath }]
+                rootProject.file("build/port-${loader}-inputs.json").text = JsonOutput.prettyPrint(JsonOutput.toJson(receipt))
+            }
+        }
+    }
+    def neo = rootProject.project(':neoforge:26.1.2')
+    def apiClasspath = rootProject.files({ neo.sourceSets.main.compileClasspath.files.findAll {
+        it.exists() && !common.sourceSets.main.output.files.contains(it)
+    } })
+    def apiClasses = neo.layout.buildDirectory.dir('port-api-invariants')
+    def compileApi = neo.tasks.register('compilePortApiInvariants', JavaCompile) {
+        description = 'Compiles isolated production codec/journal units and their tests; never a replacement for compileJava.'
+        dependsOn neo.tasks.named('stonecutterGenerate')
+        source neo.sourceSets.main.java.matching { include '**/MachineNeoForgeResourceHandler.java' }
+        source rootProject.files(
+            'common/src/main/java/com/mistaboom/essence_ascendance/vitality/FoodEffectOrigin.java',
+            'common/src/main/java/com/mistaboom/essence_ascendance/vitality/FoodEffectOriginCodec.java',
+            'common/src/test/java/com/mistaboom/essence_ascendance/vitality/FoodEffectOriginCodecTest.java',
+            'tools/verification/stonecutter/MachineTransferJournal2612Test.java',
+            'tools/verification/stonecutter/MachineTransfer2612Test.java')
+        classpath = apiClasspath
+        destinationDirectory = apiClasses
+        javaCompiler = neo.tasks.named('compileJava', JavaCompile).get().javaCompiler
+        options.release = 25
+        options.compilerArgs += ['-proc:none']
+    }
+    [portTransactionJournalInvariants: 'com.mistaboom.essence_ascendance.neoforge.MachineTransferJournal2612Test',
+     portFoodOriginCodecInvariants: 'com.mistaboom.essence_ascendance.vitality.FoodEffectOriginCodecTest'].each { taskName, entry ->
+        neo.tasks.register(taskName, JavaExec) {
+            dependsOn compileApi
+            classpath = rootProject.files(apiClasses) + apiClasspath
+            mainClass = entry
+            javaLauncher = neo.javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+        }
+    }
+}

@@ -5,9 +5,7 @@
       "conditions": {
         "items": [
           {
-            "items": [
-              "essence_ascendance:adaptive_latent_ore"
-            ]
+            "items": "#essence_ascendance:latent_ores"
           }
         ]
       }

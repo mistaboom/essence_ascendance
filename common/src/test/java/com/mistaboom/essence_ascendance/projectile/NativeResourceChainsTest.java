@@ -17,6 +17,9 @@ import net.minecraft.server.level.*;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.*;
 import net.minecraft.world.entity.EntityType;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.npc.villager.Villager;*/
+//? if <26.1.2
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.*;
@@ -37,17 +40,48 @@ import java.util.*;
 public final class NativeResourceChainsTest {
     private static int checks;
     private NativeResourceChainsTest() { }
+    private static net.minecraft.world.entity.EquipmentSlot armorSlot(Item item) {
+        //? if >=26.1.2
+        /*var equipment = new ItemStack(item).get(DataComponents.EQUIPPABLE); return equipment == null ? null : equipment.slot();*/
+        //? if <26.1.2
+        return item instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
+    }
+    private static void replaceRecipes(RecipeManager manager, List<RecipeHolder<?>> recipes) throws ReflectiveOperationException {
+        //? if >=26.1.2
+        /*var field = RecipeManager.class.getDeclaredField("recipes"); field.setAccessible(true); field.set(manager, RecipeMap.create(recipes));*/
+        //? if <26.1.2
+        manager.replaceRecipes(recipes);
+    }
+    private static net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment> enchantment(
+            ServerLevel level, ResourceKey<net.minecraft.world.item.enchantment.Enchantment> key) {
+        //? if >=26.1.2
+        /*return level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(key);*/
+        //? if <26.1.2
+        return level.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(key);
+    }
+    private static net.minecraft.world.entity.Mob zombie(ServerLevel level) {
+        //? if >=26.1.2
+        /*return new net.minecraft.world.entity.monster.zombie.Zombie(EntityType.ZOMBIE, level);*/
+        //? if <26.1.2
+        return new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE, level);
+    }
+    private static <T extends Recipe<?>> RecipeHolder<T> holder(String id, T recipe) {
+        //? if >=26.1.2
+        /*return new RecipeHolder<>(ResourceKey.create(Registries.RECIPE, ResourceLocation.withDefaultNamespace(id)), recipe);*/
+        //? if <26.1.2
+        return new RecipeHolder<>(ResourceLocation.withDefaultNamespace(id), recipe);
+    }
     public static void run() throws ReflectiveOperationException {
         if (!Boolean.getBoolean("essence.projectile.nativeHookTest")) throw new IllegalStateException("Explicit native fixture required");
         var f = new ProjectileNativeInterceptionTest.Fixture(NativeGuardOutcomeTest.NativePlayer.class);
         NativeGuardOutcomeTest.registry(f);
         f.level.memoryBlocks = new HashMap<>();
         var oldTags = new HashMap<net.minecraft.tags.TagKey<Block>, List<Holder<Block>>>();
-        BuiltInRegistries.BLOCK.getTags().forEach(entry -> oldTags.put(entry.getFirst(), entry.getSecond().stream().toList()));
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.BLOCK));
         var tags = new HashMap<>(oldTags);
         tags.put(PlayerAttributedBlockHarvestService.CROP_YIELD_ELIGIBLE, List.of(Blocks.POTATOES.builtInRegistryHolder()));
         tags.put(ProcessingAccelerationService.INDUSTRIOUS_PROCESSORS, List.of(Blocks.FURNACE.builtInRegistryHolder()));
-        BuiltInRegistries.BLOCK.bindTags(tags);
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, tags);
         java.lang.reflect.Field loaderLoot = null;
         Object previousLoaderLoot = null;
         try {
@@ -74,7 +108,7 @@ public final class NativeResourceChainsTest {
         } finally {
             restoreFuel.run();
             if (loaderLoot != null) loaderLoot.set(null, previousLoaderLoot);
-            BuiltInRegistries.BLOCK.bindTags(oldTags);
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, oldTags);
             f.close(); SkillEffectRuntime.clearAll();
         }
         System.out.println("Native resource chain checks passed: " + checks
@@ -86,14 +120,14 @@ public final class NativeResourceChainsTest {
                 net.minecraft.tags.ItemTags.CHEST_ARMOR, Items.IRON_CHESTPLATE,
                 net.minecraft.tags.ItemTags.HEAD_ARMOR, Items.IRON_HELMET);
         var ownArmor = BuiltInRegistries.ITEM.stream()
-                .filter(item -> item instanceof ArmorItem && item instanceof EquipmentProfileItem).toList();
+                .filter(item -> armorSlot(item) != null && item instanceof EquipmentProfileItem).toList();
         check(ownArmor.size() == 4, "All four registered Ascendance armor pieces enter the trim regression");
         Map<ResourceLocation, List<net.minecraft.tags.TagLoader.EntryWithSource>> entries = new HashMap<>();
         for (var slot : slotArmor.entrySet()) {
             List<net.minecraft.tags.TagLoader.EntryWithSource> members = new ArrayList<>();
             members.add(new net.minecraft.tags.TagLoader.EntryWithSource(
                     net.minecraft.tags.TagEntry.element(BuiltInRegistries.ITEM.getKey(slot.getValue())), "native_ordinary_armor"));
-            ownArmor.stream().filter(item -> ((ArmorItem) item).getEquipmentSlot() == ((ArmorItem) slot.getValue()).getEquipmentSlot())
+            ownArmor.stream().filter(item -> armorSlot(item) == armorSlot(slot.getValue()))
                     .forEach(item -> members.add(new net.minecraft.tags.TagLoader.EntryWithSource(
                             net.minecraft.tags.TagEntry.element(BuiltInRegistries.ITEM.getKey(item)), "registered_profile_armor")));
             entries.put(slot.getKey().location(), members);
@@ -104,6 +138,9 @@ public final class NativeResourceChainsTest {
         entries.put(net.minecraft.tags.ItemTags.ARMOR_ENCHANTABLE.location(), slotArmor.keySet().stream()
                 .map(slot -> new net.minecraft.tags.TagLoader.EntryWithSource(
                         net.minecraft.tags.TagEntry.tag(slot.location()), "native_slot_enchantment_reference")).toList());
+        //? if >=26.1.2
+        /*var loader = new net.minecraft.tags.TagLoader<Holder<Item>>((id, required) -> net.minecraft.tags.TagLoader.ElementLookup.fromFrozenRegistry(BuiltInRegistries.ITEM).get(id, required),*/
+        //? if <26.1.2
         var loader = new net.minecraft.tags.TagLoader<Holder<Item>>(BuiltInRegistries.ITEM::getHolder,
                 Registries.tagsDirPath(Registries.ITEM));
         var resolved = loader.build(entries);
@@ -112,27 +149,30 @@ public final class NativeResourceChainsTest {
                         && slotArmor.values().stream().allMatch(item -> trimmable.contains(item.builtInRegistryHolder())),
                 "Native trim tag keeps ordinary armor but removes profile armor inherited through all four slot tags");
         check(loader.build(entries).equals(resolved), "Repeated native tag reloads preserve the same trim exclusion");
+        //? if >=26.1.2
+        /*var unrelatedLoader = new net.minecraft.tags.TagLoader<Holder<Item>>((id, required) -> net.minecraft.tags.TagLoader.ElementLookup.fromFrozenRegistry(BuiltInRegistries.ITEM).get(id, required),*/
+        //? if <26.1.2
         var unrelatedLoader = new net.minecraft.tags.TagLoader<Holder<Item>>(BuiltInRegistries.ITEM::getHolder,
                 Registries.tagsDirPath(Registries.BLOCK));
         check(unrelatedLoader.build(entries).get(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR.location()).size() == 8,
                 "An identically named tag outside the item registry is untouched");
         var oldTags = new HashMap<net.minecraft.tags.TagKey<Item>, List<Holder<Item>>>();
-        BuiltInRegistries.ITEM.getTags().forEach(tag -> oldTags.put(tag.getFirst(), tag.getSecond().stream().toList()));
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.ITEM));
         var bound = new HashMap<>(oldTags);
         resolved.forEach((id, values) -> bound.put(net.minecraft.tags.TagKey.create(Registries.ITEM, id), List.copyOf(values)));
-        BuiltInRegistries.ITEM.bindTags(bound);
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, bound);
         try {
             for (var item : ownArmor) {
                 var stack = new ItemStack(item);
                 check(!stack.is(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR), "Bound native trim tag excludes " + item);
                 check(stack.is(net.minecraft.tags.ItemTags.ARMOR_ENCHANTABLE), "Bound enchantment tag preserves " + item);
-                var slot = slotArmor.entrySet().stream().filter(entry -> ((ArmorItem) entry.getValue()).getEquipmentSlot()
-                        == ((ArmorItem) item).getEquipmentSlot()).findFirst().orElseThrow().getKey();
+                var slot = slotArmor.entrySet().stream().filter(entry -> armorSlot(entry.getValue())
+                        == armorSlot(item)).findFirst().orElseThrow().getKey();
                 check(stack.is(slot), "Bound native armor-slot tag preserves " + item);
             }
             for (var item : slotArmor.values()) check(new ItemStack(item).is(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR),
                     "Ordinary armor remains trimmable after binding: " + item);
-        } finally { BuiltInRegistries.ITEM.bindTags(oldTags); }
+        } finally { com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, oldTags); }
         System.out.println("Native armor trim tags PASS: transformed TagLoader, vanilla nested trim definition, four own exclusions, ordinary armor and slot/enchantment preservation");
     }
     @SuppressWarnings("unchecked")
@@ -196,7 +236,7 @@ public final class NativeResourceChainsTest {
         var recipe = Recipe.CODEC.parse(RegistryOps.create(JsonOps.INSTANCE, f.level.memoryRegistries),
                 vanillaJson("recipe/baked_potato")).getOrThrow();
         f.level.memoryRecipes = new RecipeManager(f.level.memoryRegistries);
-        f.level.memoryRecipes.replaceRecipes(List.of(new RecipeHolder<>(ResourceLocation.withDefaultNamespace("baked_potato"), recipe)));
+        replaceRecipes(f.level.memoryRecipes, List.of(holder("baked_potato", recipe)));
         var managers = ProjectileNativeInterceptionTest.instance(ReloadableServerResources.class);
         ProjectileNativeInterceptionTest.set(ReloadableServerResources.class, managers, "fullRegistryHolder", new ReloadableServerRegistries.Holder(f.level.memoryRegistries.freeze()));
         ProjectileNativeInterceptionTest.set(ReloadableServerResources.class, managers, "recipes", f.level.memoryRecipes);
@@ -204,7 +244,13 @@ public final class NativeResourceChainsTest {
         ctor.setAccessible(true);
         ProjectileNativeInterceptionTest.set(MinecraftServer.class, f.server, "resources", ctor.newInstance(null, managers));
         check(f.server.getRecipeManager() == f.level.memoryRecipes
+                        //? if >=26.1.2
+                        /*&& f.server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT)*/
+                        //? if >=26.1.2
+                        /*== f.level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT),*/
+                        //? if <26.1.2
                         && f.server.registryAccess().registryOrThrow(Registries.ENCHANTMENT)
+                        //? if <26.1.2
                         == f.level.registryAccess().registryOrThrow(Registries.ENCHANTMENT),
                 "Native server and level expose the same fixture recipe manager and enchantment registry");
     }
@@ -269,13 +315,13 @@ public final class NativeResourceChainsTest {
         enable(f, ally);
         enable(f, f.player, SkillIds.HUNGER_WARD, SkillIds.METABOLIC_CONVERSION, SkillIds.METABOLIC_MENDING);
         var progress = AbstractFurnaceBlockEntity.class.getDeclaredField("cookingProgress"); progress.setAccessible(true);
-        int before = progress.getInt(furnace);
+        int before = com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(progress, furnace);
         for (int i = 0; i < 20; i++) { f.level.tick++; ticker.tick(); }
-        check(progress.getInt(furnace) == before + 20, "Removing the final aura restores exactly one native processing tick per world tick");
+        check(com.mistaboom.essence_ascendance.verification.ReflectiveFieldTestCompat.readInt(progress, furnace) == before + 20, "Removing the final aura restores exactly one native processing tick per world tick");
     }
 
     /** Real inherited clickMenuButton dispatch, native slots, and player inventory after destructive salvage. */
-    private static void salvageMenu(ProjectileNativeInterceptionTest.Fixture f) {
+    private static void salvageMenu(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var previousRecipes = List.copyOf(f.level.memoryRecipes.getRecipes());
         var previousMenu = f.player.containerMenu;
         try {
@@ -285,11 +331,10 @@ public final class NativeResourceChainsTest {
             f.player.containerMenu = menu;
             var rich = NativeSalvageTest.recipe("rich", 1, Items.DIAMOND, Items.DIAMOND, Items.STICK);
             var cheap = NativeSalvageTest.recipe("cheap", 1, Items.COBBLESTONE, Items.COBBLESTONE, Items.STICK);
-            f.level.memoryRecipes.replaceRecipes(List.of(rich, cheap));
+            replaceRecipes(f.level.memoryRecipes, List.of(rich, cheap));
             ConstructionMaterialResolver.clearCache();
             ItemStack tool = new ItemStack(Items.DIAMOND_SWORD); tool.setDamageValue(500);
-            tool.enchant(f.level.registryAccess().registryOrThrow(Registries.ENCHANTMENT)
-                    .getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.UNBREAKING), 3);
+            tool.enchant(enchantment(f.level, net.minecraft.world.item.enchantment.Enchantments.UNBREAKING), 3);
             menu.getSlot(0).set(tool);
             int diamonds = f.player.getInventory().countItem(Items.DIAMOND);
             check(menu.clickMenuButton(f.player, com.mistaboom.essence_ascendance.gathering.GatheringSalvageService.BUTTON_RECYCLE),
@@ -300,7 +345,7 @@ public final class NativeResourceChainsTest {
                             .hudState(SkillEffectRuntime.context(f.player)).salvageReady(),
                     "XP-only source is not advertised as a valid custom recycle; ordinary disenchant remains available");
 
-            f.level.memoryRecipes.replaceRecipes(List.of(rich)); ConstructionMaterialResolver.clearCache();
+            replaceRecipes(f.level.memoryRecipes, List.of(rich)); ConstructionMaterialResolver.clearCache();
             int before = f.player.getInventory().countItem(Items.DIAMOND) + f.player.getInventory().countItem(Items.STICK);
             double expectedExperience = tool.getEnchantments().keySet().stream().mapToDouble(h ->
                     h.value().getMinCost(tool.getEnchantments().getLevel(h))).sum()
@@ -327,7 +372,7 @@ public final class NativeResourceChainsTest {
             check(!menu.getSlot(0).getItem().isEmpty(), "An old grindstone window cannot recycle after the player closes it");
         } finally {
             f.player.containerMenu = previousMenu;
-            f.level.memoryRecipes.replaceRecipes(previousRecipes); ConstructionMaterialResolver.clearCache();
+            replaceRecipes(f.level.memoryRecipes, previousRecipes); ConstructionMaterialResolver.clearCache();
         }
     }
     private static TickingBlockEntity boundTicker(ProjectileNativeInterceptionTest.Fixture f, FurnaceBlockEntity furnace) throws ReflectiveOperationException {
@@ -335,6 +380,9 @@ public final class NativeResourceChainsTest {
         ProjectileNativeInterceptionTest.set(LevelChunk.class, chunk, "level", f.level);
         var ctor = Class.forName("net.minecraft.world.level.chunk.LevelChunk$BoundTickingBlockEntity").getDeclaredConstructors()[0];
         ctor.setAccessible(true);
+        //? if >=26.1.2
+        /*BlockEntityTicker<FurnaceBlockEntity> tick = (level, pos, state, entity) -> AbstractFurnaceBlockEntity.serverTick((ServerLevel) level, pos, state, entity);*/
+        //? if <26.1.2
         BlockEntityTicker<FurnaceBlockEntity> tick = AbstractFurnaceBlockEntity::serverTick;
         return (TickingBlockEntity)ctor.newInstance(chunk, furnace, tick);
     }
@@ -418,7 +466,7 @@ public final class NativeResourceChainsTest {
     private static void sanctuary(ProjectileNativeInterceptionTest.Fixture f) {
         enable(f, f.player, SkillIds.WAYLIGHT, SkillIds.SANCTUARY);
         check(UtilitySanctuaryService.suppressesNaturalMonsterSpawn(f.level, f.player.blockPosition()), "Effective Sanctuary protects its actual nearby position");
-        var mob = new net.minecraft.world.entity.monster.Zombie(EntityType.ZOMBIE, f.level); mob.setPos(1, 0, 0); f.level.entities.add(mob);
+        var mob = zombie(f.level); mob.setPos(1, 0, 0); f.level.entities.add(mob);
         mob.setTarget(f.player);
         var context = SkillEffectRuntime.context(f.player); UtilitySanctuaryService.tick(context);
         f.level.tick += context.settings().utility().sanctuary().disengageDelayTicks();
@@ -440,32 +488,63 @@ public final class NativeResourceChainsTest {
         var priorEntities = new ArrayList<>(f.level.entities);
         f.level.entities.clear(); f.level.entities.addAll(List.of(f.player, victim, item));
         try {
+            //? if >=26.1.2
+            /*f.level.memoryBlocks.put(new BlockPos(0, 0, 0), Blocks.STONE.defaultBlockState());*/
+            //? if >=26.1.2
+            /*var blast = explosion(f); int containedBlocks = blast.explode();*/
+            //? if <26.1.2
             var blast = explosion(f); blast.getToBlow().add(new BlockPos(2, 0, 0)); blast.explode();
             near(f.player.getHealth(), 20, "Containment intercepts actual native explosion damage to its owner");
             check(f.player.getDeltaMovement().lengthSqr() == 0 && !blast.getHitPlayers().containsKey(f.player),
                     "Containment suppresses both native owner displacement and its client impulse packet");
             near(victim.getHealth(), 19, "Unprotected creature still takes native explosion damage inside containment");
             check(!item.isRemoved() && item.getItem().getCount() == 1, "Contained native blast preserves dropped resource items");
+            //? if >=26.1.2
+            /*check(containedBlocks == 0, "Containment clears the native terrain destruction list");*/
+            //? if <26.1.2
             check(blast.getToBlow().isEmpty(), "Containment clears the native terrain destruction list");
             check(ExplosionContainmentService.snapshot(SkillEffectRuntime.context(f.player)).containedThisTick() == 1,
                     "One actual contained blast creates one owner event");
             enable(f, f.player); f.player.invulnerableTime = 0;
+            //? if >=26.1.2
+            /*var uncontained = explosion(f); int uncontainedBlocks = uncontained.explode();*/
+            //? if <26.1.2
             var uncontained = explosion(f); uncontained.getToBlow().add(new BlockPos(2, 0, 0)); uncontained.explode();
             near(f.player.getHealth(), 19, "Removing Containment immediately restores ordinary native owner damage");
+            //? if >=26.1.2
+            /*check(uncontainedBlocks > 0, "Removed field no longer clears terrain outcomes");*/
+            //? if <26.1.2
             check(!uncontained.getToBlow().isEmpty(), "Removed field no longer clears terrain outcomes");
         } finally { f.level.entities.clear(); f.level.entities.addAll(priorEntities); }
     }
+    //? if >=26.1.2
+    /*private static ServerExplosion explosion(ProjectileNativeInterceptionTest.Fixture f) {*/
+    //? if <26.1.2
     private static Explosion explosion(ProjectileNativeInterceptionTest.Fixture f) {
         var calculator = new ExplosionDamageCalculator() {
+            //? if >=26.1.2
+            /*@Override public float getEntityDamageAmount(Explosion explosion, net.minecraft.world.entity.Entity entity, float exposure) {*/
+            //? if <26.1.2
             @Override public float getEntityDamageAmount(Explosion explosion, net.minecraft.world.entity.Entity entity) {
                 return entity instanceof net.minecraft.world.entity.item.ItemEntity ? 20 : 1;
             }
             @Override public Optional<Float> getBlockExplosionResistance(Explosion explosion, BlockGetter level, BlockPos pos,
+                    //? if >=26.1.2
+                    /*BlockState block, net.minecraft.world.level.material.FluidState fluid) { return Optional.of(0F); }*/
+                    //? if <26.1.2
                     BlockState block, net.minecraft.world.level.material.FluidState fluid) { return Optional.of(100F); }
         };
+        //? if >=26.1.2
+        /*return new ServerExplosion(f.level, null, f.player.damageSources().explosion(null, null), calculator,*/
+        //? if >=26.1.2
+        /*        new Vec3(0, 0, -1), 2, false, Explosion.BlockInteraction.DESTROY);*/
+        //? if <26.1.2
         return new Explosion(f.level, null, f.player.damageSources().explosion(null, null), calculator,
+                //? if <26.1.2
                 0, 0, -1, 2, false, Explosion.BlockInteraction.DESTROY,
+                //? if <26.1.2
                 net.minecraft.core.particles.ParticleTypes.EXPLOSION, net.minecraft.core.particles.ParticleTypes.EXPLOSION_EMITTER,
+                //? if <26.1.2
                 net.minecraft.sounds.SoundEvents.GENERIC_EXPLODE);
     }
     private static void near(double actual, double expected, String message) { check(Math.abs(actual - expected) < 1e-5, message + ": " + actual + " != " + expected); }

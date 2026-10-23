@@ -151,7 +151,7 @@ public final class ProjectileInterceptionService {
         ProjectileOwnership.transferNative(projectile, defender);
         // Re-evaluate departure from the new owner; source immunity belongs to the defender after transfer.
         ((ProjectileNativeAccess) projectile).essenceAscendance$leftOwner(false);
-        projectile.setDeltaMovement(delta.normalize().scale(speed)); projectile.hasImpulse = true;
+        projectile.setDeltaMovement(delta.normalize().scale(speed)); ProjectileMotionSync.mark(projectile);
         control.dragFactor = 1;
         ((ProjectileStateAccess) projectile).essenceAscendance$flightScale(1);
         control.physicsInput = null;

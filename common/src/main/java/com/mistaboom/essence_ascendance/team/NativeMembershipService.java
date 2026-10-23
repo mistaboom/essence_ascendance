@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.team;
 
 import com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
+import com.mistaboom.essence_ascendance.data.NbtVersionCompat;
 import net.minecraft.nbt.*;
 import java.util.*;
 
@@ -190,7 +191,7 @@ public final class NativeMembershipService {
         CompoundTag display = new CompoundTag(); names.forEach((id, name) -> display.putString(id.id().toString(), name)); tag.put("names", display);
         ListTag pending = new ListTag();
         requests.values().stream().sorted(Comparator.comparing(Request::applicant)).forEach(r -> {
-            CompoundTag entry = new CompoundTag(); entry.putUUID("token", r.token()); entry.putUUID("applicant", r.applicant());
+            CompoundTag entry = new CompoundTag(); NbtVersionCompat.putUUID(entry, "token", r.token()); NbtVersionCompat.putUUID(entry, "applicant", r.applicant());
             entry.put("source", r.source().save()); entry.put("target", r.target().save());
             entry.putLong("source_revision", r.sourceRevision()); entry.putLong("target_revision", r.targetRevision()); pending.add(entry);
         });
@@ -210,7 +211,7 @@ public final class NativeMembershipService {
         }
         Set<UUID> tokens = new HashSet<>();
         ListTag pending = tag.getList("requests", Tag.TAG_COMPOUND);
-        if (!((ListTag)tag.get("requests")).isEmpty() && ((ListTag)tag.get("requests")).getElementType() != Tag.TAG_COMPOUND)
+        if (!NbtVersionCompat.listHasElementType((ListTag) tag.get("requests"), Tag.TAG_COMPOUND))
             throw new IllegalStateException("Invalid request list");
         for (Tag raw : pending) {
             CompoundTag entry = (CompoundTag) raw;

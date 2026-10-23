@@ -28,7 +28,7 @@ public final class AssetPipelineTest {
     private static int assertions;
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 3) throw new IllegalArgumentException("Expected <test-work-directory-under-build> <art-directory> <generated-resources>");
+        if (args.length != 4) throw new IllegalArgumentException("Expected <test-work-directory-under-build> <art-directory> <generated-resources> <target-personalized-equipment>");
         Path directory = Path.of(args[0]).toAbsolutePath().normalize();
         Files.createDirectories(directory);
         sourceEditsAndDeterminism(directory);
@@ -42,7 +42,7 @@ public final class AssetPipelineTest {
         stitchedMeshMaterials(directory);
         invalidStitchedMaterials(directory);
         shieldSourceContract(Path.of(args[1]), Path.of(args[2]));
-        fishingSourceContract(Path.of(args[1]), Path.of(args[2]));
+        fishingSourceContract(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
         glaiveSourceContract(Path.of(args[1]), Path.of(args[2]));
         System.out.println("AssetPipelineTest: " + assertions + " build-pipeline assertions PASS");
     }
@@ -342,7 +342,7 @@ public final class AssetPipelineTest {
     }
 
     /** Validate the actual shipped shield, not just the miniature importer fixtures. */
-    private static void fishingSourceContract(Path art, Path output) throws Exception {
+    private static void fishingSourceContract(Path art, Path output, Path profiles) throws Exception {
         var rod=BlockbenchSource.read(art.resolve("source/models/item/ascendance_rod.bbmodel"));
         var textures=rod.getAsJsonArray("textures");
         var base=ImageIO.read(new java.io.ByteArrayInputStream(BlockbenchSource.png(BlockbenchSource.named(textures,"ascendance_hook_base"))));
@@ -362,7 +362,7 @@ public final class AssetPipelineTest {
             check(idle.getAsJsonObject("textures").size()==3 && cast.getAsJsonObject("textures").size()==2,"Idle has untinted string; cast omits the string layer");
             check(cast.get("parent").getAsString().equals("minecraft:item/handheld_rod"),"Rod keeps the native held transform");
         }
-        try (var reader = Files.newBufferedReader(art.getParent().resolve("common/src/main/resources/data/essence_ascendance/personalized_equipment.json"))) {
+        try (var reader = Files.newBufferedReader(profiles)) {
             for (var profile : PersonalizedEquipmentDefinition.read(reader)) {
                 if (!profile.itemId().equals("essence_ascendance:ascendance_fishing_rod")) continue;
                 var image = ImageIO.read(output.resolve(ROOT + "textures/entity/ascendance_fishing_hook/personalized/" + profile.id() + ".png").toFile());
@@ -621,7 +621,7 @@ public final class AssetPipelineTest {
         void generate() throws Exception { save(); run(); }
         void run() throws Exception { run(output, work); }
         void run(Path resources, Path intermediate) throws Exception {
-            AssetPipeline.main(new String[]{art.toString(), resources.toString(), intermediate.toString()});
+            AssetPipeline.main(new String[]{art.toString(), build.toString(), resources.toString(), intermediate.toString(), root.resolve("profiles.json").toString()});
         }
 
         @Override

@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.vitality;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
@@ -12,19 +13,9 @@ import java.util.jar.JarFile;
 public final class RecoveryNativeHookShapeTest {
     private static int checks;
     public static void main(String[] args) throws Exception {
-        inspect(RecoveryNativeHookShapeTest.class.getResourceAsStream("/net/minecraft/world/food/FoodData.class"));
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) root = root.getParent();
-        if (root == null) throw new AssertionError("Mapped NeoForge build cache required");
-        int found = 0;
-        try (var paths = Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
-            for (Path path : paths.filter(p -> p.getFileName().toString().startsWith("neoforge-")
-                    && p.toString().endsWith(".jar") && !p.toString().endsWith("-sources.jar")).toList()) {
-                try (var jar = new JarFile(path.toFile())) { inspect(jar.getInputStream(jar.getJarEntry("net/minecraft/world/food/FoodData.class"))); found++; }
-            }
-        }
-        check(found > 0, "NeoForge parity was actually inspected");
-        System.out.println("Recovery native hook shapes passed: " + checks + " (Fabric and NeoForge)");
+        inspect(TargetTestInputs.nativeClass("fabric", "net/minecraft/world/food/FoodData"));
+        inspect(TargetTestInputs.nativeClass("neoforge", "net/minecraft/world/food/FoodData"));
+        System.out.println("Recovery native hook shapes passed: " + checks + " (exact target Fabric and NeoForge)");
     }
     private static void inspect(InputStream input) throws Exception {
         var type = new ClassNode(); try (input) { new ClassReader(input).accept(type, 0); }

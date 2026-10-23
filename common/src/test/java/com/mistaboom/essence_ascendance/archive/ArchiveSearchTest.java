@@ -161,6 +161,9 @@ public final class ArchiveSearchTest {
         var field = new FullscreenTextField("", Component.literal("Search"), value -> {
             navigator.setQuery(value); edits.incrementAndGet();
         }, clipboard::get, clipboard::set);
+        //? if >=26.1.2
+        /*Font font = new Font(new Font.Provider() { public net.minecraft.client.gui.GlyphSource glyphs(net.minecraft.network.chat.FontDescription description) { return null; } public net.minecraft.client.gui.font.glyphs.EffectGlyph effect() { return null; } }) {*/
+        //? if <26.1.2
         Font font = new Font(ignored -> null, false) {
             @Override public int width(String text) { return text.codePointCount(0, text.length()) * 6; }
             @Override public int width(FormattedText text) { return width(text.getString()); }

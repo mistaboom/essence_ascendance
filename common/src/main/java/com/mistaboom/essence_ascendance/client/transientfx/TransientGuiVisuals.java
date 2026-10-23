@@ -7,6 +7,9 @@ import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
 import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -88,9 +91,18 @@ public final class TransientGuiVisuals {
                 || now - active.startedNanos() >= active.durationNanos() || now < active.startedNanos());
     }
 
+    //? if >=26.1.2
+    /*public static void renderHud(GuiGraphicsExtractor graphics) { render(graphics, true); }*/
+    //? if <26.1.2
     public static void renderHud(GuiGraphics graphics) { render(graphics, true); }
+    //? if >=26.1.2
+    /*public static void renderScreen(GuiGraphicsExtractor graphics) { render(graphics, false); }*/
+    //? if <26.1.2
     public static void renderScreen(GuiGraphics graphics) { render(graphics, false); }
 
+    //? if >=26.1.2
+    /*private static void render(GuiGraphicsExtractor graphics, boolean hudPass) {*/
+    //? if <26.1.2
     private static void render(GuiGraphics graphics, boolean hudPass) {
         Screen screen = Minecraft.getInstance().screen;
         long now = System.nanoTime();

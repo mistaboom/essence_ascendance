@@ -22,6 +22,8 @@ import net.neoforged.neoforge.event.enchanting.GetEnchantmentLevelEvent;
 public final class EssenceAscendanceNeoForge {
 
     public EssenceAscendanceNeoForge(IEventBus modBus) {
+        //? if >=26.1.2
+        /*NeoEntityPresentationSync2612.register(modBus);*/
         EssenceAscendanceNeoForgeWorldgen.register(modBus);
         EssenceAscendance.init();
         modBus.addListener(EssenceAscendanceNeoForge::appendCreativeVariants);
@@ -57,6 +59,9 @@ public final class EssenceAscendanceNeoForge {
             RegisterCapabilitiesEvent event
     ) {
         event.registerBlockEntity(
+                //? if >=26.1.2
+                /*Capabilities.Item.BLOCK,*/
+                //? if <26.1.2
                 Capabilities.ItemHandler.BLOCK,
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_BLOCK_ENTITY.get(),
                 (blockEntity, direction) -> {
@@ -69,13 +74,22 @@ public final class EssenceAscendanceNeoForge {
                             )) {
                         return null;
                     }
+                    //? if >=26.1.2
+                    /*return MachineNeoForgeTransfer.crucible(blockEntity, direction);*/
+                    //? if <26.1.2
                     return new EssenceCrucibleNeoForgeItemHandler(blockEntity, direction);
                 }
         );
 
         event.registerBlockEntity(
+                //? if >=26.1.2
+                /*Capabilities.Item.BLOCK,*/
+                //? if <26.1.2
                 Capabilities.ItemHandler.BLOCK,
                 EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get(),
+                //? if >=26.1.2
+                /*(blockEntity, direction) -> MachineNeoForgeTransfer.infuser(blockEntity)*/
+                //? if <26.1.2
                 (blockEntity, direction) -> new EssenceInfuserNeoForgeItemHandler(blockEntity)
         );
     }

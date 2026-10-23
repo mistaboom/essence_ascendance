@@ -96,7 +96,7 @@ public final class FishingRodBalanceTest {
         RuntimeBalancePayload.CODEC.encode(wire, changed.networkPayload());
         var decoded = RuntimeBalanceDefinition.fromJson(JsonParser.parseString(RuntimeBalancePayload.CODEC.decode(wire).runtimeJson()).getAsJsonObject()); wire.release();
         check(decoded.toJson().equals(changed.toJson()), "Complete rod/bonus/renamed-skill runtime survives actual network codec");
-        Path output = Path.of("../build/fishing-verification").toAbsolutePath().normalize(); Files.createDirectories(output);
+        Path output = Path.of(System.getProperty("essence.test.buildDirectory", "../build"), "fishing-verification").toAbsolutePath().normalize(); Files.createDirectories(output);
         Files.writeString(output.resolve("bootstrap-runtime.json"), runtime.toJson().toString());
         Files.writeString(output.resolve("changed-runtime.json"), changed.toJson().toString());
         var restart = RuntimeBalanceDefinition.fromJson(JsonParser.parseString(Files.readString(output.resolve("changed-runtime.json"))).getAsJsonObject());

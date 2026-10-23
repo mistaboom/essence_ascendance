@@ -10,7 +10,8 @@ public final class WeaponActionPresentation {
     private WeaponActionPresentation() { }
     /** One action clock and a short history buffer; packet arrival never restarts an in-progress interval. */
     public static final class Timeline {
-        public static final double DELAY=2;
+        // Keep one solved interval for interpolation while bringing the arm into attack pose promptly.
+        public static final double DELAY=1;
         private final java.util.ArrayDeque<WeaponActionRuntime.Snapshot> history=new java.util.ArrayDeque<>();
         private final double offset;
         private final double prepareAt;

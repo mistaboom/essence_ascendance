@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+//? if <26.1.2
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -35,19 +36,34 @@ public final class MachineWorldVisualRenderer {
     }
 
     public static void enqueue(EssenceCrucibleBlockEntity crucible, float partialTick) {
+        //? if >=26.1.2
+        /*QUEUED.add(new Entry(crucible, Kind.CRUCIBLE, partialTick, 0));
+        *///? if <26.1.2
         QUEUED.add(new Entry(crucible, Kind.CRUCIBLE, null, partialTick, 0));
     }
 
     public static void enqueue(EssencePylonBlockEntity pylon, float partialTick, int packedOverlay) {
+        //? if >=26.1.2
+        /*QUEUED.add(new Entry(pylon, Kind.PYLON, partialTick, packedOverlay));
+        *///? if <26.1.2
         QUEUED.add(new Entry(pylon, Kind.PYLON, null, partialTick, packedOverlay));
     }
 
+    //? if >=26.1.2
+    /*public static void enqueue(EssenceInfuserBlockEntity infuser,
+    *///? if <26.1.2
     public static void enqueue(EssenceInfuserBlockEntity infuser, ItemRenderer itemRenderer,
                                float partialTick, int packedOverlay) {
+        //? if >=26.1.2
+        /*QUEUED.add(new Entry(infuser, Kind.INFUSER, partialTick, packedOverlay));
+        *///? if <26.1.2
         QUEUED.add(new Entry(infuser, Kind.INFUSER, itemRenderer, partialTick, packedOverlay));
     }
 
     public static void enqueue(AscendanceNexusBlockEntity nexus, float partialTick) {
+        //? if >=26.1.2
+        /*QUEUED.add(new Entry(nexus, Kind.NEXUS, partialTick, 0));
+        *///? if <26.1.2
         QUEUED.add(new Entry(nexus, Kind.NEXUS, null, partialTick, 0));
     }
 
@@ -60,7 +76,7 @@ public final class MachineWorldVisualRenderer {
             return;
         }
 
-        Vec3 cameraPosition = camera.getPosition();
+        Vec3 cameraPosition = ClientCameraCompat.position(camera);
         List<Entry> entries = new ArrayList<>(QUEUED);
         QUEUED.clear();
         entries.removeIf(entry -> entry.entity().isRemoved()
@@ -93,7 +109,9 @@ public final class MachineWorldVisualRenderer {
 
     private enum Kind { CRUCIBLE, PYLON, INFUSER, NEXUS }
 
-    private record Entry(BlockEntity entity, Kind kind, ItemRenderer itemRenderer,
+    private record Entry(BlockEntity entity, Kind kind,
+                         //? if <26.1.2
+                         ItemRenderer itemRenderer,
                          float partialTick, int packedOverlay) {
         private void renderPhysical(PoseStack pose, MultiBufferSource.BufferSource buffers) {
             if (kind == Kind.PYLON) {
@@ -104,6 +122,7 @@ public final class MachineWorldVisualRenderer {
                         pylon.getLevel(), pylon.getBlockPos(), partialTick, pose, buffers, packedOverlay);
             } else if (kind == Kind.INFUSER) {
                 EssenceInfuserBlockEntity infuser = (EssenceInfuserBlockEntity) entity;
+                //? if <26.1.2
                 InfuserVisuals.renderWorkpiece(infuser, itemRenderer, partialTick, pose, buffers, packedOverlay);
                 FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
                                 infuser.visualState().focus(), infuser.visualState().linked(),
@@ -128,7 +147,7 @@ public final class MachineWorldVisualRenderer {
                 }
                 case INFUSER -> {
                     EssenceInfuserBlockEntity infuser = (EssenceInfuserBlockEntity) entity;
-                    InfuserVisuals.render(infuser, itemRenderer, partialTick, pose,
+                    InfuserVisuals.render(infuser, partialTick, pose,
                             buffers, packedOverlay);
                     FocusVisuals.renderOrnament(FocusVisuals.Context.installed(
                                     infuser.visualState().focus(), infuser.visualState().linked(),

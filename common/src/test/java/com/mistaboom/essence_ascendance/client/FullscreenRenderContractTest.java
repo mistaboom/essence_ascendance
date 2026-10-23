@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
@@ -24,23 +25,8 @@ final class FullscreenRenderContractTest {
 
     static int run() throws Exception {
         checks = 0;
-        nativeLifecycle(readResource(SCREEN), readResource(CONTAINER));
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft")))
-            root = root.getParent();
-        check(root != null, "Mapped loader cache is available for render lifecycle verification");
-        int loaders = 0;
-        try (var files = Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
-            for (Path path : files.filter(file -> file.getFileName().toString().startsWith("neoforge-")
-                    && file.toString().endsWith(".jar") && !file.toString().endsWith("-sources.jar")).toList()) {
-                try (var jar = new JarFile(path.toFile())) {
-                    nativeLifecycle(read(jar.getInputStream(jar.getJarEntry(SCREEN + ".class"))),
-                            read(jar.getInputStream(jar.getJarEntry(CONTAINER + ".class"))));
-                    loaders++;
-                }
-            }
-        }
-        check(loaders > 0, "NeoForge background dispatch was inspected as well as the common/Fabric mapping");
+        nativeLifecycle(read(TargetTestInputs.nativeClass("fabric", SCREEN)), read(TargetTestInputs.nativeClass("fabric", CONTAINER)));
+        nativeLifecycle(read(TargetTestInputs.nativeClass("neoforge", SCREEN)), read(TargetTestInputs.nativeClass("neoforge", CONTAINER)));
 
         ClassNode ordinary = readResource(UI + "FullscreenScreen");
         List<MethodInsnNode> background = calls(method(ordinary, "renderBackground", RENDER));

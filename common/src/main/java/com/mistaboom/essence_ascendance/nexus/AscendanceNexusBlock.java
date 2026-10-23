@@ -83,18 +83,31 @@ public final class AscendanceNexusBlock extends HorizontalMachineBlock implement
                         tickState, (AscendanceNexusBlockEntity) entity);
     }
 
+    //? if <26.1.2
     @Override
+    //? if <26.1.2
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
+        //? if <26.1.2
         if (!level.isClientSide && !state.is(newState.getBlock())) {
+            //? if <26.1.2
             for (Player player : level.players()) {
+                //? if <26.1.2
                 if (player instanceof ServerPlayer serverPlayer
+                        //? if <26.1.2
                         && player.containerMenu instanceof AscendanceNexusMenu menu
+                        //? if <26.1.2
                         && menu.isAt(level, pos)) {
+                    //? if <26.1.2
                     serverPlayer.closeContainer();
+                //? if <26.1.2
                 }
+            //? if <26.1.2
             }
+        //? if <26.1.2
         }
+        //? if <26.1.2
         super.onRemove(state, level, pos, newState, moved);
+    //? if <26.1.2
     }
 
     @Override

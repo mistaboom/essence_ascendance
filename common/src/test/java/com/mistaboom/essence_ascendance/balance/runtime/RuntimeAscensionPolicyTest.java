@@ -33,7 +33,7 @@ public final class RuntimeAscensionPolicyTest {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
         if (args.length > 0) {
             replaySavedEvidence(java.nio.file.Path.of(args[0]), args.length > 1 ? java.nio.file.Path.of(args[1])
-                    : java.nio.file.Path.of("build/attunement-real-calibration.txt"));
+                    : java.nio.file.Path.of(System.getProperty("essence.test.buildDirectory", "build"), "attunement-real-calibration.txt"));
         }
         var evidence = RuntimeReferencePolicy.bootstrapEvidence();
         var defaults = RuntimeBalanceDefinition.generate(evidence, BalanceSettings.defaults(), BalanceOverrides.empty());

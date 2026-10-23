@@ -5,6 +5,9 @@ import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -26,6 +29,9 @@ public final class ChannelSessionsClientState {
                 }));
     }
     public static void clear() { snapshot = null; receiptPlayer = receiptLevel = null; }
+    //? if >=26.1.2
+    /*public static void render(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     public static void render(GuiGraphics graphics) {
         var mc = Minecraft.getInstance();
         if (mc.player != receiptPlayer || mc.level != receiptLevel || mc.player == null || !mc.player.isAlive()
@@ -42,6 +48,9 @@ public final class ChannelSessionsClientState {
                             SkillEffectHudEntry.Text.translated("gui.essence_ascendance.team.hud_batch", com.mistaboom.essence_ascendance.text.EssenceText.wholeAmount(link.allocated()), com.mistaboom.essence_ascendance.text.EssenceText.wholeAmount(link.actual()))), SkillEffectHudEntry.Meter.none()), 6, y, height, mc.level.getGameTime());
             y += height + SkillEffectHudLayout.GAP; shown++;
         }
+        //? if >=26.1.2
+        /*if (shown < snapshot.total()) graphics.text(mc.font, Component.translatable("gui.essence_ascendance.team.hud_more", snapshot.total() - shown), 6, y, MachineScreenUi.MUTED, false);*/
+        //? if <26.1.2
         if (shown < snapshot.total()) graphics.drawString(mc.font, Component.translatable("gui.essence_ascendance.team.hud_more", snapshot.total() - shown), 6, y, MachineScreenUi.MUTED, false);
     }
 }

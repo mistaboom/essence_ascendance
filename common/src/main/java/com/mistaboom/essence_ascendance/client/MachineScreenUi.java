@@ -3,6 +3,9 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
@@ -75,42 +78,66 @@ public final class MachineScreenUi {
         };
     }
 
+    //? if >=26.1.2
+    /*public static void panel(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {*/
+    //? if <26.1.2
     public static void panel(GuiGraphics graphics, int x, int y, int width, int height) {
         graphics.fill(x, y, x + width, y + height, PANEL);
         outline(graphics, x, y, width, height, BORDER);
     }
 
+    //? if >=26.1.2
+    /*public static void inset(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {*/
+    //? if <26.1.2
     public static void inset(GuiGraphics graphics, int x, int y, int width, int height) {
         graphics.fill(x, y, x + width, y + height, PANEL_INNER);
         outline(graphics, x, y, width, height, DIVIDER);
     }
 
+    //? if >=26.1.2
+    /*public static void accentedInset(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {*/
+    //? if <26.1.2
     public static void accentedInset(GuiGraphics graphics, int x, int y, int width, int height) {
         graphics.fill(x, y, x + width, y + height, PANEL_INNER);
         outline(graphics, x, y, width, height, BORDER);
     }
 
     /** Standard normal-machine input/socket treatment. */
+    //? if >=26.1.2
+    /*public static void inputSlot(GuiGraphicsExtractor graphics, int x, int y) {*/
+    //? if <26.1.2
     public static void inputSlot(GuiGraphics graphics, int x, int y) {
         accentedInset(graphics, x, y, ITEM_SLOT_SIZE, ITEM_SLOT_SIZE);
     }
 
     /** Standard normal-machine output treatment. */
+    //? if >=26.1.2
+    /*public static void outputSlot(GuiGraphicsExtractor graphics, int x, int y) {*/
+    //? if <26.1.2
     public static void outputSlot(GuiGraphics graphics, int x, int y) {
         inset(graphics, x, y, ITEM_SLOT_SIZE, ITEM_SLOT_SIZE);
     }
 
     /** Draws a socket around the actual menu slot, not an independent guessed origin. */
+    //? if >=26.1.2
+    /*public static void inputSlot(GuiGraphicsExtractor graphics, int leftPos, int topPos, Slot slot) {*/
+    //? if <26.1.2
     public static void inputSlot(GuiGraphics graphics, int leftPos, int topPos, Slot slot) {
         itemSlot(graphics, leftPos, topPos, slot, BORDER);
     }
 
+    //? if >=26.1.2
+    /*public static void outputSlot(GuiGraphicsExtractor graphics, int leftPos, int topPos, Slot slot) {*/
+    //? if <26.1.2
     public static void outputSlot(GuiGraphics graphics, int leftPos, int topPos, Slot slot) {
         itemSlot(graphics, leftPos, topPos, slot, DIVIDER);
     }
 
     /** Shared frame geometry, including unavailable-but-occupied Crucible lanes. */
     public static void itemSlot(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics, int leftPos, int topPos, Slot slot, int borderColor*/
+            //? if <26.1.2
             GuiGraphics graphics, int leftPos, int topPos, Slot slot, int borderColor
     ) {
         int x = leftPos + slot.x - ITEM_SLOT_INSET;
@@ -120,6 +147,9 @@ public final class MachineScreenUi {
     }
 
     public static void progressBar(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int x,
             int y,
@@ -132,6 +162,9 @@ public final class MachineScreenUi {
     }
 
     public static void progressBar(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int x,
             int y,
@@ -159,16 +192,25 @@ public final class MachineScreenUi {
     }
 
     public static void sectionHeader(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,
             int x,
             int y
     ) {
+        //? if >=26.1.2
+        /*graphics.text(font, text, x, y, TEXT, false);*/
+        //? if <26.1.2
         graphics.drawString(font, text, x, y, TEXT, false);
     }
 
     public static void sectionHeader(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String text,
@@ -179,6 +221,9 @@ public final class MachineScreenUi {
     }
 
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component label,
@@ -191,6 +236,9 @@ public final class MachineScreenUi {
     }
 
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component label,
@@ -200,12 +248,21 @@ public final class MachineScreenUi {
             int y,
             int valueColor
     ) {
+        //? if >=26.1.2
+        /*graphics.text(font, label, left, y, MUTED, false);*/
+        //? if <26.1.2
         graphics.drawString(font, label, left, y, MUTED, false);
+        //? if >=26.1.2
+        /*graphics.text(font, value, right - font.width(value), y, valueColor, false);*/
+        //? if <26.1.2
         graphics.drawString(font, value, right - font.width(value), y, valueColor, false);
     }
 
 
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component label,
@@ -218,6 +275,9 @@ public final class MachineScreenUi {
     }
 
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component label,
@@ -231,6 +291,9 @@ public final class MachineScreenUi {
     }
 
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String label,
@@ -243,6 +306,9 @@ public final class MachineScreenUi {
     }
 
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String label,
@@ -255,6 +321,9 @@ public final class MachineScreenUi {
         row(graphics, font, Component.literal(label), value, left, right, y, valueColor);
     }
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String label,
@@ -267,6 +336,9 @@ public final class MachineScreenUi {
     }
 
     public static void row(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String label,
@@ -280,6 +352,9 @@ public final class MachineScreenUi {
     }
 
     public static void indentedLine(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,
@@ -291,6 +366,9 @@ public final class MachineScreenUi {
     }
 
     public static void indentedLine(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String text,
@@ -302,6 +380,9 @@ public final class MachineScreenUi {
     }
 
     public static void fitted(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,
@@ -313,6 +394,9 @@ public final class MachineScreenUi {
         if (text == null || maxWidth <= 0) {
             return;
         }
+        //? if >=26.1.2
+        /*graphics.text(*/
+        //? if <26.1.2
         graphics.drawString(
                 font,
                 StyledTextLayout.fit(font, text, maxWidth),
@@ -324,6 +408,9 @@ public final class MachineScreenUi {
     }
 
     public static void fitted(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String text,
@@ -336,6 +423,9 @@ public final class MachineScreenUi {
             return;
         }
         if (font.width(text) <= maxWidth) {
+            //? if >=26.1.2
+            /*graphics.text(font, text, x, y, color, false);*/
+            //? if <26.1.2
             graphics.drawString(font, text, x, y, color, false);
             return;
         }
@@ -348,10 +438,16 @@ public final class MachineScreenUi {
         while (end > 0 && font.width(text.substring(0, end)) + ellipsisWidth > maxWidth) {
             end--;
         }
+        //? if >=26.1.2
+        /*graphics.text(font, text.substring(0, end) + ellipsis, x, y, color, false);*/
+        //? if <26.1.2
         graphics.drawString(font, text.substring(0, end) + ellipsis, x, y, color, false);
     }
 
     public static int wrapped(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             Component text,
@@ -369,6 +465,9 @@ public final class MachineScreenUi {
         List<net.minecraft.util.FormattedCharSequence> lines = font.split(text, maxWidth);
         int rendered = Math.min(maxLines, lines.size());
         for (int line = 0; line < rendered; line++) {
+            //? if >=26.1.2
+            /*graphics.text(*/
+            //? if <26.1.2
             graphics.drawString(
                     font,
                     lines.get(line),
@@ -382,6 +481,9 @@ public final class MachineScreenUi {
     }
 
     public static int wrapped(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Font font,
             String text,
@@ -409,6 +511,9 @@ public final class MachineScreenUi {
     }
 
     public static void outline(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             int x,
             int y,

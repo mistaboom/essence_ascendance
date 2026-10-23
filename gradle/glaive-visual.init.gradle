@@ -1,13 +1,21 @@
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'glaive'
 // Explicit native OpenGL screenshots, isolated under build; never opens a gameplay world.
 allprojects { p ->
     p.afterEvaluate {
-        if (p.path == ':fabric') {
-            def metadata=p.rootProject.file('build/glaive-visual-metadata')
+        if (!p.rootProject.ext.has('nativeFixtureSelection'))
+            p.rootProject.apply from: p.rootProject.file('gradle/native-fixture-selection.gradle')
+        def selection = p.rootProject.nativeFixtureSelection
+        if (p.path != selection.projectPath) return
+        def requestedTasks = selection.taskPaths
+        if (p.parent.name == 'fabric') {
+            def common=p.rootProject.project(":common:${p.targetMinecraft}")
+            def metadata=p.file('build/native-fixtures/glaive-visual-metadata')
             def fixture=p.tasks.register('glaiveVisualFixtureJar',Jar) {
-                dependsOn(p.rootProject.project(':common').tasks.named('testClasses'))
+                dependsOn(common.tasks.named('testClasses'))
                 archiveFileName='glaive-visual-fixture.jar'
-                destinationDirectory=p.rootProject.layout.buildDirectory
-                from(p.rootProject.project(':common').sourceSets.test.output) {
+                destinationDirectory=p.layout.buildDirectory.dir('native-fixtures')
+                from(common.sourceSets.test.output) {
                     include 'com/mistaboom/essence_ascendance/projectile/GlaiveNativeVisualFixture*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeGlaivePresentationTest*.class'
                 }
@@ -18,37 +26,43 @@ allprojects { p ->
                 }
             }
             p.tasks.named('runClient').configure { t ->
-                t.internalRunDir.set(p.rootProject.file('build/glaive-visual-run'))
-                t.jvmArgs('-Dfabric.addMods='+p.rootProject.file('build/glaive-visual-fixture.jar').canonicalPath,
+                t.internalRunDir.set(p.file('build/native-fixtures/glaive-visual-run'))
+                t.jvmArgs('-Dfabric.addMods='+p.file('build/native-fixtures/glaive-visual-fixture.jar').canonicalPath,
                         '-Dessence.glaive.visualTest=true',
                         '-Dessence.glaive.visualKeepOpen='+p.providers.gradleProperty('glaiveVisualKeepOpen').getOrElse('false'),
-                        '-Dessence.glaive.visualOutput='+p.rootProject.file('build/glaive-native-visuals').canonicalPath)
+                        '-Dessence.glaive.visualOutput='+p.file('build/native-fixtures/glaive-native-visuals').canonicalPath)
                 t.dependsOn(fixture)
-            }
-        }
-        if (p.path == ':neoforge') {
-            def common=p.rootProject.project(':common')
-            if (p.gradle.startParameter.taskNames.contains(':neoforge:runClient')) {
-                common.tasks.named('jar').configure {
-                    dependsOn(common.tasks.named('testClasses'))
-                    from(common.sourceSets.test.output) {
-                        include 'com/mistaboom/essence_ascendance/projectile/GlaiveNativeVisualFixture*.class'
-                        include 'com/mistaboom/essence_ascendance/projectile/NativeGlaivePresentationTest*.class'
-                    }
+                t.doFirst {
+                    // Fresh isolated fixtures must reach TitleScreen without a first-launch onboarding click.
+                    def folder = t.internalRunDir.asFile.get(); folder.mkdirs()
+                    def options = new File(folder, 'options.txt')
+                    if (!options.isFile()) options.text = 'onboardAccessibility:false\n'
                 }
             }
-            def metadata=p.rootProject.file('build/glaive-visual-neo-metadata')
+        }
+        if (p.parent.name == 'neoforge') {
+            def common=p.rootProject.project(":common:${p.targetMinecraft}")
+            def commonFixture = null
+            if (requestedTasks.any { it == "${p.path}:runClient" }) {
+                p.apply from: p.rootProject.file('gradle/native-fixture-support.gradle')
+                commonFixture = p.useNativeFixtureCommon('glaive', [
+                        'com/mistaboom/essence_ascendance/projectile/GlaiveNativeVisualFixture*.class',
+                        'com/mistaboom/essence_ascendance/projectile/NativeGlaivePresentationTest*.class'
+                ])
+            }
+            def metadata=p.file('build/native-fixtures/glaive-visual-neo-metadata')
             def compile=p.tasks.register('compileGlaiveVisualFixture',JavaCompile) {
                 dependsOn(common.tasks.named('testClasses'))
                 source(p.rootProject.file('gradle/native-fixtures/GlaiveVisualMod.java'))
                 classpath=p.sourceSets.main.compileClasspath+common.sourceSets.test.output
-                destinationDirectory=p.rootProject.layout.buildDirectory.dir('glaive-visual-neo-classes')
-                options.release=21
+                destinationDirectory=p.layout.buildDirectory.dir('native-fixtures/glaive-visual-neo-classes')
+                options.release=p.targetJava
+                javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
             }
             def fixture=p.tasks.register('glaiveVisualFixtureJar',Jar) {
                 dependsOn(compile)
                 archiveFileName='glaive-visual-neo-fixture.jar'
-                destinationDirectory=p.rootProject.layout.buildDirectory
+                destinationDirectory=p.layout.buildDirectory.dir('native-fixtures')
                 from(compile.flatMap { it.destinationDirectory })
                 from(metadata)
                 doFirst {
@@ -70,12 +84,33 @@ side="CLIENT"
                 }
             }
             p.tasks.named('runClient').configure { t ->
-                t.internalRunDir.set(p.rootProject.file('build/glaive-visual-neo-run'))
+                t.internalRunDir.set(p.file('build/native-fixtures/glaive-visual-neo-run'))
                 t.jvmArgs('-Dessence.glaive.visualTest=true',
-                        '-Dessence.glaive.visualOutput='+p.rootProject.file('build/glaive-native-visuals-neoforge').canonicalPath)
+                        '-Dessence.glaive.visualKeepOpen='+p.providers.gradleProperty('glaiveVisualKeepOpen').getOrElse('false'),
+                        '-Dessence.glaive.visualOutput='+p.file('build/native-fixtures/glaive-native-visuals-neoforge').canonicalPath)
                 t.dependsOn(fixture)
+                if (commonFixture != null && p.targetResourceFormat == '26.1') {
+                    t.dependsOn(commonFixture)
+                    def originalCommon = common.tasks.named('jar').get().archiveFile.get().asFile.canonicalFile
+                    def originalClasspath = t.classpath.files.findAll { it.canonicalFile != originalCommon }
+                    t.classpath = p.files(originalClasspath, commonFixture.flatMap { it.archiveFile })
+                }
                 t.doFirst {
+                    if (commonFixture != null && p.targetResourceFormat == '26.1') {
+                        def actual = t.classpath.files*.canonicalFile
+                        def fixtureCommonFile = commonFixture.get().archiveFile.get().asFile.canonicalFile
+                        def originalCommonFile = common.tasks.named('jar').get().archiveFile.get().asFile.canonicalFile
+                        if (!actual.contains(fixtureCommonFile) || actual.contains(originalCommonFile))
+                            throw new GradleException('Glaive fixture common classes are not isolated on the client classpath')
+                        def jar = new java.util.jar.JarFile(fixtureCommonFile)
+                        try {
+                            if (jar.getEntry('com/mistaboom/essence_ascendance/projectile/GlaiveNativeVisualFixture.class') == null)
+                                throw new GradleException('Glaive fixture entrypoint is absent from the fixture common jar')
+                        } finally { jar.close() }
+                    }
                     def folder=t.internalRunDir.asFile.get(); new File(folder,'mods').mkdirs()
+                    def options = new File(folder, 'options.txt')
+                    if (!options.isFile()) options.text = 'onboardAccessibility:false\n'
                     java.nio.file.Files.copy(fixture.get().archiveFile.get().asFile.toPath(),
                             new File(folder,'mods/glaive-visual-neo-fixture.jar').toPath(),
                             java.nio.file.StandardCopyOption.REPLACE_EXISTING)

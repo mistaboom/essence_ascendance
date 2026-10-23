@@ -101,6 +101,9 @@ public final class GuidePresentationTest {
                         .map(SemanticDocument.ItemIllustration.class::cast).findFirst().orElseThrow()).toList();
         check(heroes.stream().map(hero -> hero.preferredWidth() + "x" + hero.preferredHeight()).distinct().count() == 1,
                 "Guide hero figures do not share one box size");
+        check(heroes.getFirst().item().resource().equals(ResourceLocation.fromNamespaceAndPath(
+                        "essence_ascendance", "stone_latent_ore")),
+                "The opening Guide shows the registered Stone Latent Ore item");
     }
 
     private static void liveFacts(PresentationContext context, List<SemanticDocument> documents) {

@@ -39,7 +39,7 @@ final class PackService {
             var refreshed = new PrismDiscovery().inspect(target.directory(), target.root());
             if (!refreshed.equals(target)) throw new IOException("Instance metadata/layout changed during build. Refresh and review before retrying.");
             compatibility.instance(refreshed).requireSupported();
-            ModMetadata.production(artifact.path(), target.loader());
+            ModMetadata.production(artifact.path(), target.loader(), target.minecraft());
             compatibility.requirements(target, ModMetadata.read(artifact.path(), target.loader()).required()).requireSupported();
             closed.check(target, confirmedClosed); cancel.check();
             var result = deployment.install(lease, target, artifact, cancel, log);

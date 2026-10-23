@@ -43,6 +43,34 @@ final class EssenceCommandUtil {
 
     static final int ADMIN_PERMISSION = 2;
 
+    static boolean hasAdminPermission(CommandSourceStack source) {
+        //? if >=26.1.2
+        /*return source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER);*/
+        //? if <26.1.2
+        return source.hasPermission(ADMIN_PERMISSION);
+    }
+
+    static boolean isModerator(ServerPlayer player) {
+        //? if >=26.1.2
+        /*return player.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER);*/
+        //? if <26.1.2
+        return player.hasPermissions(ADMIN_PERMISSION);
+    }
+
+    static HoverEvent hoverText(Component text) {
+        //? if >=26.1.2
+        /*return new HoverEvent.ShowText(text);*/
+        //? if <26.1.2
+        return new HoverEvent(HoverEvent.Action.SHOW_TEXT, text);
+    }
+
+    private static ClickEvent suggestCommand(String suggestion) {
+        //? if >=26.1.2
+        /*return new ClickEvent.SuggestCommand(suggestion);*/
+        //? if <26.1.2
+        return new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, suggestion);
+    }
+
     private static final DynamicCommandExceptionType UNKNOWN_ESSENCE =
             new DynamicCommandExceptionType(
                     value -> EssenceText.command("error.unknown_essence", value)
@@ -220,9 +248,8 @@ final class EssenceCommandUtil {
 
     static MutableComponent suggest(Component label, String command) {
         return label.copy().withStyle(style -> style
-                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, commandSuggestion(command)))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                        EssenceText.command("help.click_to_suggest"))));
+                .withClickEvent(suggestCommand(commandSuggestion(command)))
+                .withHoverEvent(hoverText(EssenceText.command("help.click_to_suggest"))));
     }
 
     /** Fill only the concrete prefix; help notation is never pasted into chat. */

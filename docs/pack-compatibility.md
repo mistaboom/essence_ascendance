@@ -8,6 +8,23 @@ This is **not full vanilla acceptance**: external alternative acquisition still 
 
 # Pack Tester
 
+## Current Stonecutter build selection (2026-10-20)
+
+Pack Tester remains a standalone Java 21 application. It reads `gradle/targets.json`
+and selects an implemented Minecraft/loader pair before starting Gradle. The
+implemented pairs are 1.21.1 Fabric and 1.21.1 NeoForge; 26.1.2 requests are reported
+as planned, unimplemented support. The explicit receipt tasks are
+`:packTester1211FabricArtifact` and `:packTester1211NeoForgeArtifact`. Both obtain
+the actual archive provider from `gradle/production-targets.gradle`.
+
+Receipts bind the request, target, Minecraft version, loader, real archive task,
+canonical `build/libs` path and SHA-256. Deployment also checks mod identity,
+entrypoint and exact Minecraft metadata. Existing instance reinspection, locks,
+transactional replacement and rollback remain. Regression/smoke deployments use
+disposable fixture instances under `pack-tester/build`, never real Prism data.
+The older `packTesterFabricArtifact`/`packTesterNeoforgeArtifact` commands remain
+compatibility aliases for the explicit 1.21.1 tasks.
+
 ## Sky flight access and decision provenance follow-up (2026-10-05)
 
 The user's latest Sky rebuild/validation passed in 155.0022/18.0098 seconds under integrity `06c61b6ce90d330a5a2891a7dbe89e269d26bfc40290aa1606e284b5122e5e32`. All 13 providers complete their supported hooks. All 14 jetpacks now read without the former codec error, but no FLIGHT evidence is admitted because exact crafting and operating access is unproven. Fatigue Flight therefore retains Resonant as a conservative fallback; correct competitive Sky timing is not proven. The user accepts the fixed Nexus dark-mode toggle and Enchanting Efficiency. There is no later current-profile restart event in the captured log.
@@ -281,11 +298,11 @@ The game still needs Java 21 or newer. Prism can choose Java dynamically; the he
 
 ## Build and deployment contract
 
-`pack-tester` is an ordinary Java application module. Root Loom/Architectury configuration is restricted to `common`, `fabric`, and `neoforge`; the mod projects do not depend on the helper. Gson/TOML parsers are helper-only dependencies. No runtime mod initialization or gameplay code is changed.
+`pack-tester` is an ordinary Java application module. Loom/Architectury configuration is restricted to the versioned `common`, `fabric`, and `neoforge` nodes; the mod projects do not depend on the helper. Gson/TOML parsers are helper-only dependencies. No runtime mod initialization or gameplay code is changed.
 
 `PackService` is the one GUI/CLI workflow. Its extension points are `PrismDiscovery`, `Compatibility`/`ModMetadata`, `ProductionBuild`, `Deployment`, `RunningCheck`, `PrismLaunch`, and `LocalSettings`. `PackTesterWindow` only presents/requests operations.
 
-For the chosen loader, `ProductionBuild` invokes this repository's `GradleWrapperMain` with an argument vector (no command shell). `:packTesterNeoforgeArtifact` or `:packTesterFabricArtifact` depends only on its actual `:neoforge:remapJar` or `:fabric:remapJar`. The Gradle receipt contains that task's `archiveFile`, loader, Minecraft version, request UUID and SHA-256. No newest-file search is used. Compilation, resource generation, and the existing required asset-ownership check stay in the dependency graph. Routine deployment never invokes `clean`, full `build`, full `check`, or expensive balance invariants. Existing verification tasks remain enabled.
+For the chosen 1.21.1 loader, `ProductionBuild` invokes this repository's `GradleWrapperMain` with an argument vector (no command shell). `:packTesterNeoforgeArtifact` or `:packTesterFabricArtifact` consumes the same declared `:neoforge:1.21.1:remapJar` or `:fabric:1.21.1:remapJar` provider as the production target map. The Gradle receipt contains that task's `archiveFile`, loader, Minecraft version, request UUID and SHA-256. No newest-file search is used. Compilation, resource generation, and the existing required asset-ownership check stay in the dependency graph. Routine deployment never invokes `clean`, full `build`, full `check`, or expensive balance invariants. Existing verification tasks remain enabled. Pack Tester remains limited to the validated 1.21.1 runtime until the 26.1.2 port is verified.
 
 An immutable operation target and cross-process target lock span build, deployment and optional launch. The target metadata/layout is reread after the build and must match the frozen target. Build failures/cancellation cannot enter installation. A GUI Cancel request suppresses installation and launch immediately, but waits for this Gradle invocation to finish: no shared daemon, Prism, Minecraft or unrelated Java process is terminated. Close the GUI again once idle. Force-killing the JVM or powering off can leave a journal; use recovery before starting the game.
 

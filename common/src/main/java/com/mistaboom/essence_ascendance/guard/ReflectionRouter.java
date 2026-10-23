@@ -23,7 +23,10 @@ public final class ReflectionRouter {
         LivingEntity target = ProjectileOwnership.damageSource(source, player);
         if (target == null) return new Source(null, "no_valid_responsible_living_source");
         if (target.isInvulnerable() || target instanceof net.minecraft.world.entity.player.Player other
-                && (other.getAbilities().invulnerable || !player.server.isPvpAllowed() || !player.canHarmPlayer(other))
+                && (other.getAbilities().invulnerable
+                //? if <26.1.2
+                || !player.server.isPvpAllowed()
+                || !player.canHarmPlayer(other))
                 || player.getTeam() != null && player.isAlliedTo(target) && !player.getTeam().isAllowFriendlyFire())
             return new Source(null, "team_pvp_immunity_or_lifecycle");
         return new Source(target, "responsible_native_source");
@@ -46,6 +49,9 @@ public final class ReflectionRouter {
         if (damage <= 0) return new Result(0, 0, "no_equipment_reflection");
         DamageSource retaliation = player.damageSources().thorns(player);
         var measured = EquipmentDamageService.measureDamage(responsible.target(), retaliation,
+                //? if >=26.1.2
+                /*() -> EquipmentDamageService.withReflection(() -> responsible.target().hurtServer(player.serverLevel(), retaliation, damage)));*/
+                //? if <26.1.2
                 () -> EquipmentDamageService.withReflection(() -> responsible.target().hurt(retaliation, damage)));
         return new Result(damage, measured.accepted() ? measured.loss() : 0,
                 !measured.accepted() ? "native_rejected" : measured.loss() <= 0 ? "fully_prevented" : "confirmed");

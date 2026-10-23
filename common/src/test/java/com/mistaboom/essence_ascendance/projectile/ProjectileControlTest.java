@@ -6,10 +6,25 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.SpectralArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.SpectralArrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Snowball;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.ThrownEnderpearl;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -232,6 +247,8 @@ public final class ProjectileControlTest {
             check(!arrow.isPickable(), "Real vanilla arrows are absent from entity crosshair picking, exposing the block-click route");
             ServerPlayer source = (ServerPlayer) allocate.invoke(allocator, ServerPlayer.class);
             ServerPlayer defender = (ServerPlayer) allocate.invoke(allocator, ServerPlayer.class);
+            //? if >=26.1.2
+            /*var equipment = net.minecraft.world.entity.LivingEntity.class.getDeclaredField("equipment"); equipment.setAccessible(true); equipment.set(defender, new net.minecraft.world.entity.EntityEquipment());*/
             var attributes = net.minecraft.world.entity.LivingEntity.class.getDeclaredField("attributes"); attributes.setAccessible(true);
             attributes.set(defender, new net.minecraft.world.entity.ai.attributes.AttributeMap(
                     net.minecraft.world.entity.player.Player.createAttributes().build()));
@@ -249,13 +266,17 @@ public final class ProjectileControlTest {
             arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
             arrow.setOwner(source);
             check(arrow.pickup == AbstractArrow.Pickup.ALLOWED, "Real vanilla setOwner reproduces mob-ammunition pickup conversion");
+            //? if >=26.1.2
+            /*var ownerField = net.minecraft.world.entity.projectile.Projectile.class.getDeclaredField("owner"); ownerField.setAccessible(true);*/
             for (var pickup : AbstractArrow.Pickup.values()) {
                 arrow.pickup = pickup; arrow.setBaseDamage(3.75);
                 Vec3 velocity = new Vec3(0.3, -0.2, 2.5); arrow.setDeltaMovement(velocity);
                 ProjectileOwnership.transferNative(arrow, defender);
-                check(arrow.pickup == pickup && arrow.getOwner() == defender && arrow.getOwner().getUUID().equals(DEFENDER),
-                        "Native ownership transfer preserves " + pickup + " while updating responsible owner");
-                check(arrow.getBaseDamage() == 3.75 && arrow.getDeltaMovement().equals(velocity),
+                //? if >=26.1.2
+                /*check(arrow.pickup == pickup && ((net.minecraft.world.entity.EntityReference<?>)ownerField.get(arrow)).getUUID().equals(DEFENDER), "Native ownership transfer preserves " + pickup + " while updating responsible owner");*/
+                //? if <26.1.2
+                check(arrow.pickup == pickup && arrow.getOwner() == defender && arrow.getOwner().getUUID().equals(DEFENDER), "Native ownership transfer preserves " + pickup + " while updating responsible owner");
+                check(com.mistaboom.essence_ascendance.verification.ArrowTestCompat.baseDamage(arrow) == 3.75 && arrow.getDeltaMovement().equals(velocity),
                         "Native ownership transfer retains intrinsic damage and velocity for " + pickup);
             }
         } catch (ReflectiveOperationException failure) { throw new AssertionError("Cannot execute mapped native ownership regression", failure); }

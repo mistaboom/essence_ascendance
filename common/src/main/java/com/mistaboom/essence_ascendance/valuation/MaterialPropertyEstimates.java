@@ -3,6 +3,9 @@ package com.mistaboom.essence_ascendance.valuation;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+//? if >=26.1.2
+/*import net.minecraft.world.item.ToolMaterial;*/
+//? if <26.1.2
 import net.minecraft.world.item.Tiers;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.*;
@@ -33,11 +36,17 @@ final class MaterialPropertyEstimates {
     }
 
     private static int nativeTier(BlockState state) {
+        //? if >=26.1.2
+        /*if (state.is(ToolMaterial.NETHERITE.incorrectBlocksForDrops())) return -1;*/
+        //? if <26.1.2
         if (state.is(Tiers.NETHERITE.getIncorrectBlocksForDrops())) return -1;
         if (state.is(ProceduralValuationTags.NEEDS_DIAMOND_TOOL)) return 3;
         if (state.is(ProceduralValuationTags.NEEDS_IRON_TOOL)) return 2;
         if (state.is(ProceduralValuationTags.NEEDS_STONE_TOOL)) return 1;
         // A custom requirement outside the supported native needs_* tags is unknown.
+        //? if >=26.1.2
+        /*return state.is(ToolMaterial.WOOD.incorrectBlocksForDrops()) ? -1 : 0;*/
+        //? if <26.1.2
         return state.is(Tiers.WOOD.getIncorrectBlocksForDrops()) ? -1 : 0;
     }
 

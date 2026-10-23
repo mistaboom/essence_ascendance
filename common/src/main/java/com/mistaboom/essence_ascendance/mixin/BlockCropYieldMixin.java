@@ -20,6 +20,9 @@ import java.util.List;
 public abstract class BlockCropYieldMixin {
 
     @Inject(
+            //? if >=26.1.2
+            /*method = "getDrops(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/BlockEntity;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/item/ItemInstance;)Ljava/util/List;",*/
+            //? if <26.1.2
             method = "getDrops(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/BlockEntity;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/item/ItemStack;)Ljava/util/List;",
             at = @At("RETURN"),
             cancellable = true
@@ -30,6 +33,9 @@ public abstract class BlockCropYieldMixin {
             BlockPos pos,
             BlockEntity blockEntity,
             Entity breaker,
+            //? if >=26.1.2
+            /*net.minecraft.world.item.ItemInstance tool,*/
+            //? if <26.1.2
             ItemStack tool,
             CallbackInfoReturnable<List<ItemStack>> cir
     ) {

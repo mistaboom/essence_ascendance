@@ -14,10 +14,15 @@ final class RuntimeEquipmentNormalization {
     /** Vanilla iron is an explicit starting policy, not inferred acquisition evidence.
      * Bow damage is the native full-draw core (speed 3 * arrow damage 2). */
     static EquipmentBaselineConfig.TierBaseline nativeStart() {
+        //? if >=26.1.2
+        /*var iron = net.minecraft.world.item.ToolMaterial.IRON;*/
+        //? if <26.1.2
         var iron = net.minecraft.world.item.Tiers.IRON;
         var caster = RuntimeReferencePolicy.casterFromBow(new RuntimeReferencePolicy.Weapon(6, 1, 6, true));
-        return new EquipmentBaselineConfig.TierBaseline(15, 0, 4 + iron.getAttackDamageBonus(), 1.6,
-                6, 1, caster.damage(), caster.rate(), iron.getSpeed(), 2, iron.getUses());
+        //? if >=26.1.2
+        /*return new EquipmentBaselineConfig.TierBaseline(15, 0, 4 + iron.attackDamageBonus(), 1.6, 6, 1, caster.damage(), caster.rate(), iron.speed(), 2, iron.durability());*/
+        //? if <26.1.2
+        return new EquipmentBaselineConfig.TierBaseline(15, 0, 4 + iron.getAttackDamageBonus(), 1.6, 6, 1, caster.damage(), caster.rate(), iron.getSpeed(), 2, iron.getUses());
     }
     static void apply(Map<ResourceLocation,EquipmentBaselineConfig.TierBaseline> equipment,
                       PackEvidence evidence, BalanceSettings settings, Map<String,Double> diagnostics) {

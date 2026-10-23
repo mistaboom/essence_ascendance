@@ -1,28 +1,28 @@
-// Minimal isolated IntelliJ runs. Optional team mods are installed manually in these run directories.
+// Isolated multiplayer Gradle runs. Keep these out of IntelliJ's ordinary run dropdown.
 // No team dependencies are added to a runtime classpath or bundled into release jars.
 def providerMode = 'ftb'
 
-loom {
+if (project.targetImplemented) loom {
     runs {
         ['baseline', 'provider'].each { mode ->
             def directory = mode == 'baseline' ? 'baseline' : providerMode
             def prefix = mode == 'baseline' ? 'teamBaseline' : 'teamProvider'
             create("${prefix}Server") {
                 server()
-                name = "Teams ${directory} server"
+                name = "${project.targetMinecraft} ${project.parent.name} Teams ${directory} server"
                 runDir "run/teams/${directory}/server"
-                ideConfigGenerated = true
+                ideConfigGenerated = false
             }
             ['One', 'Two'].eachWithIndex { suffix, index ->
                 create("${prefix}Client${suffix}") {
                     client()
-                    name = "Teams ${directory} client ${index + 1}"
+                    name = "${project.targetMinecraft} ${project.parent.name} Teams ${directory} client ${index + 1}"
                     runDir "run/teams/${directory}/client-${index + 1}"
                     programArg '--username'
                     programArg "TeamDev${index + 1}"
                     programArg '--uuid'
                     programArg(index == 0 ? '03ad0acbf70f448bab41e7a6e8d2d031' : '6f2528d85f4e4852b858719d927a9298')
-                    ideConfigGenerated = true
+                    ideConfigGenerated = false
                 }
             }
         }

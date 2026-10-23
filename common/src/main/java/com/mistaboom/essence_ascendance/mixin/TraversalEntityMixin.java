@@ -26,6 +26,9 @@ abstract class TraversalEntityMixin {
     }
     // Damage rejection alone leaves lava's fire timer running. Block only lava's native ignition;
     // do not clear another source's timer, change fireImmune(), or grant protection after exit.
+    //? if >=26.1.2
+    /*@WrapOperation(method = "lavaIgnite", at = @At(value = "INVOKE",*/
+    //? if <26.1.2
     @WrapOperation(method = "lavaHurt", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/entity/Entity;igniteForSeconds(F)V"), require = 1, expect = 1)
     private void essenceAscendance$lavaIgnition(Entity entity, float seconds, Operation<Void> original) {

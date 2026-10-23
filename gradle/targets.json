@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "versions": {
+    "1.21.1": {
+      "java": 21,
+      "loom": "remap",
+      "nativeSources": {"common": ["1.21.1"], "fabric": ["1.21.1"], "neoforge": ["1.21.1"]},
+      "resourceFormat": "1.21",
+      "nativeAccess": {"fabric": true, "neoforge": true},
+      "architecturyApi": "13.0.11",
+      "fabricLoader": "0.19.3",
+      "fabricApi": "0.116.15+1.21.1",
+      "neoforge": "21.1.248",
+      "neoforgeMinimum": "21.1",
+      "jeiCommonApi": "19.43.0.395",
+      "ftbTeams": "2101.1.11",
+      "ftbLibrary": "2101.1.30"
+    },
+    "26.1.2": {
+      "java": 25,
+      "loom": "no-remap",
+      "nativeSources": {"common": ["26.1.2"], "fabric": ["26.1.2"], "neoforge": ["26.1.2"]},
+      "resourceFormat": "26.1",
+      "nativeAccess": {"fabric": false, "neoforge": false},
+      "architecturyApi": "20.1.17",
+      "fabricLoader": "0.19.5",
+      "fabricApi": "0.155.2+26.1.2",
+      "neoforge": "26.1.2.99",
+      "neoforgeMinimum": "26.1.2.99",
+      "jeiCommonApi": "29.47.0.111",
+      "ftbTeams": "26.1.2.4",
+      "ftbLibrary": "26.1.2.9"
+    }
+  },
+  "release": {
+    "requiredTargetIds": ["1211Fabric", "1211NeoForge", "2612Fabric", "2612NeoForge"],
+    "publication": {
+      "fabric": {
+        "modrinthDependencies": ["architectury-api(required){modrinth:lhGA9TYQ}", "fabric-api(required){modrinth:P7dR8mSH}", "jei(optional){modrinth:u6dRKJwZ}"],
+        "curseforgeDependencies": ["architectury-api(required){curseforge:419699}", "fabric-api(required){curseforge:306612}", "jei(optional){curseforge:238222}", "ftb-teams(optional){curseforge:438497}"]
+      },
+      "neoforge": {
+        "modrinthDependencies": ["architectury-api(required){modrinth:lhGA9TYQ}", "jei(optional){modrinth:u6dRKJwZ}"],
+        "curseforgeDependencies": ["architectury-api(required){curseforge:419699}", "jei(optional){curseforge:238222}", "ftb-teams(optional){curseforge:404468}"]
+      }
+    }
+  },
+  "targets": [
+    {"id": "1211Fabric", "minecraft": "1.21.1", "loader": "fabric", "implemented": true, "archiveTask": "remapJar"},
+    {"id": "1211NeoForge", "minecraft": "1.21.1", "loader": "neoforge", "implemented": true, "archiveTask": "remapJar"},
+    {"id": "2612Fabric", "minecraft": "26.1.2", "loader": "fabric", "implemented": true, "archiveTask": "shadowJar"},
+    {"id": "2612NeoForge", "minecraft": "26.1.2", "loader": "neoforge", "implemented": true, "archiveTask": "shadowJar"}
+  ]
+}

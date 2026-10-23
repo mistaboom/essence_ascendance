@@ -117,6 +117,9 @@ public final class TransientWorldVisuals {
         tick();
         if (ACTIVE.isEmpty()) return;
 
+        //? if >=26.1.2
+        /*Vec3 cameraPosition = camera.position();*/
+        //? if <26.1.2
         Vec3 cameraPosition = camera.getPosition();
         List<Visible> visible = new ArrayList<>(ACTIVE.size());
         for (Active active : ACTIVE) {

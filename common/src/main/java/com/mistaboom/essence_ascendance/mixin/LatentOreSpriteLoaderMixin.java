@@ -5,7 +5,10 @@ import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.SpriteLoader;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.resources.ResourceLocation;
+//? if <26.1.2
 import net.minecraft.server.packs.metadata.MetadataSectionSerializer;
+//? if >=26.1.2
+/*import net.minecraft.server.packs.metadata.MetadataSectionType;*/
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,8 +18,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+//? if <26.1.2
 import java.util.Collection;
 import java.util.List;
+//? if >=26.1.2
+/*import java.util.Set;*/
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -25,9 +31,16 @@ abstract class LatentOreSpriteLoaderMixin {
     @Shadow @Final private ResourceLocation location;
     @Unique private ResourceManager essence$resources;
 
+    //? if >=26.1.2
+    /*@Inject(method = "loadAndStitch(Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/resources/Identifier;ILjava/util/concurrent/Executor;Ljava/util/Set;)Ljava/util/concurrent/CompletableFuture;", at = @At("HEAD"))*/
+    //? if <26.1.2
     @Inject(method = "loadAndStitch(Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/resources/ResourceLocation;ILjava/util/concurrent/Executor;Ljava/util/Collection;)Ljava/util/concurrent/CompletableFuture;", at = @At("HEAD"))
     private void essence$captureResources(ResourceManager resources, ResourceLocation atlas, int mip, Executor executor,
-            Collection<MetadataSectionSerializer<?>> sections, CallbackInfoReturnable<CompletableFuture<SpriteLoader.Preparations>> cir) {
+            //? if >=26.1.2
+            /*Set<MetadataSectionType<?>> sections,*/
+            //? if <26.1.2
+            Collection<MetadataSectionSerializer<?>> sections,
+            CallbackInfoReturnable<CompletableFuture<SpriteLoader.Preparations>> cir) {
         essence$resources = resources;
     }
 

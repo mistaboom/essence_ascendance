@@ -34,11 +34,14 @@ public final class EquipmentInventoryCatalogTest {
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
         permitTestItemRegistration();
+        var testId = ResourceLocation.fromNamespaceAndPath("essence_ascendance", "catalog_test_item");
         var testItem = Registry.register(
                 BuiltInRegistries.ITEM,
-                ResourceLocation.fromNamespaceAndPath("essence_ascendance", "catalog_test_item"),
-                new TestEquipmentItem()
+                testId,
+                new TestEquipmentItem(testId)
         );
+        //? if >=26.1.2
+        /*com.mistaboom.essence_ascendance.verification.NativeTestBootstrap2612.bindRegisteredComponents();*/
 
         var variants = EquipmentCatalogStacks.allTiers(testItem);
         check(variants.size() == EquipmentTier.values().length, "Catalog exposes all six tiers");
@@ -71,9 +74,14 @@ public final class EquipmentInventoryCatalogTest {
                 "Latent sample remains the canonical untagged crafted form");
         orderedCatalog(testItem, variants);
         optionalSortRefresh(testItem);
-        var focusItem = Registry.register(BuiltInRegistries.ITEM,
-                ResourceLocation.fromNamespaceAndPath("essence_ascendance", "catalog_test_focus"),
+        var focusId = ResourceLocation.fromNamespaceAndPath("essence_ascendance", "catalog_test_focus");
+        var focusItem = Registry.register(BuiltInRegistries.ITEM, focusId,
+                //? if >=26.1.2
+                /*new com.mistaboom.essence_ascendance.pylon.EssenceFocusItem(new Item.Properties().setId(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ITEM, focusId))));*/
+                //? if <26.1.2
                 new com.mistaboom.essence_ascendance.pylon.EssenceFocusItem(new Item.Properties()));
+        //? if >=26.1.2
+        /*com.mistaboom.essence_ascendance.verification.NativeTestBootstrap2612.bindRegisteredComponents();*/
         focusTiers(focusItem);
         focusRegistration();
 
@@ -174,14 +182,19 @@ public final class EquipmentInventoryCatalogTest {
             check(expected.equals(identity) && identities.add(identity),
                     "Latent and all five completed Focus tiers have distinct browsing identities: " + expected);
             for (var context : UidContext.values()) {
+                //? if >=26.1.2
+                /*check(identity.equals(interpreter.getSubtypeData(stack, context)),*/
+                //? if <26.1.2
                 check(identity.equals(interpreter.getSubtypeData(stack, context))
+                                //? if <26.1.2
                                 && expected.equals(interpreter.getLegacyStringSubtypeInfo(stack, context)),
                         "Focus acquisition and use matching preserve the completed tier: " + expected + "/" + context);
             }
             CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> {
                 CompoundTag progress = new CompoundTag(), contributions = new CompoundTag();
                 progress.putString("target_tier", "transcendent");
-                progress.putUUID("session", new java.util.UUID(17, 23));
+                com.mistaboom.essence_ascendance.data.NbtVersionCompat.putUUID(
+                        progress, "session", new java.util.UUID(17, 23));
                 contributions.putLong("vitality", 17);
                 progress.put("contributions", contributions);
                 outer.put("essence_ascendance_focus_infusion", progress);
@@ -244,7 +257,10 @@ public final class EquipmentInventoryCatalogTest {
     }
 
     private static final class TestEquipmentItem extends Item implements EquipmentProfileItem {
-        private TestEquipmentItem() {
+        private TestEquipmentItem(ResourceLocation id) {
+            //? if >=26.1.2
+            /*super(new Item.Properties().setId(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ITEM, id)).durability(100));*/
+            //? if <26.1.2
             super(new Item.Properties().durability(100));
         }
 

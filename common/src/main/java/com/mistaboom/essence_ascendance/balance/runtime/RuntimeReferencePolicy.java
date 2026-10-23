@@ -171,6 +171,9 @@ final class RuntimeReferencePolicy {
         return candidates.stream().distinct().sorted(goal.reversed()).limit(ARMOR_BEAM_WIDTH).toList();
     }
     private static String attributeKey(net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute) {
+        //? if >=26.1.2
+        /*return attribute.unwrapKey().orElseThrow().identifier().toString();*/
+        //? if <26.1.2
         return attribute.unwrapKey().orElseThrow().location().toString();
     }
     private static NativeAttributeContribution referenceContribution(EquipmentReference row, CapabilityAxis axis,

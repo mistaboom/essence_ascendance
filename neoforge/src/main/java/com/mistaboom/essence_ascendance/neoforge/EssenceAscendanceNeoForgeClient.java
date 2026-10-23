@@ -16,14 +16,23 @@ import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
 import com.mistaboom.essence_ascendance.neoforge.client.LatentOreNeoForgeModels;
+//? if <26.1.2
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import com.mistaboom.essence_ascendance.client.armor.AscendanceArmorModel;
 import com.mistaboom.essence_ascendance.item.AscendanceArmorItem;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierVisuals;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import net.minecraft.client.model.HumanoidModel;
+//? if >=26.1.2
+/*import net.minecraft.client.model.Model;*/
+//? if >=26.1.2
+/*import net.minecraft.client.renderer.entity.state.HumanoidRenderState;*/
+//? if >=26.1.2
+/*import net.minecraft.client.resources.model.EquipmentClientInfo;*/
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+//? if <26.1.2
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -31,8 +40,20 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+//? if >=26.1.2
+/*import net.neoforged.neoforge.client.event.RegisterSpecialModelRendererEvent;*/
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
+//? if >=26.1.2
+/*import com.mistaboom.essence_ascendance.client.ClientItemProperty2612;*/
+//? if >=26.1.2
+/*import com.mistaboom.essence_ascendance.client.ClientItemTint2612;*/
+//? if >=26.1.2
+/*import net.minecraft.resources.Identifier;*/
+//? if >=26.1.2
+/*import net.neoforged.neoforge.client.event.RegisterRangeSelectItemModelPropertyEvent;*/
+//? if >=26.1.2
+/*import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;*/
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -46,6 +67,12 @@ public final class EssenceAscendanceNeoForgeClient {
     public EssenceAscendanceNeoForgeClient(
             IEventBus modBus
     ) {
+        //? if >=26.1.2
+        /*modBus.addListener(this::registerItemModelProperties);*/
+        //? if >=26.1.2
+        /*modBus.addListener(this::registerItemTintSources);*/
+        //? if >=26.1.2
+        /*modBus.addListener(this::registerSpecialModels);*/
         modBus.addListener(LatentOreNeoForgeModels::modifyBakingResult);
         modBus.addListener(
                 this::onClientSetup
@@ -60,6 +87,32 @@ public final class EssenceAscendanceNeoForgeClient {
                 this::registerClientExtensions
         );
     }
+
+    //? if >=26.1.2
+    /*private void registerItemModelProperties(RegisterRangeSelectItemModelPropertyEvent event) { String mod = EssenceAscendance.MOD_ID; event.register(Identifier.fromNamespaceAndPath(mod, "tier"), ClientItemProperty2612.TIER.type()); event.register(Identifier.fromNamespaceAndPath(mod, "essentium_essence"), ClientItemProperty2612.ESSENTIUM_ESSENCE.type()); event.register(Identifier.fromNamespaceAndPath(mod, "blocking"), ClientItemProperty2612.BLOCKING.type()); event.register(Identifier.fromNamespaceAndPath(mod, "cast"), ClientItemProperty2612.CAST.type()); event.register(Identifier.fromNamespaceAndPath(mod, "pulling"), ClientItemProperty2612.PULLING.type()); event.register(Identifier.fromNamespaceAndPath(mod, "pull"), ClientItemProperty2612.PULL.type()); }*/
+
+    //? if >=26.1.2 {
+    /*private void registerSpecialModels(RegisterSpecialModelRendererEvent event) {
+        event.register(Identifier.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "machine_item"), EssenceMachineItemRenderer.Unbaked.MAP_CODEC);
+        event.register(Identifier.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "ascendance_shield"),
+                com.mistaboom.essence_ascendance.client.AscendanceShieldSpecialRenderer2612.Unbaked.MAP_CODEC);
+    }
+    *///? }
+
+    //? if >=26.1.2
+    /*private void registerItemTintSources(RegisterColorHandlersEvent.ItemTintSources event) {*/
+        //? if >=26.1.2
+        /*String mod = EssenceAscendance.MOD_ID;*/
+        //? if >=26.1.2
+        /*for (int layer = 0; layer < ClientItemTint2612.EQUIPMENT.length; layer++)*/
+            //? if >=26.1.2
+            /*event.register(Identifier.fromNamespaceAndPath(mod, "equipment_layer_" + layer), ClientItemTint2612.EQUIPMENT[layer].type());*/
+        //? if >=26.1.2
+        /*for (int layer = 0; layer < ClientItemTint2612.CARRIER.length; layer++)*/
+            //? if >=26.1.2
+            /*event.register(Identifier.fromNamespaceAndPath(mod, "carrier_layer_" + layer), ClientItemTint2612.CARRIER[layer].type());*/
+    //? if >=26.1.2
+    /*}*/
 
     private void registerMenuScreens(
             RegisterMenuScreensEvent event
@@ -110,6 +163,27 @@ public final class EssenceAscendanceNeoForgeClient {
     private void registerClientExtensions(
             RegisterClientExtensionsEvent event
     ) {
+        //? if >=26.1.2 {
+        /*event.registerItem(new IClientItemExtensions() {
+            private final Map<EquipmentSlot, AscendanceArmorModel<HumanoidRenderState>> armorModels =
+                    new EnumMap<>(EquipmentSlot.class);
+
+            @Override public Model getGenericArmorModel(ItemStack stack,
+                    EquipmentClientInfo.LayerType layerType, Model original) {
+                if (!(stack.getItem() instanceof AscendanceArmorItem armor)) return original;
+                return armorModels.computeIfAbsent(armor.ascendanceSlot(), AscendanceArmorModel::new);
+            }
+
+            @Override public Identifier getArmorTexture(ItemStack stack,
+                    EquipmentClientInfo.LayerType layerType, EquipmentClientInfo.Layer layer,
+                    Identifier original) {
+                Identifier authored = EquipmentTierVisuals.armorTexture(
+                        stack, layerType == EquipmentClientInfo.LayerType.HUMANOID_LEGGINGS);
+                return authored == null ? original : authored;
+            }
+        }, AscendanceItems.ASCENDANCE_HELMET.get(), AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
+                AscendanceItems.ASCENDANCE_LEGGINGS.get(), AscendanceItems.ASCENDANCE_BOOTS.get());
+        *///?} else {
         event.registerItem(new IClientItemExtensions() {
             private final Map<EquipmentSlot, HumanoidModel<LivingEntity>> armorModels =
                     new EnumMap<>(EquipmentSlot.class);
@@ -124,7 +198,9 @@ public final class EssenceAscendanceNeoForgeClient {
             }
         }, AscendanceItems.ASCENDANCE_HELMET.get(), AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
                 AscendanceItems.ASCENDANCE_LEGGINGS.get(), AscendanceItems.ASCENDANCE_BOOTS.get());
+        //?}
 
+        //? if <26.1.2 {
         IClientItemExtensions machineRenderer = new IClientItemExtensions() {
             @Override
             public BlockEntityWithoutLevelRenderer getCustomRenderer() {
@@ -140,15 +216,17 @@ public final class EssenceAscendanceNeoForgeClient {
                 AscendanceNexusContent.ASCENDANCE_NEXUS_ITEM.get(),
                 EssenceInfuserContent.ESSENCE_INFUSER_ITEM.get()
         );
+        //?}
     }
 
     private void onClientSetup(
             FMLClientSetupEvent event
     ) {
         event.enqueueWork(
-                () -> EssenceAscendanceClient.init(
-                        ItemProperties::register
-                )
+                //? if >=26.1.2
+                /*EssenceAscendanceClient::init*/
+                //? if <26.1.2
+                () -> EssenceAscendanceClient.init(ItemProperties::register)
         );
     }
 }

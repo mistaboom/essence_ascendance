@@ -36,6 +36,9 @@ public final class LatentOreHost {
         return state != null && !state.isAir() && !state.hasBlockEntity()
                 && state.getFluidState().isEmpty()
                 && state.getDestroySpeed(EmptyBlockGetter.INSTANCE, BlockPos.ZERO) >= 0
+                //? if >=26.1.2
+                /*&& state.isSolidRender()*/
+                //? if <26.1.2
                 && state.isSolidRender(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)
                 && state.isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
     }
@@ -71,14 +74,22 @@ public final class LatentOreHost {
 
     public static Optional<BlockState> read(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return Optional.empty();
+        BlockState fixed = stack.getItem() instanceof LatentOreBlockItem ore ? ore.fixedHost() : null;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) return Optional.empty();
+        if (data == null) return Optional.ofNullable(fixed);
         CompoundTag tag = data.copyTag();
-        return tag.contains(HOST_TAG, Tag.TAG_COMPOUND) ? decode(tag.getCompound(HOST_TAG)) : Optional.empty();
+        if (!tag.contains(HOST_TAG)) return Optional.ofNullable(fixed);
+        if (!tag.contains(HOST_TAG, Tag.TAG_COMPOUND)) return Optional.empty();
+        Optional<BlockState> encoded = decode(tag.getCompound(HOST_TAG));
+        return fixed == null ? encoded : encoded.filter(state -> state.getBlock() == fixed.getBlock());
     }
 
     public static void write(ItemStack stack, BlockState host) {
         CompoundTag data = encode(host);
+        if (stack.getItem() instanceof LatentOreBlockItem ore
+                && ore.fixedHost() != null && ore.fixedHost().getBlock() != host.getBlock())
+            throw new IllegalArgumentException("Latent Ore item host does not match "
+                    + BuiltInRegistries.BLOCK.getKey(host.getBlock()));
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.put(HOST_TAG, data));
     }
 
@@ -89,12 +100,13 @@ public final class LatentOreHost {
     }
 
     public static ItemStack stack(BlockState host) {
-        ItemStack stack = new ItemStack(EssenceInfuserContent.LATENT_ORE_ITEM.get());
+        ItemStack stack = new ItemStack(LatentOreItems.itemFor(host));
         write(stack, host);
         return stack;
     }
 
-    private static List<BlockState> baselineHosts() {
+    /** Known vanilla primary terrain layers, shared by registration and default presentation. */
+    public static List<BlockState> baselineHosts() {
         return List.of(Blocks.STONE.defaultBlockState(), Blocks.DEEPSLATE.defaultBlockState(),
                 Blocks.NETHERRACK.defaultBlockState(), Blocks.END_STONE.defaultBlockState());
     }

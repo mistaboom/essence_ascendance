@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.data;
 
+import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
@@ -14,6 +15,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
+//? if >=26.1.2
+/*import net.minecraft.world.level.saveddata.SavedDataType;*/
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +26,9 @@ public final class EssenceSavedData extends SavedData {
 
     private static final String DATA_NAME =
             "essence_ascendance_players";
+
+    //? if >=26.1.2
+    /*private static final SavedDataType<EssenceSavedData> DATA_TYPE = new SavedDataType<>(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, DATA_NAME), EssenceSavedData::new, CompoundTag.CODEC.xmap(tag -> load(tag, null), data -> data.save(new CompoundTag(), null)), DataFixTypes.LEVEL);*/
 
     private static final String PLAYERS_TAG =
             "players";
@@ -118,17 +124,10 @@ public final class EssenceSavedData extends SavedData {
     ) {
 
         if (!server.isSameThread()) throw new IllegalStateException("EssenceSavedData requires the server thread");
-        return server
-                .overworld()
-                .getDataStorage()
-                .computeIfAbsent(
-                        new SavedData.Factory<>(
-                                EssenceSavedData::new,
-                                EssenceSavedData::load,
-                                DataFixTypes.LEVEL
-                        ),
-                        DATA_NAME
-                );
+        //? if >=26.1.2
+        /*return server.overworld().getDataStorage().computeIfAbsent(DATA_TYPE);*/
+        //? if <26.1.2
+        return server.overworld().getDataStorage().computeIfAbsent(new SavedData.Factory<>(EssenceSavedData::new, EssenceSavedData::load, DataFixTypes.LEVEL), DATA_NAME);
     }
 
 
@@ -591,6 +590,7 @@ public final class EssenceSavedData extends SavedData {
      * ============================================================
      */
 
+    //? if <26.1.2
     @Override
     public CompoundTag save(
             CompoundTag root,

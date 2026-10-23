@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import java.util.*;
 import com.mistaboom.essence_ascendance.team.PoolId;
+import com.mistaboom.essence_ascendance.data.ItemStackNbtCompat;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.nbt.Tag;
@@ -51,22 +52,32 @@ public record InfusionJobProgress(ResourceLocation recipe, ItemStack workpiece, 
                 InfusionPayments.attribute(funding, pool, amounts));
     }
     public boolean complete() { return required.equals(paid); }
-    public CompoundTag save(HolderLookup.Provider registries) {
+    public CompoundTag saveMetadata() {
         CompoundTag tag = new CompoundTag();
         tag.putInt("version", 2);
-        tag.putString("recipe", recipe.toString()); tag.put("workpiece", workpiece.save(registries)); tag.put("result", result.save(registries));
+        tag.putString("recipe", recipe.toString());
         tag.put("required", amounts(required)); tag.put("paid", amounts(paid)); tag.putUUID("identity", identity);
         if (recipient != null) tag.putUUID("recipient", recipient);
         tag.put("funding", InfusionPayments.saveFunding(funding)); return tag;
     }
-    public static InfusionJobProgress load(CompoundTag tag, HolderLookup.Provider registries) {
+    public CompoundTag save(HolderLookup.Provider registries) {
+        CompoundTag tag = saveMetadata();
+        tag.put("workpiece", ItemStackNbtCompat.save(workpiece, registries));
+        tag.put("result", ItemStackNbtCompat.save(result, registries));
+        return tag;
+    }
+    public static InfusionJobProgress loadMetadata(CompoundTag tag, ItemStack workpiece, ItemStack result) {
         if (tag.getInt("version") != 2) throw new IllegalStateException("Unsupported paid Infuser job format; preserve this world and use a new development world");
         return new InfusionJobProgress(ResourceLocation.parse(tag.getString("recipe")),
-                ItemStack.parse(registries, tag.getCompound("workpiece")).orElseThrow(),
-                ItemStack.parse(registries, tag.getCompound("result")).orElseThrow(),
+                workpiece, result,
                 amounts(tag.getCompound("required")), amounts(tag.getCompound("paid")), tag.getUUID("identity"),
                 tag.hasUUID("recipient") ? tag.getUUID("recipient") : null,
                 InfusionPayments.loadFunding(tag.getList("funding", Tag.TAG_COMPOUND)));
+    }
+    public static InfusionJobProgress load(CompoundTag tag, HolderLookup.Provider registries) {
+        return loadMetadata(tag,
+                ItemStackNbtCompat.parse(registries, tag.getCompound("workpiece")).orElseThrow(),
+                ItemStackNbtCompat.parse(registries, tag.getCompound("result")).orElseThrow());
     }
     /** Move the SAME timed progress record with a unique repaired artifact; no copy remains in the machine. */
     public ItemStack carry(HolderLookup.Provider registries, int ticks) {

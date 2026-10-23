@@ -62,6 +62,9 @@ public final class StaggerController {
                 || !com.mistaboom.essence_ascendance.skill.CommittedSkillService.isEffective(owner, state.sourceSkill)
                 || !state.sourceValid.test(owner) || !CrowdControlEligibility.canControl(owner, target)
                 || !target.isAlive() || target.isRemoved() || target.isPassenger() || target.isVehicle()
+                //? if >=26.1.2
+                /*|| target.isSpectator() || target.isInvulnerable() || target.getType().builtInRegistryHolder().is(CrowdControlEligibility.IMMUNE)*/
+                //? if <26.1.2
                 || target.isSpectator() || target.isInvulnerable() || target.getType().is(CrowdControlEligibility.IMMUNE)
                 || !state.dimension.equals(target.level().dimension().location())
                 || !state.window.active(target.level().getGameTime())

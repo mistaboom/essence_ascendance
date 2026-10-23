@@ -61,8 +61,10 @@ def main():
     baseline = json.loads((args.output / "protected-before.json").read_text(encoding="utf-8"))
     assert snapshot == baseline, "Protected installed files changed during receipt window; investigate before reporting unchanged"
     version = re.search(r"(?m)^mod_version\s*=\s*(\S+)", (args.project / "gradle.properties").read_text())[1]
-    artifacts = [args.project / f"fabric/build/libs/essence_ascendance-fabric-{version}.jar",
-                 args.project / f"neoforge/build/libs/essence_ascendance-neoforge-{version}.jar",
+    manifest = json.loads((args.project / "build/production-artifacts-1.21.1.json").read_text(encoding="utf-8"))
+    assert manifest["schema"] == 1 and {t["loader"] for t in manifest["targets"]} == {"fabric", "neoforge"}
+    artifacts = [Path(next(t["archive"] for t in manifest["targets"] if t["loader"] == loader))
+                 for loader in ("fabric", "neoforge")] + [
                  args.project / "pack-tester/build/install/pack-tester/lib/pack-tester.jar"]
     assert all(path.is_file() for path in artifacts), "Required build artifact is missing"
     save(args.output / "build-hashes.json", [fingerprint(path) for path in artifacts])

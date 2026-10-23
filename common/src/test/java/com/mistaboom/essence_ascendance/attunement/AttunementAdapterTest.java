@@ -58,7 +58,7 @@ public final class AttunementAdapterTest {
         check(AttunementGameplay.value(ItemStack.EMPTY) == 0, "No empty harvest or fishing result");
         committedHarvestReceipts();
 
-        BuiltInRegistries.BLOCK.bindTags(Map.of(
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, Map.of(
                 BlockTags.CROPS, List.of(Blocks.WHEAT.builtInRegistryHolder(), Blocks.COCOA.builtInRegistryHolder(),
                         Blocks.CARROTS.builtInRegistryHolder(), Blocks.OAK_LOG.builtInRegistryHolder()),
                 PlayerAttributedBlockHarvestService.CROP_YIELD_ELIGIBLE, List.of(Blocks.STONE.builtInRegistryHolder(),
@@ -142,8 +142,14 @@ public final class AttunementAdapterTest {
         LivingEntity.class.getDeclaredMethod("getDamageAfterArmorAbsorb", net.minecraft.world.damagesource.DamageSource.class, float.class);
         LivingEntity.class.getDeclaredMethod("getDamageAfterMagicAbsorb", net.minecraft.world.damagesource.DamageSource.class, float.class);
         LivingEntity.class.getDeclaredMethod("addEffect", net.minecraft.world.effect.MobEffectInstance.class, net.minecraft.world.entity.Entity.class);
+        //? if >=26.1.2
+        /*net.minecraft.world.item.component.Consumable.class.getDeclaredMethod("onConsume", Level.class, LivingEntity.class, ItemStack.class);*/
+        //? if <26.1.2
         Player.class.getDeclaredMethod("eat", Level.class, ItemStack.class, net.minecraft.world.food.FoodProperties.class);
         Player.class.getDeclaredMethod("getXpNeededForNextLevel");
+        //? if >=26.1.2
+        /*FoodData.class.getDeclaredMethod("tick", net.minecraft.server.level.ServerPlayer.class);*/
+        //? if <26.1.2
         FoodData.class.getDeclaredMethod("tick", Player.class);
         ServerPlayerGameMode.class.getDeclaredMethod("destroyBlock", BlockPos.class);
         check(ServerLevel.class.getDeclaredMethod("addFreshEntity", net.minecraft.world.entity.Entity.class).getReturnType() == boolean.class,

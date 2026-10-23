@@ -12,13 +12,20 @@ import org.spongepowered.asm.mixin.injection.At;
 /** Reuses vanilla sprites, placement, target checks and the player's attack-indicator option. */
 @Mixin(Gui.class)
 abstract class CasterAttackIndicatorMixin {
+    //? if >=26.1.2
+    /*@WrapOperation(method = {"extractCrosshair", "extractItemHotbar"}, at = @At(value = "INVOKE",*/
+    //? if <26.1.2
     @WrapOperation(method = {"renderCrosshair", "renderItemHotbar"}, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/player/LocalPlayer;getAttackStrengthScale(F)F"))
     private float essenceAscendance$castReadiness(LocalPlayer player, float partialTick, Operation<Float> original) {
         ItemStack stack = player.getMainHandItem();
         if (stack.isEmpty()) stack = player.getOffhandItem();
         return stack.getItem() instanceof AscendanceCasterItem
-                ? 1.0F - player.getCooldowns().getCooldownPercent(stack.getItem(), partialTick)
+                ? 1.0F - player.getCooldowns().getCooldownPercent(
+                //? if >=26.1.2
+                /*stack, partialTick)*/
+                //? if <26.1.2
+                stack.getItem(), partialTick)
                 : original.call(player, partialTick);
     }
 }

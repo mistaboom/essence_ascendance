@@ -1,9 +1,18 @@
 package com.mistaboom.essence_ascendance.projectile;
 
 import net.minecraft.world.entity.EntityType;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.AbstractArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.AbstractArrow;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.entity.projectile.Projectile;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.SpectralArrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.SpectralArrow;
 
 import java.util.IdentityHashMap;

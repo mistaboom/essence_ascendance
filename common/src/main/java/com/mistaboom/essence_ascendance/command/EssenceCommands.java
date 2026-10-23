@@ -134,7 +134,7 @@ public final class EssenceCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence ascend", EssenceText.command("help.ascend")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence milestones [milestone]", EssenceText.command("help.milestones")));
 
-        if (source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION)) {
+        if (EssenceCommandUtil.hasAdminPermission(source)) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("help.development")));
             EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin", EssenceText.command("help.admin")));
             EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug", EssenceText.command("help.debug")));

@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.projectile;
 
 import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
+import com.mistaboom.essence_ascendance.data.ItemStackNbtCompat;
 import com.mistaboom.essence_ascendance.crucible.*;
 import com.mistaboom.essence_ascendance.essence.*;
 import com.mistaboom.essence_ascendance.infuser.*;
@@ -43,8 +44,8 @@ public final class NativeCarrierCompatibilityTest {
                         var old = minted.stream().map(ItemStack::copy).toList();
                         long[] amounts = {600, 5400, 48600};
                         for (int i = 0; i < old.size(); i++) {
-                            var saved = old.get(i).save(f.level.registryAccess());
-                            var restored = ItemStack.parse(f.level.registryAccess(), saved).orElseThrow();
+                            var saved = ItemStackNbtCompat.save(old.get(i), f.level.registryAccess());
+                            var restored = ItemStackNbtCompat.parse(f.level.registryAccess(), saved).orElseThrow();
                             check(ItemStack.matches(old.get(i), restored), "Native item save/load preserves original bytes and count");
                             check(EssentiumCarrierData.readValidated(restored).orElseThrow().amount() == amounts[i],
                                     "Old denomination remains usable after capacity change " + newCapacity);
@@ -62,12 +63,13 @@ public final class NativeCarrierCompatibilityTest {
                         var mixed = copies(old.get(0), 9);
                         mixed.set(8, EssentiumCarrierData.createFull(nugget, essence, grade));
                         var mixedInput = CraftingInput.of(3, 3, mixed);
-                        check(!nuggetCompact.matches(mixedInput, f.level) && nuggetCompact.assemble(mixedInput, f.level.registryAccess()).isEmpty(),
+                        check(!nuggetCompact.matches(mixedInput, f.level) && assemble(nuggetCompact, mixedInput, f.level.registryAccess()).isEmpty(),
                                 "Mixed old/new face values cannot be repriced through compression");
                         var entity = new EssentiumBlockEntity(new BlockPos(0, 0, 0), EssenceInfuserContent.ESSENTIUM_BLOCK_BLOCK.get().defaultBlockState());
                         entity.setCarrier(old.get(2));
                         var restoredEntity = new EssentiumBlockEntity(entity.getBlockPos(), entity.getBlockState());
-                        restoredEntity.loadWithComponents(entity.saveWithFullMetadata(f.level.registryAccess()), f.level.registryAccess());
+                        com.mistaboom.essence_ascendance.verification.BlockEntityTestNbtCompat.load(
+                                restoredEntity, entity.saveWithFullMetadata(f.level.registryAccess()), f.level.registryAccess());
                         check(ItemStack.matches(old.get(2), restoredEntity.carrierStack()), "Placed block save/load retains its exact denomination");
                     }
                 }
@@ -78,11 +80,11 @@ public final class NativeCarrierCompatibilityTest {
             var partial = full.copy();
             EssentiumCarrierData.write(partial, new EssentiumCarrierData.Value(EssenceTypes.OFFENSE, EssenceFocusTier.DORMANT, 2700, 5400));
             check(EssentiumCarrierData.readValidated(partial).orElseThrow().amount() == 2700, "Partial declared carrier retains exact dissolution value");
-            check(nuggetSplit.assemble(CraftingInput.of(1, 1, List.of(partial)), f.level.registryAccess()).isEmpty(), "Partial declared carrier cannot turn into full outputs");
+            check(assemble(nuggetSplit, CraftingInput.of(1, 1, List.of(partial)), f.level.registryAccess()).isEmpty(), "Partial declared carrier cannot turn into full outputs");
             var missingSchema = withoutSchema(partial);
             check(EssentiumCarrierData.readValidated(missingSchema).isEmpty()
                     && !EssenceCrucibleBlockEntity.isValidNewInput(missingSchema)
-                    && nuggetSplit.assemble(CraftingInput.of(1, 1, List.of(missingSchema)), f.level.registryAccess()).isEmpty(),
+                    && assemble(nuggetSplit, CraftingInput.of(1, 1, List.of(missingSchema)), f.level.registryAccess()).isEmpty(),
                     "Missing carrier schema cannot be interpreted or transformed");
             for (long invalid : new long[]{0, -1, Long.MAX_VALUE}) {
                 var bad = edit(full, t -> t.putLong("amount", invalid));
@@ -95,7 +97,7 @@ public final class NativeCarrierCompatibilityTest {
             var wrongForm = fullNugget.copy(); wrongForm.set(DataComponents.CUSTOM_DATA, full.get(DataComponents.CUSTOM_DATA));
             check(EssentiumCarrierData.readValidated(wrongForm).isEmpty(), "A new ingot tag cannot overfill a nugget of the same denomination");
             var tooLarge = edit(full, t -> t.putLong("amount", EssentiumCarrierData.MAX_STORED_AMOUNT));
-            check(nuggetSplit.assemble(CraftingInput.of(1, 1, List.of(tooLarge)), f.level.registryAccess()).isEmpty(), "Out-of-family values cannot overflow crafting");
+            check(assemble(nuggetSplit, CraftingInput.of(1, 1, List.of(tooLarge)), f.level.registryAccess()).isEmpty(), "Out-of-family values cannot overflow crafting");
             EssenceConfigManager.install(capacity(2700));
             nativeDissolution(f, fullNugget);
             System.out.println("Native carrier compatibility checks passed: " + checks);
@@ -117,9 +119,16 @@ public final class NativeCarrierCompatibilityTest {
     private static ItemStack craft(CustomRecipe recipe, ItemStack ingredient, int count, ProjectileNativeInterceptionTest.Fixture f) {
         var input = CraftingInput.of(count == 9 ? 3 : 1, count == 9 ? 3 : 1, copies(ingredient, count));
         check(recipe.matches(input, f.level), "Actual carrier recipe accepts saved denomination");
-        var result = recipe.assemble(input, f.level.registryAccess());
+        var result = assemble(recipe, input, f.level.registryAccess());
         check(!result.isEmpty(), "Actual carrier recipe returns data-bearing output");
         return result;
+    }
+    private static ItemStack assemble(Recipe<CraftingInput> recipe, CraftingInput input,
+                                      net.minecraft.core.HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*return recipe.assemble(input);*/
+        //? if <26.1.2
+        return recipe.assemble(input, registries);
     }
     private static ItemStack withoutSchema(ItemStack stack) {
         return edit(stack, t -> { t.remove("schema"); t.remove("ingot_denomination"); });

@@ -2,6 +2,9 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.client.ui.UiOverlayStack;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Style;
@@ -30,6 +33,9 @@ public record MachineOverlay(
 
     @FunctionalInterface
     public interface Renderer {
+        //? if >=26.1.2
+        /*void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, int scrollOffset);*/
+        //? if <26.1.2
         void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, int scrollOffset);
     }
 

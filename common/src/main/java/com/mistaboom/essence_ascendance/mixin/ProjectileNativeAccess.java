@@ -10,6 +10,9 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(Projectile.class)
 public interface ProjectileNativeAccess {
+    //? if >=26.1.2
+    /*@Accessor("owner") net.minecraft.world.entity.EntityReference<Entity> essenceAscendance$ownerReference();*/
+    //? if <26.1.2
     @Accessor("ownerUUID") java.util.UUID essenceAscendance$ownerUUID();
     @Accessor("leftOwner") void essenceAscendance$leftOwner(boolean left);
     @Invoker("canHitEntity") boolean essenceAscendance$canHit(Entity entity);

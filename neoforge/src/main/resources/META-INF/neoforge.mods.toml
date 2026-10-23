@@ -16,21 +16,21 @@ logoFile = "icon.png"
 [[dependencies.essence_ascendance]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.1,)"
+versionRange = "${neoforge_requirement}"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.essence_ascendance]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21.1,)"
+versionRange = "${minecraft_requirement}"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.essence_ascendance]]
 modId = "architectury"
 type = "required"
-versionRange = "[13.0.11,)"
+versionRange = "${architectury_requirement}"
 ordering = "AFTER"
 side = "BOTH"
 

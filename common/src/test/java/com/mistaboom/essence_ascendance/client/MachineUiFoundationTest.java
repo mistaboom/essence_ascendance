@@ -206,6 +206,9 @@ public final class MachineUiFoundationTest {
     }
 
     private static void styledTextContract() {
+        //? if >=26.1.2
+        /*ClickEvent click = new ClickEvent.RunCommand("/example");*/
+        //? if <26.1.2
         ClickEvent click = new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/example");
         Style interactive = Style.EMPTY
                 .withColor(ChatFormatting.GOLD)

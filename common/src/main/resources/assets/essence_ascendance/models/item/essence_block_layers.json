@@ -1,7 +1,9 @@
 {
   "parent": "minecraft:block/block",
   "textures": {
-    "particle": "essence_ascendance:item/essence_block/base"
+    "particle": "essence_ascendance:item/essence_block/base",
+    "base": "essence_ascendance:item/essence_block/base",
+    "accent": "essence_ascendance:item/essence_block/accent"
   },
   "elements": [
     {

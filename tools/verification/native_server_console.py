@@ -11,7 +11,7 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-SERVER = ROOT / "fabric/build/progression-audit-server"
+SERVER = ROOT / "fabric/versions/1.21.1/build/progression-audit-server"
 
 def read_exact(stream, count):
     value = b""

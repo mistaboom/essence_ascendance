@@ -3,6 +3,8 @@ package com.mistaboom.essence_ascendance.machine;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
 import net.minecraft.server.level.ServerLevel;
+//? if >=26.1.2
+/*import net.minecraft.server.permissions.Permissions;*/
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -22,7 +24,11 @@ public interface BoundMachine {
     }
     default boolean canRecover(net.minecraft.server.level.ServerPlayer administrator) {
         BlockEntity entity = (BlockEntity) this;
-        if (!administrator.server.isSameThread() || !administrator.hasPermissions(2)
+        if (!administrator.server.isSameThread() ||
+                //? if >=26.1.2
+                /*!administrator.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)*/
+                //? if <26.1.2
+                !administrator.hasPermissions(2)
                 || administrator.server.getPlayerList().getPlayer(administrator.getUUID()) != administrator
                 || !com.mistaboom.essence_ascendance.network.ServerMenuAccess.canReach(administrator, entity)) return false;
         var saved = EssenceSavedData.get(administrator.server);

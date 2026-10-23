@@ -11,6 +11,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** A phantom already swooping does not re-run targeting conditions; clear its protected target before AI work. */
 @Mixin(Phantom.class)
 public abstract class SustenancePhantomAwarenessMixin {
+    //? if >=26.1.2
+    /*@Inject(method = "tick", at = @At("HEAD"))*/
+    //? if <26.1.2
     @Inject(method = "aiStep", at = @At("HEAD"))
     private void essenceAscendance$releaseSustainedTarget(CallbackInfo callback) {
         Phantom phantom = (Phantom) (Object) this;

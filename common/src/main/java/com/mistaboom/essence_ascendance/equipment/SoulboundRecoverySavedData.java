@@ -1,13 +1,19 @@
 package com.mistaboom.essence_ascendance.equipment;
 
+import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
+//? if >=26.1.2
+/*import net.minecraft.world.level.saveddata.SavedDataType;*/
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,17 +37,55 @@ public final class SoulboundRecoverySavedData extends SavedData {
     private static final String SLOT_TAG = "preferred_slot";
     private static final String STACK_TAG = "stack";
 
+    private static final Codec<PendingArtifact> ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.INT.fieldOf(SLOT_TAG).forGetter(PendingArtifact::preferredSlot),
+            ItemStack.CODEC.fieldOf(STACK_TAG).forGetter(PendingArtifact::stack)
+    ).apply(instance, PendingArtifact::new));
+    private static final Codec<SavedQueue> QUEUE_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            ENTRY_CODEC.listOf().fieldOf(ENTRIES_TAG).forGetter(SavedQueue::entries)
+    ).apply(instance, SavedQueue::new));
+    private static final Codec<SoulboundRecoverySavedData> DATA_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.unboundedMap(Codec.STRING, QUEUE_CODEC).optionalFieldOf(PLAYERS_TAG, Map.of())
+                    .forGetter(SoulboundRecoverySavedData::savedQueues)
+    ).apply(instance, SoulboundRecoverySavedData::fromSavedQueues));
+    //? if >=26.1.2
+    /*private static final SavedDataType<SoulboundRecoverySavedData> DATA_TYPE = new SavedDataType<>(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, DATA_NAME), SoulboundRecoverySavedData::new, DATA_CODEC, DataFixTypes.LEVEL);*/
+
     private final Map<UUID, List<PendingArtifact>> pending = new HashMap<>();
 
+    private record SavedQueue(List<PendingArtifact> entries) { }
+
+    private Map<String, SavedQueue> savedQueues() {
+        Map<String, SavedQueue> saved = new HashMap<>();
+        pending.forEach((owner, entries) -> {
+            List<PendingArtifact> valid = entries.stream()
+                    .filter(entry -> entry.stack() != null && !entry.stack().isEmpty()).toList();
+            if (!valid.isEmpty()) saved.put(owner.toString(), new SavedQueue(valid));
+        });
+        return saved;
+    }
+
+    private static SoulboundRecoverySavedData fromSavedQueues(Map<String, SavedQueue> saved) {
+        SoulboundRecoverySavedData data = new SoulboundRecoverySavedData();
+        saved.forEach((key, queue) -> {
+            UUID owner;
+            try { owner = UUID.fromString(key); }
+            catch (IllegalArgumentException malformed) { return; }
+            List<PendingArtifact> valid = queue.entries().stream().filter(entry -> {
+                if (entry.stack() == null || entry.stack().isEmpty()) return false;
+                SoulboundEquipmentData.Binding binding = SoulboundEquipmentData.read(entry.stack()).orElse(null);
+                return binding != null && binding.ownerId().equals(owner);
+            }).map(entry -> new PendingArtifact(entry.preferredSlot(), entry.stack().copy())).toList();
+            if (!valid.isEmpty()) data.pending.put(owner, valid);
+        });
+        return data;
+    }
+
     public static SoulboundRecoverySavedData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(
-                new SavedData.Factory<>(
-                        SoulboundRecoverySavedData::new,
-                        SoulboundRecoverySavedData::load,
-                        DataFixTypes.LEVEL
-                ),
-                DATA_NAME
-        );
+        //? if >=26.1.2
+        /*return server.overworld().getDataStorage().computeIfAbsent(DATA_TYPE);*/
+        //? if <26.1.2
+        return server.overworld().getDataStorage().computeIfAbsent(new SavedData.Factory<>(SoulboundRecoverySavedData::new, SoulboundRecoverySavedData::load, DataFixTypes.LEVEL), DATA_NAME);
     }
 
     /**
@@ -118,6 +162,7 @@ public final class SoulboundRecoverySavedData extends SavedData {
         setDirty();
     }
 
+    //? if <26.1.2
     @Override
     public CompoundTag save(CompoundTag root, HolderLookup.Provider registries) {
         CompoundTag playersTag = new CompoundTag();
@@ -130,6 +175,9 @@ public final class SoulboundRecoverySavedData extends SavedData {
                 }
                 CompoundTag entryTag = new CompoundTag();
                 entryTag.putInt(SLOT_TAG, artifact.preferredSlot());
+                //? if >=26.1.2
+                /*entryTag.store(STACK_TAG, ItemStack.CODEC, artifact.stack());*/
+                //? if <26.1.2
                 entryTag.put(STACK_TAG, artifact.stack().save(registries));
                 entriesTag.add(entryTag);
             }
@@ -177,6 +225,9 @@ public final class SoulboundRecoverySavedData extends SavedData {
                     continue;
                 }
 
+                //? if >=26.1.2
+                /*ItemStack stack = entryTag.read(STACK_TAG, ItemStack.CODEC).orElse(ItemStack.EMPTY);*/
+                //? if <26.1.2
                 ItemStack stack = ItemStack.parse(registries, stackTag).orElse(ItemStack.EMPTY);
                 SoulboundEquipmentData.Binding binding =
                         SoulboundEquipmentData.read(stack).orElse(null);

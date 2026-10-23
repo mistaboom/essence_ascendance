@@ -43,6 +43,9 @@ public final class FishingLootService {
                 rollTable(player, source, origin, tool, luck, BuiltInLootTables.FISHING_FISH));
         if (!reward.isEmpty()) return reward;
 
+        //? if >=26.1.2
+        /*return ((net.minecraft.core.HolderGetter<net.minecraft.world.item.Item>) BuiltInRegistries.ITEM).get(ItemTags.FISHES)*/
+        //? if <26.1.2
         return BuiltInRegistries.ITEM.getTag(ItemTags.FISHES)
                 .flatMap(fishes -> fishes.getRandomElement(player.getRandom()))
                 .map(holder -> new ItemStack(holder.value()))
@@ -70,6 +73,9 @@ public final class FishingLootService {
                 .withParameter(LootContextParams.THIS_ENTITY, source)
                 .withLuck(luck)
                 .create(LootContextParamSets.FISHING);
+        //? if >=26.1.2
+        /*return List.copyOf(player.serverLevel().getServer().reloadableRegistries()*/
+        //? if <26.1.2
         return List.copyOf(player.getServer().reloadableRegistries()
                 .getLootTable(table).getRandomItems(params));
     }

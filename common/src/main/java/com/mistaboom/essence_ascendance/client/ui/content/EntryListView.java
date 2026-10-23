@@ -8,6 +8,9 @@ import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScroll;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
@@ -57,6 +60,9 @@ public final class EntryListView<T> implements FullscreenComposition.Input {
         scroll.configure(this.entries.size(), Math.max(0, (bounds.height() - 2) / ROW_HEIGHT));
     }
 
+    //? if >=26.1.2
+    /*public void render(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     public void render(GuiGraphics graphics, Font font, int mouseX, int mouseY) {
         FullscreenControls.panel(graphics, bounds, AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE),
                 AscendanceUiPalette.argb(AscendanceUiPalette.BORDER));
@@ -72,9 +78,15 @@ public final class EntryListView<T> implements FullscreenComposition.Input {
                     graphics.fill(rowBounds.x(), rowBounds.y(), rowBounds.right(), rowBounds.bottom(), selected
                             ? AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE) : 0x55353B46);
                 }
+                //? if >=26.1.2
+                /*graphics.text(font, StyledTextLayout.fit(font, entry.label(), Math.max(0, rowBounds.width() - 10)),*/
+                //? if <26.1.2
                 graphics.drawString(font, StyledTextLayout.fit(font, entry.label(), Math.max(0, rowBounds.width() - 10)),
                         rowBounds.x() + 5, rowBounds.y() + 4,
                         AscendanceUiPalette.argb(selected ? AscendanceUiPalette.INTERACTIVE : AscendanceUiPalette.PRIMARY_TEXT), false);
+                //? if >=26.1.2
+                /*graphics.text(font, StyledTextLayout.fit(font, entry.summary(), Math.max(0, rowBounds.width() - 10)),*/
+                //? if <26.1.2
                 graphics.drawString(font, StyledTextLayout.fit(font, entry.summary(), Math.max(0, rowBounds.width() - 10)),
                         rowBounds.x() + 5, rowBounds.y() + 17,
                         AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);

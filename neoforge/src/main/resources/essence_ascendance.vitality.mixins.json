@@ -3,38 +3,18 @@
   "package": "com.mistaboom.essence_ascendance.neoforge.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "PlayerVitalityMixin",
-    "MobEffectInstanceDurationMixin",
-    "PlayerExperienceMixin",
-    "PlayerSoulboundMixin",
     "ItemStackDurabilityMixin",
-    "PlayerShieldMixin",
-    "LivingEntityShieldGuardMixin",
+    "NeoForgeDamageCleanupMixin",
     "LivingEntityShieldDamageMixin",
-    "PlayerSkillCombatMixin",
-    "LivingEntitySkillCombatMixin",
-    "ServerSkillSwingMixin",
-    "ServerPlayerSkillDeathMixin",
-    "EntitySkillRemovalMixin",
+    "PlayerSkillSweepMixin",
     "VitalityPlayerDamageMixin",
     "NeoForgeDamageContainerAccess",
-    "PlayerAbsorptionPoolMixin",
-    "LivingEntityAbsorptionPoolMixin",
     "TraversalMiningMixin"
   ],
   "client": [
     "LatentOreModelDataMixin",
-    "ItemRendererEmissionMixin",
-    "ItemInHandRendererMixin",
-    "AbstractClientPlayerFovMixin",
-    "ItemStackTooltipMixin",
-    "JeiListElementInfoMixin",
-    "JeiIngredientFilterMixin",
     "AscendanceArmorItemClientMixin",
-    "LocalPlayerShieldMovementMixin",
-    "ShieldItemRendererMixin",
-    "SkillEffectHudMixin",
-    "VanillaAttackIndicatorMixin"
+    "NeoForgeGuardSprintKeyMixin"
   ],
   "injectors": {
     "defaultRequire": 1

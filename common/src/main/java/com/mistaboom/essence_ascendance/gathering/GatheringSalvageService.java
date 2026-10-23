@@ -59,6 +59,9 @@ public final class GatheringSalvageService {
         ItemStack salvaged = source.copyWithCount(1);
 
         List<ConstructionMaterialResolver.MaterialAmount> materials =
+                //? if >=26.1.2
+                /*ConstructionMaterialResolver.resolve(salvaged, player.serverLevel().getServer());*/
+                //? if <26.1.2
                 ConstructionMaterialResolver.resolve(salvaged, player.getServer());
         if (materials.isEmpty()) return true;
         double storedExperience = disenchantExperience(salvaged);
@@ -104,6 +107,9 @@ public final class GatheringSalvageService {
 
     private static boolean salvageable(ItemStack stack, ServerPlayer player) {
         if (!EquipmentMaintenanceService.eligible(stack)) return false;
+        //? if >=26.1.2
+        /*return !ConstructionMaterialResolver.resolve(stack, player.serverLevel().getServer()).isEmpty();*/
+        //? if <26.1.2
         return !ConstructionMaterialResolver.resolve(stack, player.getServer()).isEmpty();
     }
 

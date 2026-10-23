@@ -531,6 +531,9 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 || !ItemStack.matches(pending.input(), serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT))
                 || !ItemStack.matches(pending.focus(), serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT))
                 || !ItemStack.matches(pending.component(), serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT))) return false;
+        //? if >=26.1.2
+        /*var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(((net.minecraft.server.level.ServerPlayer) player).serverLevel().getServer());*/
+        //? if <26.1.2
         var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(((net.minecraft.server.level.ServerPlayer) player).server);
         if (!pending.membership().equals(serverInfuser.machineBinding().resolve(saved))) return false;
         serverInfuser.startConfirmedEquipment(player);

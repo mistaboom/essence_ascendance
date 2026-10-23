@@ -106,7 +106,7 @@ final class EssenceDebugCommands {
 
     static LiteralArgumentBuilder<CommandSourceStack> build() {
         return Commands.literal("debug")
-                .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                .requires(source -> EssenceCommandUtil.hasAdminPermission(source))
                 .executes(context -> showHelp(context.getSource()))
                 .then(Commands.literal("help").executes(context -> showHelp(context.getSource())))
                 .then(playerBranch())

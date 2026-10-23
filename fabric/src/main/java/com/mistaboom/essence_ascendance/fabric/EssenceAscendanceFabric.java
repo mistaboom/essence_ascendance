@@ -22,9 +22,14 @@ public final class EssenceAscendanceFabric implements ModInitializer {
         // However, some things (like resources) may still be uninitialized.
         // Proceed with mild caution.
 
+        //? if >=26.1.2
+        /*FabricEntityPresentationSync2612.register();*/
         // Run our common setup.
         EssenceAscendance.init();
         for (var tab : com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.tabs()) {
+            //? if >=26.1.2
+            /*net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents.modifyOutputEvent(tab).register(entries ->*/
+            //? if <26.1.2
             net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(tab).register(entries ->
                     com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.append(tab, entries));
         }

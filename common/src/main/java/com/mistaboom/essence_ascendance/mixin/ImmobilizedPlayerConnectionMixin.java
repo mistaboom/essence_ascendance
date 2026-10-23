@@ -26,7 +26,11 @@ public abstract class ImmobilizedPlayerConnectionMixin {
         double tolerance = ImmobilizationController.tolerance(player);
         boolean correction = Math.abs(packet.getX(x) - x) > tolerance || Math.abs(packet.getZ(z) - z) > tolerance
                 || packet.getY(y) > y + tolerance;
+        //? if >=26.1.2
+        /*original.call(new ServerboundMovePlayerPacket.PosRot(x, Math.min(y, packet.getY(y)), z, packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()), packet.isOnGround(), packet.horizontalCollision()));*/
+        //? if <26.1.2
         original.call(new ServerboundMovePlayerPacket.PosRot(x, Math.min(y, packet.getY(y)), z,
+                //? if <26.1.2
                 packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()), packet.isOnGround()));
         ImmobilizationController.moved(player);
         if (correction && awaitingPositionFromClient == null && ImmobilizationController.active(player)) player.connection.teleport(

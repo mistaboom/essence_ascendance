@@ -16,6 +16,9 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+//? if >=26.1.2
+/*import net.minecraft.world.item.ItemUseAnimation;*/
+//? if <26.1.2
 import net.minecraft.world.item.UseAnim;
 
 import java.util.List;
@@ -30,7 +33,7 @@ public final class VitalitySustenanceEffects {
 
     public static int useDuration(ItemStack stack, LivingEntity entity, int nativeDuration) {
         if (!(entity instanceof ServerPlayer player) || !player.isAlive() || player.isRemoved()
-                || stack.isEmpty() || stack.getUseAnimation() != UseAnim.EAT && stack.getUseAnimation() != UseAnim.DRINK)
+                || stack.isEmpty() || !eatingAnimation(stack))
             return nativeDuration;
         var context = SkillEffectRuntime.context(player);
         return context.isEffective(SkillIds.FEAST_REFLEX)
@@ -48,9 +51,7 @@ public final class VitalitySustenanceEffects {
     public static boolean suitable(ItemStack stack) {
         FoodProperties food = stack.get(DataComponents.FOOD);
         if (stack.isEmpty() || stack.is(EXCLUDED_AUTO_FOODS) || food == null || food.nutrition() <= 0
-                || stack.getUseAnimation() != UseAnim.EAT && stack.getUseAnimation() != UseAnim.DRINK
-                || stack.useOnRelease() || food.effects().stream().anyMatch(effect -> effect.probability() > 0
-                && harmful(effect.effect().getEffect()))) return false;
+                || !eatingAnimation(stack) || stack.useOnRelease() || unsafeConsumptionEffects(stack, food)) return false;
         var stew = stack.get(DataComponents.SUSPICIOUS_STEW_EFFECTS);
         if (stew != null && stew.effects().stream().anyMatch(effect -> harmful(effect.effect()))) return false;
         var potion = stack.get(DataComponents.POTION_CONTENTS);
@@ -60,6 +61,31 @@ public final class VitalitySustenanceEffects {
 
     private static boolean harmful(net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect) {
         return effect.value().getCategory() == net.minecraft.world.effect.MobEffectCategory.HARMFUL;
+    }
+
+    private static boolean eatingAnimation(ItemStack stack) {
+        //? if >=26.1.2
+        /*return stack.getUseAnimation() == ItemUseAnimation.EAT || stack.getUseAnimation() == ItemUseAnimation.DRINK;*/
+        //? if <26.1.2
+        return stack.getUseAnimation() == UseAnim.EAT || stack.getUseAnimation() == UseAnim.DRINK;
+    }
+
+    private static boolean unsafeConsumptionEffects(ItemStack stack, FoodProperties food) {
+        //? if >=26.1.2
+        /*var consumable = stack.get(DataComponents.CONSUMABLE);*/
+        //? if >=26.1.2
+        /*if (consumable == null) return true;*/
+        //? if >=26.1.2
+        /*return consumable.onConsumeEffects().stream().anyMatch(effect -> !(effect instanceof net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect status) || status.probability() > 0 && status.effects().stream().anyMatch(instance -> harmful(instance.getEffect())));*/
+        //? if <26.1.2
+        return food.effects().stream().anyMatch(effect -> effect.probability() > 0 && harmful(effect.effect().getEffect()));
+    }
+
+    private static boolean onCooldown(ServerPlayer player, ItemStack stack) {
+        //? if >=26.1.2
+        /*return player.getCooldowns().isOnCooldown(stack);*/
+        //? if <26.1.2
+        return player.getCooldowns().isOnCooldown(stack.getItem());
     }
 
     /** Native nutrition descending, saturation descending, then leftmost hotbar slot. */
@@ -120,7 +146,7 @@ public final class VitalitySustenanceEffects {
                 FoodProperties food = stack.get(DataComponents.FOOD);
                 return food != null
                         && player.canEat(food.canAlwaysEat())
-                        && !player.getCooldowns().isOnCooldown(stack.getItem())
+                        && !onCooldown(player, stack)
                         && stack.getUseDuration(player) > 0
                         && SustenanceMath.automaticMealOpportunity(healingNeeded, foodCanHeal, maintenanceNeeded,
                         foodLevel, food.nutrition(), player.isUsingItem());
@@ -175,7 +201,7 @@ public final class VitalitySustenanceEffects {
         ItemStack stack = player.getInventory().getItem(slot);
         FoodProperties food = stack.get(DataComponents.FOOD);
         if (!suitable(stack) || food == null || !player.canEat(food.canAlwaysEat())
-                || player.getCooldowns().isOnCooldown(stack.getItem()) || stack.getUseDuration(player) <= 0)
+                || onCooldown(player, stack) || stack.getUseDuration(player) <= 0)
             return false;
         ItemStack result = stack.finishUsingItem(player.level(), player);
         player.getInventory().setItem(slot, result);

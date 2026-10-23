@@ -8,6 +8,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ReloadableServerResources.class)
 abstract class EquipmentPolicyReloadMixin {
+    //? if >=26.1.2
+    /*@Inject(method = "updateComponentsAndStaticRegistryTags()V", at = @At("RETURN"))*/
+    //? if <26.1.2
     @Inject(method = "updateRegistryTags()V", at = @At("RETURN"))
     private void essenceAscendance$tags(CallbackInfo ci) { TwoHandedEquipmentPolicy.rulesChanged(); }
 }

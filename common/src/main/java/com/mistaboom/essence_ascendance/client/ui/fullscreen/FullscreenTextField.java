@@ -3,6 +3,9 @@ package com.mistaboom.essence_ascendance.client.ui.fullscreen;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import java.util.Objects;
@@ -79,6 +82,9 @@ public class FullscreenTextField implements FullscreenComposition.Input {
         }
         return position;
     }
+    //? if >=26.1.2
+    /*public void render(GuiGraphicsExtractor graphics, Font font) {*/
+    //? if <26.1.2
     public void render(GuiGraphics graphics, Font font) {
         prepare(font);
         FullscreenControls.panel(graphics, bounds, AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE),
@@ -91,6 +97,9 @@ public class FullscreenTextField implements FullscreenComposition.Input {
                 graphics.fill(x + left, y - 1, x + right, y + font.lineHeight + 1,
                         AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE));
             }
+            //? if >=26.1.2
+            /*graphics.text(font, query.isEmpty() ? placeholder : Component.literal(query.substring(start)), x, y,*/
+            //? if <26.1.2
             graphics.drawString(font, query.isEmpty() ? placeholder : Component.literal(query.substring(start)), x, y,
                     AscendanceUiPalette.argb(query.isEmpty() ? AscendanceUiPalette.MUTED_TEXT : AscendanceUiPalette.PRIMARY_TEXT), false);
             if (focused && (System.currentTimeMillis() / 500L & 1L) == 0L) {
@@ -130,9 +139,11 @@ public class FullscreenTextField implements FullscreenComposition.Input {
             default -> { return false; }
         }
     }
-    @Override public boolean character(char character, int modifiers) {
-        if ((modifiers & 2) != 0 || Character.isISOControl(character) || character == '§') return false;
-        insert(Character.toString(character)); return true;
+    @Override public boolean character(int codepoint, int modifiers) {
+        if ((modifiers & 2) != 0 || !Character.isValidCodePoint(codepoint)
+                || codepoint >= Character.MIN_SURROGATE && codepoint <= Character.MAX_SURROGATE
+                || Character.isISOControl(codepoint) || codepoint == '§') return false;
+        insert(new String(Character.toChars(codepoint))); return true;
     }
     public void insert(String text) {
         StringBuilder clean = new StringBuilder();

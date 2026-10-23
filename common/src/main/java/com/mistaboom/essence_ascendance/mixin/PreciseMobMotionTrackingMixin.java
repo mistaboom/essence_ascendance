@@ -15,9 +15,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerEntity.class)
 public abstract class PreciseMobMotionTrackingMixin {
     @Shadow @Final private Entity entity;
+    //? if >=26.1.2
+    /*@Shadow @Final private ServerEntity.Synchronizer synchronizer;*/
+    //? if <26.1.2
     @Shadow @Final private Consumer<Packet<?>> broadcast;
     @Inject(method = "sendChanges", at = @At("RETURN"))
     private void essenceAscendance$preciseMobMotion(CallbackInfo callback) {
+        //? if >=26.1.2
+        /*var payload = PreciseMobMotion.update(entity); if (payload != null) synchronizer.sendToTrackingPlayers(new net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket(payload));*/
+        //? if <26.1.2
         PreciseMobMotion.synchronize(entity, broadcast);
     }
 }

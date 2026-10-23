@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.movement;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
@@ -28,23 +29,9 @@ public final class TraversalNativeHookShapeTest {
             check(!config.contains("\"TraversalPlayerMixin\""),
                     "The obsolete Player travel injector must remain unregistered, not made optional");
         }
-        inspect(name -> TraversalNativeHookShapeTest.class.getClassLoader().getResourceAsStream(name + ".class"), false);
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) root = root.getParent();
-        if (root == null) throw new AssertionError("Build the mapped NeoForge artifact before loader parity verification");
-        List<Path> jars;
-        try (var paths = Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
-            jars = paths.filter(path -> path.getFileName().toString().startsWith("neoforge-")
-                    && path.toString().endsWith(".jar") && !path.toString().endsWith("-sources.jar")).toList();
-        }
-        check(!jars.isEmpty(), "Mapped NeoForge artifact must exist; missing dependencies cannot count as a pass");
-        for (Path path : jars) try (JarFile jar = new JarFile(path.toFile())) {
-            inspect(name -> {
-                var entry = jar.getJarEntry(name + ".class");
-                return entry == null ? null : jar.getInputStream(entry);
-            }, true);
-        }
-        System.out.println("TraversalNativeHookShapeTest: " + checks + " checks passed against common and " + jars.size() + " NeoForge artifacts");
+        inspect(name -> TargetTestInputs.nativeClass("fabric", name), false);
+        inspect(name -> TargetTestInputs.nativeClass("neoforge", name), true);
+        System.out.println("TraversalNativeHookShapeTest: " + checks + " checks passed against exact target Fabric and NeoForge artifacts");
     }
     private static void inspect(Source source, boolean neo) throws Exception {
         String loader = neo ? "NeoForge" : "Fabric/common";

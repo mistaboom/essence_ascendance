@@ -111,7 +111,10 @@ public final class TraversalService {
         double gravity = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY);
         double addition = Math.min(speed - prior.y, gravity + speed);
         if (addition <= 0) return;
-        player.setDeltaMovement(prior.add(0, addition, 0)); player.hasImpulse = true; player.hurtMarked = true;
+        player.setDeltaMovement(prior.add(0, addition, 0));
+        //? if <26.1.2
+        player.hasImpulse = true;
+        player.hurtMarked = true;
         PlayerMotionTracker.forced(player);
         player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(player));
     }

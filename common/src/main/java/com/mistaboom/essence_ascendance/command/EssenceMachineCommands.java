@@ -45,11 +45,11 @@ final class EssenceMachineCommands {
             recovery.then(Commands.literal(slot == EssenceInfuserBlockEntity.INPUT_SLOT ? "input" : "output")
                     .executes(c -> execute(c, (p, m, ctx) -> m instanceof EssenceInfuserBlockEntity infuser && infuser.recoverWorkpiece(p, slot))));
         position.then(recovery);
-        position.then(Commands.literal("recover").requires(s -> s.hasPermission(2))
+        position.then(Commands.literal("recover").requires(s -> EssenceCommandUtil.hasAdminPermission(s))
                 .then(Commands.argument("recipient", UuidArgument.uuid()).executes(c -> execute(c,
                         (p, m, ctx) -> m.recover(p, UuidArgument.getUuid(ctx, "recipient"))))));
         position.then(Commands.literal("status").executes(c -> execute(c, (p, m, ctx) -> {
-            if (!m.authorize(p, MachineAction.USE) && !p.hasPermissions(2)) return false;
+            if (!m.authorize(p, MachineAction.USE) && !EssenceCommandUtil.isModerator(p)) return false;
             var source = ctx.getSource();
             var b = m.machineBinding();
             line(source, "pool", pool(source, b.pool()));

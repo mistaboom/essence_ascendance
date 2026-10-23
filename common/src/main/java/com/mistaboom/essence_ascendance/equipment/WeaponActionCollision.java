@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import static com.mistaboom.essence_ascendance.equipment.WeaponActionGeometry.*;
 
-/** Conservative continuous finite-blade collision. Work is subdivided, never truncated by a sample cap. */
+/** Finite-blade collision with bounded swipe event refinement and authoritative radial occlusion. */
 public final class WeaponActionCollision {
     private WeaponActionCollision() { }
     public enum Kind { BLOCK, UNKNOWN_TERRAIN, ENTITY }
@@ -24,12 +24,13 @@ public final class WeaponActionCollision {
     private record Radial(Pose pose, Candidate obstacle) { }
     private static final double PRESENTATION_MOTION=1.0/16;
     private static final double EVENT_TOLERANCE=1e-9;
+    private static final int SWIPE_EVENT_WORK=256;
 
     /**
      * Continuous nearest-obstruction envelope. Every blade point is translated radially by exact SAT;
-     * time is conservatively partitioned only where a candidate could change the nearest obstruction.
-     * A robust interior witness certifies stable blockers. Thin/grazing transitions refine to CONTACT_TOLERANCE.
-     * No ray count, entity count, angular budget or range truncates the remaining path.
+     * Time is partitioned at presentation resolution; entry/exit roots retain finer contact ordering.
+     * A root search that cannot establish contact within its work budget cannot invent a hit.
+     * The entire arc is still visited, and every hit is checked against the nearest actual obstruction.
      */
     public static Sweep swipe(Pose from,Pose to,Scene scene,Predicate<Contact> visitor) {
         var knots=new ArrayList<Knot>();
@@ -47,14 +48,13 @@ public final class WeaponActionCollision {
         return swipeInterval(a,b,start,end,scene.candidates(middle,motion/2),visitor,knots,reported);
     }
     private static boolean present(Candidate c) { return c.entity==null || c.entity.isAlive() && !c.entity.isRemoved(); }
-    private static double entry(Pose pose,Candidate c,double inflation) {
-        return pose.withDistance(0).blade().firstTranslation(c.bounds,pose.forward(),pose.tipDistance(),inflation);
-    }
     private static Radial radial(Pose pose,List<Candidate> candidates,double inflation) {
         Candidate nearest=null; double distance=pose.tipDistance();
+        var blade=pose.withDistance(0).blade();
+        Vec3 direction=pose.forward();
         for (Candidate c:candidates) {
             if (!present(c)) continue;
-            double d=entry(pose,c,inflation);
+            double d=blade.firstTranslation(c.bounds,direction,pose.tipDistance(),inflation);
             if (!Double.isNaN(d) && (nearest==null || d<distance-1e-12 || Math.abs(d-distance)<=1e-12 && compare(c,nearest)<0)) {
                 distance=d; nearest=c;
             }
@@ -67,11 +67,13 @@ public final class WeaponActionCollision {
         AABB box=winner.bounds;
         if (Math.min(box.getXsize(),Math.min(box.getYsize(),box.getZsize()))<=2*bound) return false;
         AABB interior=new AABB(box.minX+bound,box.minY+bound,box.minZ+bound,box.maxX-bound,box.maxY-bound,box.maxZ-bound);
-        double guaranteed=middle.withDistance(0).blade().firstTranslation(interior,middle.forward(),minimum,0);
+        var blade=middle.withDistance(0).blade();
+        Vec3 direction=middle.forward();
+        double guaranteed=blade.firstTranslation(interior,direction,minimum,0);
         if (Double.isNaN(guaranteed)) return false;
         for (Candidate other:candidates) {
             if (other==winner || !present(other)) continue;
-            double earliest=entry(middle,other,bound);
+            double earliest=blade.firstTranslation(other.bounds,direction,middle.tipDistance(),bound);
             if (!Double.isNaN(earliest) && earliest<=guaranteed+1e-10) return false;
         }
         return true;
@@ -88,7 +90,9 @@ public final class WeaponActionCollision {
                                          List<Knot> knots,Set<Candidate> reported) {
         Pose middle=interpolate(a,b,.5); double bound=motionBound(a,b)/2;
         var candidates=new ArrayList<Candidate>();
-        for (Candidate c:source) if (present(c) && middle.radialBlade().intersects(c.bounds,bound)) candidates.add(c);
+        var volume=middle.radialBlade();
+        for (Candidate c:source) if (present(c) && !outsideSwipePlane(a,b,c)
+                && volume.intersects(c.bounds,bound)) candidates.add(c);
         if (candidates.isEmpty()) { knot(knots,start,a); knot(knots,end,b); return true; }
         Radial first=radial(a,candidates,0),mid=radial(middle,candidates,0),last=radial(b,candidates,0);
         boolean same=first.obstacle==mid.obstacle && mid.obstacle==last.obstacle
@@ -101,9 +105,11 @@ public final class WeaponActionCollision {
             knot(knots,end,last.pose);
             return true;
         }
-        if (bound<=CONTACT_TOLERANCE) {
-            // Conservative transition cell: order actual candidate entry times before radial occlusion.
+        if (bound<=PRESENTATION_MOTION) {
+            // Refine contact times, not thousands of visually identical obstruction poses.
             var events=new ArrayList<Contact>();
+            if (first.obstacle!=null) events.add(new Contact(0,a,first.obstacle));
+            if (mid.obstacle!=null) events.add(new Contact(.5,middle,mid.obstacle));
             for (Candidate c:candidates) {
                 double time=firstTime(a,b,c,0,1,true);
                 if (!Double.isNaN(time)) events.add(new Contact(time,interpolate(a,b,time),c));
@@ -187,6 +193,17 @@ public final class WeaponActionCollision {
         return firstTime(a,b,c,low,high,false);
     }
     private static double firstTime(Pose a, Pose b, Candidate c, double low, double high,boolean radial) {
+        return firstTime(a,b,c,low,high,radial,radial ? new int[]{SWIPE_EVENT_WORK}:null);
+    }
+    private static double firstTime(Pose a, Pose b, Candidate c, double low, double high,boolean radial,int[] work) {
+        if (radial) {
+            if (outsideSwipePlane(a,b,c)) return Double.NaN;
+            if (a.radialBlade().intersects(c.bounds,0)) return low;
+            // Nearly tangent surfaces can remain inside a Euclidean motion bound for millions
+            // of empty branches. No established entry means no damage; endpoint/midpoint contacts
+            // and radial occlusion at every other entity's event remain independently checked.
+            if (work[0]--<=0) return Double.NaN;
+        }
         Pose mid = interpolate(a,b,.5);
         double bound = motionBound(a,b)/2;
         if (radial ? !mid.radialBlade().intersects(c.bounds,bound)
@@ -194,8 +211,22 @@ public final class WeaponActionCollision {
         // At the world border a coordinate ULP can exceed the event tolerance. Once a midpoint
         // rounds to an endpoint, this interval cannot be split further in the shared pose representation.
         if (bound <= (radial ? EVENT_TOLERANCE:CONTACT_TOLERANCE) || mid.equals(a) || mid.equals(b)) return low;
-        double left = firstTime(a,mid,c,low,(low+high)/2,radial);
-        return Double.isNaN(left) ? firstTime(mid,b,c,(low+high)/2,high,radial) : left;
+        double left = firstTime(a,mid,c,low,(low+high)/2,radial,work);
+        return Double.isNaN(left) ? firstTime(mid,b,c,(low+high)/2,high,radial,work) : left;
+    }
+
+    /** Sweep rotation stays in its aimed plane. A global movement radius must not turn
+     * a constant sub-pixel clearance ABOVE a face into potential contact at every angle. */
+    private static boolean outsideSwipePlane(Pose a,Pose b,Candidate candidate) {
+        if (a.yaw()!=b.yaw() || a.pitch()!=b.pitch() || a.roll()!=b.roll()) return false;
+        Vec3 normal=a.up();
+        double end=b.pivot().subtract(a.pivot()).dot(normal);
+        AABB box=candidate.bounds;
+        double center=box.getCenter().subtract(a.pivot()).dot(normal);
+        double radius=(Math.abs(normal.x)*box.getXsize()+Math.abs(normal.y)*box.getYsize()
+                +Math.abs(normal.z)*box.getZsize())/2;
+        double half=THICKNESS/2+1e-10;
+        return center+radius<Math.min(0,end)-half || center-radius>Math.max(0,end)+half;
     }
 
     public static Scene world(ServerPlayer player) {

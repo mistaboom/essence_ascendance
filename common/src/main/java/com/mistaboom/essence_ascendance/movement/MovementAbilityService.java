@@ -46,6 +46,9 @@ public final class MovementAbilityService {
         Vec3 before = PlayerMotionTracker.velocity(player);
         float nativePower = ((MovementAbilityNativeAccess) player).essenceAscendance$jumpPower();
         if (!finite(before) || !finite(priorNative) || !Float.isFinite(nativePower) || nativePower <= 0) return;
+        //? if >=26.1.2
+        /*float beforeFall = (float) player.fallDistance;*/
+        //? if <26.1.2
         float beforeFall = player.fallDistance;
         // Retain native jump callbacks, attribute/block/potion behavior, sprint impulse, statistics and exertion.
         player.jumpFromGround();
@@ -72,6 +75,7 @@ public final class MovementAbilityService {
         player.setDeltaMovement(new Vec3(next.x(), next.y(), next.z()));
         player.fallDistance = MovementImpulseMath.fallDistance(beforeFall, before.y, next.y());
         player.setOnGround(false);
+        //? if <26.1.2
         player.hasImpulse = true;
         player.hurtMarked = true;
         state.launched(context.now(), decision.action() == MovementAbilityState.Action.CHARGED_RELEASE);

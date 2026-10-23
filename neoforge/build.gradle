@@ -26,6 +26,9 @@ configurations {
 
 loom {
     runs {
+        server {
+            ideConfigGenerated = false
+        }
         client {
             programArg "--username"
             programArg "ReedDev"
@@ -33,7 +36,7 @@ loom {
             programArg "--uuid"
             programArg "0e0b750fe8aa3304aa414466ca4fc44e"
 
-            ideConfigGenerated = true
+            ideConfigGenerated = false
         }
     }
 }
@@ -46,25 +49,41 @@ repositories {
 }
 
 dependencies {
-    modCompileOnly('dev.ftb.mods:ftb-teams-neoforge:2101.1.11') { transitive = false }
-    modCompileOnly('dev.ftb.mods:ftb-library-neoforge:2101.1.30') { transitive = false }
-    neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
+    def optionalApi = project.targetRemap ? 'modCompileOnly' : 'compileOnly'
+    def runtimeMod = project.targetRemap ? 'modImplementation' : 'implementation'
+    add(optionalApi, "dev.ftb.mods:ftb-teams-neoforge:${project.targetFtbTeams}") { transitive = false }
+    add(optionalApi, "dev.ftb.mods:ftb-library-neoforge:${project.targetFtbLibrary}") { transitive = false }
+    add(runtimeMod, "dev.architectury:architectury-neoforge:${project.targetArchitecturyApi}")
+    neoForge "net.neoforged:neoforge:${project.targetNeoForge}"
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
-    modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
-
-    common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
-    shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
+    if (project.targetRemap)
+        common(project(path: project.targetCommon.path, configuration: 'namedElements')) { transitive = false }
+    else
+        common(project(path: project.targetCommon.path)) { transitive = false }
+    shadowBundle project(path: project.targetCommon.path, configuration: 'transformProductionNeoForge')
 }
 
 apply from: rootProject.file('gradle/team-development.gradle')
 repositories { maven { url = 'https://maven.ftb.dev/releases' } }
 
 processResources {
-    inputs.property 'version', project.version
+    inputs.property 'nativeAccess', project.targetNativeAccess
+    if (!project.targetNativeAccess) exclude 'META-INF/accesstransformer.cfg'
+    def metadata = [version: project.version,
+                    neoforge_requirement: "[${project.targetNeoForgeMin},)",
+                    minecraft_requirement: "[${project.targetMinecraft}]",
+                    architectury_requirement: "[${project.targetArchitecturyApi},)"]
+    inputs.properties(metadata)
 
     filesMatching('META-INF/neoforge.mods.toml') {
-        expand version: inputs.properties.version
+        expand metadata
+    }
+    if (!project.targetNativeAccess) {
+        doLast {
+            def metadataFile = new File(destinationDir, 'META-INF/neoforge.mods.toml')
+            metadataFile.text = metadataFile.text.replaceAll('(?m)\\r?\\n\\[\\[accessTransformers\\]\\]\\r?\\nfile="META-INF/accesstransformer\\.cfg"\\r?\\n?', '\n')
+        }
     }
 }
 
@@ -73,8 +92,14 @@ shadowJar {
     archiveClassifier = 'dev-shadow'
 }
 
-remapJar {
-    inputFile.set shadowJar.archiveFile
+if (project.targetRemap) {
+    remapJar {
+        inputFile.set shadowJar.archiveFile
+    }
+} else {
+    shadowJar.archiveClassifier = ''
+    jar.archiveClassifier = 'dev'
+    tasks.named('build') { dependsOn tasks.named('shadowJar') }
 }
 
 repositories { maven { url = 'https://chocolateminecraft.com/maven' } }

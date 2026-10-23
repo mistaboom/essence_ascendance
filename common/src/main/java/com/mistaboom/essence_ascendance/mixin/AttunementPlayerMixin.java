@@ -12,6 +12,8 @@ import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin(Player.class)
 public abstract class AttunementPlayerMixin {
+    // 26.1.2 food attribution runs in ConsumableRecoveryService.complete.
+    //? if <26.1.2 {
     @WrapMethod(method = "eat")
     private ItemStack essenceAscendance$food(Level level, ItemStack stack, FoodProperties properties,
                                            Operation<ItemStack> original) {
@@ -22,6 +24,7 @@ public abstract class AttunementPlayerMixin {
         AttunementGameplay.foodRestored(player, before, source);
         return result;
     }
+    //?}
     @WrapMethod(method = "giveExperiencePoints")
     private void essenceAscendance$experience(int amount, Operation<Void> original) {
         if (!((Object) this instanceof ServerPlayer player)) { original.call(amount); return; }

@@ -6,6 +6,8 @@ import com.mistaboom.essence_ascendance.gathering.GatheringSalvageService;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
@@ -15,6 +17,12 @@ import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
+//? if >=26.1.2
+/*import net.minecraft.world.item.crafting.Recipe;*/
+//? if >=26.1.2
+/*import net.minecraft.world.item.crafting.CraftingRecipe;*/
+//? if >=26.1.2
+/*import net.minecraft.world.item.ItemStackTemplate;*/
 
 import java.util.List;
 
@@ -41,9 +49,8 @@ public final class NativeSalvageTest {
         check(total(GatheringSalvageService.materialRecovery(shared, .1, RandomSource.create(1))) == 1,
                 "A conservative supported bill retains its minimum recovered item");
 
-        var alternative = new RecipeHolder<>(ResourceLocation.parse("fixture:alternative"), new ShapelessRecipe("",
-                CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND_SWORD), NonNullList.of(Ingredient.EMPTY,
-                Ingredient.of(Items.DIAMOND, Items.COBBLESTONE), Ingredient.of(Items.STICK), Ingredient.of(Items.STICK))));
+        var alternative = holder("alternative", shapeless(1,
+                List.of(Ingredient.of(Items.DIAMOND, Items.COBBLESTONE), Ingredient.of(Items.STICK), Ingredient.of(Items.STICK))));
         var alternatives = resolve(alternative);
         check(alternatives.size() == 1 && alternatives.getFirst().item() == Items.STICK,
                 "An ingredient alternative cannot manufacture the arbitrarily preferred expensive material");
@@ -52,16 +59,22 @@ public final class NativeSalvageTest {
         var containers = resolve(recipe("containers", 1, Items.MILK_BUCKET, Items.MILK_BUCKET, Items.STICK, Items.STICK));
         check(containers.size() == 1 && containers.getFirst().item() == Items.STICK,
                 "A returned bucket is not consumed material recoverable as another filled bucket");
-        check(resolve(recipe("multiple_outputs", 4, Items.DIAMOND, Items.STICK)).isEmpty(),
-                "Multi-output recipes cannot pay a full material for each cheap fractional output");
-        check(resolve(rich, recipe("duplicates_target", 2, Items.DIAMOND_SWORD, Items.STICK)).isEmpty(),
-                "A recipe that consumes one target but creates two is an acquisition route, not a harmless upgrade");
+        //? if >=26.1.2
+        /*check(resolveTarget(Items.DIAMOND, recipeFor("multiple_outputs", Items.DIAMOND, 4, Items.COBBLESTONE, Items.STICK)).isEmpty(), "Multi-output recipes cannot pay a full material for each cheap fractional output");*/
+        //? if <26.1.2
+        check(resolve(recipe("multiple_outputs", 4, Items.DIAMOND, Items.STICK)).isEmpty(), "Multi-output recipes cannot pay a full material for each cheap fractional output");
+        //? if >=26.1.2
+        /*check(resolveTarget(Items.DIAMOND, recipeFor("stackable_base", Items.DIAMOND, 1, Items.COBBLESTONE, Items.COBBLESTONE, Items.STICK), recipeFor("duplicates_target", Items.DIAMOND, 2, Items.DIAMOND, Items.STICK)).isEmpty(), "A recipe that consumes one target but creates two is an acquisition route, not a harmless upgrade");*/
+        //? if <26.1.2
+        check(resolve(rich, recipe("duplicates_target", 2, Items.DIAMOND_SWORD, Items.STICK)).isEmpty(), "A recipe that consumes one target but creates two is an acquisition route, not a harmless upgrade");
         check(resolve(rich, recipe("upgrade", 1, Items.DIAMOND_SWORD, Items.STICK)).equals(resolve(rich)),
                 "A one-for-one upgrade does not erase proven original construction");
 
-        var opaque = new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND_SWORD),
-                NonNullList.of(Ingredient.EMPTY, Ingredient.of(Items.DIAMOND), Ingredient.of(Items.DIAMOND))) { };
-        check(resolve(rich, new RecipeHolder<>(ResourceLocation.parse("fixture:opaque"), opaque)).isEmpty(),
+        //? if >=26.1.2
+        /*var opaque = new ShapelessRecipe(new Recipe.CommonInfo(true), new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""), ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.DIAMOND_SWORD)), List.of(Ingredient.of(Items.DIAMOND), Ingredient.of(Items.DIAMOND))) { };*/
+        //? if <26.1.2
+        var opaque = new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND_SWORD), NonNullList.of(Ingredient.EMPTY, Ingredient.of(Items.DIAMOND), Ingredient.of(Items.DIAMOND))) { };
+        check(resolve(rich, holder("opaque", opaque)).isEmpty(),
                 "An opaque alternate recipe cannot be treated as a proven native consumption bill");
 
         // Before the fix .25 diamond + 1 stick at 90% recovery returned ~.2405 diamonds
@@ -113,20 +126,22 @@ public final class NativeSalvageTest {
     private static void customIngredientEvidence() {
         Ingredient displayOnly = customIngredient(false);
         if (displayOnly == null) return; // Plain common fixture: actual wrappers are exercised on both loaders.
+        //? if >=26.1.2
+        /*check(displayOnly.test(new ItemStack(Items.COBBLESTONE)) && displayOnly.items().count() == 1 && displayOnly.items().findFirst().orElseThrow().value() == Items.DIAMOND,*/
+        //? if <26.1.2
         check(displayOnly.test(new ItemStack(Items.COBBLESTONE)) && displayOnly.getItems().length == 1
+                        //? if <26.1.2
                         && displayOnly.getItems()[0].is(Items.DIAMOND),
                 "Custom predicate really accepts cheap cobblestone despite displaying only diamond");
-        var recipe = new RecipeHolder<>(ResourceLocation.parse("fixture:display_only"), new ShapelessRecipe("",
-                CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND_SWORD), NonNullList.of(Ingredient.EMPTY,
-                displayOnly, displayOnly, Ingredient.of(Items.STICK), Ingredient.of(Items.STICK))));
+        var recipe = holder("display_only", shapeless(1,
+                List.of(displayOnly, displayOnly, Ingredient.of(Items.STICK), Ingredient.of(Items.STICK))));
         var materials = resolve(recipe);
         check(materials.size() == 1 && materials.getFirst().item() == Items.STICK && materials.getFirst().amount() == 2,
                 "Display-only custom ingredient cannot pay diamond; guaranteed ordinary sticks remain usable");
         Ingredient complete = customIngredient(true);
         if (complete != null) {
-            var simple = new RecipeHolder<>(ResourceLocation.parse("fixture:complete_custom"), new ShapelessRecipe("",
-                    CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND_SWORD), NonNullList.of(Ingredient.EMPTY,
-                    complete, complete, Ingredient.of(Items.STICK))));
+            var simple = holder("complete_custom", shapeless(1,
+                    List.of(complete, complete, Ingredient.of(Items.STICK))));
             check(resolve(simple).stream().anyMatch(m -> m.item() == Items.DIAMOND && m.amount() == 2),
                     "A loader custom ingredient explicitly promising complete simple alternatives remains supported");
         }
@@ -210,11 +225,30 @@ public final class NativeSalvageTest {
         return ConstructionMaterialResolver.resolveRecipes(Items.DIAMOND_SWORD, List.of(recipes),
                 RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY));
     }
+    //? if >=26.1.2
+    /*@SafeVarargs private static List<MaterialAmount> resolveTarget(Item target, RecipeHolder<?>... recipes) { return ConstructionMaterialResolver.resolveRecipes(target, List.of(recipes), RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY)); }*/
+    //? if >=26.1.2
+    /*private static RecipeHolder<?> recipeFor(String id, Item target, int count, Item... inputs) { var ingredients = new java.util.ArrayList<Ingredient>(); for (Item item : inputs) ingredients.add(Ingredient.of(item)); return holder(id, new ShapelessRecipe(new Recipe.CommonInfo(true), new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""), ItemStackTemplate.fromNonEmptyStack(new ItemStack(target, count)), ingredients)); }*/
     static RecipeHolder<?> recipe(String id, int count, Item... inputs) {
         var ingredients = NonNullList.<Ingredient>create();
         for (Item item : inputs) ingredients.add(Ingredient.of(item));
-        return new RecipeHolder<>(ResourceLocation.parse("fixture:" + id),
-                new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND_SWORD, count), ingredients));
+        return holder(id, shapeless(count, ingredients));
+    }
+    private static <T extends net.minecraft.world.item.crafting.Recipe<?>> RecipeHolder<T> holder(String id, T recipe) {
+        //? if >=26.1.2
+        /*return new RecipeHolder<>(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse("fixture:" + id)), recipe);*/
+        //? if <26.1.2
+        return new RecipeHolder<>(ResourceLocation.parse("fixture:" + id), recipe);
+    }
+    private static ShapelessRecipe shapeless(int count, List<Ingredient> ingredients) {
+        //? if >=26.1.2
+        /*return new ShapelessRecipe(new Recipe.CommonInfo(true), new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""), ItemStackTemplate.fromNonEmptyStack(new ItemStack(Items.DIAMOND_SWORD, count)), ingredients);*/
+        //? if <26.1.2
+        var nativeIngredients = NonNullList.<Ingredient>create();
+        //? if <26.1.2
+        nativeIngredients.addAll(ingredients);
+        //? if <26.1.2
+        return new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND_SWORD, count), nativeIngredients);
     }
     private static int total(java.util.Map<Item, Integer> recovered) { return recovered.values().stream().mapToInt(Integer::intValue).sum(); }
     private static double average(List<MaterialAmount> materials, double fraction) {

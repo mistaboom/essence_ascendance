@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** The existing native attack indicator reads the same shared gate as server acceptance. */
+/** The native attack indicator reads the shared recharge clock used to scale each accepted attack. */
 @Mixin(Player.class)
 abstract class WeaponActionReadinessMixin {
     @Inject(method="getAttackStrengthScale",at=@At("HEAD"),cancellable=true)

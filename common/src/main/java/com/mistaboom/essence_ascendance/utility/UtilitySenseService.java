@@ -240,8 +240,8 @@ public final class UtilitySenseService {
         AABB playerVolume = player.getBoundingBox();
         for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, search,
                 entity -> entity.isAlive() && !entity.isRemoved()
-                        && !player.getUUID().equals(((com.mistaboom.essence_ascendance.mixin.ProjectileNativeAccess)
-                        entity).essenceAscendance$ownerUUID()))) {
+                        && !player.getUUID().equals(com.mistaboom.essence_ascendance.projectile.ProjectileOwnership
+                        .declaredOwnerId(entity)))) {
             if (result.size() >= MAX_PROJECTILE_PATHS) break;
             ProjectilePath path = projectedProjectilePath(level, player, playerVolume, projectile, range);
             if (path != null) result.add(path);
@@ -380,6 +380,9 @@ public final class UtilitySenseService {
         if (!level.noCollision(EntityType.ZOMBIE.getSpawnAABB(feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5))) return false;
 
         if (level.getBrightness(LightLayer.BLOCK, feet) > level.dimensionType().monsterSpawnBlockLightLimit()) return false;
+        //? if >=26.1.2
+        /*return currentLocalBrightness(level, feet) <= level.dimensionType().monsterSpawnLightTest().maxInclusive();*/
+        //? if <26.1.2
         return currentLocalBrightness(level, feet) <= level.dimensionType().monsterSpawnLightTest().getMaxValue();
     }
 

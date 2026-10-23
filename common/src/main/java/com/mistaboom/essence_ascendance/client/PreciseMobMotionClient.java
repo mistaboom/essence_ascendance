@@ -13,6 +13,9 @@ public final class PreciseMobMotionClient {
         if (entity instanceof Mob && !entity.isRemoved() && entity.getId() == payload.entityId()
                 && entity.getUUID().equals(payload.entityUuid())
                 && entity.level().dimension().location().equals(payload.dimension()))
+            //? if >=26.1.2
+            /*entity.lerpMotion(payload.velocity());*/
+            //? if <26.1.2
             entity.lerpMotion(payload.velocity().x, payload.velocity().y, payload.velocity().z);
     }
     public static void init() {

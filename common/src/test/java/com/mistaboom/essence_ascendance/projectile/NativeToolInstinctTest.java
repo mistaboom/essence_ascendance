@@ -31,11 +31,11 @@ public final class NativeToolInstinctTest {
         var previous = EssenceConfigManager.serverRuntime();
         var player = f.player(NativeGuardOutcomeTest.NativePlayer.class, Vec3.ZERO, "tool_instinct_startup");
         var oldTags = new HashMap<TagKey<Block>, List<Holder<Block>>>();
-        BuiltInRegistries.BLOCK.getTags().forEach(entry -> oldTags.put(entry.getFirst(), entry.getSecond().stream().toList()));
+        oldTags.putAll(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.BLOCK));
         var tags = new HashMap<>(oldTags);
         tags.put(BlockTags.MINEABLE_WITH_PICKAXE, List.of(Blocks.STONE.builtInRegistryHolder()));
         tags.put(BlockTags.INCORRECT_FOR_WOODEN_TOOL, List.of(Blocks.STONE.builtInRegistryHolder()));
-        BuiltInRegistries.BLOCK.bindTags(tags);
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, tags);
         try {
             var json = RuntimeBalanceDefinition.bootstrap().toJson();
             json.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.TRANSCENDENT.id().toString()).addProperty("miningSpeed", 12);
@@ -95,7 +95,7 @@ public final class NativeToolInstinctTest {
             equal(player.getDestroySpeed(stone), without, "Removing the skill immediately restores normal held-item mining");
             System.out.println("Native Tool Instinct startup checks passed: " + checks);
         } finally {
-            BuiltInRegistries.BLOCK.bindTags(oldTags);
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.BLOCK, oldTags);
             EquipmentAttributeService.forget(player); SkillEffectRuntime.forget(player); CommittedSkillService.forget(player);
             f.players.remove(player.getUUID()); f.onlinePlayers.remove(player); f.level.entities.remove(player);
             if (previous == null) EssenceConfigManager.reset(); else EssenceConfigManager.install(previous);
@@ -110,12 +110,18 @@ public final class NativeToolInstinctTest {
         var tools = new ArrayList<ItemStack>();
         for (float speed : new float[]{1.01F, 2, 12}) {
             var tool = new ItemStack(Items.STICK);
-            tool.set(net.minecraft.core.component.DataComponents.TOOL, new net.minecraft.world.item.component.Tool(
+            tool.set(net.minecraft.core.component.DataComponents.TOOL, com.mistaboom.essence_ascendance.verification.ToolTestCompat.create(
+                    //? if >=26.1.2
+                    /*List.of(net.minecraft.world.item.component.Tool.Rule.minesAndDrops(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.tag(BuiltInRegistries.BLOCK, BlockTags.MINEABLE_WITH_PICKAXE), speed)), 1, 1));*/
+                    //? if <26.1.2
                     List.of(net.minecraft.world.item.component.Tool.Rule.minesAndDrops(BlockTags.MINEABLE_WITH_PICKAXE, speed)), 1, 1));
             tools.add(tool);
         }
         var noAdvantage = new ItemStack(Items.STICK);
-        noAdvantage.set(net.minecraft.core.component.DataComponents.TOOL, new net.minecraft.world.item.component.Tool(
+        noAdvantage.set(net.minecraft.core.component.DataComponents.TOOL, com.mistaboom.essence_ascendance.verification.ToolTestCompat.create(
+                //? if >=26.1.2
+                /*List.of(net.minecraft.world.item.component.Tool.Rule.minesAndDrops(com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.tag(BuiltInRegistries.BLOCK, BlockTags.MINEABLE_WITH_PICKAXE), 1)), 1, 1));*/
+                //? if <26.1.2
                 List.of(net.minecraft.world.item.component.Tool.Rule.minesAndDrops(BlockTags.MINEABLE_WITH_PICKAXE, 1)), 1, 1));
         double[] previous = new double[tools.size()];
         for (int rank = 1; rank <= skill.maximumRank(); rank++) {

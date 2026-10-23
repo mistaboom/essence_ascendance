@@ -1,5 +1,8 @@
 package com.mistaboom.essence_ascendance.equipment;
 
+//? if >=26.1.2
+/*import net.minecraft.world.InteractionResult;*/
+//? if <26.1.2
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,6 +16,7 @@ import static com.mistaboom.essence_ascendance.equipment.WeaponActionGeometry.*;
 /** Shared boundary for weapons whose attacks must be handled by an authoritative action runtime. */
 public final class WeaponActionRuntime {
     private static final int MAX_OBSERVED_INPUTS_PER_TICK = 16;
+    public static final int MAX_ACTION_STARTS_PER_TICK = 16;
     private WeaponActionRuntime() { }
     public enum Mode { STAB, SWIPE }
     public enum Phase { OUTWARD, EXTEND, SWEEP, RETRACT, RECOVERY, CANCELLED, IDLE }
@@ -27,7 +31,10 @@ public final class WeaponActionRuntime {
     private static final Map<UUID, Gate> GATES = new HashMap<>();
     private static long nextIdentity;
     private static final class Gate {
-        long readyAt, lastInputSequence=-1;
+        long readyAt, lastInputSequence=-1, lastAcceptedInputSentAt=Long.MIN_VALUE;
+        long actionStartTick=Long.MIN_VALUE;
+        int actionStarts;
+        boolean busy;
         Action action;
     }
     /** All durable-per-action state lives here. No ThreadLocal survives a contact call. */
@@ -57,7 +64,7 @@ public final class WeaponActionRuntime {
         final List<Pose> observed=new ArrayList<>();
         Action(ServerPlayer player,long now, double range, WeaponActionDamage.Offense offense,Mode mode) {
             id=++nextIdentity; acceptedAt=now; lastTick=now; stack=player.getMainHandItem();
-            slot=player.getInventory().selected; tier=EquipmentTierData.tier(stack); dimension=player.level().dimension();
+            slot=selectedSlot(player); tier=EquipmentTierData.tier(stack); dimension=player.level().dimension();
             fractured=FracturedEquipmentData.isFractured(stack);
             this.range=range; this.offense=offense; variant=variant(player,stack);
             this.mode=mode; mainArm=player.getMainArm(); playerScale=player.getScale();
@@ -88,14 +95,16 @@ public final class WeaponActionRuntime {
     public static boolean input(ServerPlayer player,boolean stab,long sequence,long sentAt,long policyRevision) {
         // Old entity work can still be queued across death/dimension transitions. It must not
         // advance the UUID-owned sequence before accept() rejects the removed/dead actor.
-        if (!player.isAlive() || player.isSpectator()) return false;
+        if (!player.isAlive() || player.isRemoved() || player.isSpectator()) return false;
         Gate gate=GATES.computeIfAbsent(player.getUUID(),id -> new Gate());
         if (sequence<=gate.lastInputSequence) return false;
         gate.lastInputSequence=sequence;
         long age=player.level().getGameTime()-sentAt;
-        if (age < -2 || age>10 || now(player)-age<gate.readyAt
+        if (age < -2 || age>10 || sentAt<gate.lastAcceptedInputSentAt
                 || TwoHandedEquipmentService.decision(player).revision()!=policyRevision) return false;
-        return attempt(player,stab);
+        boolean accepted=attempt(player,stab);
+        if (accepted) gate.lastAcceptedInputSentAt=sentAt;
+        return accepted;
     }
 
     public static boolean requiresActionRuntime(ItemStack stack) {
@@ -114,7 +123,7 @@ public final class WeaponActionRuntime {
         return d.actionWeapon() || d.status() == TwoHandedEquipmentService.Status.PENDING;
     }
 
-    /** Main-hand-only acceptance; both modes spend the same player-owned gate. */
+    /** Main-hand-only acceptance; each press replaces the current action and restarts native readiness. */
     public static boolean attempt(ServerPlayer player, boolean stab) {
         TwoHandedEquipmentService.enterCombat();
         try { return accept(player,stab); }
@@ -122,21 +131,39 @@ public final class WeaponActionRuntime {
     }
     private static boolean accept(ServerPlayer player,boolean stab) {
         var d = TwoHandedEquipmentService.decision(player);
-        if (!player.isAlive() || player.isSpectator() || !validAim(player) || !d.actionWeapon()
+        if (!player.isAlive() || player.isRemoved() || player.isSpectator() || !validAim(player) || !d.actionWeapon()
                 || !TwoHandedEquipmentService.validateAttack(player)) return false;
         Gate gate=GATES.computeIfAbsent(player.getUUID(),id -> new Gate());
-        long now=now(player);
-        if (now<gate.readyAt || player.isUsingItem() || player.isAutoSpinAttack()) return false;
-        if (gate.action!=null && gate.action.phase!=Phase.IDLE && gate.action.phase!=Phase.CANCELLED) return false;
-        var offense=WeaponActionDamage.snapshot(player);
-        if (offense.readiness()<GlaiveTuning.READINESS_THRESHOLD || !TwoHandedEquipmentService.decision(player).mayAttack()) return false;
-        double range=GlaiveTuning.maximumRange(player,player.getMainHandItem());
-        Action action=new Action(player,now,range,offense,stab ? Mode.STAB:Mode.SWIPE);
-        gate.action=action;
-        gate.readyAt=now+action.timing.extensionTicks()+action.timing.outwardTicks()+action.timing.retractionTicks()+action.timing.recoveryTicks(offense.speed());
-        player.resetAttackStrengthTicker();
-        com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
-        return true;
+        if (gate.busy || player.isUsingItem() || player.isAutoSpinAttack() || !d.mayAttack()) return false;
+        gate.busy=true;
+        try {
+            long now=now(player);
+            if (gate.actionStartTick!=now) { gate.actionStartTick=now; gate.actionStarts=0; }
+            // Native fallback packets have no custom sequence. Bound same-tick restarts
+            // without denying ordinary distinct presses before the strength meter fills.
+            if (gate.actionStarts>=MAX_ACTION_STARTS_PER_TICK) return false;
+            Action previous=gate.action;
+            if (previous!=null && previous.phase!=Phase.IDLE && previous.phase!=Phase.CANCELLED) {
+                previous.phase=Phase.CANCELLED;
+                finalizeOutcome(player,previous);
+            }
+            // The native 0.2 + 0.8 * readiness^2 hit formula uses strength at the press,
+            // before this new action resets the player's attack ticker and indicator.
+            var offense=WeaponActionDamage.snapshot(player);
+            double range=GlaiveTuning.maximumRange(player,player.getMainHandItem());
+            Action action=new Action(player,now,range,offense,stab ? Mode.STAB:Mode.SWIPE);
+            gate.action=action;
+            gate.actionStarts++;
+            gate.readyAt=now+action.timing.extensionTicks()+action.timing.outwardTicks()+action.timing.retractionTicks()+action.timing.recoveryTicks(offense.speed());
+            // 26.1.2 also resets the item-swap animation in resetAttackStrengthTicker;
+            // a native attack resets only combat strength there.
+            //? if >=26.1.2
+            /*player.resetOnlyAttackStrengthTicker();*/
+            //? if <26.1.2
+            player.resetAttackStrengthTicker();
+            com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
+            return true;
+        } finally { gate.busy=false; }
     }
 
     public static void tick(ServerPlayer player) {
@@ -146,11 +173,13 @@ public final class WeaponActionRuntime {
     }
     private static void update(ServerPlayer player) {
         Gate gate=GATES.get(player.getUUID());
-        if (gate==null || gate.action==null) return;
+        if (gate==null || gate.action==null || gate.busy) return;
         Action a=gate.action;
         if (a.phase==Phase.IDLE) return;
         long now=now(player);
         if (now<=a.lastTick) return;
+        gate.busy=true;
+        try {
         if (a.phase!=Phase.CANCELLED && a.phase!=Phase.IDLE && !valid(player,a)) cancel(player);
         a.previous=a.current; a.knots=List.of(new Knot(0,a.current));
         if (a.phase==Phase.EXTEND || a.phase==Phase.SWEEP) {
@@ -200,6 +229,7 @@ public final class WeaponActionRuntime {
         a.observedInputs=0;
         a.lastTick=now;
         com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
+        } finally { gate.busy=false; }
     }
     private static Pose swipePose(Pose aim,Action a,double elapsed) {
         return GlaiveGrip.sweep(aim.withDistance(GlaiveTuning.swipeTipDistance(a.range,elapsed)),GlaiveTuning.swipeAngle(elapsed),a.mainArm,a.playerScale);
@@ -250,7 +280,7 @@ public final class WeaponActionRuntime {
         var d=TwoHandedEquipmentService.decision(player);
         return player.isAlive() && !player.isRemoved() && !player.isSpectator() && validAim(player) && player.level().dimension()==a.dimension
                 && player.getMainArm()==a.mainArm && player.getScale()==a.playerScale
-                && player.getMainHandItem()==a.stack && player.getInventory().selected==a.slot
+                && player.getMainHandItem()==a.stack && selectedSlot(player)==a.slot
                 && d.actionWeapon() && d.mayAttack() && FracturedEquipmentData.isFractured(a.stack)==a.fractured
                 && EquipmentTierData.tier(a.stack)==a.tier && variant(player,a.stack).equals(a.variant);
     }
@@ -284,14 +314,19 @@ public final class WeaponActionRuntime {
         if (gate==null || gate.action==null) return;
         Action a=gate.action;
         if (a.phase==Phase.IDLE || a.phase==Phase.CANCELLED) return;
-        finalizeOutcome(player,a); a.phase=Phase.CANCELLED;
-        com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
+        boolean ownBusy=!gate.busy;
+        if (ownBusy) gate.busy=true;
+        try {
+            a.phase=Phase.CANCELLED;
+            finalizeOutcome(player,a);
+            com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
+        } finally { if (ownBusy) gate.busy=false; }
     }
     /** Completed inventory mutations invalidate even a swap away and back between gameplay ticks. */
     public static void equipmentChanged(ServerPlayer player) {
         Gate gate=GATES.get(player.getUUID());
         if (gate!=null && gate.action!=null && (player.getMainHandItem()!=gate.action.stack
-                || player.getInventory().selected!=gate.action.slot)) cancel(player);
+                || selectedSlot(player)!=gate.action.slot)) cancel(player);
     }
     /** Retain actual accepted native move/rotation packets, including a turn and return within one tick. */
     public static void observeAim(ServerPlayer player) {
@@ -319,11 +354,24 @@ public final class WeaponActionRuntime {
     public static void disconnected(ServerPlayer player) {
         cancel(player);
         Gate gate=GATES.get(player.getUUID());
-        if (gate!=null) { gate.action=null; gate.lastInputSequence=-1; }
+        if (gate!=null) {
+            gate.action=null; gate.lastInputSequence=-1; gate.lastAcceptedInputSentAt=Long.MIN_VALUE;
+            gate.actionStartTick=Long.MIN_VALUE; gate.actionStarts=0;
+        }
         com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.forget(player);
     }
     public static void clear() { GATES.clear(); nextIdentity=0; }
 
+    private static int selectedSlot(ServerPlayer player) {
+        //? if >=26.1.2
+        /*return player.getInventory().getSelectedSlot();*/
+        //? if <26.1.2
+        return player.getInventory().selected;
+    }
+
+    //? if >=26.1.2
+    /*public static InteractionResult tryUse(Player player, InteractionHand hand) {*/
+    //? if <26.1.2
     public static InteractionResultHolder<ItemStack> tryUse(Player player, InteractionHand hand) {
         var stack = player.getItemInHand(hand);
         if (hand == InteractionHand.MAIN_HAND && player instanceof ServerPlayer server) attempt(server, true);
@@ -331,8 +379,15 @@ public final class WeaponActionRuntime {
     }
 
     /** Consume vanilla use after the authoritative executor has received the press. */
+    //? if >=26.1.2
+    /*public static InteractionResult tryUse(ItemStack stack) {*/
+    //? if <26.1.2
     public static InteractionResultHolder<ItemStack> tryUse(ItemStack stack) {
+        //? if >=26.1.2
+        /*return requiresActionRuntime(stack) ? InteractionResult.FAIL : InteractionResult.PASS;*/
+        //? if <26.1.2
         return requiresActionRuntime(stack) ? InteractionResultHolder.fail(stack)
+                //? if <26.1.2
                 : InteractionResultHolder.pass(stack);
     }
 }

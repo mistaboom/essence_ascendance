@@ -1,0 +1,37 @@
+// API roots are explicit catalog choices, independent of the target's Minecraft name.
+// Compatible targets reuse these files. Additional roots may supply disjoint adapters;
+// use a small Stonecutter branch or split an API boundary instead of shadowing a class.
+project.targetNativeSources.each { root ->
+    def directory = rootProject.file("${project.parent.name}/src/${root}")
+    if (!directory.isDirectory()) throw new GradleException("${project.path}: missing native source root ${directory}")
+    sourceSets.main.java.srcDir(new File(directory, 'java'))
+    sourceSets.main.resources.srcDir(new File(directory, 'resources'))
+    sourceSets.test.java.srcDir(new File(directory, 'test/java'))
+    sourceSets.test.resources.srcDir(new File(directory, 'test/resources'))
+}
+
+['main', 'test'].each { sourceName ->
+    def sourceSet = sourceSets.named(sourceName).get()
+    def generation = sourceName == 'main' ? 'stonecutterGenerate' : 'stonecutterGenerateTest'
+    def validation = tasks.register("verify${sourceName.capitalize()}SourceOwnership") {
+        group = 'verification'
+        description = "Reject duplicate ${sourceName} Java owners in projected and selected native API roots."
+        dependsOn tasks.named(generation)
+        inputs.files(sourceSet.java).withPathSensitivity(PathSensitivity.RELATIVE)
+        doLast {
+            def owners = [:].withDefault { [] }
+            sourceSet.java.srcDirs.each { sourceRoot ->
+                fileTree(sourceRoot).matching { include '**/*.java' }.visit { entry ->
+                    if (!entry.directory) owners[entry.relativePath.pathString].add(entry.file)
+                }
+            }
+            def duplicates = owners.findAll { name, paths -> paths.size() > 1 }
+            if (!duplicates.isEmpty()) throw new GradleException("${project.path}: ${sourceName} classes must have one source owner: ${duplicates}")
+        }
+    }
+    tasks.named(sourceSet.compileJavaTaskName) { dependsOn validation }
+    if (sourceName == 'main') tasks.named('sourcesJar') { dependsOn validation }
+}
+
+tasks.named('processResources') { duplicatesStrategy = DuplicatesStrategy.FAIL }
+tasks.named('processTestResources') { duplicatesStrategy = DuplicatesStrategy.FAIL }

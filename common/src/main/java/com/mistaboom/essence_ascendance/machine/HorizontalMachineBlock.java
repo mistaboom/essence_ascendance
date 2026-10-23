@@ -11,6 +11,9 @@ import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+//? if >=26.1.2
+/*import net.minecraft.world.level.block.state.properties.EnumProperty;*/
+//? if <26.1.2
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -20,6 +23,9 @@ import java.util.Map;
 
 /** Placement and collision orientation for the west-facing authored machine meshes. */
 public abstract class HorizontalMachineBlock extends Block {
+    //? if >=26.1.2
+    /*public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;*/
+    //? if <26.1.2
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     private final Map<Direction, VoxelShape> shapes = new EnumMap<>(Direction.class);
 

@@ -381,7 +381,7 @@ public final class EquipmentVitalityService {
                 player.getMaxHealth(),
                 foodData.getFoodLevel(),
                 foodData.getSaturationLevel(),
-                foodData.getExhaustionLevel(),
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.exhaustion(player),
                 player.getAirSupply(),
                 maxAir,
                 vanillaBreathSeconds + Math.max(0.0, stats.breathHoldSeconds()),

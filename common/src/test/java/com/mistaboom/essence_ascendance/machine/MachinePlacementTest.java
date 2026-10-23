@@ -51,13 +51,14 @@ public final class MachinePlacementTest {
         intrusive.set(BuiltInRegistries.BLOCK, new java.util.IdentityHashMap<>());
         var nexus = Registry.register(BuiltInRegistries.BLOCK,
                 ResourceLocation.fromNamespaceAndPath("essence_test", "nexus"),
-                new AscendanceNexusBlock(BlockBehaviour.Properties.of()));
+                new AscendanceNexusBlock(com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat.block("nexus", BlockBehaviour.Properties.of())));
         var infuser = Registry.register(BuiltInRegistries.BLOCK,
                 ResourceLocation.fromNamespaceAndPath("essence_test", "infuser"),
-                new EssenceInfuserBlock(BlockBehaviour.Properties.of()));
+                new EssenceInfuserBlock(com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat.block("infuser", BlockBehaviour.Properties.of())));
         var pylon = Registry.register(BuiltInRegistries.BLOCK,
                 ResourceLocation.fromNamespaceAndPath("essence_test", "pylon"),
-                new EssencePylonBlock(BlockBehaviour.Properties.of()));
+                new EssencePylonBlock(com.mistaboom.essence_ascendance.registration.ContentRegistrationCompat.block("pylon", BlockBehaviour.Properties.of())));
+        //? if <26.1.2
         BuiltInRegistries.BLOCK.freeze();
         horizontal(nexus);
         horizontal(infuser);
@@ -160,6 +161,9 @@ public final class MachinePlacementTest {
     }
 
     private static void verifyStateTransform(BlockState state,
+                                             //? if >=26.1.2
+                                             /*net.minecraft.world.level.block.state.properties.EnumProperty<Direction> property) {*/
+                                             //? if <26.1.2
                                              net.minecraft.world.level.block.state.properties.DirectionProperty property) {
         for (Rotation rotation : Rotation.values()) {
             BlockState rotated = state.rotate(rotation);
@@ -187,8 +191,14 @@ public final class MachinePlacementTest {
 
     @SuppressWarnings("unchecked")
     private static BlockState decodeProperties(BlockState defaultState, JsonObject properties) throws Exception {
+        //? if >=26.1.2
+        /*var field = net.minecraft.world.level.block.state.StateDefinition.class.getDeclaredField("propertiesCodec");*/
+        //? if <26.1.2
         var field = StateHolder.class.getDeclaredField("propertiesCodec");
         field.setAccessible(true);
+        //? if >=26.1.2
+        /*MapCodec<BlockState> codec = (MapCodec<BlockState>) field.get(defaultState.getBlock().getStateDefinition());*/
+        //? if <26.1.2
         MapCodec<BlockState> codec = (MapCodec<BlockState>) field.get(defaultState);
         return codec.codec().parse(JsonOps.INSTANCE, properties).getOrThrow();
     }
@@ -201,7 +211,9 @@ public final class MachinePlacementTest {
         check(!Shapes.joinIsNotEmpty(actual, expected, BooleanOp.NOT_SAME), message);
     }
 
-    private static Vec3 vector(Direction direction) { return vector(direction.getNormal()); }
+    private static Vec3 vector(Direction direction) {
+        return new Vec3(direction.getStepX(), direction.getStepY(), direction.getStepZ());
+    }
     private static Vec3 vector(net.minecraft.core.Vec3i vector) {
         return new Vec3(vector.getX(), vector.getY(), vector.getZ());
     }

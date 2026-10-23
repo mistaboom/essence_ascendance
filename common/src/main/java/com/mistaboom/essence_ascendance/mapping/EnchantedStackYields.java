@@ -44,6 +44,9 @@ public final class EnchantedStackYields {
         enchantments.entrySet().stream().sorted(Comparator.comparing(entry -> entry.getKey().unwrapKey()
                 .map(key -> key.location().toString()).orElse("~unregistered"))).forEach(entry -> {
             if (entry.getIntValue() <= 0 || (!book && !entry.getKey().value().getSupportedItems()
+                    //? if >=26.1.2
+                    /*.contains(stack.typeHolder()))) return;*/
+                    //? if <26.1.2
                     .contains(stack.getItemHolder()))) return;
             var analysis = EnchantmentSemantics.analyze(entry.getKey(), entry.getIntValue());
             if (analysis.strength() > 0) {

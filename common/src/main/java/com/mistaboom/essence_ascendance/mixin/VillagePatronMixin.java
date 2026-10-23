@@ -1,6 +1,9 @@
 package com.mistaboom.essence_ascendance.mixin;
 
 import com.mistaboom.essence_ascendance.utility.VillagePatronService;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.npc.villager.Villager;*/
+//? if <26.1.2
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;

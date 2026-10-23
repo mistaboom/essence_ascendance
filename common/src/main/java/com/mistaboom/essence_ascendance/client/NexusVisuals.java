@@ -59,7 +59,11 @@ public final class NexusVisuals {
         double fanHalfAngle = (active ? 0.67 : 0.46) + breathing * (active ? 0.055 : 0.035);
         double orbitAngle = age * (active ? 0.019 : 0.0075) + localPhase;
         Flip flip = flip(age, localPhase, active);
-        boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
+        boolean close = Minecraft.getInstance().gameRenderer.getMainCamera()
+                //? if >=26.1.2
+                /*.position()*/
+                //? if <26.1.2
+                .getPosition()
                 .distanceToSqr(Vec3.atCenterOf(nexus.getBlockPos())) <= DETAIL_DISTANCE_SQUARED;
 
         // A BufferSource can close the current builder when another RenderType is requested.
@@ -297,7 +301,13 @@ public final class NexusVisuals {
                                                      Vec3 center, double rotation, double age,
                                                      boolean active) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        //? if >=26.1.2
+        /*Vector3f left = new Vector3f(camera.leftVector());*/
+        //? if <26.1.2
         Vector3f left = camera.getLeftVector();
+        //? if >=26.1.2
+        /*Vector3f cameraUp = new Vector3f(camera.upVector());*/
+        //? if <26.1.2
         Vector3f cameraUp = camera.getUpVector();
         Vec3 right = frame.worldVectorToLocal(new Vec3(-left.x(), -left.y(), -left.z()));
         Vec3 up = frame.worldVectorToLocal(new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z()));

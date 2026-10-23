@@ -147,19 +147,35 @@ public final class TexturePixels {
             int[] transitionArgb, int transitionWidth, int transitionHeight,
             int[] oreArgb, int oreWidth, int oreHeight
     ) {
+        return composeLatentOre(hostArgb, width, height, transitionArgb, transitionWidth, transitionHeight,
+                oreArgb, oreWidth, oreHeight, 0);
+    }
+
+    /** Rotate only the ore masks for faces whose native host UV is sideways or upside down. */
+    public static int[] composeLatentOre(
+            int[] hostArgb, int width, int height,
+            int[] transitionArgb, int transitionWidth, int transitionHeight,
+            int[] oreArgb, int oreWidth, int oreHeight, int quarterTurn
+    ) {
         validateImage(hostArgb, width, height);
         validateImage(transitionArgb, transitionWidth, transitionHeight);
         validateImage(oreArgb, oreWidth, oreHeight);
+        if (quarterTurn < -1 || quarterTurn > 2) throw new IllegalArgumentException("quarterTurn must be -1, 0, 1 or 2");
         int tint = transitionTint(hostArgb);
         int transitionLuminance = averageLuminanceOrZero(transitionArgb);
         double transitionScale = transitionScale(tint, transitionArgb, transitionLuminance);
         int[] result = new int[hostArgb.length];
         for (int y = 0; y < height; y++) {
-            int transitionRow = (int) ((long) y * transitionHeight / height) * transitionWidth;
-            int oreRow = (int) ((long) y * oreHeight / height) * oreWidth;
             for (int x = 0; x < width; x++) {
-                int transition = transitionArgb[transitionRow + (int) ((long) x * transitionWidth / width)];
-                int ore = oreArgb[oreRow + (int) ((long) x * oreWidth / width)];
+                int sampleX = switch (quarterTurn) { case 1 -> height - 1 - y; case -1 -> y; case 2 -> width - 1 - x; default -> x; };
+                int sampleY = switch (quarterTurn) { case 1 -> x; case -1 -> width - 1 - x; case 2 -> height - 1 - y; default -> y; };
+                boolean sideways = quarterTurn == -1 || quarterTurn == 1;
+                int sampleWidth = sideways ? height : width;
+                int sampleHeight = sideways ? width : height;
+                int transition = transitionArgb[(int) ((long) sampleY * transitionHeight / sampleHeight) * transitionWidth
+                        + (int) ((long) sampleX * transitionWidth / sampleWidth)];
+                int ore = oreArgb[(int) ((long) sampleY * oreHeight / sampleHeight) * oreWidth
+                        + (int) ((long) sampleX * oreWidth / sampleWidth)];
                 int index = y * width + x;
                 // Preserve even invisible host RGB outside the overlays exactly.
                 result[index] = (transition >>> 24) == 0 && (ore >>> 24) == 0

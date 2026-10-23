@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.projectile;
 
 import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.verification.NativeDamageTestCompat;
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import com.mistaboom.essence_ascendance.posture.PostureService;
@@ -22,6 +23,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.decoration.ArmorStand;
+//? if >=26.1.2
+/*import net.minecraft.world.entity.projectile.arrow.Arrow;*/
+//? if <26.1.2
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -51,7 +55,7 @@ public final class NativeCombatHudTest {
         CombatHudActivity.clear();
         check(!CombatHudActivity.active(p) && !card(p, SkillIds.ADAPTIVE_GUARD).active(), "Idle posture starts without a visible card");
         ready(p);
-        check(p.hurt(source, 4), "Real native incoming player damage accepted");
+        check(NativeDamageTestCompat.hurt(p,source, 4), "Real native incoming player damage accepted");
         check(CombatHudActivity.active(p) && CombatHudActivity.active(other), "Measured native health damage marks both eligible players");
         check(CombatHudActivity.remainingTicks(p) == 100, "New native combat activity lasts exactly one hundred ticks");
         check(card(p, SkillIds.ADAPTIVE_GUARD).active() && PostureService.snapshot(p).stacks() == 1,
@@ -72,15 +76,15 @@ public final class NativeCombatHudTest {
         check(card(p, SkillIds.ADAPTIVE_GUARD).active(), "Adaptive memory card remains independent of the shorter combat presentation window");
 
         SkillEffectRuntime.reset(p); select(f, SkillIds.ADAPTIVE_GUARD); CombatHudActivity.clear(); ready(p);
-        check(p.hurt(p.damageSources().generic(), 4), "Native environmental health loss accepted");
+        check(NativeDamageTestCompat.hurt(p,p.damageSources().generic(), 4), "Native environmental health loss accepted");
         check(!CombatHudActivity.active(p) && card(p, SkillIds.ADAPTIVE_GUARD).active(),
                 "Environmental adaptation is visible without classifying environmental damage as combat");
         CombatHudActivity.clear(); ready(p);
-        p.hurt(source, 0);
+        NativeDamageTestCompat.hurt(p,source, 0);
         check(!CombatHudActivity.active(p), "Zero native probes cannot begin combat regardless of the native return value");
-        EquipmentDamageService.withSecondarySkillDamage(() -> p.hurt(source, 4));
+        EquipmentDamageService.withSecondarySkillDamage(() -> NativeDamageTestCompat.hurt(p,source, 4));
         check(!CombatHudActivity.active(p) && !CombatHudActivity.active(other), "Secondary native health writes do not start combat");
-        ready(p); EquipmentDamageService.withReflection(() -> p.hurt(source, 4));
+        ready(p); EquipmentDamageService.withReflection(() -> NativeDamageTestCompat.hurt(p,source, 4));
         check(!CombatHudActivity.active(p) && !CombatHudActivity.active(other), "Reflected native health writes do not start combat");
         float beforeNested = other.getHealth();
         EquipmentDamageService.withSkillDamageFrame(p, source, () -> {
@@ -93,49 +97,49 @@ public final class NativeCombatHudTest {
         });
         check(other.getHealth() == beforeNested - 1 && !CombatHudActivity.active(p) && !CombatHudActivity.active(other),
                 "A nested-only measured health write cannot start combat for an outer frame with no loss");
-        ready(p); p.hurt(source, 4); f.level.tick += 10;
+        ready(p); NativeDamageTestCompat.hurt(p,source, 4); f.level.tick += 10;
         long remaining = CombatHudActivity.remainingTicks(p);
-        p.hurt(source, 4);
+        NativeDamageTestCompat.hurt(p,source, 4);
         check(CombatHudActivity.remainingTicks(p) == remaining, "Native hurt-cooldown rejection cannot refresh combat");
-        ready(p); EquipmentDamageService.withSecondarySkillDamage(() -> p.hurt(source, 4));
+        ready(p); EquipmentDamageService.withSecondarySkillDamage(() -> NativeDamageTestCompat.hurt(p,source, 4));
         check(CombatHudActivity.remainingTicks(p) == remaining, "Secondary damage cannot extend an existing combat window");
-        ready(p); EquipmentDamageService.withReflection(() -> p.hurt(source, 4));
+        ready(p); EquipmentDamageService.withReflection(() -> NativeDamageTestCompat.hurt(p,source, 4));
         check(CombatHudActivity.remainingTicks(p) == remaining, "Reflection cannot extend an existing combat window");
-        ready(p); p.hurt(p.damageSources().generic(), 4);
+        ready(p); NativeDamageTestCompat.hurt(p,p.damageSources().generic(), 4);
         check(CombatHudActivity.remainingTicks(p) == remaining, "Environmental damage cannot extend an existing combat window");
-        ready(p); p.hurt(source, 4);
+        ready(p); NativeDamageTestCompat.hurt(p,source, 4);
         check(CombatHudActivity.remainingTicks(p) == 100 && CombatHudActivity.remainingTicks(other) == 100,
                 "A later positive native primary hit refreshes both players to a full combat window");
 
         CombatHudActivity.clear();
         p.getAttribute(Attributes.MAX_ABSORPTION).setBaseValue(4); p.setAbsorptionAmount(4); ready(p);
-        check(p.hurt(source, 2) && p.getHealth() == 20 && p.getAbsorptionAmount() < 4,
+        check(NativeDamageTestCompat.hurt(p,source, 2) && p.getHealth() == 20 && p.getAbsorptionAmount() < 4,
                 "Native absorption-only hit has real absorbed loss and no health loss");
         check(CombatHudActivity.active(p), "Absorption-only native damage counts as combat");
         p.setAbsorptionAmount(0);
         CombatHudActivity.clear(); ready(other);
-        check(other.hurt(outgoing, 4) && CombatHudActivity.active(p), "Real native outgoing damage starts the attacking player's combat window");
+        check(NativeDamageTestCompat.hurt(other,outgoing, 4) && CombatHudActivity.active(p), "Real native outgoing damage starts the attacking player's combat window");
         var dying = f.player(DyingPlayer.class, new Vec3(0, 0, 2), "combat_hud_kill");
         captureFixtureMilestones(f, dying);
         dying.setHealth(1); CombatHudActivity.clear();
-        check(dying.hurt(outgoing, 4) && dying.getHealth() == 0 && dying.deaths == 1, "Native outgoing lethal health write reaches the controlled death boundary");
+        check(NativeDamageTestCompat.hurt(dying,outgoing, 4) && dying.getHealth() == 0 && dying.deaths == 1, "Native outgoing lethal health write reaches the controlled death boundary");
         check(CombatHudActivity.active(p), "A killing hit still starts the surviving attacker's combat window");
 
         sourcePolicy(f, p, other, source, outgoing);
         CombatHudActivity.clear(); select(f, SkillIds.EVASIVE_CURRENT); chargeEvasive(f);
         check(PostureService.snapshot(p).meter() == 1 && !card(p, SkillIds.EVASIVE_CURRENT).active(),
                 "Ordinary movement builds gameplay meter while the native HUD stays quiet outside combat");
-        ready(other); other.hurt(outgoing, 4);
+        ready(other); NativeDamageTestCompat.hurt(other,outgoing, 4);
         check(card(p, SkillIds.EVASIVE_CURRENT).active(), "Real outgoing combat reveals the already charged Evasive Current card");
         f.level.tick += 100;
         check(!card(p, SkillIds.EVASIVE_CURRENT).active() && PostureService.snapshot(p).meter() == 1,
                 "Evasive card expires without changing the server gameplay meter");
         other.setPos(p.getX(), p.getY(), p.getZ() + 2); ready(p); CombatHudActivity.clear();
-        check(!EquipmentDamageService.withPostureTestRoll(() -> 0, () -> p.hurt(source, 4)), "Actual native deterministic Evasive dodge causes no damage");
+        check(!EquipmentDamageService.withPostureTestRoll(() -> 0, () -> NativeDamageTestCompat.hurt(p,source, 4)), "Actual native deterministic Evasive dodge causes no damage");
         check(CombatHudActivity.active(p) && !CombatHudActivity.active(other) && card(p, SkillIds.EVASIVE_CURRENT).active(),
                 "A confirmed native dodge reveals the defender's remaining meter without fabricating outgoing damage");
         f.level.tick++;
-        check(!EquipmentDamageService.withPostureTestRoll(() -> 0, () -> p.hurt(source, 4))
+        check(!EquipmentDamageService.withPostureTestRoll(() -> 0, () -> NativeDamageTestCompat.hurt(p,source, 4))
                         && PostureService.snapshot(p).meter() == 0,
                 "A second real dodge spends the final remaining meter");
         var dodgeSnapshot = PostureService.snapshot(p);
@@ -146,7 +150,7 @@ public final class NativeCombatHudTest {
         PostureService.finish(p, dodgeSnapshot.incoming(), false, false, 0, 4);
         check(PostureService.snapshot(p).dodgeFeedbackUntil() == dodgeSnapshot.dodgeFeedbackUntil(),
                 "Duplicate completion cannot extend the dodge indication");
-        p.hurt(source, 0);
+        NativeDamageTestCompat.hurt(p,source, 0);
         check(!PostureService.snapshot(p).incoming().dodged() && PostureService.snapshot(p).recentDodge(),
                 "A subsequent rejected probe cannot overwrite the independently remembered confirmed dodge");
         f.level.tick = dodgeSnapshot.dodgeFeedbackUntil() - 1;
@@ -167,7 +171,7 @@ public final class NativeCombatHudTest {
         }
         check(PostureService.snapshot(p).meter() == 1 && !card(p, SkillIds.BULWARK_STANCE).active(),
                 "Facing a threat while still builds Bulwark without idle HUD clutter");
-        ready(other); other.hurt(outgoing, 4);
+        ready(other); NativeDamageTestCompat.hurt(other,outgoing, 4);
         check(card(p, SkillIds.BULWARK_STANCE).active(), "Confirmed combat reveals charged Bulwark's actual resistance card");
         f.level.tick += 100;
         check(!card(p, SkillIds.BULWARK_STANCE).active(), "Bulwark card becomes inactive when combat expires");
@@ -180,7 +184,7 @@ public final class NativeCombatHudTest {
         p.setItemInHand(InteractionHand.OFF_HAND, shield); p.startUsingItem(InteractionHand.OFF_HAND);
         ProjectileNativeInterceptionTest.set(LivingEntity.class, p, "useItemRemaining",
                 shield.getUseDuration(p) - EquipmentShieldService.raiseDelayTicks(p, shield));
-        check(!p.hurt(p.damageSources().playerAttack(reflector), 4)
+        check(!NativeDamageTestCompat.hurt(p,p.damageSources().playerAttack(reflector), 4)
                         && EquipmentDamageService.lastGuardOutcome(p).orElseThrow().successfulBlock(),
                 "Actual native shield block stops all incoming health damage");
         check(CombatHudActivity.active(p) && !CombatHudActivity.active(reflector),
@@ -227,7 +231,7 @@ public final class NativeCombatHudTest {
         CombatHudActivity.confirmedDamage(p, p.damageSources().arrow(arrow, other));
         check(!CombatHudActivity.active(p), "Mismatched projectile ownership fails closed");
         ProjectileOwnership.transferNative(arrow, other);
-        ready(p); p.hurt(p.damageSources().arrow(arrow, other), 4);
+        ready(p); NativeDamageTestCompat.hurt(p,p.damageSources().arrow(arrow, other), 4);
         check(CombatHudActivity.active(p) && CombatHudActivity.active(other), "Actual native projectile damage uses the responsible living shooter");
         CombatHudActivity.clear();
         ProjectileNativeInterceptionTest.set(net.minecraft.server.MinecraftServer.class, f.server, "pvp", false);
@@ -253,7 +257,7 @@ public final class NativeCombatHudTest {
         ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.Mob.class, mob, "handDropChances", new float[] {.085F, .085F});
         ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.Mob.class, mob, "armorDropChances", new float[] {.085F, .085F, .085F, .085F});
         mob.setHealth(20);
-        ready(p); p.hurt(p.damageSources().mobAttack(mob), 4);
+        ready(p); NativeDamageTestCompat.hurt(p,p.damageSources().mobAttack(mob), 4);
         check(CombatHudActivity.active(p), "Actual native mob damage starts defender combat");
         CombatHudActivity.clear();
         EquipmentDamageService.withSkillDamageFrame(mob, outgoing, () -> {
@@ -290,11 +294,17 @@ public final class NativeCombatHudTest {
         presentation.replace(List.of(landed), context.now() + 1);
         check(presentation.visibleEntries(context.now() + 1).isEmpty(), "Real native glide stop removes the live card immediately");
 
+        //? if >=26.1.2
+        /*var effect = new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SPEED, 200);*/
+        //? if <26.1.2
         var effect = new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 200);
         check(com.mistaboom.essence_ascendance.utility.UtilityPotionService.applyExternalPotion(p, effect, p,
                 (resolved, source) -> p.addEffect(resolved, source)), "Native timed potion was accepted");
         check(com.mistaboom.essence_ascendance.utility.UtilityPotionService.amplificationSnapshot(context) != null,
                 "Accepted amplified potion exposes a current HUD timer");
+        //? if >=26.1.2
+        /*p.removeEffect(net.minecraft.world.effect.MobEffects.SPEED);*/
+        //? if <26.1.2
         p.removeEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED);
         check(com.mistaboom.essence_ascendance.utility.UtilityPotionService.amplificationSnapshot(context) == null,
                 "Removed native potion immediately clears the amplification HUD timer");
@@ -383,15 +393,26 @@ public final class NativeCombatHudTest {
         p.getAbilities().mayfly = false; p.getAbilities().flying = false;
         SkillEffectRuntime.reset(p);
     }
+    private static net.minecraft.core.Holder.Reference<net.minecraft.world.damagesource.DamageType> damageHolder(
+            net.minecraft.core.Registry<net.minecraft.world.damagesource.DamageType> registry,
+            net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType> key) {
+        //? if >=26.1.2
+        /*return registry.getOrThrow(key);*/
+        //? if <26.1.2
+        return registry.getHolderOrThrow(key);
+    }
     private static void mobilityImpacts(ProjectileNativeInterceptionTest.Fixture f) {
         var p = f.player;
         var data = f.saved.getPlayerData(p.getUUID());
+        //? if >=26.1.2
+        /*var registry = f.level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);*/
+        //? if <26.1.2
         var registry = f.level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
-        var fall = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.FALL);
-        var wall = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.FLY_INTO_WALL);
-        var spike = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.STALAGMITE);
-        var admin = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.GENERIC_KILL);
-        registry.bindTags(java.util.Map.of(net.minecraft.tags.DamageTypeTags.IS_FALL, List.of(fall, spike),
+        var fall = damageHolder(registry, net.minecraft.world.damagesource.DamageTypes.FALL);
+        var wall = damageHolder(registry, net.minecraft.world.damagesource.DamageTypes.FLY_INTO_WALL);
+        var spike = damageHolder(registry, net.minecraft.world.damagesource.DamageTypes.STALAGMITE);
+        var admin = damageHolder(registry, net.minecraft.world.damagesource.DamageTypes.GENERIC_KILL);
+        com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(registry, java.util.Map.of(net.minecraft.tags.DamageTypeTags.IS_FALL, List.of(fall, spike),
                 com.mistaboom.essence_ascendance.equipment.AscendanceDamageTypeTags.FALL, List.of(fall, spike),
                 com.mistaboom.essence_ascendance.movement.ImpactDamageService.MOVEMENT_IMPACT, List.of(fall, wall, spike, admin),
                 net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY, List.of(admin)));
@@ -400,7 +421,7 @@ public final class NativeCombatHudTest {
         var boots = AscendanceItems.ASCENDANCE_BOOTS.get().getDefaultInstance();
         com.mistaboom.essence_ascendance.equipment.EquipmentTierData.setTier(boots,
                 com.mistaboom.essence_ascendance.equipment.EquipmentTier.TRANSCENDENT);
-        p.getInventory().armor.set(0, boots);
+        p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, boots);
         double resistance = EquipmentDamageService.evaluateStats(p).fallResistancePercent() / 100;
         check(resistance > 0 && resistance < 1, "Real Defense investment and worn equipment supply positive Fall Resistance");
         double impact = SkillEffectRuntime.resolvedSettings(p).mobility().impactControl().damageReduction();

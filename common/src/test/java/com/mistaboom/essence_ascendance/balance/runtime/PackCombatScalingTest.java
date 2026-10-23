@@ -105,8 +105,17 @@ public final class PackCombatScalingTest {
     private static void nativeArmorReferences() {
         var add = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE;
         var multiply = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+        //? if >=26.1.2
+        /*String armorKey = net.minecraft.world.entity.ai.attributes.Attributes.ARMOR.unwrapKey().orElseThrow().identifier().toString();*/
+        //? if <26.1.2
         String armorKey = net.minecraft.world.entity.ai.attributes.Attributes.ARMOR.unwrapKey().orElseThrow().location().toString();
+        //? if >=26.1.2
+        /*String toughnessKey = net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS.unwrapKey().orElseThrow().identifier().toString();*/
+        //? if <26.1.2
         String toughnessKey = net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS.unwrapKey().orElseThrow().location().toString();
+        //? if >=26.1.2
+        /*String healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().identifier().toString();*/
+        //? if <26.1.2
         String healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString();
         var armorAdd = new NativeAttributeContribution(Map.of("test:armor", new NativeAttributeContribution.Modifier(10, add)));
         var toughnessAdd = new NativeAttributeContribution(Map.of("test:toughness", new NativeAttributeContribution.Modifier(2, add)));
@@ -158,6 +167,9 @@ public final class PackCombatScalingTest {
         var add = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE;
         var base = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
         var total = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
+        //? if >=26.1.2
+        /*var healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().identifier().toString();*/
+        //? if <26.1.2
         var healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString();
         var rows = new ArrayList<EquipmentReference>();
         var values = List.of(new NativeAttributeContribution.Modifier(.2, base), new NativeAttributeContribution.Modifier(.25, total),

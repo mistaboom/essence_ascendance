@@ -93,7 +93,7 @@ public final class EquipmentDamageService {
     }
     /** Scoped deterministic native-fixture seam; ordinary gameplay always uses the entity random source. */
     public static boolean withPostureTestRoll(java.util.function.DoubleSupplier roll, BooleanSupplier action) {
-        if (!Boolean.getBoolean("essence.projectile.nativeHookTest")) throw new IllegalStateException("Explicit native fixture required");
+        if (!Boolean.parseBoolean(System.getProperty("essence.projectile.nativeHookTest", "false"))) throw new IllegalStateException("Explicit native fixture required");
         var previous = POSTURE_TEST_ROLL.get(); POSTURE_TEST_ROLL.set(java.util.Objects.requireNonNull(roll));
         try { return action.getAsBoolean(); }
         finally { if (previous == null) POSTURE_TEST_ROLL.remove(); else POSTURE_TEST_ROLL.set(previous); }
@@ -443,7 +443,11 @@ public final class EquipmentDamageService {
     public static boolean canSkillHarm(ServerPlayer player, Entity target) {
         if (target == player || target.level() != player.level() || !player.isAlive() || player.isSpectator()
                 || target.isRemoved() || !(target instanceof LivingEntity)) return false;
-        if (target instanceof Player other && (!player.server.isPvpAllowed() || !player.canHarmPlayer(other))) return false;
+        if (target instanceof Player other
+                //? if >=26.1.2
+                /*&& !player.canHarmPlayer(other)) return false;*/
+                //? if <26.1.2
+                && (!player.server.isPvpAllowed() || !player.canHarmPlayer(other))) return false;
         return player.getTeam() == null || !player.isAlliedTo(target) || player.getTeam().isAllowFriendlyFire();
     }
 

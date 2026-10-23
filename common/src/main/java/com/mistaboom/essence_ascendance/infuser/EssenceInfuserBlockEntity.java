@@ -1,4 +1,5 @@
 package com.mistaboom.essence_ascendance.infuser;
+import com.mistaboom.essence_ascendance.network.PlayerMessageCompat;
 
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
 
@@ -9,6 +10,7 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
+import com.mistaboom.essence_ascendance.data.ItemStackNbtCompat;
 import com.mistaboom.essence_ascendance.data.ReservoirService;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
@@ -21,6 +23,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+//? if >=26.1.2
+/*import net.minecraft.core.UUIDUtil;*/
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -39,6 +43,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueOutput;*/
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -50,6 +58,9 @@ import java.util.UUID;
 
 public final class EssenceInfuserBlockEntity extends BlockEntity
         implements WorldlyContainer, MenuProvider, BoundMachine {
+
+    //? if >=26.1.2
+    /*@Override public void preRemoveSideEffects(BlockPos pos, BlockState state) { if (level instanceof ServerLevel server) Block.popResource(server, pos, MachineProtection.takePickup(this)); super.preRemoveSideEffects(pos, state); }*/
 
     public static final int INPUT_SLOT = 0;
     public static final int OUTPUT_SLOT = 1;
@@ -1214,7 +1225,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     public boolean installOrSwapFocus(Player player, net.minecraft.world.InteractionHand hand) {
         if (!ServerMenuAccess.canReach(player, this) || !authorize(player, MachineAction.FOCUS)) {
-            player.displayClientMessage(
+            PlayerMessageCompat.send(player,
                     Component.translatable("message.essence_ascendance.infuser_private"),
                     true
             );
@@ -1341,12 +1352,24 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     @Override
+    //? if >=26.1.2
+    /*protected void saveAdditional(ValueOutput tag) {*/
+    //? if <26.1.2
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if >=26.1.2
+        /*super.saveAdditional(tag);*/
+        //? if <26.1.2
         super.saveAdditional(tag, registries);
+        //? if >=26.1.2
+        /*ContainerHelper.saveAllItems(tag, items);*/
+        //? if <26.1.2
         ContainerHelper.saveAllItems(tag, items, registries);
         binding.save(tag);
         link.save(tag);
         if (ownerId != null) {
+            //? if >=26.1.2
+            /*tag.store(OWNER_TAG, UUIDUtil.CODEC, ownerId);*/
+            //? if <26.1.2
             tag.putUUID(OWNER_TAG, ownerId);
         }
         if (!ownerName.isBlank()) {
@@ -1361,25 +1384,55 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
         tag.putInt(PROCESSING_TICKS_TAG, Math.max(0, processingTicks));
         tag.putBoolean(PROCESSING_ENABLED_TAG, processingEnabled);
-        if (paidJob != null) tag.put("paid_job", paidJob.save(registries));
+        if (paidJob != null) {
+            //? if >=26.1.2 {
+            /*tag.store("paid_job", CompoundTag.CODEC, paidJob.saveMetadata());
+            tag.store("paid_job_workpiece", ItemStack.CODEC, paidJob.workpiece());
+            tag.store("paid_job_result", ItemStack.CODEC, paidJob.result());
+            *///? } else {
+            tag.put("paid_job", paidJob.save(registries));
+            //? }
+        }
     }
 
     @Override
+    //? if >=26.1.2
+    /*protected void loadAdditional(ValueInput tag) {*/
+    //? if <26.1.2
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        if (tag.contains(MachineVisualState.TAG, Tag.TAG_COMPOUND)) {
+        //? if >=26.1.2
+        /*CompoundTag visual = tag.read(MachineVisualState.TAG, CompoundTag.CODEC).orElse(null);*/
+        //? if <26.1.2
+        CompoundTag visual = tag.contains(MachineVisualState.TAG, Tag.TAG_COMPOUND)
+                //? if <26.1.2
+                ? tag.getCompound(MachineVisualState.TAG) : null;
+        if (visual != null) {
             items.clear();
+            //? if >=26.1.2 {
+            /*items.set(FOCUS_SLOT, tag.read(VISUAL_FOCUS_STACK_TAG, ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY));
+            *///? } else {
             if (tag.contains(VISUAL_FOCUS_STACK_TAG, Tag.TAG_COMPOUND)) {
-                items.set(FOCUS_SLOT, ItemStack.parseOptional(registries,
+                items.set(FOCUS_SLOT, ItemStackNbtCompat.parseOptional(registries,
                         tag.getCompound(VISUAL_FOCUS_STACK_TAG)));
             }
-            clientVisualState = MachineVisualState.Infuser.read(tag.getCompound(MachineVisualState.TAG));
+            //? }
+            clientVisualState = MachineVisualState.Infuser.read(visual);
             return;
         }
+        //? if >=26.1.2
+        /*super.loadAdditional(tag);*/
+        //? if <26.1.2
         super.loadAdditional(tag, registries);
         items.clear();
+        //? if >=26.1.2
+        /*ContainerHelper.loadAllItems(tag, items);*/
+        //? if <26.1.2
         ContainerHelper.loadAllItems(tag, items, registries);
         binding.load(tag);
         link.load(tag);
+        //? if >=26.1.2
+        /*ownerId = tag.read(OWNER_TAG, UUIDUtil.CODEC).orElse(null);*/
+        //? if <26.1.2
         ownerId = tag.hasUUID(OWNER_TAG) ? tag.getUUID(OWNER_TAG) : null;
         ownerName = tag.getString(OWNER_NAME_TAG);
         linkedCruciblePos = link.target() == null ? null : link.target().pos();
@@ -1390,10 +1443,12 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         // Old automated-recipient settings must never claim previously unbound equipment after an update.
         if (EquipmentTierData.isAscendanceEquipment(getItem(INPUT_SLOT)) && !SoulboundEquipmentData.isSoulbound(getItem(INPUT_SLOT))) processingEnabled = false;
         invalidateChannel();
+        //? if >=26.1.2
+        /*paidJob = tag.read("paid_job", CompoundTag.CODEC).map(metadata -> InfusionJobProgress.loadMetadata(metadata, tag.read("paid_job_workpiece", ItemStack.CODEC).orElseThrow(), tag.read("paid_job_result", ItemStack.CODEC).orElseThrow())).orElse(null);*/
+        //? if <26.1.2
         paidJob = tag.contains("paid_job", Tag.TAG_COMPOUND) ? InfusionJobProgress.load(tag.getCompound("paid_job"), registries) : null;
         processingVisualActive = false;
-        clientVisualState = tag.contains(MachineVisualState.TAG, Tag.TAG_COMPOUND)
-                ? MachineVisualState.Infuser.read(tag.getCompound(MachineVisualState.TAG)) : null;
+        clientVisualState = null;
     }
 
     @Override
@@ -1402,7 +1457,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         MachineVisualState.Infuser visual = visualState();
         if (visual != null) tag.put(MachineVisualState.TAG, visual.save());
         ItemStack focus = getItem(FOCUS_SLOT);
-        if (!focus.isEmpty()) tag.put(VISUAL_FOCUS_STACK_TAG, focus.saveOptional(registries));
+        if (!focus.isEmpty()) tag.put(VISUAL_FOCUS_STACK_TAG, ItemStackNbtCompat.saveOptional(focus, registries));
         return tag;
     }
 
@@ -1519,10 +1574,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     /**
-     * Fabric Transfer API snapshot write. The adapter enforces slot/capacity rules.
+     * Transactional loader snapshot write (Fabric and NeoForge 26.1.2). The adapter enforces slot/capacity rules.
      * Both provisional changes AND rollback must bypass processing/notification
      * side effects; only a successful outer commit may publish those effects.
-     * Ordinary menus/hoppers/NeoForge execution continue to use setItem/removeItem.
+     * Ordinary menus/hoppers/NeoForge 1.21.1 execution continue to use setItem/removeItem.
      */
     public void setItemFromTransferSnapshot(int slot, ItemStack stack) {
         if (slot < 0 || slot >= items.size()) {

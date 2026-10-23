@@ -11,6 +11,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26.1.2
+/*import net.minecraft.world.level.storage.ValueInput;*/
 
 /**
  * Render-only block entity for the modeled Ascendance Nexus.
@@ -30,6 +32,9 @@ public final class AscendanceNexusBlockEntity extends BlockEntity {
                 state
         );
     }
+
+    //? if >=26.1.2
+    /*@Override public void preRemoveSideEffects(BlockPos pos, BlockState state) { if (level instanceof ServerLevel serverLevel) for (ServerPlayer player : serverLevel.players()) if (player.containerMenu instanceof AscendanceNexusMenu menu && menu.isAt(serverLevel, pos)) player.closeContainer(); super.preRemoveSideEffects(pos, state); }*/
 
     public MachineVisualState.Nexus visualState() {
         if (level != null && level.isClientSide) return clientVisualState == null
@@ -53,12 +58,21 @@ public final class AscendanceNexusBlockEntity extends BlockEntity {
         level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
     }
 
+    //? if <26.1.2
     @Override
+    //? if <26.1.2
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        //? if <26.1.2
         super.loadAdditional(tag, registries);
+        //? if <26.1.2
         clientVisualState = tag.contains(MachineVisualState.TAG, Tag.TAG_COMPOUND)
+                //? if <26.1.2
                 ? MachineVisualState.Nexus.read(tag.getCompound(MachineVisualState.TAG)) : null;
+    //? if <26.1.2
     }
+
+    //? if >=26.1.2
+    /*@Override protected void loadAdditional(ValueInput input) { super.loadAdditional(input); clientVisualState = input.read(MachineVisualState.TAG, CompoundTag.CODEC).map(MachineVisualState.Nexus::read).orElse(null); }*/
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {

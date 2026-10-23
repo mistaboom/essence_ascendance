@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.posture;
 
+import com.mistaboom.essence_ascendance.verification.TargetTestInputs;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.*;
 import java.io.InputStream;
@@ -11,17 +12,9 @@ import java.util.jar.JarFile;
 public final class PostureNativeHookShapeTest {
     private static int checks;
     public static void main(String[] args) throws Exception {
-        inspect(name->PostureNativeHookShapeTest.class.getClassLoader().getResourceAsStream(name+".class"),false);
-        Path root=Path.of("").toAbsolutePath();
-        while(root!=null&&!Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft")))root=root.getParent();
-        if(root==null)throw new AssertionError("Mapped loader cache required");
-        List<Path> jars;
-        try(var paths=Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
-            jars=paths.filter(path->path.getFileName().toString().startsWith("neoforge-")&&path.toString().endsWith(".jar")&&!path.toString().endsWith("-sources.jar")).toList();
-        }
-        check(!jars.isEmpty(),"NeoForge native artifact exists");
-        for(Path path:jars)try(JarFile jar=new JarFile(path.toFile())){inspect(name->jar.getInputStream(jar.getJarEntry(name+".class")),true);}
-        System.out.println("PostureNativeHookShapeTest: "+checks+" exact common/Fabric and NeoForge bytecode checks passed");
+        inspect(name -> TargetTestInputs.nativeClass("fabric", name), false);
+        inspect(name -> TargetTestInputs.nativeClass("neoforge", name), true);
+        System.out.println("Posture native hook shapes passed: " + checks + " (exact target Fabric and NeoForge artifacts; no world)");
     }
     private interface Source {InputStream open(String name)throws Exception;}
     private static void inspect(Source source,boolean neo)throws Exception {

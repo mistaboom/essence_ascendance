@@ -44,7 +44,7 @@ public final class EssenceTestCommands {
 
     public static LiteralArgumentBuilder<CommandSourceStack> build() {
         return Commands.literal("test")
-                .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                .requires(source -> EssenceCommandUtil.hasAdminPermission(source))
                 .executes(context -> showHelp(context.getSource()))
                 .then(Commands.literal("enchantments").executes(context ->
                         com.mistaboom.essence_ascendance.mapping.EnchantmentYieldDiagnostics.run(context.getSource())))

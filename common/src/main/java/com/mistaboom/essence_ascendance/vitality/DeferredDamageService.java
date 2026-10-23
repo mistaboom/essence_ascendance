@@ -21,6 +21,9 @@ public final class DeferredDamageService {
     public static double pay(ServerPlayer player, LinearDamageQueue.Payment<VitalityDamageLedger.Source> payment) {
         if (!player.isAlive() || player.isRemoved() || player.isSpectator() || player.getAbilities().invulnerable) return 0;
         Entity attacker = payment.source().attacker() == null ? null : player.serverLevel().getEntity(payment.source().attacker());
+        //? if >=26.1.2
+        /*DamageSource source = new DamageSource(player.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(TYPE), attacker);*/
+        //? if <26.1.2
         DamageSource source = new DamageSource(player.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(TYPE), attacker);
         ServerPlayer previous = PAYING.get();
         int immunity = player.invulnerableTime, animation = player.hurtTime, duration = player.hurtDuration;
@@ -32,6 +35,9 @@ public final class DeferredDamageService {
             double[] accepted = {0};
             EquipmentDamageService.withSecondarySkillDamage(() -> {
                 var result = EquipmentDamageService.measureDamage(player, source,
+                        //? if >=26.1.2
+                        /*() -> player.hurtServer(player.serverLevel(), source, (float)Math.min(Float.MAX_VALUE, payment.amount())));*/
+                        //? if <26.1.2
                         () -> player.hurt(source, (float)Math.min(Float.MAX_VALUE, payment.amount())));
                 accepted[0] = result.accepted() && result.loss() > 0
                         ? (Math.abs(result.loss() - payment.amount()) <= roundingUnit

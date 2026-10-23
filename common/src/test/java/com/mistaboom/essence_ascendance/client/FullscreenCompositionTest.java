@@ -8,6 +8,7 @@ import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenLayout;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenNavigation;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScroll;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScreen;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenTextField;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
 import net.minecraft.network.chat.Component;
 
@@ -22,6 +23,9 @@ public final class FullscreenCompositionTest {
     private static final FullscreenComposition.Renderer NO_RENDER = (graphics, x, y, tick) -> { };
 
     public static void main(String[] args) throws Exception {
+        //? if >=26.1.2
+        /*checks += FullscreenRenderContract2612Test.run();*/
+        //? if <26.1.2
         checks += FullscreenRenderContractTest.run();
         check(!AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.GUIDE, 1)
                         && AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.GUIDE, 2)
@@ -36,6 +40,7 @@ public final class FullscreenCompositionTest {
         synchronousCaptureRefresh();
         nestedModalFocus();
         primaryContentKeys();
+        unicodeTextInput();
         attunementControls();
         capture();
         viewports();
@@ -80,6 +85,8 @@ public final class FullscreenCompositionTest {
                 "An ordinary field receives focused text input through the same composition");
         check(fixture.ui.keyPressed(259, 0, 0) && fixture.search.query.toString().equals("s"),
                 "Field editing remains content-owned behind shared focus dispatch");
+        check(fixture.ui.charTyped(0x1F9ED, 0) && fixture.search.query.toString().equals("s🧭"),
+                "Native Unicode code points reach the focused field without char narrowing");
 
         var frame = fixture.ui.scene().frame();
         var manyModes = new FullscreenComposition.Builder("extra", frame).modes(
@@ -350,6 +357,17 @@ public final class FullscreenCompositionTest {
                 "Region pointer routing excludes its right and bottom boundaries");
     }
 
+    private static void unicodeTextInput() {
+        var field = new FullscreenTextField("", Component.literal("Search"), ignored -> { },
+                () -> "", ignored -> { });
+        check(field.character(0x1F9ED, 0) && field.query().equals("🧭"),
+                "The shared editor retains a native supplementary Unicode code point");
+        check(field.key(259, 0, 0) && field.query().isEmpty(),
+                "Backspace removes the supplementary code point as one character");
+        check(!field.character(0xD800, 0) && field.query().isEmpty(),
+                "Malformed surrogate input cannot enter the search query");
+    }
+
     private static void attunementControls() {
         var first = new com.mistaboom.essence_ascendance.attunement.AttunementSnapshot.Category(
                 "test:first", 0, 100, 1, List.of(), List.of());
@@ -538,14 +556,14 @@ public final class FullscreenCompositionTest {
         public boolean release(double x, double y, int button) { releases++; return true; }
         public boolean scroll(double x, double y, double dx, double dy) { scrolls++; return true; }
         public boolean key(int key, int scan, int modifiers) { keys++; return true; }
-        public boolean character(char character, int modifiers) { characters++; return true; }
+        public boolean character(int codepoint, int modifiers) { characters++; return true; }
         public void focused(boolean focused) { this.focused = focused; }
         public void cancel() { cancellations++; }
     }
 
     private static final class SearchField extends CountingInput {
         final StringBuilder query = new StringBuilder();
-        public boolean character(char character, int modifiers) { query.append(character); return true; }
+        public boolean character(int codepoint, int modifiers) { query.appendCodePoint(codepoint); return true; }
         public boolean key(int key, int scan, int modifiers) {
             if (key != 259) return false;
             if (!query.isEmpty()) query.deleteCharAt(query.length() - 1);

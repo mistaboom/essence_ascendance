@@ -3,10 +3,16 @@ package com.mistaboom.essence_ascendance.client.transientfx;
 import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
 import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
 import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 
 /** Resolved screen anchor and lifecycle values supplied to a GUI recipe. */
 public record GuiVisualRenderContext(
+        //? if >=26.1.2
+        /*GuiGraphicsExtractor graphics,*/
+        //? if <26.1.2
         GuiGraphics graphics,
         GuiAnchor.Rect anchor,
         double progress,

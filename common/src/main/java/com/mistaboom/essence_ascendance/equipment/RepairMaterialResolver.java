@@ -55,7 +55,7 @@ public final class RepairMaterialResolver {
         Match nativeFamily = matchFamilies(nativeProfile.baseForms(), ingredient);
         if (nativeFamily.valid()) return nativeFamily;
 
-        if (target.getItem().isValidRepairItem(target, ingredient)) {
+        if (validNativeRepair(target, ingredient)) {
             return new Match(true, 1.0, "native");
         }
 
@@ -107,13 +107,22 @@ public final class RepairMaterialResolver {
         boolean hasNative = false;
         for (Item candidate : BuiltInRegistries.ITEM) {
             ItemStack sample = candidate.getDefaultInstance();
-            if (sample.isEmpty() || !target.getItem().isValidRepairItem(target, sample)) continue;
+            if (sample.isEmpty() || !validNativeRepair(target, sample)) continue;
             hasNative = true;
             for (MaterialTag tag : materialTags(sample).values()) {
                 families.merge(tag.family(), tag.form(), RepairMaterialResolver::preferUnitForm);
             }
         }
         return new RepairProfile(Map.copyOf(families), hasNative);
+    }
+
+    private static boolean validNativeRepair(ItemStack target, ItemStack ingredient) {
+        //? if >=26.1.2
+        /*var repairable = target.get(net.minecraft.core.component.DataComponents.REPAIRABLE);*/
+        //? if >=26.1.2
+        /*return repairable != null && repairable.isValidRepairItem(ingredient);*/
+        //? if <26.1.2
+        return target.getItem().isValidRepairItem(target, ingredient);
     }
 
     private static void refreshCachesForReload(MinecraftServer server) {
@@ -142,12 +151,12 @@ public final class RepairMaterialResolver {
             Recipe<?> recipe = holder.value();
             ItemStack output;
             try {
-                output = recipe.getResultItem(server.registryAccess());
+                output = RecipeEvidenceCompat.output(recipe, server.registryAccess());
             } catch (RuntimeException ignored) {
                 continue;
             }
             if (output == null || output.isEmpty() || output.is(Items.AIR) || output.getItem() != target) continue;
-            if (recipe.getIngredients().isEmpty() || consumesTarget(recipe, target)) continue;
+            if (RecipeEvidenceCompat.ingredients(recipe).isEmpty() || consumesTarget(recipe, target)) continue;
 
             boolean crafting = recipe.getType() == RecipeType.CRAFTING;
             Map<Item, Double> exact = crafting ? craftingExact : fallbackExact;
@@ -167,9 +176,9 @@ public final class RepairMaterialResolver {
     }
 
     private static boolean consumesTarget(Recipe<?> recipe, Item target) {
-        for (Ingredient ingredient : recipe.getIngredients()) {
-            if (ingredient == null || ingredient == Ingredient.EMPTY) continue;
-            for (ItemStack candidate : ingredient.getItems()) {
+        for (Ingredient ingredient : RecipeEvidenceCompat.ingredients(recipe)) {
+            if (RecipeEvidenceCompat.empty(ingredient)) continue;
+            for (ItemStack candidate : RecipeEvidenceCompat.alternatives(ingredient)) {
                 if (candidate != null && !candidate.isEmpty() && candidate.getItem() == target) return true;
             }
         }
@@ -179,9 +188,9 @@ public final class RepairMaterialResolver {
     private static void addRecipeIngredients(Recipe<?> recipe, Map<Item, Double> exact,
                                              Map<String, Form> families, MinecraftServer server) {
         Map<Item, Double> direct = new LinkedHashMap<>();
-        for (Ingredient ingredient : recipe.getIngredients()) {
-            if (ingredient == null || ingredient == Ingredient.EMPTY) continue;
-            for (ItemStack candidate : ingredient.getItems()) {
+        for (Ingredient ingredient : RecipeEvidenceCompat.ingredients(recipe)) {
+            if (RecipeEvidenceCompat.empty(ingredient)) continue;
+            for (ItemStack candidate : RecipeEvidenceCompat.alternatives(ingredient)) {
                 if (candidate == null || candidate.isEmpty() || candidate.is(Items.AIR)) continue;
                 direct.putIfAbsent(candidate.getItem(), 1.0);
                 exact.putIfAbsent(candidate.getItem(), 1.0);
@@ -206,12 +215,12 @@ public final class RepairMaterialResolver {
                                                        Map<String, Form> families, MinecraftServer server) {
         for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
             Recipe<?> recipe = holder.value();
-            if (recipe.getType() != RecipeType.CRAFTING || recipe.getIngredients().isEmpty()
+            if (recipe.getType() != RecipeType.CRAFTING || RecipeEvidenceCompat.ingredients(recipe).isEmpty()
                     || consumesTarget(recipe, component)) continue;
 
             ItemStack output;
             try {
-                output = recipe.getResultItem(server.registryAccess());
+                output = RecipeEvidenceCompat.output(recipe, server.registryAccess());
             } catch (RuntimeException ignored) {
                 continue;
             }
@@ -220,10 +229,10 @@ public final class RepairMaterialResolver {
             Map<Item, Boolean> accepted = null;
             int occupiedSlots = 0;
             boolean homogeneous = true;
-            for (Ingredient ingredient : recipe.getIngredients()) {
-                if (ingredient == null || ingredient == Ingredient.EMPTY) continue;
+            for (Ingredient ingredient : RecipeEvidenceCompat.ingredients(recipe)) {
+                if (RecipeEvidenceCompat.empty(ingredient)) continue;
                 Map<Item, Boolean> alternatives = new LinkedHashMap<>();
-                for (ItemStack candidate : ingredient.getItems()) {
+                for (ItemStack candidate : RecipeEvidenceCompat.alternatives(ingredient)) {
                     if (candidate != null && !candidate.isEmpty() && !candidate.is(Items.AIR)) {
                         alternatives.put(candidate.getItem(), Boolean.TRUE);
                     }
@@ -259,6 +268,9 @@ public final class RepairMaterialResolver {
 
     private static Map<String, MaterialTag> materialTags(ItemStack stack) {
         Map<String, MaterialTag> result = new LinkedHashMap<>();
+        //? if >=26.1.2
+        /*stack.typeHolder().tags().map(TagKey::location).forEach(id -> {*/
+        //? if <26.1.2
         stack.getTags().map(TagKey::location).forEach(id -> {
             MaterialTag tag = parse(id.getPath());
             if (tag != null) result.putIfAbsent(tag.family(), tag);

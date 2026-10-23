@@ -12,6 +12,9 @@ import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+//? if >=26.1.2
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;*/
+//? if <26.1.2
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
@@ -111,11 +114,19 @@ public final class EssenceInfuserScreen
     }
 
     @Override
+    //? if >=26.1.2
+    /*public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {*/
+    //? if <26.1.2
     protected void renderBg(
+            //? if <26.1.2
             GuiGraphics graphics,
+            //? if <26.1.2
             float partialTick,
+            //? if <26.1.2
             int mouseX,
+            //? if <26.1.2
             int mouseY
+    //? if <26.1.2
     ) {
         int x = leftPos;
         int y = topPos;
@@ -173,38 +184,83 @@ public final class EssenceInfuserScreen
 
 
     @Override
+    //? if >=26.1.2
+    /*protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {*/
+    //? if <26.1.2
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         drawCentered(graphics, EssenceText.gui("infuser.title"), 6, MachineScreenUi.TEXT);
 
+        //? if >=26.1.2
+        /*graphics.text(font, EssenceText.term("focus"), 72, 29, MachineScreenUi.MUTED, false);*/
+        //? if <26.1.2
         graphics.drawString(font, EssenceText.term("focus"), 72, 29, MachineScreenUi.MUTED, false);
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
         if (mode == EssenceInfuserWorkpieceMode.FOCUS) {
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("workpiece"), 50, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("workpiece"), 50, 48, MachineScreenUi.MUTED, false);
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("upgrade"), 141, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("upgrade"), 141, 48, MachineScreenUi.MUTED, false);
             renderFocusInfusionLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("matrix"), 22, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("matrix"), 22, 48, MachineScreenUi.MUTED, false);
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("equipment"), 62, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("equipment"), 62, 48, MachineScreenUi.MUTED, false);
             renderEquipmentInfusionLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.REPAIR) {
             if (menu.repairLatentIngotRequired() > 0) {
+                //? if >=26.1.2
+                /*graphics.text(font, EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT), 23, 48, MachineScreenUi.MUTED, false);*/
+                //? if <26.1.2
                 graphics.drawString(font, EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT), 23, 48, MachineScreenUi.MUTED, false);
+                //? if >=26.1.2
+                /*graphics.text(font, EssenceText.term("equipment"), 62, 48, MachineScreenUi.MUTED, false);*/
+                //? if <26.1.2
                 graphics.drawString(font, EssenceText.term("equipment"), 62, 48, MachineScreenUi.MUTED, false);
             } else {
+                //? if >=26.1.2
+                /*graphics.text(font, EssenceText.term("equipment"), 50, 48, MachineScreenUi.MUTED, false);*/
+                //? if <26.1.2
                 graphics.drawString(font, EssenceText.term("equipment"), 50, 48, MachineScreenUi.MUTED, false);
             }
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("output"), 144, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("output"), 144, 48, MachineScreenUi.MUTED, false);
             renderRepairLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT), 59, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT), 59, 48, MachineScreenUi.MUTED, false);
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("essentium"), 140, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("essentium"), 140, 48, MachineScreenUi.MUTED, false);
             renderCarrierLabels(graphics);
         } else {
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("workpiece"), 50, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("workpiece"), 50, 48, MachineScreenUi.MUTED, false);
+            //? if >=26.1.2
+            /*graphics.text(font, EssenceText.term("output"), 144, 48, MachineScreenUi.MUTED, false);*/
+            //? if <26.1.2
             graphics.drawString(font, EssenceText.term("output"), 144, 48, MachineScreenUi.MUTED, false);
             renderEmptyWorkpieceLabels(graphics);
         }
 
+        //? if >=26.1.2
+        /*graphics.text(*/
+        //? if <26.1.2
         graphics.drawString(
                 font,
                 playerInventoryTitle,
@@ -216,8 +272,14 @@ public final class EssenceInfuserScreen
     }
 
 
+    //? if >=26.1.2
+    /*private void renderEmptyWorkpieceLabels(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     private void renderEmptyWorkpieceLabels(GuiGraphics graphics) {
         Component title = EssenceText.gui("infuser.empty.title");
+        //? if >=26.1.2
+        /*graphics.text(*/
+        //? if <26.1.2
         graphics.drawString(
                 font,
                 title,
@@ -251,6 +313,9 @@ public final class EssenceInfuserScreen
         );
     }
 
+    //? if >=26.1.2
+    /*private void renderCarrierLabels(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     private void renderCarrierLabels(GuiGraphics graphics) {
         drawSelectionLine(graphics, EssenceText.term("source"), menu.sourceEssence(), 89);
         drawSelectionLine(graphics, EssenceText.term("target"), menu.targetEssence(), 113);
@@ -274,6 +339,9 @@ public final class EssenceInfuserScreen
         );
     }
 
+    //? if >=26.1.2
+    /*private void renderRepairLabels(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     private void renderRepairLabels(GuiGraphics graphics) {
         drawSelectionLine(graphics, EssenceText.term("essence"), menu.sourceEssence(), 89);
 
@@ -311,6 +379,9 @@ public final class EssenceInfuserScreen
         }
     }
 
+    //? if >=26.1.2
+    /*private void renderFocusInfusionLabels(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     private void renderFocusInfusionLabels(GuiGraphics graphics) {
         EssenceFocusTier target = menu.focusTargetTier();
         Component currentName = EssenceFocusData.tier(menu.workpieceStack()) == null
@@ -363,6 +434,9 @@ public final class EssenceInfuserScreen
         );
     }
 
+    //? if >=26.1.2
+    /*private void renderEquipmentInfusionLabels(GuiGraphicsExtractor graphics) {*/
+    //? if <26.1.2
     private void renderEquipmentInfusionLabels(GuiGraphics graphics) {
         EquipmentInfusionRecipe recipe = menu.equipmentRecipe().orElse(null);
         if (recipe == null) {
@@ -413,11 +487,17 @@ public final class EssenceInfuserScreen
     }
 
     private void drawSelectionLine(
+            //? if >=26.1.2
+            /*GuiGraphicsExtractor graphics,*/
+            //? if <26.1.2
             GuiGraphics graphics,
             Component label,
             EssenceDefinition essence,
             int y
     ) {
+        //? if >=26.1.2
+        /*graphics.text(font, label, 16, y, MachineScreenUi.MUTED, false);*/
+        //? if <26.1.2
         graphics.drawString(font, label, 16, y, MachineScreenUi.MUTED, false);
         Component value = shortName(essence);
         int valueLeft = 88;

@@ -68,6 +68,18 @@ public abstract class AttunementBrewingMixin implements AttunementBrewingOwner {
         if (outputValue > 0) AttunementGameplay.award(player, AttunementGameplay.action("brew"), "brew_potions",
                 signature.toString(), Math.max(outputValue, AttunementGameplay.value(ingredient.copyWithCount(1))));
     }
+    //? if >=26.1.2 {
+    /*
+    @Inject(method = "saveAdditional", at = @At("RETURN"))
+    private void essenceAscendance$saveBrewer(net.minecraft.world.level.storage.ValueOutput tag, CallbackInfo ci) {
+        if (essenceAscendance$brewer == null || essenceAscendance$manualIngredients <= 0) return;
+        CompoundTag attribution = new CompoundTag();
+        attribution.putUUID("Player", essenceAscendance$brewer);
+        attribution.putString("Ingredient", essenceAscendance$ingredient);
+        attribution.putInt("Remaining", essenceAscendance$manualIngredients);
+        tag.store("EssenceAscendanceBrewing", CompoundTag.CODEC, attribution);
+    }
+    *///?} else {
     @Inject(method = "saveAdditional", at = @At("RETURN"))
     private void essenceAscendance$saveBrewer(CompoundTag tag, HolderLookup.Provider registries, CallbackInfo ci) {
         if (essenceAscendance$brewer == null || essenceAscendance$manualIngredients <= 0) return;
@@ -77,6 +89,19 @@ public abstract class AttunementBrewingMixin implements AttunementBrewingOwner {
         attribution.putInt("Remaining", essenceAscendance$manualIngredients);
         tag.put("EssenceAscendanceBrewing", attribution);
     }
+    //?}
+
+    //? if >=26.1.2 {
+    /*
+    @Inject(method = "loadAdditional", at = @At("RETURN"))
+    private void essenceAscendance$loadBrewer(net.minecraft.world.level.storage.ValueInput tag, CallbackInfo ci) {
+        CompoundTag attribution = tag.read("EssenceAscendanceBrewing", CompoundTag.CODEC).orElseGet(CompoundTag::new);
+        essenceAscendance$brewer = attribution.hasUUID("Player") ? attribution.getUUID("Player") : null;
+        essenceAscendance$ingredient = attribution.getString("Ingredient");
+        essenceAscendance$manualIngredients = Math.clamp(attribution.getInt("Remaining"), 0,
+                ((BrewingStandBlockEntity) (Object) this).getItem(3).getMaxStackSize());
+    }
+    *///?} else {
     @Inject(method = "loadAdditional", at = @At("RETURN"))
     private void essenceAscendance$loadBrewer(CompoundTag tag, HolderLookup.Provider registries, CallbackInfo ci) {
         CompoundTag attribution = tag.getCompound("EssenceAscendanceBrewing");
@@ -85,4 +110,6 @@ public abstract class AttunementBrewingMixin implements AttunementBrewingOwner {
         essenceAscendance$manualIngredients = Math.clamp(attribution.getInt("Remaining"), 0,
                 ((BrewingStandBlockEntity) (Object) this).getItem(3).getMaxStackSize());
     }
+    //?}
+
 }

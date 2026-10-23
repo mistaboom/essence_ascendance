@@ -16,7 +16,11 @@ public final class MachineOwnerDisplay {
         if (player == null) return fallback;
         var online = server.getPlayerList().getPlayer(player);
         if (online != null) return online.getGameProfile().getName();
+        //? if >=26.1.2
+        /*return server.services().nameToIdCache().get(player).map(profile -> profile.name()).orElse(fallback);*/
+        //? if <26.1.2
         return server.getProfileCache() == null ? fallback
+                //? if <26.1.2
                 : server.getProfileCache().get(player).map(profile -> profile.getName()).orElse(fallback);
     }
     public static String teamName(MinecraftServer server, PoolId pool) {

@@ -1,0 +1,56 @@
+// Applied by each common version node. Inputs come from its exact sibling projects.
+def targetInputTasks = [
+        'ascendanceShieldInvariants', 'fullscreenCompositionInvariants', 'inventoryItemEmissionInvariants',
+        'latentOreHostInvariants', 'latentOreResourceInvariants', 'jeiSearchRefreshInvariants', 'recoveryNativeHookShapeInvariants',
+        'sustenanceNativeHookShapeInvariants', 'postureNativeHookShapeInvariants',
+        'statusNativeHookShapeInvariants', 'guardNativeHookShapeInvariants',
+        'vitalityDamageNativeHookShapeInvariants', 'traversalNativeHookShapeInvariants'
+]
+def siblings = rootProject.targetCatalog.targets.findAll { it.minecraft == project.targetMinecraft }.collectEntries { target ->
+    [(target.loader): rootProject.project(":${target.loader}:${target.minecraft}")]
+}
+def exactNativeJar = { nativeProject ->
+    def candidates = nativeProject.configurations.named('minecraftNamedCompile').get().files.findAll { artifact ->
+        if (!artifact.isFile() || !artifact.name.endsWith('.jar')) return false
+        new java.util.zip.ZipFile(artifact).withCloseable { zip -> zip.getEntry('net/minecraft/world/entity/Entity.class') != null }
+    }
+    if (candidates.size() != 1) throw new GradleException("${nativeProject.path}: expected one resolved mapped Minecraft artifact, got ${candidates}")
+    candidates.first().canonicalFile
+}
+// Loom's version-scoped vanilla client JAR contains the real blockstates, models and PNGs.
+// Use the target's exact path; never pick an arbitrary warm cache entry.
+def exactClientResourcesJar = new File(gradle.gradleUserHomeDir,
+        "caches/fabric-loom/${project.targetMinecraft}/minecraft-client.jar").canonicalFile
+targetInputTasks.each { taskName ->
+    tasks.named(taskName, JavaExec) {
+        siblings.each { loader, nativeProject ->
+            dependsOn nativeProject.tasks.named('compileJava')
+            inputs.files(nativeProject.configurations.named('minecraftNamedCompile')).withPropertyName("${loader}Native")
+            inputs.dir(nativeProject.tasks.named('compileJava').flatMap { it.destinationDirectory }).withPropertyName("${loader}Classes")
+            if (taskName in ['inventoryItemEmissionInvariants', 'ascendanceShieldInvariants']) {
+                dependsOn nativeProject.tasks.named('processResources')
+                inputs.dir(nativeProject.tasks.named('processResources').map { it.destinationDir }).withPropertyName("${loader}ProcessedResources")
+            }
+        }
+        if (taskName == 'latentOreResourceInvariants')
+            inputs.file(exactClientResourcesJar).withPropertyName('targetMinecraftClientResources')
+        doFirst {
+            systemProperty 'essence.minecraft', project.targetMinecraft
+            systemProperty 'essence.classes.common', tasks.named('compileJava').get().destinationDirectory.get().asFile.canonicalPath
+            (siblings + [common: project]).each { module, sourceProject ->
+                systemProperty "essence.sources.${module}.java", sourceProject.sourceSets.main.java.srcDirs.collect { it.canonicalPath }.join(File.pathSeparator)
+                systemProperty "essence.sources.${module}.resources", sourceProject.sourceSets.main.resources.srcDirs.collect { it.canonicalPath }.join(File.pathSeparator)
+                systemProperty "essence.processed.${module}.resources", sourceProject.tasks.named('processResources').get().destinationDir.canonicalPath
+            }
+            siblings.each { loader, nativeProject ->
+                systemProperty "essence.native.${loader}.jar", exactNativeJar(nativeProject).path
+                systemProperty "essence.classes.${loader}", nativeProject.tasks.named('compileJava').get().destinationDirectory.get().asFile.canonicalPath
+            }
+            if (taskName == 'latentOreResourceInvariants') {
+                if (!exactClientResourcesJar.isFile())
+                    throw new GradleException("Missing exact ${project.targetMinecraft} Minecraft client resources: ${exactClientResourcesJar}")
+                systemProperty 'essence.native.minecraft.client.jar', exactClientResourcesJar.path
+            }
+        }
+    }
+}
