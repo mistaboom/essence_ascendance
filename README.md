@@ -2,7 +2,7 @@
 
 **Turn what you gather into who you become.**
 
-Build a character, build an Essence network, and work your way from Latent beginnings to Transcendent power. Essence Ascendance brings character progression, branching Skills, and evolving equipment to **Minecraft 1.21.1** on **Fabric and NeoForge**.
+Build a character, build an Essence network, and work your way from Latent beginnings to Transcendent power. Essence Ascendance brings character progression, branching Skills, and evolving equipment to **Minecraft 1.21.1 and 26.1.2** on **Fabric and NeoForge**.
 
 Explore for materials. Dissolve supported items into six Essences. Invest in the abilities that suit your playstyle, then put them to work as you earn your next Ascension.
 
@@ -67,14 +67,18 @@ Essence Ascendance estimates item values from shared item properties and recipes
 
 ## Installation
 
-**Minecraft 1.21.1 · Java 21 · Install on both client and server**
+**Install the matching Minecraft version and loader build on both client and server.**
 
-**Beta.5 requires a new world when upgrading from beta.4 or earlier.** Multiplayer changes the saved player, team and machine ownership data; older EA saves have no automatic migration. Keep a complete backup and the matching older mod version to continue an existing world. Install your chosen team provider before creating the new world. See the [beta.5 release notes](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5).
+| Minecraft | Java | Fabric Loader | NeoForge | Architectury API |
+| --- | --- | --- | --- | --- |
+| 1.21.1 | 21 or newer | 0.19.3 or newer | 21.1 or newer | 13.0.11 or newer |
+| 26.1.2 | 25 or newer | 0.19.5 or newer | 26.1.2.99 or newer | 20.1.17 or newer |
 
-- **Fabric:** Fabric Loader **0.19.3 or newer**, [Fabric API](https://modrinth.com/mod/fabric-api), and [Architectury API](https://modrinth.com/mod/architectury-api) **13.0.11 or newer** for Minecraft 1.21.1.
-- **NeoForge:** NeoForge **21.1** and [Architectury API](https://modrinth.com/mod/architectury-api) **13.0.11 or newer** for Minecraft 1.21.1.
-- Download the Essence Ascendance jar for your loader and place it, with its required dependencies, in your instance's `mods` folder. Choose dependency versions for the same loader and Minecraft version.
+- Both loaders require [Architectury API](https://modrinth.com/mod/architectury-api). Fabric also requires [Fabric API](https://modrinth.com/mod/fabric-api).
+- Download the Essence Ascendance jar for your Minecraft version and loader and place it, with its required dependencies, in your instance's `mods` folder. Choose dependency versions for the same loader and Minecraft version.
 - **JEI is optional.**
+
+**Updating from beta.7 or earlier requires a fresh world and fresh configuration.** See the [beta.8 release notes](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.8) for that upgrade boundary. Beta.12 adds no new world/profile reset when updating from beta.11 within the same Minecraft version.
 
 ## Help shape the beta
 
