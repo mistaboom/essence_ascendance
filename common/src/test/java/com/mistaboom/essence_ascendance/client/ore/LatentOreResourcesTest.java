@@ -10,6 +10,8 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceMetadata;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.AnnotationNode;
+import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
@@ -21,6 +23,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +85,15 @@ public final class LatentOreResourcesTest {
         check(LatentOreSprites.compositeId(id("geology/layer_side"))
                         .equals(ResourceLocation.parse("essence_ascendance:block/latent_ore/generated/test/geology/layer_side")),
                 "Generated sprite identity must depend on native resource, not dimension or position");
+        check(LatentOreSprites.itemCompositeId(id("geology/layer_side"))
+                        .equals(LatentOreSprites.compositeId(id("geology/layer_side"))),
+                "Identical world and inventory pixels must share one atlas allocation");
+        //? if >=26.1.2 {
+        /*for (int turn : new int[]{-1, 1, 2})
+            check(LatentOreSprites.orientedItemCompositeId(id("geology/layer_side"), turn)
+                            .equals(LatentOreSprites.orientedCompositeId(id("geology/layer_side"), turn)),
+                    "Identical oriented world and inventory pixels must share one atlas allocation");*/
+        //? }
         Set<ResourceLocation> selected = LatentOreSprites.selectedHosts(
                 Set.of(id("world_ore_host")), Set.of(id("registered_give_host")));
         check(selected.containsAll(LatentOreSprites.BASELINE)
@@ -91,7 +103,67 @@ public final class LatentOreResourcesTest {
                 "Registered /give hosts need prepared item faces even outside the selected world ore catalog");
         nativeTargetResources();
         nativeAliasModelContract();
+        nativeHostModelDataContract();
         System.out.println("LatentOreResourcesTest: " + assertions + " checks PASS");
+    }
+
+    /** The real native packet loader must refresh NeoForge's snapshot before requesting a mesh. */
+    private static void nativeHostModelDataContract() throws Exception {
+        String entityName = "com/mistaboom/essence_ascendance/ore/LatentOreBlockEntity";
+        ClassNode entity = new ClassNode();
+        new ClassReader(Files.readAllBytes(TargetTestInputs.compiledClass("common", entityName))).accept(entity, 0);
+        String nativeLoad = System.getProperty("essence.minecraft").equals("1.21.1")
+                ? "(Lnet/minecraft/nbt/CompoundTag;Lnet/minecraft/core/HolderLookup$Provider;)V"
+                : "(Lnet/minecraft/world/level/storage/ValueInput;)V";
+        for (String loader : List.of("fabric", "neoforge")) {
+            ClassNode nativeEntity = new ClassNode();
+            try (InputStream input = TargetTestInputs.nativeClass(loader, "net/minecraft/world/level/block/entity/BlockEntity")) {
+                new ClassReader(input).accept(nativeEntity, 0);
+            }
+            check(nativeEntity.methods.stream().anyMatch(method -> method.name.equals("loadAdditional")
+                            && method.desc.equals(nativeLoad)), loader + " native packet load API must match the selected override");
+        }
+        for (var method : List.of(
+                entity.methods.stream().filter(entry -> entry.name.equals("loadAdditional") && entry.desc.equals(nativeLoad))
+                        .findFirst().orElseThrow(),
+                entity.methods.stream().filter(entry -> entry.name.equals("setHost")).findFirst().orElseThrow())) {
+            boolean hostWritten = false, refreshed = false;
+            for (var instruction : method.instructions) {
+                if (instruction instanceof FieldInsnNode field && field.name.equals("host")) hostWritten = true;
+                if (instruction instanceof MethodInsnNode call && call.name.equals("initializeHost")) hostWritten = true;
+                if (instruction instanceof MethodInsnNode call && call.name.equals("requestClientRenderUpdate"))
+                    refreshed = hostWritten;
+            }
+            check(refreshed, method.name + method.desc + " must publish the newly decoded/placed host before refreshing the render snapshot");
+        }
+        var refresh = entity.methods.stream().filter(method -> method.name.equals("requestClientRenderUpdate"))
+                .findFirst().orElseThrow();
+        check(java.util.stream.StreamSupport.stream(refresh.instructions.spliterator(), false)
+                        .anyMatch(instruction -> instruction instanceof MethodInsnNode call && call.name.equals("sendBlockUpdated")),
+                "Shared snapshot boundary must request a new chunk mesh after loader refresh hooks");
+
+        ClassNode mixin = new ClassNode();
+        new ClassReader(Files.readAllBytes(TargetTestInputs.compiledClass("neoforge",
+                "com/mistaboom/essence_ascendance/neoforge/mixin/LatentOreModelDataMixin"))).accept(mixin, 0);
+        var hook = mixin.methods.stream().filter(method -> method.name.equals("essenceAscendance$refreshHostModelData"))
+                .findFirst().orElseThrow();
+        AnnotationNode inject = hook.visibleAnnotations.stream()
+                .filter(annotation -> annotation.desc.equals("Lorg/spongepowered/asm/mixin/injection/Inject;"))
+                .findFirst().orElseThrow();
+        check(annotationValue(inject, "method").equals(List.of("requestClientRenderUpdate")),
+                "NeoForge must target the shared render boundary, never a legacy load overload");
+        @SuppressWarnings("unchecked") List<AnnotationNode> at = (List<AnnotationNode>) annotationValue(inject, "at");
+        check(at.size() == 1 && annotationValue(at.getFirst(), "value").equals("HEAD"),
+                "ModelData refresh must be queued before the renderer can snapshot data for its replacement mesh");
+        check(mixin.methods.stream().flatMap(method -> java.util.stream.StreamSupport.stream(method.instructions.spliterator(), false))
+                        .anyMatch(instruction -> instruction instanceof MethodInsnNode call && call.name.equals("requestModelDataUpdate")),
+                "Loader hook must invalidate the cached per-position host data");
+    }
+
+    private static Object annotationValue(AnnotationNode annotation, String key) {
+        for (int index = 0; index < annotation.values.size(); index += 2)
+            if (annotation.values.get(index).equals(key)) return annotation.values.get(index + 1);
+        throw new AssertionError("Missing annotation value: " + key);
     }
 
     /** Real version-scoped Minecraft assets guard the base item faces, especially End Stone. */

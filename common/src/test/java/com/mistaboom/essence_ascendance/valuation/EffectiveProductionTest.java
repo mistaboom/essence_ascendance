@@ -22,6 +22,7 @@ public final class EffectiveProductionTest {
         Thread.currentThread().setUncaughtExceptionHandler((t,f)->f.printStackTrace(new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); registries=VanillaRegistries.createLookup();
         namespacesAndReplacement(); countsAndRemainders(); opaqueAndFailure();
+        sharedIngredientStorage(Arrays.asList(args).contains("--memory-scale"));
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("EffectiveProductionTest: "+checks+" generic recipe checks PASS");
     }
     private static RecipeHolder<?> shapeless(String id, Item output, int count, Ingredient... inputs) {
@@ -164,6 +165,47 @@ public final class EffectiveProductionTest {
         };
         var safe=collect(holder("fixture:failed",failure),shapeless("fixture:valid",Items.BREAD,1,Ingredient.of(Items.WHEAT)));
         check(safe.processes().size()==1&&safe.warnings().stream().anyMatch(x->x.contains("failed")),"Failed nominal getter cannot suppress independent standard recipes");
+    }
+    private static void sharedIngredientStorage(boolean scale) {
+        int recipes=scale?2000:8, alternatives=scale?128:16;
+        Item[] choices=net.minecraft.core.registries.BuiltInRegistries.ITEM.stream()
+                .filter(item->item!=Items.AIR).limit(alternatives).toArray(Item[]::new);
+        Ingredient broad=Ingredient.of(choices);
+        Ingredient[] slots=new Ingredient[9];Arrays.fill(slots,broad);
+        List<RecipeHolder<?>> published=new ArrayList<>();
+        for(int i=0;i<recipes;i++)published.add(shapeless("fixture:shared_"+i,Items.DIAMOND,2,slots));
+        long start=System.nanoTime();
+        ProductionGraph graph=EffectiveProduction.collect(published,registries,(family,reason)->{
+            throw new AssertionError("Repeated ordinary ingredient became unsupported: "+reason);
+        });
+        Set<ProductionGraph.Input> distinctInputs=Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<String> distinctIds=Collections.newSetFromMap(new IdentityHashMap<>());
+        for(var process:graph.processes()){
+            check(process.inputs().size()==9&&process.outputs().getFirst().count()>0,
+                    "Shared storage must retain repeated consumed slots and product counts");
+            for(var input:process.inputs()){
+                check(input.count()==1&&input.consumed()&&input.alternatives().size()==choices.length,
+                        "Sharing must retain every ingredient alternative and consumed unit");
+                distinctInputs.add(input);distinctIds.addAll(input.alternatives());
+            }
+        }
+        check(graph.processes().size()==recipes&&distinctInputs.size()==1&&distinctIds.size()==choices.length,
+                "Repeated broad ingredients must retain one immutable choice list and one String per item identity");
+        var second=collect(shapeless("fixture:second_snapshot",Items.DIAMOND,2,slots));
+        check(second.processes().getFirst().inputs().getFirst()!=graph.processes().getFirst().inputs().getFirst(),
+                "Choice sharing must be scoped to one generation, with no global retained cache");
+        var identities=graph.processes().getFirst().inputs().getFirst().alternatives();
+        check(ValuationEvidenceSnapshot.canonicalAlternatives(identities)==identities,
+                "Source evidence must reuse already canonical recipe identities");
+        check(ValuationEvidenceSnapshot.canonicalAlternatives(List.of("stone", ":dirt", "minecraft:stone"))
+                        .equals(List.of("minecraft:dirt", "minecraft:stone", "minecraft:stone")),
+                "Implicit provider namespaces keep their native canonical diagnostics and multiplicity");
+        if(scale)new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
+                "Recipe memory fixture PASS: recipes="+recipes+", slots="+(recipes*9)
+                +", ingredient identity occurrences="+(recipes*9*choices.length)
+                +", retained distinct choices="+distinctInputs.size()+", retained distinct identity strings="+distinctIds.size()
+                +", max heap bytes="+Runtime.getRuntime().maxMemory()+", elapsed ms="+(System.nanoTime()-start)/1000000
+                +"; synthetic normalization only, not full pack startup");
     }
     private static void check(boolean condition,String message){checks++;if(!condition)throw new AssertionError(message);}
 }

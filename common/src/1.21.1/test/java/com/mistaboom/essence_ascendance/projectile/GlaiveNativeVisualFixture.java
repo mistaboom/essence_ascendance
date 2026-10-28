@@ -55,6 +55,12 @@ public final class GlaiveNativeVisualFixture {
             }
             done=true;
             try {
+                if (Boolean.getBoolean("essence.latentOre.modelsOnly")) {
+                    com.mistaboom.essence_ascendance.ore.LatentOreClientModelFixture.verify();
+                    verifyLatentOreItemModels(client);
+                    client.stop();
+                    return;
+                }
                 NativeGlaivePresentationTest.run();
                 verifyLatentOreItemModels(client);
                 renderedShaftMotion();
@@ -121,7 +127,7 @@ public final class GlaiveNativeVisualFixture {
                 throw new AssertionError("Latent Ore item lost native cube faces: host=" + host
                         + ", item=" + itemQuads + ", world=" + worldQuads);
             if (itemSprites.isEmpty() || itemSprites.stream().anyMatch(id ->
-                    !id.getPath().startsWith("block/latent_ore/item/")))
+                    !id.getPath().startsWith("block/latent_ore/generated/")))
                 throw new AssertionError("ItemRenderer selected a noncomposite Latent Ore inventory sprite: "
                         + host + " " + itemSprites);
             if (worldSprites.stream().anyMatch(id ->
@@ -129,14 +135,13 @@ public final class GlaiveNativeVisualFixture {
                 throw new AssertionError("Latent Ore world model lost its native host composite: "
                         + host + " " + worldSprites);
             Set<String> itemHosts = new HashSet<>(), worldHosts = new HashSet<>();
-            itemSprites.forEach(id -> itemHosts.add(id.getPath().substring("block/latent_ore/item/".length())));
+            itemSprites.forEach(id -> itemHosts.add(id.getPath().substring("block/latent_ore/generated/".length())));
             worldSprites.forEach(id -> worldHosts.add(id.getPath().substring("block/latent_ore/generated/".length())));
             if (!itemHosts.equals(worldHosts) || !variants.add(itemSprites))
                 throw new AssertionError("Latent Ore inventory host differs from its placed block or another item: "
                         + host + " " + itemSprites);
             for (ResourceLocation itemId : itemSprites) {
-                ResourceLocation worldId = ResourceLocation.fromNamespaceAndPath(itemId.getNamespace(),
-                        itemId.getPath().replace("block/latent_ore/item/", "block/latent_ore/generated/"));
+                ResourceLocation worldId = itemId;
                 NativeImage itemImage = itemImages.get(itemId), worldImage = worldImages.get(worldId);
                 if (worldImage == null || itemImage.getWidth() != worldImage.getWidth()
                         || itemImage.getHeight() != worldImage.getHeight())

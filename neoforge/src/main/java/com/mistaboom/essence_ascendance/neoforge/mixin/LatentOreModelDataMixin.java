@@ -2,10 +2,7 @@ package com.mistaboom.essence_ascendance.neoforge.mixin;
 
 import com.mistaboom.essence_ascendance.ore.LatentOreBlockEntity;
 import com.mistaboom.essence_ascendance.neoforge.client.LatentOreNeoForgeModels;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 //? if >=26.1.2
 /*import net.neoforged.neoforge.model.data.ModelData;*/
 //? if <26.1.2
@@ -25,14 +22,10 @@ public abstract class LatentOreModelDataMixin implements IBlockEntityExtension {
         return LatentOreNeoForgeModels.hostData(((LatentOreBlockEntity) (Object) this).hostState().orElse(null));
     }
 
-    @Inject(method = "loadAdditional", at = @At("RETURN"))
-    private void essenceAscendance$refreshHostModelData(CompoundTag tag, HolderLookup.Provider registries,
-                                                       CallbackInfo callback) {
-        essenceAscendance$requestHostModelData();
-    }
-
-    @Inject(method = "setHost", at = @At("RETURN"), remap = false)
-    private void essenceAscendance$refreshPlacedHostModelData(BlockState host, CallbackInfo callback) {
+    // Both native load APIs and item placement use this shared boundary. Matching the
+    // legacy loadAdditional overload alone misses 26's actual ValueInput packet path.
+    @Inject(method = "requestClientRenderUpdate", at = @At("HEAD"), remap = false)
+    private void essenceAscendance$refreshHostModelData(CallbackInfo callback) {
         essenceAscendance$requestHostModelData();
     }
 

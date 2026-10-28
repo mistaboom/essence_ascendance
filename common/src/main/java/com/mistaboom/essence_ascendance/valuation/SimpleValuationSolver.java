@@ -6,10 +6,14 @@ import java.util.*;
 
 /** Bounded material estimates. Recipe arithmetic is factual; seeds are policy, never access proof. */
 final class SimpleValuationSolver {
-    record Seed(long value, int priority, Map<String, Double> route, Map<String, Long> retainedMaterials) {
+    record Seed(long value, int priority, Map<String, Double> route, Map<String, Long> retainedMaterials, long ceiling) {
         Seed(long value, int priority, Map<String, Double> route) { this(value, priority, route, Map.of()); }
+        Seed(long value, int priority, Map<String, Double> route, Map<String, Long> retainedMaterials) {
+            this(value, priority, route, retainedMaterials, ProceduralValuationSettings.MAX_VALUE);
+        }
         Seed {
             if (value <= 0 || value > ProceduralValuationSettings.MAX_VALUE) throw new IllegalArgumentException("Invalid estimate");
+            if (ceiling <= 0 || ceiling > ProceduralValuationSettings.MAX_VALUE) throw new IllegalArgumentException("Invalid estimate ceiling");
             route = Map.copyOf(route); retainedMaterials = Map.copyOf(retainedMaterials);
             if (retainedMaterials.values().stream().anyMatch(x -> x <= 0)) throw new IllegalArgumentException("Invalid retained material count");
         }
@@ -20,6 +24,7 @@ final class SimpleValuationSolver {
     private static final class Group {
         final Map<String, Long> weights;
         final Seed anchor;
+        final long ceiling;
         long unit;
         String recipe = "", problem = "";
         Group(Map<String, Long> weights, Map<String, Seed> seeds) {
@@ -29,7 +34,9 @@ final class SimpleValuationSolver {
                     .thenComparingLong(weights::get).thenComparing(x -> x)).orElseThrow();
             anchor = seeds.get(id);
             long maximum = weights.values().stream().mapToLong(Long::longValue).max().orElseThrow();
-            unit = Math.min(anchor.value() / weights.get(id), ProceduralValuationSettings.MAX_VALUE / maximum);
+            ceiling = weights.entrySet().stream().mapToLong(entry -> seeds.get(entry.getKey()).ceiling() / entry.getValue())
+                    .min().orElse(ProceduralValuationSettings.MAX_VALUE / maximum);
+            unit = Math.min(anchor.value() / weights.get(id), ceiling);
             if (unit == 0) problem = "ZERO_WHOLE_UNIT_CONVERSION_PRECISION";
         }
         long amount(String item) { return Math.multiplyExact(unit, weights.get(item)); }
@@ -135,7 +142,7 @@ final class SimpleValuationSolver {
                 for (var returned : candidate.process().outputs()) if (returned.byproduct())
                     budget = budget.subtract(BigInteger.valueOf(groups.get(returned.itemId()).amount(returned.itemId())).multiply(integer(returned.count())));
                 BigInteger denominator = integer(candidate.output().count()).multiply(BigInteger.valueOf(candidate.target().weights.get(candidate.output().itemId())));
-                long maximum = ProceduralValuationSettings.MAX_VALUE / candidate.target().weights.values().stream().mapToLong(Long::longValue).max().orElseThrow();
+                long maximum = candidate.target().ceiling;
                 long estimate = budget.max(BigInteger.ONE).divide(denominator).max(BigInteger.ONE)
                         .min(BigInteger.valueOf(maximum)).longValueExact();
                 if (estimate < composed.getOrDefault(candidate.target(), Long.MAX_VALUE)) {
@@ -157,8 +164,9 @@ final class SimpleValuationSolver {
             }
             changed = false;
             for (var entry : composed.entrySet()) {
-                if (entry.getKey().unit != entry.getValue()) changed = true;
-                entry.getKey().unit = entry.getValue();
+                long bounded = Math.min(entry.getValue(), entry.getKey().ceiling);
+                if (entry.getKey().unit != bounded) changed = true;
+                entry.getKey().unit = bounded;
                 if (reasons.containsKey(entry.getKey())) entry.getKey().recipe = reasons.get(entry.getKey());
             }
             if (!changed) break;

@@ -1,8 +1,10 @@
 # Simple balance generation
 
-This development revision requires fresh Essence Ascendance saves, worlds and configs. It does not migrate previous generated profiles or old item and machine metadata.
+Profiles, worlds and configs from before the original simple-balance rewrite remain unsupported. The bulk-material policy update below does not require resetting current saves or configs.
 
 Values are estimates from shared item properties, common tags and published recipes. The engine performs a bounded recipe pass, handles output quantities and returned containers, and reconciles reversible material conversions. Complete static recipes constrain final payouts. Opaque recipe displays may inform estimates, but do not prove acquisition, fuel use, processing time or automation costs.
+
+Cheap bulk materials in the item tag `essence_ascendance:low_value_bulk_materials` have a one-Essence estimate ceiling. The defaults are cobblestone, stone and basalt, the native fluid-generator products. Packs can extend or replace the tag for their own bulk sources without a mod-specific adapter. Recipe composition cannot raise the ceiling; reversible compressed forms retain their exact material ratio, and complete recipes propagate the cheap input value to processed forms. Whole-unit conservation may reduce a payout further, including to zero. This is an explicit economy policy, not a measured farm rate or an automatic classification of every renewable crop, wood or mob drop. To pick up this correction in an existing current profile, run `/essence admin balance rebuild`; normal startup continues loading the saved profile, and no world or player reset is needed.
 
 Exact reversible conversions also recognize tagged ingredients when the same concrete item can fill every input slot. Only item pairs with an exact reverse recipe share a denomination; unrelated alternatives remain separate, and mixed ingredient combinations are not enumerated.
 
@@ -21,6 +23,14 @@ Equipment calibration uses measured default attributes grouped by relative stren
 Mining references include native Tool rule speeds as well as the representative block probes. This prevents a tool specialized for leaves or other unprobed blocks from appearing to have only empty-hand speed. The value is a declared block-specific peak, not a measured universal rate; actual harvesting still obeys the equipped tool's rules and block tags.
 
 Combat and mining strength are ranked separately. Native weapon classes and functional sword/melee-weapon tags distinguish weapons from mining tools; a tool is a melee reference only when no usable weapon reference exists. A weapon's default mining speed cannot make it entry-level combat gear, and a mining tool's attack damage does not place its mining band. Outlier bounds use distinct measurements across the compatible equipment slot before strength bands are assigned, so repeated variants do not vote and an extreme item cannot validate itself by landing alone in the highest band. With at least five distinct measurements the bound also allows the upper quartile plus three interquartile ranges, preserving ordinary wide material ladders such as durability; smaller samples retain the median-relative guard. This is a coarse extreme-outlier policy, not proof that every retained item is attainable. Each weapon family retains its own measured damage and cadence.
+
+## Generation memory
+
+Recipe normalization shares immutable item identities and ingredient-choice lists within one generation. Repeated crafting slots still consume their original quantities, and recipe outputs, returned containers and completeness rules are unchanged. Advisory source evidence reuses those normalized identities rather than rebuilding a second string graph. The lookup caches are local to collection; they neither intern strings globally nor retain native recipe objects after generation.
+
+An isolated fixture with 2,000 recipes, nine slots each and 128 alternatives per slot completed under a 256 MiB Java heap on Minecraft 1.21.1 and 26.1.2. Its 2,304,000 ingredient-identity occurrences retain one shared choice record and 128 distinct identity strings, instead of a fresh choice record and strings per slot. This verifies normalized recipe storage, not a whole ATM11 launch or a minimum pack memory setting. The playtester's crash log was unavailable, so the original startup failure remains unverified.
+
+Latent Ore also shares identical world and inventory atlas sprites, halving its generated image and mipmap copies. Minecraft 26.1.2 keeps four distinct overlay orientations per native texture instead of eight; 1.21.1 keeps one instead of two. The saving is small with default-resolution vanilla hosts and scales with texture resolution and host count.
 
 ## Pack configuration
 

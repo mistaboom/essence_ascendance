@@ -72,6 +72,7 @@ public final class GlaiveNativeVisualFixture {
         started = System.nanoTime();
         System.out.println("GlaiveNativeVisualFixture: registered; waiting for loaded title screen");
         ClientTickEvent.CLIENT_POST.register(client -> {
+            if (prepared && Boolean.getBoolean("essence.latentOre.modelsOnly")) return;
             if (failure != null) {
                 failure.printStackTrace();
                 System.exit(1);
@@ -84,6 +85,13 @@ public final class GlaiveNativeVisualFixture {
             if (!prepared) {
                 if (!(client.screen instanceof TitleScreen) || client.getOverlay() != null) return;
                 try {
+                    if (Boolean.getBoolean("essence.latentOre.modelsOnly")) {
+                        com.mistaboom.essence_ascendance.ore.LatentOreClientModelFixture.verify();
+                        verifyLatentOreNativeModels();
+                        prepared = true;
+                        client.stop();
+                        return;
+                    }
                     // 26.1 binds ItemStack components when a world is joined. Keep
                     // item/material assertions for a registry-bound native run;
                     // playback and queued-input checks need no world registry.
@@ -180,11 +188,10 @@ public final class GlaiveNativeVisualFixture {
                 assertOreOverlayUpright(quad, "item " + host);
                 var itemSprite = quad.materialInfo().sprite();
                 Identifier itemId = itemSprite.contents().name();
-                if (!itemId.getPath().startsWith("block/latent_ore/item/"))
+                if (!itemId.getPath().startsWith("block/latent_ore/generated/"))
                     throw new AssertionError("Latent Ore item uses a noncomposite sprite: " + itemId);
                 itemSprites.add(itemId);
-                Identifier worldId = Identifier.parse(itemId.toString().replace(
-                        "block/latent_ore/item/", "block/latent_ore/generated/"));
+                Identifier worldId = itemId;
                 NativeImage worldImage = worldImages.get(worldId);
                 if (worldImage == null)
                     throw new AssertionError("Latent Ore item lost its matching native world face: " + itemId);

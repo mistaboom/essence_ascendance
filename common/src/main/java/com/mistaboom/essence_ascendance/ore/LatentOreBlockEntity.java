@@ -35,6 +35,11 @@ public final class LatentOreBlockEntity extends BlockEntity {
     public void setHost(BlockState state) {
         initializeHost(state);
         setChanged();
+        requestClientRenderUpdate();
+    }
+
+    /** Loader model-data snapshots must be refreshed before a new chunk mesh is requested. */
+    private void requestClientRenderUpdate() {
         if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
 
@@ -57,11 +62,11 @@ public final class LatentOreBlockEntity extends BlockEntity {
         host = LatentOreHost.decode(tag.getCompound(LatentOreHost.HOST_TAG)).orElse(null);
         // Client packet handling uses the same load path as disk. Mark its chunk mesh dirty.
         if (level != null && level.isClientSide)
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+            requestClientRenderUpdate();
     }
 
     //? if >=26.1.2
-    /*@Override protected void loadAdditional(ValueInput input) { super.loadAdditional(input); host = LatentOreHost.decode(input.read(LatentOreHost.HOST_TAG, CompoundTag.CODEC).orElseGet(CompoundTag::new)).orElse(null); if (level != null && level.isClientSide()) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS); }*/
+    /*@Override protected void loadAdditional(ValueInput input) { super.loadAdditional(input); host = LatentOreHost.decode(input.read(LatentOreHost.HOST_TAG, CompoundTag.CODEC).orElseGet(CompoundTag::new)).orElse(null); if (level != null && level.isClientSide()) requestClientRenderUpdate(); }*/
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {

@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.Block;
  */
 final class ProceduralValuationTags {
 
+    static final TagKey<Item> LOW_VALUE_BULK_MATERIALS = item("essence_ascendance", "low_value_bulk_materials");
     static final TagKey<Item> ORES = item("c", "ores");
     static final TagKey<Item> RAW_MATERIALS = item("c", "raw_materials");
     static final TagKey<Item> INGOTS = item("c", "ingots");

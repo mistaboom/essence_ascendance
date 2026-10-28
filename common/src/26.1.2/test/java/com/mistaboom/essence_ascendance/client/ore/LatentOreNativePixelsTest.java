@@ -48,6 +48,10 @@ public final class LatentOreNativePixelsTest {
         }
         List<SpriteContents> prepared = LatentOreSprites.prepare(resources, nativeFaces);
         try {
+            require(prepared.size() == nativeFaces.size() + 1 + 4 * textures.size(),
+                    "Five native faces need four distinct overlay orientations each, with no inventory duplicates");
+            require(prepared.stream().map(SpriteContents::name).distinct().count() == prepared.size(),
+                    "Prepared sprites must have unique atlas identities");
             // Use the same native stitcher and atlas-sprite factory as SpriteLoader, without
             // constructing Minecraft, a window or a GPU device just to read Options.
             Stitcher<SpriteContents> stitcher = new Stitcher<>(4096, 4096, 1, 0);

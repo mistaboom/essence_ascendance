@@ -20,6 +20,8 @@ Some recipes expose only a partial display. Those can help estimate material con
 
 A low or zero payout can follow cheap recipes, conversion limits or rounding to whole Essence units. It does not automatically mean the item has no use. The current generator does not apply a special zero-value rule simply because an item can be automated.
 
+Cobblestone, stone and basalt have a low bulk-material estimate ceiling of one Essence because native generators produce them repeatedly without consuming material inputs. Expensive alternative recipes cannot raise that ceiling. Compressed forms preserve their material ratios, and complete recipes carry the cheap value into processed forms; whole-unit conservation can reduce the final payout further. Packs can add their own materials through the item tag `essence_ascendance:low_value_bulk_materials`. Existing current profiles need `/essence admin balance rebuild` to receive this correction; saves and player progress do not need to be reset.
+
 ## Item components
 
 Different enchantments and levels can change an enchanted book's actual payout within its catalog budget. A base-item report row does not describe every possible component combination. Check the actual stack's tooltip or the Crucible's result when testing component-dependent items.

@@ -32,6 +32,7 @@ public final class ProviderReferenceTest {
         nativeWeaponFamilies();
         independentCapabilityBands();
         nativePayoutEligibility();
+        bulkPolicyDiagnostics();
         var hand = PackEvidenceCollector.emptyHandMiningReference();
         check(hand.reachable() && hand.usableReference(), "Innate empty hand remains directly usable");
         Map<String, EquipmentReference> measured = new java.util.TreeMap<>();
@@ -181,6 +182,22 @@ public final class ProviderReferenceTest {
         var allowed = com.mistaboom.essence_ascendance.balance.economy.EconomyGenerator.generate(evidence, graph, routes, SETTINGS, exact);
         check(allowed.resources().get("minecraft:barrier").dissolutionYield().amount() == 5,
                 "Explicit exact economy override can opt an administrative item into payout");
+    }
+
+    private static void bulkPolicyDiagnostics() {
+        String policy = "low_value_bulk_materials policy ceiling=1; cheap repeatable bulk generation";
+        var estimate = new com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult(
+                BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE), 1, 1, java.util.Optional.empty(), .3,
+                Map.of(com.mistaboom.essence_ascendance.essence.EssenceTypes.UTILITY, 1L), 0, List.of(policy, "temporary recipe diagnostics"),
+                new com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult.RoutingDiagnostics(List.of(),
+                        com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult.ConfidenceBand.LOW),
+                com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult.ValueEvidence.PROPERTY_RECIPE_ESTIMATE,
+                "PROPERTY_ESTIMATE");
+        var snapshot = new com.mistaboom.essence_ascendance.valuation.ValuationEvidenceSnapshot(Map.of(), Map.of(), Map.of());
+        var resource = PackEvidenceCollector.resolveResources(List.of(estimate), snapshot, new EvidenceSink()).get("minecraft:cobblestone");
+        check(resource.economicValue() == 1 && resource.warnings().contains(policy)
+                        && resource.warnings().stream().noneMatch(reason -> reason.contains("temporary recipe diagnostics")),
+                "Saved report evidence retains the bulk policy without duplicating transient recipe diagnostics");
     }
 
     private static void effectiveDefaultEquipment() {

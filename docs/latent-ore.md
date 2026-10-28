@@ -250,6 +250,25 @@ saved components. No block-entity renderer or per-ore ticker exists. Debris uses
 the saved host, with a bounded two-second removal snapshot for destruction packets
 that arrive after the BE is gone; this cache contains no textures or models.
 
+Host changes now use one shared render-update boundary, including the real
+`ValueInput` packet loader on Minecraft 26.1.2. NeoForge queues its model-data
+refresh before the chunk mesh update. The previous hook matched only the legacy
+NBT overload, allowing an initially empty snapshot to retain the diagnostic
+checkerboard even after the correct stone/deepslate host arrived. The fix uses
+the loader's ordinary model-data API and needs no mod-specific renderer adapter.
+The resource regression suite checks each target's native load API and the
+compiled refresh hook, including refresh-before-remesh ordering.
+The isolated client probe can be run with
+`./gradlew :neoforge:26.1.2:runClient -I gradle/glaive-visual.init.gradle -PlatentOreModelsOnly=true`.
+It checks the applied block-entity mixin, native serialized host updates, immutable
+model-data snapshots and the loaded native ore models, then exits at the title
+screen. This detached-entity probe does not simulate joined-world chunk scheduling.
+
+World and inventory faces also share identical composited atlas sprites. The
+26.1.2 renderer retains four orientation variants per source image, rather than
+duplicating those four for inventory icons; each source image is decoded into
+pixel data once for all orientations.
+
 Vanilla hosts are prepared during normal startup. At connection/profile changes,
 the server sends selected and retained host IDs. A changed catalog requests one
 coalesced resource reload before the new sprites can be used. Encountering or

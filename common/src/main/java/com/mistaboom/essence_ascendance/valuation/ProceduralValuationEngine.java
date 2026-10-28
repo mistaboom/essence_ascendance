@@ -157,6 +157,13 @@ public final class ProceduralValuationEngine {
         }
         Double override = ValuationGenerationInputs.economicValue(item);
         if (override != null && Double.isFinite(override) && override > 0) { base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(1, Math.round(override))); priority = 5; signals.add("explicit resource-value override"); }
+        long ceiling = ProceduralValuationSettings.MAX_VALUE;
+        if (stack.is(ProceduralValuationTags.LOW_VALUE_BULK_MATERIALS)) {
+            ceiling = ProceduralValuationSettings.LOW_VALUE_BULK_CEILING;
+            base = Math.min(base, ceiling);
+            signals.add("low_value_bulk_materials policy ceiling=" + ceiling
+                    + "; cheap repeatable bulk generation; recipe composition and exact conversions cannot raise this ceiling");
+        }
         if (route.isEmpty()) { vote(route,"utility",1); signals.add("generic positive fallback; item name and namespace unused"); }
         //? if >=26.1.2
         /*Item remainder = item.getCraftingRemainder() == null ? null : item.getCraftingRemainder().item().value();*/
@@ -171,7 +178,7 @@ public final class ProceduralValuationEngine {
             retained.merge(BuiltInRegistries.ITEM.getKey(Items.BOOK).toString(), ProceduralValuationSettings.STORED_ENCHANTMENT_CARRIER_BUDGET, Math::max);
             signals.add("native stored-enchantment carrier plus shared premium ceiling; actual effects and levels determine realized yield");
         }
-        return new Intrinsic(new SimpleValuationSolver.Seed(base, priority, route, retained), List.copyOf(signals));
+        return new Intrinsic(new SimpleValuationSolver.Seed(base, priority, route, retained, ceiling), List.copyOf(signals));
     }
     /** Exact native identities only: loader-added enum constants have no inferred premium or ordering. */
     static long applyRarityPolicy(long base, String declaredRarity, List<String> signals) {

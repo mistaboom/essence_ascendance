@@ -100,7 +100,7 @@ public final class FabricWorldJoin2612 implements ClientModInitializer {
                     quads.forEach(quad -> sprites.add(quad.materialInfo().sprite().contents().name().toString()));
                 }
                 if (count < 6 || sprites.isEmpty() || sprites.stream().anyMatch(id ->
-                        !id.startsWith("essence_ascendance:block/latent_ore/item/")))
+                        !id.startsWith("essence_ascendance:block/latent_ore/generated/")))
                     throw new AssertionError("Latent Ore inventory item did not resolve item host faces: host="
                             + host + ", quads=" + count + ", sprites=" + sprites);
                 if (!variants.add(sprites))

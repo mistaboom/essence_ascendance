@@ -18,6 +18,12 @@ public final class EffectiveProduction {
     static ProductionGraph collect(List<RecipeHolder<?>> recipes,HolderLookup.Provider registries,
             java.util.function.BiConsumer<String,String> unsupported){
         var processes=new ArrayList<ProductionGraph.Process>();var warnings=new ArrayList<String>();
+        // These caches live only for this published recipe snapshot. Large common tags
+        // recur across recipes and shaped slots; keep their immutable facts once without
+        // interning strings globally or retaining native ingredients after generation.
+        Map<Item,String> itemIds=new IdentityHashMap<>();
+        Map<Item,Boolean> customRemainders=new IdentityHashMap<>();
+        Map<List<String>,ProductionGraph.Input> sharedInputs=new HashMap<>();
         int failed=0;
         for(var holder:recipes){
             BalancePerformance.increment("production_recipes_inspected");
@@ -33,22 +39,29 @@ public final class EffectiveProduction {
                     var alternatives=new TreeSet<String>();var remainders=new TreeSet<String>();
                     for(var stack:choices){
                         if(stack.isEmpty())continue;
-                        alternatives.add(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+                        alternatives.add(itemId(itemIds,stack.getItem()));
                         //? if >=26.1.2
                         /*var returned=recipe instanceof CraftingRecipe && stack.getItem().getCraftingRemainder()!=null ? stack.getItem().getCraftingRemainder().item().value() : null;*/
                         //? if <26.1.2
                         var returned=recipe instanceof CraftingRecipe?stack.getItem().getCraftingRemainingItem():null;
-                        remainders.add(returned==null?"":BuiltInRegistries.ITEM.getKey(returned).toString());
-                        if(recipe instanceof CraftingRecipe)complete &= !customRemainder(stack.getItem());
+                        remainders.add(returned==null?"":itemId(itemIds,returned));
+                        if(recipe instanceof CraftingRecipe)complete &= !customRemainders.computeIfAbsent(stack.getItem(),EffectiveProduction::customRemainder);
                     }
                     if(alternatives.isEmpty()){complete=false;continue;}
-                    inputs.add(new ProductionGraph.Input(List.copyOf(alternatives),1,true));
+                    List<String> identities=List.copyOf(alternatives);
+                    ProductionGraph.Input normalized=sharedInputs.get(identities);
+                    if(normalized==null){
+                        normalized=new ProductionGraph.Input(identities,1,true);
+                        sharedInputs.put(normalized.alternatives(),normalized);
+                    }
+                    // Repeated slots remain separate entries, so their consumed counts add.
+                    inputs.add(normalized);
                     if(remainders.size()==1&&!remainders.first().isEmpty())returns.merge(remainders.first(),1.0,Double::sum);
                     else if(remainders.size()>1)complete=false;
                 }
                 if(inputs.isEmpty()){unsupported.accept("generic_recipe","No static consumed item inputs");continue;}
                 var outputs=new ArrayList<ProductionGraph.Output>();
-                outputs.add(new ProductionGraph.Output(BuiltInRegistries.ITEM.getKey(output.getItem()).toString(),output.getCount(),1,false));
+                outputs.add(new ProductionGraph.Output(itemId(itemIds,output.getItem()),output.getCount(),1,false));
                 returns.forEach((id,n)->outputs.add(new ProductionGraph.Output(id,n,1,true)));
                 //? if >=26.1.2
                 /*double ticks=recipe instanceof AbstractCookingRecipe cooking?cooking.cookingTime():0;*/
@@ -73,7 +86,12 @@ public final class EffectiveProduction {
         }
         warnings.add("Only complete static material recipes constrain payouts. Other published recipe views are estimates; custom operations, source access, fuel and throughput are not inferred.");
         BalancePerformance.count("normalized_production_nodes",processes.size());
+        BalancePerformance.count("normalized_production_item_identities",itemIds.size());
+        BalancePerformance.count("normalized_production_input_choices",sharedInputs.size());
         return new ProductionGraph(processes,warnings);
+    }
+    private static String itemId(Map<Item,String> identities,Item item){
+        return identities.computeIfAbsent(item,value->BuiltInRegistries.ITEM.getKey(value).toString());
     }
     private static boolean nativeStatic(Recipe<?> recipe){
         var type=recipe.getClass();

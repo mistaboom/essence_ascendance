@@ -5,6 +5,7 @@ public final class ProceduralValuationSettings {
     public static final long MAX_VALUE = Long.MAX_VALUE / com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.SCALE;
     public static final long STORED_ENCHANTMENT_CARRIER_BUDGET = 4;
     public static final int MAX_ESTIMATE_PASSES = 12;
+    public static final long LOW_VALUE_BULK_CEILING = 1;
     public static final long DEFAULT_BASE = 24, BLOCK_BASE = 32, ORE_BASE = 180,
             RAW_MATERIAL_BASE = 160, INGOT_BASE = 150, GEM_BASE = 220, NUGGET_BASE = 18,
             STORAGE_BLOCK_BASE = 1350, TOOL_BASE = 240, WEAPON_BASE = 280, ARMOR_BASE = 300,

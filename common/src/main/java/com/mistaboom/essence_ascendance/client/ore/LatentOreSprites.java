@@ -62,7 +62,9 @@ public final class LatentOreSprites {
         return id("block/latent_ore/generated/" + nativeTexture.getNamespace() + "/" + nativeTexture.getPath());
     }
     public static ResourceLocation itemCompositeId(ResourceLocation nativeTexture) {
-        return id("block/latent_ore/item/" + nativeTexture.getNamespace() + "/" + nativeTexture.getPath());
+        // World and inventory faces use identical pixels. Share the atlas allocation,
+        // including its mip levels, instead of keeping a second native image alive.
+        return compositeId(nativeTexture);
     }
 
     // World/item face sprite with unchanged host pixels and an upright ore mask.
@@ -78,14 +80,7 @@ public final class LatentOreSprites {
                 + "/" + nativeTexture.getNamespace() + "/" + nativeTexture.getPath());
     }*/
     /*public static ResourceLocation orientedItemCompositeId(ResourceLocation nativeTexture, int quarterTurn) {
-        String orientation = switch (quarterTurn) {
-            case 1 -> "u_down";
-            case -1 -> "u_up";
-            case 2 -> "v_up";
-            default -> throw new IllegalArgumentException("Overlay turn must be -1, 1 or 2");
-        };
-        return id("block/latent_ore/item/face_" + orientation
-                + "/" + nativeTexture.getNamespace() + "/" + nativeTexture.getPath());
+        return orientedCompositeId(nativeTexture, quarterTurn);
     }*/
     //? }
 
@@ -115,16 +110,12 @@ public final class LatentOreSprites {
                             int[] nativePixels = pixels(nativeImage);
                             for (int pixel : nativePixels) if ((pixel >>> 24) != 255)
                                 throw new IllegalArgumentException("non-opaque texture " + texture);
-                            generated.put(texture, compose(compositeId(texture), nativeImage, transition, transitionPixels, ore, orePixels));
-                            generated.put(itemCompositeId(texture), compose(itemCompositeId(texture),
-                                    nativeImage, transition, transitionPixels, ore, orePixels, 0));
+                            generated.put(texture, compose(compositeId(texture), nativeImage, nativePixels,
+                                    transition, transitionPixels, ore, orePixels, 0));
                             //? if >=26.1.2 {
                             /*for (int turn : new int[]{-1, 1, 2})
                                 generated.put(orientedCompositeId(texture, turn), compose(orientedCompositeId(texture, turn),
-                                        nativeImage, transition, transitionPixels, ore, orePixels, turn));*/
-                            /*for (int turn : new int[]{-1, 1, 2})
-                                generated.put(orientedItemCompositeId(texture, turn), compose(orientedItemCompositeId(texture, turn),
-                                        nativeImage, transition, transitionPixels, ore, orePixels, turn));*/
+                                        nativeImage, nativePixels, transition, transitionPixels, ore, orePixels, turn));*/
                             //? }
                             nativeTextures.add(texture);
                         }
@@ -169,12 +160,12 @@ public final class LatentOreSprites {
 
     private static SpriteContents compose(ResourceLocation name, NativeImage host, NativeImage transition,
                                           int[] transitionPixels, NativeImage ore, int[] orePixels) {
-        return compose(name, host, transition, transitionPixels, ore, orePixels, 0);
+        return compose(name, host, pixels(host), transition, transitionPixels, ore, orePixels, 0);
     }
 
-    private static SpriteContents compose(ResourceLocation name, NativeImage host, NativeImage transition,
+    private static SpriteContents compose(ResourceLocation name, NativeImage host, int[] hostPixels, NativeImage transition,
                                           int[] transitionPixels, NativeImage ore, int[] orePixels, int quarterTurn) {
-        int[] composed = TexturePixels.composeLatentOre(pixels(host), host.getWidth(), host.getHeight(),
+        int[] composed = TexturePixels.composeLatentOre(hostPixels, host.getWidth(), host.getHeight(),
                 transitionPixels, transition.getWidth(), transition.getHeight(), orePixels, ore.getWidth(), ore.getHeight(),
                 quarterTurn);
         return sprite(name, host, composed);

@@ -101,6 +101,10 @@ public final class PackEvidenceCollector {
             List<String> warnings = List.of(external ? "catalog_estimate; acquisition and supply unexamined"
                             : "endogenous_excluded_from_external_baselines",
                     "generated_yield_eligibility=" + eligibility.status() + "; " + eligibility.reason());
+            for (String factor : value.factors()) if (factor.startsWith("low_value_bulk_materials policy ceiling=")) {
+                warnings = List.of(warnings.get(0), warnings.get(1), factor);
+                break;
+            }
             resources.put(id, new ResourceEvidence(id, stage, Availability.UNKNOWN, Automation.UNKNOWN,
                     false, external, amount, value.confidence(), snapshot.sources().getOrDefault(id, List.of()), warnings));
         }

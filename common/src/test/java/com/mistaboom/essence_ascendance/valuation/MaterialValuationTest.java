@@ -1,6 +1,13 @@
 package com.mistaboom.essence_ascendance.valuation;
 
 import com.mistaboom.essence_ascendance.balance.economy.ProductionGraph;
+import com.mistaboom.essence_ascendance.balance.economy.EconomyGenerator;
+import com.mistaboom.essence_ascendance.balance.config.BalanceOverrides;
+import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
+import com.mistaboom.essence_ascendance.balance.engine.*;
+import com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat;
+import net.minecraft.core.Holder;
+import net.minecraft.world.item.Item;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.Bootstrap;
@@ -12,11 +19,11 @@ import java.util.*;
 public final class MaterialValuationTest {
     private static int checks;
     private static final String GATHERING = "essence_ascendance:gathering", UTILITY = "essence_ascendance:utility";
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         Thread.currentThread().setUncaughtExceptionHandler((thread, failure) -> failure.printStackTrace(
                 new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
-        fallbackAndAlternatives(); dependencyComposition(); completeBillPrecedence(); refinementCycles(); exactDenominations(); taggedDenominations(); recipesAndRemainders(); cosmeticAndOrder(); boundedWork();
-        SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); nativeProperties(); extendedRarityPolicy();
+        fallbackAndAlternatives(); dependencyComposition(); completeBillPrecedence(); refinementCycles(); exactDenominations(); taggedDenominations(); recipesAndRemainders(); cosmeticAndOrder(); boundedWork(); bulkMaterialCeilings();
+        SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); nativeProperties(); extendedRarityPolicy(); nativeBulkMaterialPolicy();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("MaterialValuationTest: " + checks + " generic estimate/conservation checks PASS");
     }
     private static SimpleValuationSolver.Seed seed(long value, int priority) {
@@ -267,6 +274,78 @@ public final class MaterialValuationTest {
         var result=SimpleValuationSolver.solve(seeds,new ProductionGraph(recipes,List.of()));
         check(result.passes()==ProceduralValuationSettings.MAX_ESTIMATE_PASSES&&result.unresolvedProcesses()>0,"Long chains stop at the fixed estimate-work bound and retain unresolved diagnostics");
         check(result.values().get("i39").status().contains("PASS_LIMIT"),"A bounded estimate is never presented as a complete conservation proof");
+    }
+    private static void bulkMaterialCeilings() {
+        var bulk = new SimpleValuationSolver.Seed(1, 1, Map.of(UTILITY, 1.0), Map.of(), 1);
+        var seeds = Map.of("bulk", bulk, "compressed", seed(1350, 4), "expensive", seed(500, 3),
+                "polished", seed(32, 1), "slab", seed(32, 1), "basalt", bulk);
+        var recipes = List.of(convert("compress", "bulk", 9, "compressed", 1),
+                convert("unpack", "compressed", 1, "bulk", 9),
+                convert("expensive_alternative", "expensive", 1, "bulk", 1),
+                convert("expensive_basalt", "expensive", 1, "basalt", 1),
+                convert("polish", "basalt", 1, "polished", 1),
+                convert("slabs", "bulk", 3, "slab", 6));
+        var graph = new ProductionGraph(recipes, List.of());
+        var result = SimpleValuationSolver.solve(seeds, graph);
+        check(result.values().get("bulk").amount() == 1 && result.values().get("basalt").amount() == 1,
+                "Cheap bulk policy survives both expensive alternatives and a higher-priority conversion-family anchor");
+        check(result.values().get("compressed").amount() == 9 && result.values().get("polished").amount() == 1,
+                "Compressed and processed bulk material cannot launder the low-value policy into a premium");
+        check(result.values().get("slab").amount() == 0 && result.values().get("expensive").amount() == 500,
+                "Count-multiplying bulk recipes round down without devaluing unrelated expensive inputs");
+        check(result.equals(SimpleValuationSolver.solve(seeds, new ProductionGraph(recipes.reversed(), List.of()))),
+                "Bulk ceilings are independent of recipe iteration order");
+        Map<String, ResourceEvidence> resources = new TreeMap<>();
+        Map<String, Map<String, Long>> routes = new TreeMap<>();
+        result.values().forEach((id, value) -> {
+            resources.put(id, new ResourceEvidence(id, ProgressionBand.ENTRY, Availability.UNKNOWN, Automation.UNKNOWN,
+                    false, true, value.amount(), .3, List.of(), List.of()));
+            routes.put(id, value.route());
+        });
+        var evidence = new PackEvidence(resources, List.of(), List.of(), Map.of(), List.of(), List.of(), Map.of());
+        var economy = EconomyGenerator.generate(evidence, graph, routes, BalanceSettings.defaults(), BalanceOverrides.empty());
+        check(economy.resources().get("bulk").dissolutionYield().amount() == 1
+                        && economy.resources().get("basalt").dissolutionYield().amount() == 1
+                        && economy.resources().get("compressed").dissolutionYield().amount() == 9,
+                "One-unit bulk estimates remain one whole Essence at final payout, with exact compressed denominations");
+        check(economy.invariants().stream().allMatch(invariant -> invariant.passed()),
+                "Final bulk payouts satisfy every complete recipe and conversion constraint");
+        var retained = new SimpleValuationSolver.Seed(1, 1, Map.of(UTILITY, 1.0), Map.of("expensive", 1L), 1);
+        check(solve(Map.of("bulk", retained, "expensive", seed(500, 3))).values().get("bulk").amount() == 1,
+                "A retained-material estimate cannot bypass an explicit bulk ceiling");
+    }
+    private static void nativeBulkMaterialPolicy() throws Exception {
+        List<Item> defaults = new ArrayList<>();
+        try (var resource = MaterialValuationTest.class.getResourceAsStream(
+                "/data/essence_ascendance/tags/item/low_value_bulk_materials.json")) {
+            check(resource != null, "Bulk policy tag is shipped as a datapack resource");
+            var json = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(resource,
+                    java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            for (var entry : json.getAsJsonArray("values")) defaults.add(BuiltInRegistries.ITEM.stream()
+                    .filter(item -> BuiltInRegistries.ITEM.getKey(item).toString().equals(entry.getAsString())).findFirst().orElseThrow());
+        }
+        check(new HashSet<>(defaults).equals(Set.of(Items.COBBLESTONE, Items.STONE, Items.BASALT)),
+                "Default low-value policy names the three native nonconsuming fluid-generator products");
+        var before = RegistryTagTestCompat.snapshot(BuiltInRegistries.ITEM);
+        var tags = new HashMap<>(before);
+        List<Holder<Item>> tagged = new ArrayList<>();
+        defaults.forEach(item -> tagged.add(item.builtInRegistryHolder()));
+        // Any pack can declare an additional bulk material; no namespace or item-name rule is needed.
+        tagged.add(Items.PAPER.builtInRegistryHolder());
+        tags.put(ProceduralValuationTags.LOW_VALUE_BULK_MATERIALS, tagged);
+        try {
+            RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, tags);
+            for (var item : List.of(Items.COBBLESTONE, Items.STONE, Items.BASALT, Items.PAPER)) {
+                var measured = ProceduralValuationEngine.measure(item, 128.0);
+                check(measured.seed().value() == 1 && measured.seed().ceiling() == 1
+                                && measured.signals().stream().anyMatch(signal -> signal.contains("low_value_bulk_materials policy ceiling=1")),
+                        "Loaded bulk tag imposes the diagnosed one-unit ceiling after property premiums");
+            }
+            check(ProceduralValuationEngine.measure(Items.DIAMOND).seed().ceiling() == ProceduralValuationSettings.MAX_VALUE,
+                    "Other potentially farmable materials are not classified without an explicit policy tag");
+        } finally { RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, before); }
+        check(ProceduralValuationEngine.measure(Items.PAPER).seed().ceiling() == ProceduralValuationSettings.MAX_VALUE,
+                "Removing a policy tag clears the ceiling on the next valuation generation");
     }
     private static void nativeProperties() {
         var food=ProceduralValuationEngine.measure(Items.BREAD);var tool=ProceduralValuationEngine.measure(Items.IRON_PICKAXE);var weapon=ProceduralValuationEngine.measure(Items.IRON_SWORD);

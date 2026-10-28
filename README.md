@@ -78,7 +78,7 @@ Essence Ascendance estimates item values from shared item properties and recipes
 - Download the Essence Ascendance jar for your Minecraft version and loader and place it, with its required dependencies, in your instance's `mods` folder. Choose dependency versions for the same loader and Minecraft version.
 - **JEI is optional.**
 
-**Updating from beta.7 or earlier requires a fresh world and fresh configuration.** See the [beta.8 release notes](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.8) for that upgrade boundary. Beta.12 adds no new world/profile reset when updating from beta.11 within the same Minecraft version.
+**Updating from beta.7 or earlier requires a fresh world and fresh configuration.** See the [beta.8 release notes](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.8) for that upgrade boundary. Beta.13 requires no world or configuration reset when updating from beta.12 within the same Minecraft version. Run `/essence admin balance rebuild` after updating to apply the corrected cheap bulk-material values to an existing balance profile.
 
 ## Help shape the beta
 
