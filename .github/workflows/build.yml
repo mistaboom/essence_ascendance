@@ -30,7 +30,7 @@ jobs:
         id: metadata
         run: python3 tools/release/prepare.py
       - name: Install the declared target Java toolchains
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           # The final (newest) JDK is the launcher; Gradle selects each target's toolchain.
