@@ -10,8 +10,6 @@ import com.mistaboom.essence_ascendance.network.CombatVisualFeedback;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
 import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
@@ -75,8 +73,7 @@ final class OffenseProjectilePayloads {
                     VisualIntensity.MAJOR, SemanticVisualColor.OFFENSE, 20,
                     level.getGameTime() ^ impact.projectile().getUUID().getLeastSignificantBits(),
                     (float) data.getDouble("Radius"), data.getInt("TargetLimit"));
-            impact.owner().serverLevel().playSound(null, point.x, point.y, point.z, SoundEvents.GENERIC_EXPLODE,
-                    SoundSource.PLAYERS, 0.35F, 1.5F);
+
         }
     }
     private static final class Rooting extends Base {

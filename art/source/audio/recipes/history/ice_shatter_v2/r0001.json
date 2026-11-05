@@ -1,0 +1,292 @@
+{
+  "schema": 1,
+  "assetId": "ice_shatter_v2",
+  "seed": 26110110,
+  "sampleRate": 48000,
+  "duration": 0.72,
+  "peakDb": -9,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.ice.shatter"
+    ],
+    "role": "element",
+    "description": "Crisp crystalline fracture and small falling scatter; distinct from the hollow ward break.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Ice shatter"
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 650,
+      "highHz": 7200,
+      "spectralTiltDbOct": -4,
+      "gain": 0.3,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_fracture",
+      "lengthSeconds": 0.08
+    },
+    {
+      "type": "tone",
+      "frequency": 150,
+      "harmonics": [
+        1,
+        0.3,
+        0.07
+      ],
+      "gain": 0.14,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.4,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_cold_break_body",
+      "lengthSeconds": 0.11
+    },
+    {
+      "type": "modal",
+      "frequency": 860,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.14
+        },
+        {
+          "ratio": 1.43,
+          "gain": 0.24,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 2.61,
+          "gain": 0.08,
+          "decaySeconds": 0.035
+        }
+      ],
+      "gain": 0.15,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_falling_fragment",
+      "lengthSeconds": 0.45
+    },
+    {
+      "type": "modal",
+      "frequency": 1210,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.14
+        },
+        {
+          "ratio": 1.43,
+          "gain": 0.24,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 2.61,
+          "gain": 0.08,
+          "decaySeconds": 0.035
+        }
+      ],
+      "gain": 0.1,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "04_falling_fragment",
+      "startSeconds": 0.035,
+      "lengthSeconds": 0.45
+    },
+    {
+      "type": "modal",
+      "frequency": 1630,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.14
+        },
+        {
+          "ratio": 1.43,
+          "gain": 0.24,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 2.61,
+          "gain": 0.08,
+          "decaySeconds": 0.035
+        }
+      ],
+      "gain": 0.08,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "05_falling_fragment",
+      "startSeconds": 0.08,
+      "lengthSeconds": 0.45
+    },
+    {
+      "type": "modal",
+      "frequency": 1070,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.14
+        },
+        {
+          "ratio": 1.43,
+          "gain": 0.24,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 2.61,
+          "gain": 0.08,
+          "decaySeconds": 0.035
+        }
+      ],
+      "gain": 0.07,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "06_falling_fragment",
+      "startSeconds": 0.13,
+      "lengthSeconds": 0.45
+    },
+    {
+      "type": "modal",
+      "frequency": 2220,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.14
+        },
+        {
+          "ratio": 1.43,
+          "gain": 0.24,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 2.61,
+          "gain": 0.08,
+          "decaySeconds": 0.035
+        }
+      ],
+      "gain": 0.04,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "07_falling_fragment",
+      "startSeconds": 0.21,
+      "lengthSeconds": 0.45
+    }
+  ]
+}

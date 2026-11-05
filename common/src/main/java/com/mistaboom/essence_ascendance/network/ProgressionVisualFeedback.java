@@ -34,6 +34,7 @@ public final class ProgressionVisualFeedback {
     }
 
     public static void vitalityPurge(ServerPlayer player, double recovered) {
+        FeedbackDispatch.player(player, "vitality.purge");
         CombatVisualFeedback.link(player.serverLevel(), TransientVisualIds.WORLD_VITALITY_PURGE,
                 player.getBoundingBox().getCenter(), player, player, null, Vec3.ZERO,
                 scaled(recovered, 1.0F, 1.55F), 1.0F, VisualIntensity.STANDARD,
@@ -42,6 +43,7 @@ public final class ProgressionVisualFeedback {
     }
 
     public static void vitalitySurge(ServerPlayer player, double healthFractionLost) {
+        FeedbackDispatch.player(player, "vitality.surge");
         CombatVisualFeedback.link(player.serverLevel(), TransientVisualIds.WORLD_VITALITY_SURGE,
                 player.getBoundingBox().getCenter(), player, player, null, player.getDeltaMovement(),
                 Math.clamp(1.05F + (float) healthFractionLost, 1.05F, 1.55F), 1.0F,
@@ -50,6 +52,7 @@ public final class ProgressionVisualFeedback {
     }
 
     public static void deathDefiance(ServerPlayer player, boolean spirit, boolean reform) {
+        FeedbackDispatch.player(player, reform ? "vitality.reform" : "vitality.rescue");
         CombatVisualFeedback.link(player.serverLevel(), TransientVisualIds.WORLD_DEATH_DEFIANCE,
                 player.getBoundingBox().getCenter(), player, player, null, new Vec3(0, 1, 0),
                 reform ? 1.15F : 1.45F, 1.2F, VisualIntensity.MAJOR,

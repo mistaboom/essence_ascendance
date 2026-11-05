@@ -1,0 +1,1122 @@
+{
+  "schema": 1,
+  "date": "2026-11-02",
+  "skills": {
+    "frenzy": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "armor_crack": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "desperation": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "death_rush": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "kindling": {
+      "status": "implemented",
+      "reason": "Confirmed ignition and burst; periodic buildup/drift and burn ticks stay silent.",
+      "recipes": [
+        "essence_ascendance:ignition",
+        "essence_ascendance:combustion"
+      ],
+      "profiles": []
+    },
+    "combustion": {
+      "status": "implemented",
+      "reason": "Confirmed ignition and burst; periodic buildup/drift and burn ticks stay silent.",
+      "recipes": [
+        "essence_ascendance:ignition",
+        "essence_ascendance:combustion"
+      ],
+      "profiles": []
+    },
+    "frostbite": {
+      "status": "implemented",
+      "reason": "Freeze/shatter transitions; periodic frost drift stays silent.",
+      "recipes": [
+        "essence_ascendance:freeze",
+        "essence_ascendance:shatter"
+      ],
+      "profiles": []
+    },
+    "shatter": {
+      "status": "implemented",
+      "reason": "Freeze/shatter transitions; periodic frost drift stays silent.",
+      "recipes": [
+        "essence_ascendance:freeze",
+        "essence_ascendance:shatter"
+      ],
+      "profiles": []
+    },
+    "static_charge": {
+      "status": "implemented",
+      "reason": "One primary discharge; chain-hop parameter excludes repeated arc accents.",
+      "recipes": [
+        "essence_ascendance:static_arc"
+      ],
+      "profiles": []
+    },
+    "chain_strike": {
+      "status": "implemented",
+      "reason": "One primary discharge; chain-hop parameter excludes repeated arc accents.",
+      "recipes": [
+        "essence_ascendance:static_arc"
+      ],
+      "profiles": []
+    },
+    "homing_projectile": {
+      "status": "intentionally_silent",
+      "reason": "Guidance steering is continuous computation; launch/impact belong to the weapon.",
+      "recipes": [],
+      "profiles": []
+    },
+    "ricochet": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:projectile_redirect"
+      ],
+      "profiles": []
+    },
+    "piercing_projectile": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:projectile_pierce"
+      ],
+      "profiles": []
+    },
+    "explosive_payload": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:explosive_payload"
+      ],
+      "profiles": []
+    },
+    "rooting_payload": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:rooting"
+      ],
+      "profiles": []
+    },
+    "guarded_advance": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "shield_ram": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:shield_ram"
+      ],
+      "profiles": []
+    },
+    "stored_force": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:guard_response",
+        "essence_ascendance:stored_force",
+        "essence_ascendance:riposte_release"
+      ],
+      "profiles": []
+    },
+    "guard_amplifier": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "reflexive_ward": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "crowd_reprisal": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "interceptor": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "projectile.intercept"
+      ],
+      "profiles": []
+    },
+    "trajectory_theft": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "projectile.intercept"
+      ],
+      "profiles": []
+    },
+    "projectile_drag_field": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "evasive_current": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "bulwark_stance": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "adaptive_guard": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "status_mirror": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "pure_state": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "riposte": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:guard_response",
+        "essence_ascendance:stored_force",
+        "essence_ascendance:riposte_release"
+      ],
+      "profiles": []
+    },
+    "rising_recovery": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "life_steal": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "feast_reflex": {
+      "status": "retained_vanilla",
+      "reason": "Native eating operation owns sound; recovery arithmetic stays silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "inner_sustenance": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "hunger_ward": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "staggered_pain": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "damage_ceiling": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "metabolic_conversion": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "pain_purge": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "adrenaline": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "vitality.surge"
+      ],
+      "profiles": []
+    },
+    "deep_ward": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "soul_ward": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "shattering_ward": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:shattering_ward"
+      ],
+      "profiles": []
+    },
+    "second_wind": {
+      "status": "implemented",
+      "reason": "Retained confirmed outcomes use shared audio; routine completion, protection, return and reform remain silent.",
+      "recipes": [
+        "vitality.rescue"
+      ],
+      "profiles": []
+    },
+    "spirit_walk": {
+      "status": "implemented",
+      "reason": "Retained confirmed outcomes use shared audio; routine completion, protection, return and reform remain silent.",
+      "recipes": [
+        "vitality.rescue"
+      ],
+      "profiles": []
+    },
+    "running_momentum": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "momentum_vault": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:mobility_launch"
+      ],
+      "profiles": []
+    },
+    "rush": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:momentum_surge"
+      ],
+      "profiles": []
+    },
+    "terrain_freedom": {
+      "status": "retained_vanilla",
+      "reason": "Native movement, fluids and landing stay native; passive protection has no extra sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "aquatic_body": {
+      "status": "retained_vanilla",
+      "reason": "Native movement, fluids and landing stay native; passive protection has no extra sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "surface_tension": {
+      "status": "retained_vanilla",
+      "reason": "Native movement, fluids and landing stay native; passive protection has no extra sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "lavaborn": {
+      "status": "retained_vanilla",
+      "reason": "Native movement, fluids and landing stay native; passive protection has no extra sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "impact_control": {
+      "status": "retained_vanilla",
+      "reason": "Native movement, fluids and landing stay native; passive protection has no extra sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "charged_jump": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:mobility_launch"
+      ],
+      "profiles": []
+    },
+    "double_jump": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:mobility_launch"
+      ],
+      "profiles": []
+    },
+    "vector_jump": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:mobility_launch"
+      ],
+      "profiles": []
+    },
+    "essence_wings": {
+      "status": "retained_vanilla",
+      "reason": "Native fall-flying audio remains; no loop for merely owning wings.",
+      "recipes": [],
+      "profiles": []
+    },
+    "fatigue_flight": {
+      "status": "implemented",
+      "reason": "Existing authoritative tracked thrust flag; shared entity source lifecycle.",
+      "recipes": [],
+      "profiles": [
+        "mobility.thrust"
+      ]
+    },
+    "vector_boost": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:mobility_launch"
+      ],
+      "profiles": []
+    },
+    "untethered_flight": {
+      "status": "implemented",
+      "reason": "Existing authoritative tracked thrust flag; shared entity source lifecycle.",
+      "recipes": [],
+      "profiles": [
+        "mobility.thrust"
+      ]
+    },
+    "tool_instinct": {
+      "status": "retained_vanilla",
+      "reason": "Native tools, break and placement remain; bonus yields and counters do not add sounds.",
+      "recipes": [],
+      "profiles": []
+    },
+    "mining_momentum": {
+      "status": "retained_vanilla",
+      "reason": "Native tools, break and placement remain; bonus yields and counters do not add sounds.",
+      "recipes": [],
+      "profiles": []
+    },
+    "natures_boon": {
+      "status": "retained_vanilla",
+      "reason": "Native tools, break and placement remain; bonus yields and counters do not add sounds.",
+      "recipes": [],
+      "profiles": []
+    },
+    "ore_sight": {
+      "status": "deferred",
+      "reason": "Optional opt-in discovery notification needs a product decision on useful, already-disclosed transitions; current scans remain silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "treasure_sense": {
+      "status": "deferred",
+      "reason": "Optional opt-in discovery notification needs a product decision on useful, already-disclosed transitions; current scans remain silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "hunters_study": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "essence_bloom": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "torchbearer": {
+      "status": "retained_vanilla",
+      "reason": "Native tools, break and placement remain; bonus yields and counters do not add sounds.",
+      "recipes": [],
+      "profiles": []
+    },
+    "verdant_stride": {
+      "status": "retained_vanilla",
+      "reason": "Native growth, animals and shearing; aura polling adds no audio.",
+      "recipes": [],
+      "profiles": []
+    },
+    "herdkeeper": {
+      "status": "retained_vanilla",
+      "reason": "Native growth, animals and shearing; aura polling adds no audio.",
+      "recipes": [],
+      "profiles": []
+    },
+    "animal_gift": {
+      "status": "retained_vanilla",
+      "reason": "Native growth, animals and shearing; aura polling adds no audio.",
+      "recipes": [],
+      "profiles": []
+    },
+    "fishing_instinct": {
+      "status": "retained_vanilla",
+      "reason": "Native fishing cast, retrieve and catch own feedback; passive modifiers stay silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "fishers_call": {
+      "status": "retained_vanilla",
+      "reason": "Native fishing cast, retrieve and catch own feedback; passive modifiers stay silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "salvagers_craft": {
+      "status": "retained_vanilla",
+      "reason": "Native station/trade/potion result owns feedback; no overlapping custom replacement.",
+      "recipes": [],
+      "profiles": []
+    },
+    "pocket_nets": {
+      "status": "retained_vanilla",
+      "reason": "Native fishing cast, retrieve and catch own feedback; passive modifiers stay silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "threat_sense": {
+      "status": "deferred",
+      "reason": "Optional opt-in discovery notification needs a product decision on useful, already-disclosed transitions; current scans remain silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "hunters_ledger": {
+      "status": "deferred",
+      "reason": "Optional opt-in discovery notification needs a product decision on useful, already-disclosed transitions; current scans remain silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "waylight": {
+      "status": "deferred",
+      "reason": "Optional opt-in discovery notification needs a product decision on useful, already-disclosed transitions; current scans remain silent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "restful_mending": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "metabolic_mending": {
+      "status": "intentionally_silent",
+      "reason": "Passive calculation, polling or native continuous feedback; no extra EA occurrence.",
+      "recipes": [],
+      "profiles": []
+    },
+    "masterwork_tempering": {
+      "status": "retained_vanilla",
+      "reason": "Native station/trade/potion result owns feedback; no overlapping custom replacement.",
+      "recipes": [],
+      "profiles": []
+    },
+    "village_patron": {
+      "status": "retained_vanilla",
+      "reason": "Native station/trade/potion result owns feedback; no overlapping custom replacement.",
+      "recipes": [],
+      "profiles": []
+    },
+    "bonded_companion": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "essence_ascendance:companion_recall"
+      ],
+      "profiles": []
+    },
+    "alchemical_amplification": {
+      "status": "retained_vanilla",
+      "reason": "Native station/trade/potion result owns feedback; no overlapping custom replacement.",
+      "recipes": [],
+      "profiles": []
+    },
+    "potion_relay": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "sanctuary": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "industrious_presence": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "containment_field": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "friendly_fire_ward": {
+      "status": "implemented",
+      "reason": "Confirmed semantic outcomes use shared routing, admission and captions.",
+      "recipes": [
+        "interface.denied"
+      ],
+      "profiles": []
+    },
+    "enchanting_insight": {
+      "status": "retained_vanilla",
+      "reason": "Native station/trade/potion result owns feedback; no overlapping custom replacement.",
+      "recipes": [],
+      "profiles": []
+    }
+  },
+  "semantics": {
+    "world:ascendance_ceremony": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:ascendance_ceremony",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:impact_pulse": {
+      "status": "intentionally_silent",
+      "reason": "No additional EA audio; existing visual/native presentation remains.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:gathering_spritz": {
+      "status": "deferred",
+      "reason": "Optional aggregate cue awaits usefulness/density review; generic visual or repeated recovery amounts are insufficient semantic intent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:utility_acknowledge": {
+      "status": "deferred",
+      "reason": "Optional aggregate cue awaits usefulness/density review; generic visual or repeated recovery amounts are insufficient semantic intent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:processor_complete": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:kindling": {
+      "status": "intentionally_silent",
+      "reason": "Repeated visual refresh/steering is not a sound occurrence; transition cues own feedback.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:ignition": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:ignition",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:combustion": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:combustion",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:frostbite": {
+      "status": "intentionally_silent",
+      "reason": "Repeated visual refresh/steering is not a sound occurrence; transition cues own feedback.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:freeze": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:freeze",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:shatter": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:shatter",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:static_arc": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:static_arc",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:rooting": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:rooting",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:explosive_payload": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:explosive_payload",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:projectile_guidance": {
+      "status": "intentionally_silent",
+      "reason": "Repeated visual refresh/steering is not a sound occurrence; transition cues own feedback.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:projectile_redirect": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:projectile_redirect",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:projectile_pierce": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:projectile_pierce",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:projectile_drag": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:projectile_intercept": {
+      "status": "implemented",
+      "reason": "Dedicated accepted semantic hook: entry/batch/private transition; repeated/public visual itself stays silent.",
+      "recipe": "projectile.intercept",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:shield_ram": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:shield_ram",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:guard_response": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:guard_response",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:reflection_return": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:crowd_reprisal": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:riposte_release": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:riposte_release",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:stored_force": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:stored_force",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:status_rejection": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:shattering_ward": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:shattering_ward",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:mobility_launch": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:mobility_launch",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:momentum_surge": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:momentum_surge",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:vitality_purge": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:vitality_surge": {
+      "status": "implemented",
+      "reason": "Dedicated accepted semantic hook: entry/batch/private transition; repeated/public visual itself stays silent.",
+      "recipe": "vitality.surge",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:death_defiance": {
+      "status": "implemented",
+      "reason": "Dedicated accepted semantic hook: entry/batch/private transition; repeated/public visual itself stays silent.",
+      "recipe": "vitality.rescue",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:recovery_transfer": {
+      "status": "deferred",
+      "reason": "Optional aggregate cue awaits usefulness/density review; generic visual or repeated recovery amounts are insufficient semantic intent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:ward_convergence": {
+      "status": "deferred",
+      "reason": "Optional aggregate cue awaits usefulness/density review; generic visual or repeated recovery amounts are insufficient semantic intent.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:utility_transfer": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:containment_seal": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:sanctuary_release": {
+      "status": "intentionally_silent",
+      "reason": "Approved silence: gameplay and visual feedback remain; no additional EA sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "world:companion_recall": {
+      "status": "implemented",
+      "reason": "Shared confirmed world envelope; independent audio/visual admission.",
+      "recipe": "essence_ascendance:companion_recall",
+      "recipes": [],
+      "profiles": []
+    },
+    "gui:anvil_compression": {
+      "status": "retained_vanilla",
+      "reason": "Native station result owns audio; supplemental visual adds no duplicate sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "gui:grindstone_sweep": {
+      "status": "retained_vanilla",
+      "reason": "Native station result owns audio; supplemental visual adds no duplicate sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "gui:enchanting_glyph": {
+      "status": "retained_vanilla",
+      "reason": "Native station result owns audio; supplemental visual adds no duplicate sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "gui:trade_acknowledge": {
+      "status": "retained_vanilla",
+      "reason": "Native station result owns audio; supplemental visual adds no duplicate sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "gui:processor_complete": {
+      "status": "intentionally_silent",
+      "reason": "World completion is the single sound occurrence; GUI supplements only its visual result.",
+      "recipes": [],
+      "profiles": []
+    }
+  },
+  "surfaces": {
+    "crucible": {
+      "status": "implemented",
+      "reason": "Positive authoritative player transfers only; one source per Crucible/destination, deterministic active-pylon state. Dissolution and completion are silent.",
+      "recipes": [],
+      "profiles": [
+        "channel.resonance",
+        "channel.resonance.p1",
+        "channel.resonance.p2",
+        "channel.resonance.p3",
+        "channel.resonance.p4",
+        "channel.resonance.p5",
+        "channel.resonance.p6",
+        "channel.resonance.p7",
+        "channel.resonance.p8"
+      ]
+    },
+    "infuser": {
+      "status": "implemented",
+      "reason": "Positive authoritative Infuser transfer only; linked source supplies active-pylon state. Processing and completion are silent.",
+      "recipes": [
+        "machine.focus.install"
+      ],
+      "profiles": [
+        "machine.resonance",
+        "machine.resonance.p1",
+        "machine.resonance.p2",
+        "machine.resonance.p3",
+        "machine.resonance.p4",
+        "machine.resonance.p5",
+        "machine.resonance.p6",
+        "machine.resonance.p7",
+        "machine.resonance.p8"
+      ]
+    },
+    "pylon_focus": {
+      "status": "implemented",
+      "reason": "Authorized changed Focus installation/replacement only, hand and menu; no independent hum or load/refresh accent.",
+      "recipes": [
+        "machine.focus.install"
+      ],
+      "profiles": []
+    },
+    "nexus": {
+      "status": "implemented",
+      "reason": "Correlated request receipts acknowledge committed purchase/refund/investment; one ceremony accent for ascension.",
+      "recipes": [
+        "progression.purchase",
+        "essence_ascendance:ascendance_ceremony",
+        "interface.denied"
+      ],
+      "profiles": []
+    },
+    "channel": {
+      "status": "implemented",
+      "reason": "Public transfer body comes only from Crucible observer state; private channel projection cannot duplicate it. Start/stop silent; denial remains private.",
+      "recipes": [
+        "interface.denied"
+      ],
+      "profiles": [
+        "channel.resonance",
+        "channel.resonance.p1",
+        "channel.resonance.p2",
+        "channel.resonance.p3",
+        "channel.resonance.p4",
+        "channel.resonance.p5",
+        "channel.resonance.p6",
+        "channel.resonance.p7",
+        "channel.resonance.p8"
+      ]
+    },
+    "team_membership": {
+      "status": "implemented",
+      "reason": "Committed operations acknowledge only actor; native navigation clicks remain.",
+      "recipes": [
+        "interface.acknowledge",
+        "interface.denied"
+      ],
+      "profiles": []
+    },
+    "soulbinding": {
+      "status": "implemented",
+      "reason": "Retained confirmed outcomes use shared audio; routine completion, protection, return and reform remain silent.",
+      "recipes": [
+        "interface.acknowledge",
+        "interface.denied"
+      ],
+      "profiles": []
+    },
+    "custom_controls": {
+      "status": "implemented",
+      "reason": "Shared fullscreen mouse/keyboard activation plus domain node/toggle activation; drag/hover/typing remain silent.",
+      "recipes": [
+        "ui.press"
+      ],
+      "profiles": []
+    },
+    "native_widgets": {
+      "status": "retained_vanilla",
+      "reason": "Native Button owns click/narration; no custom duplicate.",
+      "recipes": [],
+      "profiles": []
+    },
+    "caster": {
+      "status": "implemented",
+      "reason": "Only accepted projectile spawn releases; failed spawn and cooldown do not.",
+      "recipes": [
+        "weapon.cast.release"
+      ],
+      "profiles": []
+    },
+    "glaive": {
+      "status": "implemented",
+      "reason": "Accepted authoritative action and first physical contact edge; snapshot refresh never triggers playback.",
+      "recipes": [
+        "weapon.glaive.stab",
+        "weapon.glaive.swipe",
+        "weapon.glaive.contact"
+      ],
+      "profiles": []
+    },
+    "magic_bolt": {
+      "status": "implemented",
+      "reason": "Confirmed damaging entity hit or accepted terrain collision; travel is silent.",
+      "recipes": [
+        "weapon.bolt.impact"
+      ],
+      "profiles": []
+    },
+    "native_bow_rod": {
+      "status": "retained_vanilla",
+      "reason": "Native launch/cast/retrieve/bite; no replacement.",
+      "recipes": [],
+      "profiles": []
+    },
+    "native_break_equip_shield": {
+      "status": "retained_vanilla",
+      "reason": "Durability mixins, armor material and shield components retain native ownership.",
+      "recipes": [],
+      "profiles": []
+    },
+    "native_block_tool_place": {
+      "status": "retained_vanilla",
+      "reason": "Material sounds and server-only Essentium placement bridge retain native ownership.",
+      "recipes": [],
+      "profiles": []
+    },
+    "native_shear": {
+      "status": "retained_vanilla",
+      "reason": "Native sheep shear operation owns sound.",
+      "recipes": [],
+      "profiles": []
+    },
+    "native_station_tempering": {
+      "status": "retained_vanilla",
+      "reason": "Native anvil completion/tempering and brewing completion retain their result sounds; shared recipe context suppresses overlapping custom completion.",
+      "recipes": [],
+      "profiles": []
+    },
+    "native_toasts": {
+      "status": "retained_vanilla",
+      "reason": "Native toasts retain their role; no private ascension/purchase accent overlays the ceremony.",
+      "recipes": [],
+      "profiles": []
+    },
+    "passive_equipment": {
+      "status": "intentionally_silent",
+      "reason": "Appearance, glow, stats and hand synchronization add no EA audio.",
+      "recipes": [],
+      "profiles": []
+    },
+    "milestone_guide_notices": {
+      "status": "deferred",
+      "reason": "Optional distinct unlock notice requires product decision; persistent/login snapshots never announce unlock.",
+      "recipes": [],
+      "profiles": []
+    },
+    "gathering_recovery_notices": {
+      "status": "deferred",
+      "reason": "Optional bonus/milestone accents await usefulness review; existing native actions remain audible.",
+      "recipes": [],
+      "profiles": []
+    },
+    "tagged_modded_processors": {
+      "status": "deferred",
+      "reason": "Missing authoritative output adapter for arbitrary tagged containers. Never interpret fuel/input mutation as completion.",
+      "recipes": [],
+      "profiles": []
+    },
+    "custom_audio_assets": {
+      "status": "implemented",
+      "reason": "49 exact creatively approved samples promoted for integration with source/hash receipts; final human native mix/loop/rights review remains pending.",
+      "recipes": [
+        "combat.guard.ready",
+        "combat.guard.release",
+        "element.arc",
+        "element.fire.apply",
+        "element.fire.burst",
+        "element.ice.freeze",
+        "element.ice.shatter",
+        "element.root",
+        "interface.acknowledge",
+        "interface.denied",
+        "machine.focus.install",
+        "mobility.boost",
+        "mobility.launch",
+        "mobility.thrust.body",
+        "progression.ascend",
+        "progression.purchase",
+        "projectile.intercept",
+        "projectile.pierce",
+        "projectile.redirect",
+        "ui.press",
+        "utility.recall",
+        "vitality.rescue",
+        "vitality.surge",
+        "ward.break",
+        "weapon.bolt.impact",
+        "weapon.cast.release"
+      ],
+      "profiles": []
+    },
+    "music_occlusion_dsp_voice": {
+      "status": "deferred",
+      "reason": "Separate production scope: score, environmental ambience, occlusion/DSP and voice are not implemented gameplay features.",
+      "recipes": [],
+      "profiles": []
+    }
+  }
+}

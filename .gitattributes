@@ -5,6 +5,12 @@
 # Historical artifacts keep their original line endings and formatting.
 art/history/** -text -whitespace
 
+# Audio recipes and provenance are hash-bound to the approved masters/exports.
+# Preserve their original bytes on both Windows and Unix checkouts.
+art/source/audio/** -text whitespace=cr-at-eol
+art/audio-*.json -text whitespace=cr-at-eol
+docs/audio/*.json -text whitespace=cr-at-eol
+
 # The valuation regression compares the canonical snapshot byte-for-byte.
 # Keep its reference identical on Windows developers' machines and Linux CI.
 common/src/test/resources/valuation/valuation-reference.json text eol=lf

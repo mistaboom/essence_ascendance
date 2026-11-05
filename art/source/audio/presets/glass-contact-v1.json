@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "presets": {
+    "fork_tine_touch": {
+      "type": "modal",
+      "frequency": 3217,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.8,
+          "decaySeconds": 0.0045
+        },
+        {
+          "ratio": 1.713,
+          "gain": 0.27,
+          "decaySeconds": 0.0028
+        },
+        {
+          "ratio": 2.889,
+          "gain": 0.065,
+          "decaySeconds": 0.0015
+        }
+      ],
+      "gain": 0.034,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.012,
+          0.7
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.28,
+          0.65
+        ],
+        [
+          0.65,
+          0.13
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "thin_glass_bowl": {
+      "type": "modal",
+      "frequency": 1092,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.84,
+          "decaySeconds": 0.245
+        },
+        {
+          "ratio": 1.0021978022,
+          "gain": 0.28,
+          "decaySeconds": 0.207,
+          "phase": 0.38
+        }
+      ],
+      "gain": 0.205,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.001,
+          0.82
+        ],
+        [
+          0.002,
+          1
+        ],
+        [
+          0.68,
+          0.98
+        ],
+        [
+          0.85,
+          0.78
+        ],
+        [
+          0.95,
+          0.24
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "thin_glass_upper_modes": {
+      "type": "modal",
+      "frequency": 1092,
+      "partials": [
+        {
+          "ratio": 2.532,
+          "gain": 0.31,
+          "decaySeconds": 0.075
+        },
+        {
+          "ratio": 4.202,
+          "gain": 0.095,
+          "decaySeconds": 0.027
+        },
+        {
+          "ratio": 6.13,
+          "gain": 0.024,
+          "decaySeconds": 0.011
+        }
+      ],
+      "gain": 0.205,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.003,
+          0.8
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.38,
+          0.8
+        ],
+        [
+          0.78,
+          0.19
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "hard_contact_grain": {
+      "type": "noise",
+      "lowHz": 1800,
+      "highHz": 6500,
+      "spectralTiltDbOct": -2,
+      "gain": 0.021,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.05,
+          0.7
+        ],
+        [
+          0.11,
+          1
+        ],
+        [
+          0.27,
+          0.48
+        ],
+        [
+          0.62,
+          0.09
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    }
+  }
+}

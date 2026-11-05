@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "assetId": "root_bind_v2",
+  "seed": 26110112,
+  "sampleRate": 48000,
+  "duration": 0.36,
+  "peakDb": -12,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.root"
+    ],
+    "role": "element",
+    "description": "Descending binding zip into a woody tightening grip; not a second electric snap.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Rooting zap"
+  },
+  "layers": [
+    {
+      "preset": "soft_chirp",
+      "name": "01_binding_zip",
+      "frequency": 950,
+      "frequencyPoints": [
+        [
+          0,
+          1250
+        ],
+        [
+          0.25,
+          840
+        ],
+        [
+          1,
+          230
+        ]
+      ],
+      "harmonics": [
+        1,
+        0.15,
+        0.03
+      ],
+      "gain": 0.16,
+      "lengthSeconds": 0.16
+    },
+    {
+      "preset": "wood",
+      "name": "02_root_grip",
+      "frequency": 190,
+      "gain": 0.28,
+      "startSeconds": 0.11,
+      "lengthSeconds": 0.18
+    },
+    {
+      "preset": "air",
+      "name": "03_fibrous_tighten",
+      "lowHz": 450,
+      "highHz": 2200,
+      "gain": 0.11,
+      "startSeconds": 0.08,
+      "lengthSeconds": 0.28
+    }
+  ]
+}

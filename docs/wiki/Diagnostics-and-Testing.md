@@ -16,6 +16,7 @@ These commands investigate current state or saved data; they do not rebuild, spe
 | Why is a Skill ineffective? | `debug player skills show frenzy` |
 | Is a seal crediting correctly? | `debug player attunement show gathering` and history |
 | Is a machine connected? | Look at it, then the matching `debug machine` command |
+| Does a cue reach its intended audience? | `debug audio help`, then an in-game `debug audio play` request |
 | Did a narrow runtime invariant fail? | The appropriate `test` command; interpret its limited scope |
 
 Each fragment above follows `/essence `. Exact runnable examples appear in the entries below.
@@ -114,6 +115,35 @@ The existing ray-targeted machine debug commands remain level 2. They inspect st
 
 Inherited Stage 9 receipts cover initialized loaders, synthetic actual-interface provider rosters, memory-backed machines, conserved repair insertion, paid-work component continuity and scheduler receiver-state pruning. Later command/membership, shared presentation, headless Archive and production-packaging receipts strengthen that evidence. The user also confirmed real FTB activation and team ownership of a newly placed Crucible. Two-client, offline-member, unloaded-machine, restart, graphical and interrupted-save checks remain open; neither fixtures nor this narrow live success proves every provider event or third-party pipe. Documentation checks add no new gameplay pass. [Exact receipt and live-test scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance#evidence-and-test-claims).
 
+## Audio playback
+
+All commands in this section require **permission level 2**. Help works from a
+player or console; `play` requires the in-game operator and accepts no target.
+
+| Exact syntax | Source | Result | Valid example |
+| --- | --- | --- | --- |
+| `/essence debug audio` | Server | Show server playback guidance and the local-preview alternative | `/essence debug audio` |
+| `/essence debug audio help` | Server | Show the same guidance | `/essence debug audio help` |
+| `/essence debug audio play <semantic>` | Player | Request a directly playable cue at your current position, using its normal audience rules | `/essence debug audio play combat.explosion` |
+
+A world cue reaches eligible nearby listeners in the current dimension; a private
+player cue reaches only the operator. For example, `combat.explosion` is nearby
+world feedback and `interface.acknowledge` is private player feedback. This emits
+audio feedback without creating an explosion, committing a machine operation or
+otherwise performing the associated gameplay action.
+
+Use Tab for directly playable server cues. UI-only cues are excluded from those
+suggestions and rejected with local-preview guidance; preview those through
+`/essence audio audition <semantic>` on your client. Gameplay-dependent names such
+as `riposte_release` and `stored_force` require their actual context and are not
+direct preview choices. Unknown names also fail before playback. A successful
+request still follows normal range, routing and Minecraft's sound settings.
+
+Short IDs default to `essence_ascendance:`; quoted full IDs are supported, for
+example `/essence debug audio play "essence_ascendance:combat.explosion"`.
+For previews that affect only your own device and need no operator
+permission, use the [local audio commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands#local-audio).
+
 ## Test commands and their meaning
 
 Tests have no target-player arguments. “PASS” describes only the check listed.
@@ -136,6 +166,7 @@ All are **level 2, Server**, no arguments/prerequisites beyond access. They prin
 | `/essence debug player` | `/essence debug player help` |
 | `/essence debug item` | `/essence debug item help` |
 | `/essence debug machine` | `/essence debug machine help` |
+| `/essence debug audio` | `/essence debug audio help` |
 | `/essence debug mappings` | `/essence debug mappings help` |
 | `/essence debug balance` | `/essence debug balance help` |
 

@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "assetId": "static_snap_v2",
+  "seed": 26110111,
+  "sampleRate": 48000,
+  "duration": 0.17,
+  "peakDb": -11,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.arc"
+    ],
+    "role": "element",
+    "description": "Dry static snap with a short electrical fizz tail.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Static snap"
+  },
+  "layers": [
+    {
+      "preset": "tap",
+      "name": "01_static_snap",
+      "lowHz": 500,
+      "highHz": 8000,
+      "gain": 0.42,
+      "lengthSeconds": 0.028
+    },
+    {
+      "preset": "body",
+      "name": "02_pop_pressure",
+      "frequency": 210,
+      "frequencyEnd": 85,
+      "gain": 0.19,
+      "lengthSeconds": 0.045
+    },
+    {
+      "preset": "air",
+      "name": "03_fizz_tail",
+      "lowHz": 2200,
+      "highHz": 6500,
+      "gain": 0.055,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.05,
+          1
+        ],
+        [
+          0.2,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "startSeconds": 0.012,
+      "lengthSeconds": 0.14
+    }
+  ]
+}

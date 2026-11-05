@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "assetId": "magic_impact_b_v3",
+  "seed": 26110232,
+  "sampleRate": 48000,
+  "duration": 0.32,
+  "peakDb": -10,
+  "presetLibrary": "source/audio/presets/revision-v3.json",
+  "design": {
+    "title": "Magic projectile impact B",
+    "description": "A matched magical contact with a slightly tighter contact glide and particle spray. Same cast-related pitch center.",
+    "cueIds": [
+      "essence_ascendance:weapon.bolt.impact"
+    ],
+    "provenance": "Original deterministic modal, harmonic and filtered-noise synthesis; no third-party samples.",
+    "review": "pending user listening",
+    "role": "weapon",
+    "variationFamily": "magic_impact_v3",
+    "repetitionIntervalSeconds": 0.4
+  },
+  "layers": [
+    {
+      "name": "01_energy_contact",
+      "preset": "resonant_energy",
+      "frequency": 392,
+      "frequencyPoints": [
+        [
+          0,
+          432
+        ],
+        [
+          0.075,
+          392
+        ],
+        [
+          1,
+          392
+        ]
+      ],
+      "gain": 0.26,
+      "lengthSeconds": 0.29
+    },
+    {
+      "name": "02_low_impact",
+      "type": "tone",
+      "frequency": 134,
+      "frequencyEnd": 98,
+      "harmonics": [
+        1,
+        0.22
+      ],
+      "gain": 0.13,
+      "decaySeconds": 0.023,
+      "lengthSeconds": 0.1,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.012,
+          1
+        ],
+        [
+          0.11,
+          0.65
+        ],
+        [
+          0.45,
+          0.12
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "03_energy_spray",
+      "type": "noise",
+      "lowHz": 650,
+      "highHz": 4100,
+      "highHzEnd": 1600,
+      "spectralTiltDbOct": -3,
+      "gain": 0.1,
+      "lengthSeconds": 0.11,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          1
+        ],
+        [
+          0.18,
+          0.55
+        ],
+        [
+          0.55,
+          0.13
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "04_hollow_afterring",
+      "preset": "resonant_energy",
+      "frequency": 587.3333,
+      "gain": 0.058,
+      "startSeconds": 0.024,
+      "lengthSeconds": 0.25
+    }
+  ]
+}

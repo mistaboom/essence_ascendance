@@ -1,0 +1,10 @@
+{
+  "schema":1,"assetId":"channel_warm_a","seed":291052,"sampleRate":48000,"duration":4,"peakDb":-23,
+  "presetLibrary":"source/audio/presets/essence-v1.json","loop":{"mode":"periodic"},
+  "design":{"cueIds":["essence_ascendance:channel.resonance.body"],"role":"private continuous activity bed","priority":"P0 / 2b, P1 / 3b","description":"Narrower, softer private flow on 192/288 Hz; shares material with the machine without a second motor.","levelIntent":"quietest layer; start/stop remain separate semantic cues","repetitionIntervalSeconds":4},
+  "layers":[
+    {"preset":"rounded_body","name":"01_private_resonance","frequency":192,"gain":0.045,"harmonics":[1,0.06],"am":{"rate":0.25,"depth":0.1}},
+    {"preset":"rounded_body","name":"02_fifth_flow","frequency":288,"gain":0.008,"am":{"rate":0.5,"depth":0.12}},
+    {"preset":"flow","name":"03_soft_flow","gain":0.004,"lowHz":480,"highHz":1400}
+  ]
+}

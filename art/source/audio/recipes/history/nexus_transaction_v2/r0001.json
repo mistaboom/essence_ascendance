@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "assetId": "nexus_transaction_v2",
+  "seed": 26110104,
+  "sampleRate": 48000,
+  "duration": 0.42,
+  "peakDb": -14,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:progression.purchase"
+    ],
+    "role": "progression",
+    "description": "Short chirpy cha-ching: tactile opening, rising chirp and a clean resolving bell.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Nexus transaction"
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 1200,
+      "highHz": 5500,
+      "spectralTiltDbOct": -2,
+      "gain": 0.075,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_coin_tick",
+      "lengthSeconds": 0.025
+    },
+    {
+      "type": "tone",
+      "frequency": 780,
+      "harmonics": [
+        1,
+        0.09,
+        0.015
+      ],
+      "gain": 0.13,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.07,
+          0.7
+        ],
+        [
+          0.16,
+          1
+        ],
+        [
+          0.62,
+          0.6
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_chirpy_up",
+      "frequencyEnd": 1200,
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.11
+    },
+    {
+      "type": "modal",
+      "frequency": 880,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.13
+        },
+        {
+          "ratio": 2.43,
+          "gain": 0.19,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 3.91,
+          "gain": 0.07,
+          "decaySeconds": 0.04
+        }
+      ],
+      "gain": 0.22,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_ching_root",
+      "startSeconds": 0.085,
+      "lengthSeconds": 0.335
+    },
+    {
+      "type": "modal",
+      "frequency": 1320,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.35
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.13,
+          "decaySeconds": 0.16
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.035,
+          "decaySeconds": 0.07
+        }
+      ],
+      "gain": 0.055,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "04_ching_fifth",
+      "startSeconds": 0.1,
+      "lengthSeconds": 0.3
+    }
+  ]
+}

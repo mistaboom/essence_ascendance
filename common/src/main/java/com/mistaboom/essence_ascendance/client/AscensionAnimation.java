@@ -22,6 +22,7 @@ import java.util.Locale;
 /** Local handoff/camera lease and quiet announcement. All world art lives in the shared recipe runtime. */
 public final class AscensionAnimation {
     private static WorldVisualEvent pending;
+    private static Runnable pendingPresentation;
     private static WorldVisualEvent active;
     private static ClientLevel level;
     private static LocalPlayer player;
@@ -38,12 +39,18 @@ public final class AscensionAnimation {
 
     /** The server event can precede the next screen tick that consumes the transaction ack. */
     public static boolean defer(WorldVisualEvent event) {
+        return defer(event, () -> TransientWorldVisuals.emit(event));
+    }
+
+    /** Delay the shared audio/visual occurrence together, independently of render admission. */
+    public static boolean defer(WorldVisualEvent event, Runnable presentation) {
         Minecraft client = Minecraft.getInstance();
         if (!ceremony(event) || event.parameterA() > 0.5F || client.player == null
                 || event.sourceEntityId() != client.player.getId()
                 || !(client.screen instanceof AscendanceNexusScreen)) return false;
         clear();
         pending = event;
+        pendingPresentation = presentation;
         level = client.level;
         player = client.player;
         pendingTick = level.getGameTime();
@@ -56,9 +63,10 @@ public final class AscensionAnimation {
     }
 
     private static void releasePending() {
-        WorldVisualEvent event = pending;
+        Runnable presentation = pendingPresentation;
         pending = null;
-        if (event != null) TransientWorldVisuals.emit(event);
+        pendingPresentation = null;
+        if (presentation != null) presentation.run();
     }
 
     /** Runtime admission, rather than a tier snapshot, is the single local presentation trigger. */
@@ -119,6 +127,7 @@ public final class AscensionAnimation {
         previousPerspective = null;
         active = null;
         pending = null;
+        pendingPresentation = null;
         level = null;
         player = null;
     }

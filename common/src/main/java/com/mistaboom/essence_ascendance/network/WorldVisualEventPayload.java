@@ -11,15 +11,19 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
 /** A one-shot recipe invocation, never a stream of client geometry. */
-public record WorldVisualEventPayload(WorldVisualEvent event) implements CustomPacketPayload {
+public record WorldVisualEventPayload(WorldVisualEvent event, long occurrence, long originatingTick, double visualRadius) implements CustomPacketPayload {
+    public WorldVisualEventPayload { if (!Double.isFinite(visualRadius) || visualRadius < 0 || visualRadius > 256) throw new IllegalArgumentException("Invalid feedback range"); }
     public static final Type<WorldVisualEventPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "world_visual_event"));
+            ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "world_feedback_v2"));
     public static final StreamCodec<RegistryFriendlyByteBuf, WorldVisualEventPayload> CODEC =
             StreamCodec.of(WorldVisualEventPayload::write, WorldVisualEventPayload::read);
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
     private static void write(RegistryFriendlyByteBuf buffer, WorldVisualEventPayload payload) {
+        buffer.writeLong(payload.occurrence());
+        buffer.writeLong(payload.originatingTick());
+        buffer.writeDouble(payload.visualRadius());
         WorldVisualEvent event = payload.event();
         buffer.writeResourceLocation(event.recipeId());
         buffer.writeResourceLocation(event.dimension());
@@ -42,6 +46,8 @@ public record WorldVisualEventPayload(WorldVisualEvent event) implements CustomP
     }
 
     private static WorldVisualEventPayload read(RegistryFriendlyByteBuf buffer) {
+        long occurrence = buffer.readLong(), tick = buffer.readLong();
+        double radius = buffer.readDouble();
         ResourceLocation recipe = buffer.readResourceLocation();
         ResourceLocation dimension = buffer.readResourceLocation();
         Vec3 position = readVec3(buffer);
@@ -53,7 +59,7 @@ public record WorldVisualEventPayload(WorldVisualEvent event) implements CustomP
                 recipe, dimension, position, source, target, second, direction,
                 buffer.readFloat(), buffer.readFloat(), buffer.readEnum(VisualIntensity.class),
                 buffer.readEnum(SemanticVisualColor.class),
-                buffer.readVarInt(), buffer.readLong(), buffer.readFloat(), buffer.readFloat()));
+                buffer.readVarInt(), buffer.readLong(), buffer.readFloat(), buffer.readFloat()), occurrence, tick, radius);
     }
 
     private static void writeVec3(RegistryFriendlyByteBuf buffer, Vec3 value) {

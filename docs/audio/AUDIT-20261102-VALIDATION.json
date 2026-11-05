@@ -1,0 +1,2251 @@
+{
+  "schema": 1,
+  "date": "2026-11-02",
+  "timezone": "America/Anchorage",
+  "generatedAtUtc": "2026-11-02T23:40:47.861199+00:00",
+  "conclusion": "Five confirmed P2 audio defects are repaired and duplicated server routing/obsolete channel work consolidated through shared owners. Final clean all-target gate and all eight exact packaged native runs pass on hash-matched final archives. Approved audio and inherited unrelated work are preserved. Broader multiplayer/gameplay, native dense-world performance, human listening/HUD and rights acceptance remain explicitly open.",
+  "sourceHead": "5bca40bd0196f28f3c49becdac281704fb236191",
+  "workingTree": "dirty; inherited work preserved; no commit or publication inferred",
+  "inputFingerprint": {
+    "count": 2036,
+    "sha256": "7e026e7cc05e114552f5343d9c6cea86f562752eb2f084feb9fed11db6df9d5b",
+    "algorithm": "SHA256 over sorted path UTF-8 + NUL + raw file SHA256",
+    "scope": "Git-visible common/fabric/neoforge src, art, tools, Gradle directory and named build files, plus docs/audio/COVERAGE.json; other documentation and generated outputs excluded",
+    "records": {
+      "path": "build/audio-audit-20261102/inputs.json",
+      "sha256": "da55a683a2aa84eda397525f0555e33d341bc46525d767a8e4c14df8540d74d1",
+      "bytes": 402986
+    }
+  },
+  "changesFromIntegration": {
+    "added": 10,
+    "changed": 22,
+    "removed": 1,
+    "records": {
+      "path": "build/audio-audit-20261102/input-delta.json",
+      "sha256": "1e4f81b9c6aee6658efd2b042f9d3a5469a65a580f88f338b360fa3382212a4b",
+      "bytes": 8958
+    }
+  },
+  "priorIntegrationReceipt": {
+    "path": "docs/audio/INTEGRATION-20261102-VALIDATION.json",
+    "sha256": "24826c4ea4e4396ca3d457498ebe5d1d57e0449e3b265292569f24ab9a955b24",
+    "bytes": 65471
+  },
+  "selectionPreservation": {
+    "catalog": {
+      "path": "art/audio-catalog.json",
+      "sha256": "beb776210c47e19fe7551daf43733701f235eff9049a40e6d2bb70a94b671a01",
+      "bytes": 70132,
+      "unchangedFromIntegration": true
+    },
+    "manifest": {
+      "path": "art/audio-manifest.json",
+      "sha256": "511631ad13a567d775e8479623ed850618341dc3ce539d5a17f5248b3c8f6d9a",
+      "bytes": 932228,
+      "unchangedFromIntegration": true
+    },
+    "selection": {
+      "path": "art/source/audio/handoffs/prompt7-20261101.json",
+      "sha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+      "bytes": 16320,
+      "unchangedFromIntegration": true
+    }
+  },
+  "promotedRecordsPreserved": 49,
+  "assetAuditEvidence": [
+    {
+      "path": "build/audio-audit-20261102/source-audit.json",
+      "sha256": "ef765b9f6bbb32f7f3bd8b3bedca8e4390c22cf602bf051f518fc60acd3f5d5d",
+      "bytes": 1118328
+    },
+    {
+      "path": "build/audio-audit-20261102/independent-assets.json",
+      "sha256": "3c6c21e3294038d0ba051d77f2212a6408d58b4399af157c21a7f932bc433669",
+      "bytes": 25880
+    },
+    {
+      "path": "build/audio-audit-20261102/verify_assets.py",
+      "sha256": "f748aff0a56aa4c6b50dbeb326db01fd4ed2600d716069dc1b645fd469a9101a",
+      "bytes": 7227
+    }
+  ],
+  "packaging": {
+    "result": "PASS",
+    "scope": "Independently checked provider hashes, full processed assets/data byte equality, approved sample bytes, captions and authoring exclusion; no runtime acceptance inferred",
+    "manifest": {
+      "path": "build/production-artifacts-all.json",
+      "sha256": "5f787ae4bb7402f7ca6f98ff6bb147e4b8f40a2c9318de55b5c57693d66f8659",
+      "bytes": 2009
+    },
+    "targets": [
+      {
+        "target": "1211Fabric",
+        "minecraft": "1.21.1",
+        "loader": "fabric",
+        "java": 21,
+        "task": ":fabric:1.21.1:remapJar",
+        "archive": "fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-fabric.jar",
+        "bytes": 7488912,
+        "sha256": "339275ce2a53e203131daeed7208cad1113117a81328d80f053d0ed314db82a3",
+        "path": "fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-fabric.jar",
+        "processedResourceCount": 539,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      },
+      {
+        "target": "1211NeoForge",
+        "minecraft": "1.21.1",
+        "loader": "neoforge",
+        "java": 21,
+        "task": ":neoforge:1.21.1:remapJar",
+        "archive": "neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-neoforge.jar",
+        "bytes": 7536687,
+        "sha256": "fb1904ca2f03fb3b0645a1c58411b4dcd82ffff3444c4f11a374124dae782864",
+        "path": "neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-neoforge.jar",
+        "processedResourceCount": 539,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      },
+      {
+        "target": "2612Fabric",
+        "minecraft": "26.1.2",
+        "loader": "fabric",
+        "java": 25,
+        "task": ":fabric:26.1.2:shadowJar",
+        "archive": "fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-fabric.jar",
+        "bytes": 8349362,
+        "sha256": "74d8ad004cd9f40f64f90218094c28d36357073984ec1b0f2522da4d957e8bf9",
+        "path": "fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-fabric.jar",
+        "processedResourceCount": 617,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      },
+      {
+        "target": "2612NeoForge",
+        "minecraft": "26.1.2",
+        "loader": "neoforge",
+        "java": 25,
+        "task": ":neoforge:26.1.2:shadowJar",
+        "archive": "neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-neoforge.jar",
+        "bytes": 8354297,
+        "sha256": "ac750e3821a5f5a43ad714250751b03dcc9c34dcc177e8395f9a1fa05f549b39",
+        "path": "neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-neoforge.jar",
+        "processedResourceCount": 617,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      }
+    ]
+  },
+  "stages": {
+    "fullBuild": {
+      "result": "PASS",
+      "scope": "Standalone cleanProductionOutputs followed by sequential checkSupportedTargets after all runtime and fixture changes; both complete common suites, Pack Tester, all four production archive audits and fresh provider manifest. Exact rebuilt provider hashes equal the archives exercised in all eight final native runs.",
+      "elapsed": "20m 24s",
+      "actionableTasks": 282,
+      "executedTasks": 277,
+      "upToDateTasks": 5,
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/fresh-clean-reload-final.log",
+          "requiredText": [
+            "BUILD SUCCESSFUL"
+          ],
+          "sha256": "186fea913243d4492f6403b11b8cf34573b837e95c68cdde9d677faff992655f",
+          "bytes": 1355
+        },
+        {
+          "path": "build/audio-audit-20261102/fresh-supported-reload-final.log",
+          "requiredText": [
+            "BUILD SUCCESSFUL in 20m 24s",
+            "282 actionable tasks: 277 executed, 5 up-to-date",
+            "AudioAssetsTest: 93 audio build assertions PASS",
+            "729 assertions PASS; Minecraft 1.21.1",
+            "729 assertions PASS; Minecraft 26.1.2"
+          ],
+          "sha256": "83c2be466d18ce483f0431b4a209b738fe973156bb35d17f25f04b116775fe52",
+          "bytes": 171753
+        }
+      ]
+    },
+    "focusedRegression": {
+      "result": "PASS",
+      "scope": "Both Minecraft versions: 79 foundation, 385 integration, 1,618 parameterized catalog and 24 extension assertions each; 729 native/static assertions each, including exact typed SoundManager commit order and client-only reload ownership. Recording sink/static checks do not establish native hearing or multiplayer.",
+      "assertionsEach": {
+        "foundation": 79,
+        "integration": 385,
+        "catalog": 1618,
+        "extension": 24,
+        "nativeStatic": 729
+      },
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/reload-targeted-production.log",
+          "requiredText": [
+            "79 assertions PASS",
+            "385 assertions PASS",
+            "1618 assertions PASS",
+            "24 assertions PASS",
+            "729 assertions PASS; Minecraft 1.21.1",
+            "729 assertions PASS; Minecraft 26.1.2",
+            "BUILD SUCCESSFUL"
+          ],
+          "sha256": "a9df7be91d252a16526c3312680862aaa4055fc1aa32949bac32c5c63e1d7ff8",
+          "bytes": 14407
+        }
+      ]
+    },
+    "nativeServerRouting": {
+      "result": "PASS",
+      "scope": "All four development native server fixtures: 137 assertions each and 62 registered cues; real recipient/range/dimension packet routing, confirmed/rejected casts and Focus outcomes, capability negotiation, no custom/native duplicate. Native in-memory players are distinct from socket clients.",
+      "assertionsEach": 137,
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/server-fabric-1.21.1-reload-final.log",
+          "requiredText": [
+            "NativeAudioRoutingTest: PASS; 137 assertions",
+            "AudioLoaderTest: PASS"
+          ],
+          "sha256": "0bab714f7ce84d1ce041ced3314f25dfe2a8a5a887e936cb78f364fadc3a57e3",
+          "bytes": 9316
+        },
+        {
+          "path": "build/audio-audit-20261102/server-fabric-26.1.2-reload-final.log",
+          "requiredText": [
+            "NativeAudioRoutingTest: PASS; 137 assertions",
+            "AudioLoaderTest: PASS"
+          ],
+          "sha256": "9611abf2a6c5b61041751ca5418d5d14f2f720948478c0de892b4abdd1f01c96",
+          "bytes": 20923
+        },
+        {
+          "path": "build/audio-audit-20261102/server-neoforge-1.21.1-reload-final.log",
+          "requiredText": [
+            "NativeAudioRoutingTest: PASS; 137 assertions",
+            "AudioLoaderTest: PASS"
+          ],
+          "sha256": "eba4c421839d9ff78f0a085481b7fa108af24ff599d62ffed32b64bbcd471ce5",
+          "bytes": 10462
+        },
+        {
+          "path": "build/audio-audit-20261102/server-neoforge-26.1.2-reload-final.log",
+          "requiredText": [
+            "NativeAudioRoutingTest: PASS; 137 assertions",
+            "AudioLoaderTest: PASS"
+          ],
+          "sha256": "92afacb83ae7848045b70ff0eb3ed61d57831dad3f1499b04f07cf757fd1adaf",
+          "bytes": 24408
+        }
+      ]
+    },
+    "authoringRegression": {
+      "result": "PASS",
+      "scope": "46 existing shared authoring tests pass on unchanged authoring sources; launcher focused suite runs 12 tests, 11 pass and one real directory-symlink test is skipped for Windows privilege. Launcher source d804bf2ec287668dabdf7004f156f6a6f429bd3d6a32cde9948f80a8c428cb01 was bound unchanged before/after its final focused run.",
+      "tests": {
+        "authoringPassed": 46,
+        "launcherRun": 12,
+        "launcherPassed": 11,
+        "launcherSkipped": 1
+      },
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/python-authoring-tests.log",
+          "requiredText": [
+            "Ran 46 tests",
+            "OK"
+          ],
+          "sha256": "3f70bc6de59715f4e8c7eae6d939fd57b3f0d2a7bf837d06c56ea7865436b1ce",
+          "bytes": 7775
+        },
+        {
+          "path": "build/audio-audit-20261102/packaged-launcher-tests-final-f.log",
+          "requiredText": [
+            "Ran 12 tests",
+            "OK (skipped=1)"
+          ],
+          "sha256": "f683add7ae5903e39a1ec518383780e0172eadabb169585a8582507c413afbb6",
+          "bytes": 128
+        },
+        {
+          "path": "build/audio-audit-20261102/packaged-launcher-tests-final-f.json",
+          "sha256": "c4bcc23e4dd0b5977b49996b5c2fd799a68b94345c4267972003a8af2bb18f9f",
+          "bytes": 781
+        }
+      ]
+    },
+    "releaseSelection": {
+      "result": "PASS",
+      "scope": "25 release-selection tests pass in 7.234 seconds against final reload-repair provider archives; local fixture copies only, no publication.",
+      "tests": 25,
+      "durationSeconds": 7.234,
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/python-release-tests-reload-final.log",
+          "requiredText": [
+            "Ran 25 tests in 7.234s",
+            "OK"
+          ],
+          "sha256": "7129ba94dcbb89185eb842ad2a8857e35e524cba88020a4a05eb53f238eb3723",
+          "bytes": 241
+        }
+      ]
+    },
+    "packagedClients": {
+      "result": "PASS",
+      "scope": "All four exact final production archives run on production loaders with required dependency/JDK tuples; each final resource run includes 129 joined-world plus 62 unassisted resource recovery assertions. Installed mod, fixture, runtime and launcher hashes are unchanged before/after. No development-classpath substitution or human approval.",
+      "evidence": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-k/receipt.json",
+          "sha256": "2c176e147b2556854656653f9943a9b1a83b6f690e12a1f5524c9c148bc5cea8",
+          "bytes": 58769
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-resource-k/receipt.json",
+          "sha256": "e97372cc39689e8e3e265da5466da905114928cf65f74dcd8119f7334ac0881b",
+          "bytes": 32143
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-k/receipt.json",
+          "sha256": "67af53f1326b73270b27f50f1c578b0c18196c355e8c83044accfe0507a09d2e",
+          "bytes": 137505
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-resource-k/receipt.json",
+          "sha256": "ded011a66133f922e0b5fd640e9cbeb82b640f9402dfd0eace17145a29e295ba",
+          "bytes": 55041
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-k/receipt.json",
+          "sha256": "176a318a6c2a8c6af05f37faaa6bf3ac2d7361e5d4429c2c71396b10103446b3",
+          "bytes": 64759
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-resource-k/receipt.json",
+          "sha256": "ed43542a43b6a9b9bc042490af5e36531ea2b394853abfa76ee75c6e4ef06749",
+          "bytes": 33509
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-k/receipt.json",
+          "sha256": "d87a62bd7a08c089192cbe71349f40462a2a7425af1cdb598b7b435fbae14748",
+          "bytes": 103795
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-j/receipt.json",
+          "sha256": "e058d2a9c8441c2ed817ffba7d400f82ff5efe3b4ea0da4e5df011c8d3f296a7",
+          "bytes": 45269
+        }
+      ]
+    },
+    "resourceRecovery": {
+      "result": "PASS",
+      "scope": "All four exact final targets: 62 unassisted assertions each. Missing sample produces zero native handles/voices/callbacks, corrupt bytes retain one bounded silent native handle/callback, and restored stock yields exactly one actually playing native channel. Source and caption survive; retired handles are inactive. Broader packs/device hot swaps remain additional coverage.",
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/resource-recovery-final.json",
+          "sha256": "96e166aa8ee2df9bf2461759b3ff03ab8125e681c9f7c617b4ee9e31c7734396",
+          "bytes": 176394
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-resource-k/receipt.json",
+          "sha256": "e97372cc39689e8e3e265da5466da905114928cf65f74dcd8119f7334ac0881b",
+          "bytes": 32143
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-resource-k/receipt.json",
+          "sha256": "ded011a66133f922e0b5fd640e9cbeb82b640f9402dfd0eace17145a29e295ba",
+          "bytes": 55041
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-resource-k/receipt.json",
+          "sha256": "ed43542a43b6a9b9bc042490af5e36531ea2b394853abfa76ee75c6e4ef06749",
+          "bytes": 33509
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-j/receipt.json",
+          "sha256": "e058d2a9c8441c2ed817ffba7d400f82ff5efe3b4ea0da4e5df011c8d3f296a7",
+          "bytes": 45269
+        }
+      ]
+    },
+    "multiplayer": {
+      "result": "PARTIAL",
+      "scope": "All four exact final socket-k runs PASS 118 server assertions each plus both client observation/cleanup checks. Distinct socket UUIDs; public/private/range/dimension/overlap/native-command scenes, actual ordered HUD frames, real authorized Crucible transfer, late proximity observer, stop/restart/removal, no further grants and native handle cleanup. Overall multiplayer acceptance remains PARTIAL: true late connection/reconnect, supported native/FTB membership scenes, UI/C2S initiation, paid Infuser, simultaneous paid transactions and all gameplay combinations are pending.",
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/socket-acceptance-reload-summary.json",
+          "sha256": "1d1f7272ecdc7b9375eda2bba447d7e0c63d3c653656927d4b3aea657e35e90b",
+          "bytes": 32773
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-k/receipt.json",
+          "sha256": "2c176e147b2556854656653f9943a9b1a83b6f690e12a1f5524c9c148bc5cea8",
+          "bytes": 58769
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-k/receipt.json",
+          "sha256": "67af53f1326b73270b27f50f1c578b0c18196c355e8c83044accfe0507a09d2e",
+          "bytes": 137505
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-k/receipt.json",
+          "sha256": "176a318a6c2a8c6af05f37faaa6bf3ac2d7361e5d4429c2c71396b10103446b3",
+          "bytes": 64759
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-k/receipt.json",
+          "sha256": "d87a62bd7a08c089192cbe71349f40462a2a7425af1cdb598b7b435fbae14748",
+          "bytes": 103795
+        }
+      ]
+    },
+    "performance": {
+      "result": "PARTIAL",
+      "scope": "Final eight clients: 200 idle and 200 dense synthetic controller ticks each; 1000 prepared candidates, max32 candidates offered/tick, max256 retained sources/12 voices, complete cleanup. Ranges and raw CPU/allocation values are preserved. Counting sink excludes actual discovery, native mixer, gameplay, rendering and network. Some runs overlapped resource checks and sequential Gradle on this host. Required native idle/dense-world CPU/allocation/source/voice/packet measurements remain pending; zero idle CPU counters mean below counter resolution.",
+      "evidence": [
+        {
+          "path": "build/audio-audit-20261102/socket-acceptance-reload-summary.json",
+          "sha256": "1d1f7272ecdc7b9375eda2bba447d7e0c63d3c653656927d4b3aea657e35e90b",
+          "bytes": 32773
+        },
+        {
+          "path": "build/audio-audit-20261102/test-host.json",
+          "sha256": "39eb5b0f13248980cb80fcc14e7aea7ce933add58758332db987d3dc0bc51c5f",
+          "bytes": 784
+        }
+      ]
+    },
+    "humanListening": {
+      "result": "PENDING",
+      "scope": "Native mix/levels, all pylon variants/transitions, perceived seams, tails, repetition/fatigue and dense-scene balance require human feedback; numeric decoding and >12-second native handle continuity are not listening approval.",
+      "evidence": []
+    },
+    "humanHud": {
+      "result": "PENDING",
+      "scope": "Actual frame order and occupied-region layout logic are automated checks; human caption/HUD coexistence, readability and GUI-scale acceptance remain unperformed.",
+      "evidence": []
+    },
+    "rightsReview": {
+      "result": "PENDING",
+      "scope": "Owner-confirmed redistribution terms and actual attribution for the exact selected takes remain pending. Original deterministic synthesis provenance and creative integration approval do not constitute final rights approval.",
+      "evidence": []
+    }
+  },
+  "packagedRuns": [
+    {
+      "path": "build/audio-packaged-acceptance/final-1211fabric-resource-g/receipt.json",
+      "sha256": "b27be12041d489e451c728bdecccabc86927a1aa567bf59f252ca2443099f8bd",
+      "bytes": 32100,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "1211Fabric",
+      "testedArchiveSha256": "1ababe66bba650e65caa67be3165eec27a88d42b50ad095042263aa259729987",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-resource-g/EA_A.log",
+          "sha256": "5ad776cb19cad49954a1af10b0b5c139aad75deccdd2fb2c9a4491a8d659fac7",
+          "bytes": 54320,
+          "recordedSha256": "5ad776cb19cad49954a1af10b0b5c139aad75deccdd2fb2c9a4491a8d659fac7",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211fabric-resource-k/receipt.json",
+      "sha256": "e97372cc39689e8e3e265da5466da905114928cf65f74dcd8119f7334ac0881b",
+      "bytes": 32143,
+      "disposition": "accepted",
+      "scope": "129 joined-world plus 62 controlled missing/corrupt/restored resource assertions; actual audio-thread channel playback, retained captions, cleanup and no manual intervention; controlled Infuser presentation is not paid Infuser gameplay.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "1211Fabric",
+      "testedArchiveSha256": "339275ce2a53e203131daeed7208cad1113117a81328d80f053d0ed314db82a3",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-resource-k/EA_A.log",
+          "sha256": "ee743bfb479960698985e5e65a7db3cf326c0b3b20a35666da85dfdc51cd4037",
+          "bytes": 57658,
+          "recordedSha256": "ee743bfb479960698985e5e65a7db3cf326c0b3b20a35666da85dfdc51cd4037",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211fabric-socket-c/receipt.json",
+      "sha256": "78142ee1b7e90dd08c168adae48616ab80fd133467789bca6fd87015c41c98ca",
+      "bytes": 57117,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "1211Fabric",
+      "testedArchiveSha256": "3a880658012818edd727f47623bf1693f449b77c1517be67a1ebc9a0dafacdf7",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-c/EA_A.log",
+          "sha256": "dce5b75ca0bf7c106a810492c70edcc717f7bb962c29eeb5bef21c092ffc1916",
+          "bytes": 16318,
+          "recordedSha256": "dce5b75ca0bf7c106a810492c70edcc717f7bb962c29eeb5bef21c092ffc1916",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-c/EA_B.log",
+          "sha256": "f7480923e7e65ab3ff8c5a88616b3842a22d1e94f2e09c66736d668011dd9ff4",
+          "bytes": 16361,
+          "recordedSha256": "f7480923e7e65ab3ff8c5a88616b3842a22d1e94f2e09c66736d668011dd9ff4",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-c/server.log",
+          "sha256": "f86ffc6858c35ce209196c64d39f92db57ea99ada29b863503644819b4feadf9",
+          "bytes": 31204,
+          "recordedSha256": "f86ffc6858c35ce209196c64d39f92db57ea99ada29b863503644819b4feadf9",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211fabric-socket-e/receipt.json",
+      "sha256": "6c6ad561eb15964836a65f8a8d7b921f729428892cead4b73bb765ddc3ccbb13",
+      "bytes": 58218,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "1211Fabric",
+      "testedArchiveSha256": "1ababe66bba650e65caa67be3165eec27a88d42b50ad095042263aa259729987",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-e/EA_A.log",
+          "sha256": "97f9637af03260e76bbf9beb32f16ff0a32a155dd637bf06ae3c863e56d8d89b",
+          "bytes": 14321,
+          "recordedSha256": "97f9637af03260e76bbf9beb32f16ff0a32a155dd637bf06ae3c863e56d8d89b",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-e/EA_B.log",
+          "sha256": "a6e5c55061dd4c55cf3bdf125e45a692f05a9410eef28e300a8d2d074b14d91d",
+          "bytes": 15568,
+          "recordedSha256": "a6e5c55061dd4c55cf3bdf125e45a692f05a9410eef28e300a8d2d074b14d91d",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-e/server.log",
+          "sha256": "89c9c7987e1f730accd669cf7c943114c9dc415782745cb9ce1a29c0f20a78c1",
+          "bytes": 28740,
+          "recordedSha256": "89c9c7987e1f730accd669cf7c943114c9dc415782745cb9ce1a29c0f20a78c1",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211fabric-socket-g/receipt.json",
+      "sha256": "cd5996834a70aa0649005a0151453e0f9cf5780abde5b25878441c09b5933f60",
+      "bytes": 58726,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "1211Fabric",
+      "testedArchiveSha256": "1ababe66bba650e65caa67be3165eec27a88d42b50ad095042263aa259729987",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-g/EA_A.log",
+          "sha256": "86e05476e12fe01398e78e7079528a8fd39b64fd811d81ec8441cd5b15ffe2e7",
+          "bytes": 17725,
+          "recordedSha256": "86e05476e12fe01398e78e7079528a8fd39b64fd811d81ec8441cd5b15ffe2e7",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-g/EA_B.log",
+          "sha256": "a19a0c44f318aafc0e42f144e1f17c6de4b4c79adf23aa97bdc34e57f6912560",
+          "bytes": 17972,
+          "recordedSha256": "a19a0c44f318aafc0e42f144e1f17c6de4b4c79adf23aa97bdc34e57f6912560",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-g/server.log",
+          "sha256": "a1fba25b85f8a306643c67cedfdc3ec207c946afb48fe57cea699521a3ca2de9",
+          "bytes": 34329,
+          "recordedSha256": "a1fba25b85f8a306643c67cedfdc3ec207c946afb48fe57cea699521a3ca2de9",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211fabric-socket-k/receipt.json",
+      "sha256": "2c176e147b2556854656653f9943a9b1a83b6f690e12a1f5524c9c148bc5cea8",
+      "bytes": 58769,
+      "disposition": "accepted",
+      "scope": "Two distinct socket clients; 118 server assertions, actual native frame order, paid Crucible transfer conservation, late proximity observer, stop/restart/removal and client disconnect cleanup; no true late connection, paid Infuser or human hearing claim.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "1211Fabric",
+      "testedArchiveSha256": "339275ce2a53e203131daeed7208cad1113117a81328d80f053d0ed314db82a3",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-k/EA_A.log",
+          "sha256": "8ce33edb89a0704987f7cab1317972f22d2f7e3f99b99fbfab1cf380703dc136",
+          "bytes": 17724,
+          "recordedSha256": "8ce33edb89a0704987f7cab1317972f22d2f7e3f99b99fbfab1cf380703dc136",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-k/EA_B.log",
+          "sha256": "acff360db10c51bf025d1aed5268a137a02c5dce21566080fef58782bc5fbe67",
+          "bytes": 17766,
+          "recordedSha256": "acff360db10c51bf025d1aed5268a137a02c5dce21566080fef58782bc5fbe67",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-socket-k/server.log",
+          "sha256": "55368d1c01308320cb47af8bc42eed19a9d4296d8d607e459e0576e9b9047b9e",
+          "bytes": 34813,
+          "recordedSha256": "55368d1c01308320cb47af8bc42eed19a9d4296d8d607e459e0576e9b9047b9e",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211fabric-world-e/receipt.json",
+      "sha256": "7565d695aa907d08b73af4940da9a16b43faae7ec366b4b5578c285fb5b9f138",
+      "bytes": 31576,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world",
+      "target": "1211Fabric",
+      "testedArchiveSha256": "1ababe66bba650e65caa67be3165eec27a88d42b50ad095042263aa259729987",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211fabric-world-e/EA_A.log",
+          "sha256": "c2c01e7499f79be9f7808ba6c972da7402815ab9ffac48a0751cf35b021f06e5",
+          "bytes": 40731,
+          "recordedSha256": "c2c01e7499f79be9f7808ba6c972da7402815ab9ffac48a0751cf35b021f06e5",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211neoforge-resource-k/receipt.json",
+      "sha256": "ded011a66133f922e0b5fd640e9cbeb82b640f9402dfd0eace17145a29e295ba",
+      "bytes": 55041,
+      "disposition": "accepted",
+      "scope": "129 joined-world plus 62 controlled missing/corrupt/restored resource assertions; actual audio-thread channel playback, retained captions, cleanup and no manual intervention; controlled Infuser presentation is not paid Infuser gameplay.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "1211NeoForge",
+      "testedArchiveSha256": "fb1904ca2f03fb3b0645a1c58411b4dcd82ffff3444c4f11a374124dae782864",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-resource-k/EA_A.log",
+          "sha256": "7b083d5ea56680ff32ba68be4ae22d5d626d1106f5f0a27dd75fccea45be49a8",
+          "bytes": 667166,
+          "recordedSha256": "7b083d5ea56680ff32ba68be4ae22d5d626d1106f5f0a27dd75fccea45be49a8",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-e/receipt.json",
+      "sha256": "0dd58ac751709d6fccb3c7cc4d44a3fac402d6bf397f2361270f4fb3e320d035",
+      "bytes": 136899,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "1211NeoForge",
+      "testedArchiveSha256": "2f9fdc09ef9579a1c7b4b8814a9aaacb5cd3ada61bc6f464f795571df559ead5",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-e/EA_A.log",
+          "sha256": "6a4fa80094b5096e4eeb95204979facdd1ce34e0ca655d72e77d2563b9abf94d",
+          "bytes": 628325,
+          "recordedSha256": "6a4fa80094b5096e4eeb95204979facdd1ce34e0ca655d72e77d2563b9abf94d",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-e/EA_B.log",
+          "sha256": "75bbc7110e22218c72ddccf2a1d2acc2bc70429b8cb736985bf2aa37494ac219",
+          "bytes": 628395,
+          "recordedSha256": "75bbc7110e22218c72ddccf2a1d2acc2bc70429b8cb736985bf2aa37494ac219",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-e/server.log",
+          "sha256": "14103c14702f484dfdbb68269300976adb22b94dd67da54910b6c114570cee3a",
+          "bytes": 33124,
+          "recordedSha256": "14103c14702f484dfdbb68269300976adb22b94dd67da54910b6c114570cee3a",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-g/receipt.json",
+      "sha256": "dea0a121973b78c1f731b7790dced2d9969f42fcbd5a28f5ef7b55c64c25213d",
+      "bytes": 137462,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "1211NeoForge",
+      "testedArchiveSha256": "2f9fdc09ef9579a1c7b4b8814a9aaacb5cd3ada61bc6f464f795571df559ead5",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-g/EA_A.log",
+          "sha256": "99667279354b12a36072965928f7e8918ce635ea1683cf389967162b638c7172",
+          "bytes": 629236,
+          "recordedSha256": "99667279354b12a36072965928f7e8918ce635ea1683cf389967162b638c7172",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-g/EA_B.log",
+          "sha256": "68606d06f2f668d71231f4997ca3689f797ac8c9cb0491c28ee1756652603523",
+          "bytes": 629504,
+          "recordedSha256": "68606d06f2f668d71231f4997ca3689f797ac8c9cb0491c28ee1756652603523",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-g/server.log",
+          "sha256": "a38b9a14eec430fb848986fc291deeda2cfe3f896b7afc2e8ffc230bfa7d4bb9",
+          "bytes": 36393,
+          "recordedSha256": "a38b9a14eec430fb848986fc291deeda2cfe3f896b7afc2e8ffc230bfa7d4bb9",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-k/receipt.json",
+      "sha256": "67af53f1326b73270b27f50f1c578b0c18196c355e8c83044accfe0507a09d2e",
+      "bytes": 137505,
+      "disposition": "accepted",
+      "scope": "Two distinct socket clients; 118 server assertions, actual native frame order, paid Crucible transfer conservation, late proximity observer, stop/restart/removal and client disconnect cleanup; no true late connection, paid Infuser or human hearing claim.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "1211NeoForge",
+      "testedArchiveSha256": "fb1904ca2f03fb3b0645a1c58411b4dcd82ffff3444c4f11a374124dae782864",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-k/EA_A.log",
+          "sha256": "9a479b99ffe516e31eeca6ca3f753742dec8e0f6e9f0f36694a80ab9841e93ce",
+          "bytes": 629240,
+          "recordedSha256": "9a479b99ffe516e31eeca6ca3f753742dec8e0f6e9f0f36694a80ab9841e93ce",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-k/EA_B.log",
+          "sha256": "b27019ca34c539c8d150f86b1de174f72bcbaa38cbd455875b99677e4b3d5c2f",
+          "bytes": 629591,
+          "recordedSha256": "b27019ca34c539c8d150f86b1de174f72bcbaa38cbd455875b99677e4b3d5c2f",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-socket-k/server.log",
+          "sha256": "fdec4cc9f667e67d28b43a6b05fc36b69c32adb0391a0310310e93235e57eca3",
+          "bytes": 36447,
+          "recordedSha256": "fdec4cc9f667e67d28b43a6b05fc36b69c32adb0391a0310310e93235e57eca3",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-1211neoforge-world-e/receipt.json",
+      "sha256": "bd32586aa9815964ec598a752c2fd4864734ad0e0c4fd80e405fb3d800e25799",
+      "bytes": 54194,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world",
+      "target": "1211NeoForge",
+      "testedArchiveSha256": "2f9fdc09ef9579a1c7b4b8814a9aaacb5cd3ada61bc6f464f795571df559ead5",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-1211neoforge-world-e/EA_A.log",
+          "sha256": "80e077db5127827a0e8e8913a31358bf18ed8f349f082507ab9077889796f621",
+          "bytes": 652064,
+          "recordedSha256": "80e077db5127827a0e8e8913a31358bf18ed8f349f082507ab9077889796f621",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-resource-g/receipt.json",
+      "sha256": "66541680763941a9131bcc7d082e4d6897f4a26a9abf5414ae402eb6713e20e4",
+      "bytes": 33466,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "74bb66a30123751fd80501c966d6b6ec4425015058e8f83b53dcb2c5e7f3e3b4",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-resource-g/EA_A.log",
+          "sha256": "006a193ca65f37802c99aa95cfac46b96e4b5a7e66e5765a69020d9edc8c46df",
+          "bytes": 57832,
+          "recordedSha256": "006a193ca65f37802c99aa95cfac46b96e4b5a7e66e5765a69020d9edc8c46df",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-resource-k/receipt.json",
+      "sha256": "ed43542a43b6a9b9bc042490af5e36531ea2b394853abfa76ee75c6e4ef06749",
+      "bytes": 33509,
+      "disposition": "accepted",
+      "scope": "129 joined-world plus 62 controlled missing/corrupt/restored resource assertions; actual audio-thread channel playback, retained captions, cleanup and no manual intervention; controlled Infuser presentation is not paid Infuser gameplay.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "74d8ad004cd9f40f64f90218094c28d36357073984ec1b0f2522da4d957e8bf9",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-resource-k/EA_A.log",
+          "sha256": "bc1ee08f26cedc7d98f83296dec44d929fa14a8709fdaf8dccec9ca16682ab7c",
+          "bytes": 60298,
+          "recordedSha256": "bc1ee08f26cedc7d98f83296dec44d929fa14a8709fdaf8dccec9ca16682ab7c",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-socket-a/receipt.json",
+      "sha256": "81a7e6eafcd9985730c0e358ac15660a3d57dc0e14f9b299e3249115e3922151",
+      "bytes": 1211,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "c83f4834601d51319b0ddfa4945458739768d0fab6c5124a006fa300ca779442",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": false,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-a/EA_A.log",
+          "sha256": "2414260b107c7d16bb463598dba5585dd6a57b8e7d3b39735b63b2d17d752b8a",
+          "bytes": 20065,
+          "recordedSha256": "2414260b107c7d16bb463598dba5585dd6a57b8e7d3b39735b63b2d17d752b8a",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-a/EA_B.log",
+          "sha256": "4408f727ec80494e99f524ea29b562307e5168c62f36575cbdd7b997a596dabe",
+          "bytes": 19994,
+          "recordedSha256": "4408f727ec80494e99f524ea29b562307e5168c62f36575cbdd7b997a596dabe",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-a/server.log",
+          "sha256": "3ffc05e028fa6c15bf22daa8a11434afd1bdd301f1033cdf403bb4afb312a83b",
+          "bytes": 30820,
+          "recordedSha256": "3ffc05e028fa6c15bf22daa8a11434afd1bdd301f1033cdf403bb4afb312a83b",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-socket-b/receipt.json",
+      "sha256": "59dd94b84ba69be12269ffc5798d2f3b575d0a4712ae2604d2ac27a9723f25b0",
+      "bytes": 63014,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "c83f4834601d51319b0ddfa4945458739768d0fab6c5124a006fa300ca779442",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-b/EA_A.log",
+          "sha256": "d773f577576bb834ca34e06490671dbd4aebafad1a1d5b6da4573dd40fca4841",
+          "bytes": 20085,
+          "recordedSha256": "d773f577576bb834ca34e06490671dbd4aebafad1a1d5b6da4573dd40fca4841",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-b/EA_B.log",
+          "sha256": "9ef52deeca0e7572e1fcccb30fbc1dc004cbceed58b379d1c289b761133fbf44",
+          "bytes": 20128,
+          "recordedSha256": "9ef52deeca0e7572e1fcccb30fbc1dc004cbceed58b379d1c289b761133fbf44",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-b/server.log",
+          "sha256": "718e44a23482b5c6a639c90c3ce6cfc2aceed90a3b752c1c28bd9b058601ff98",
+          "bytes": 32030,
+          "recordedSha256": "718e44a23482b5c6a639c90c3ce6cfc2aceed90a3b752c1c28bd9b058601ff98",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-socket-d/receipt.json",
+      "sha256": "c77073fb25cd8c54675f48a7bcbff1ab4194f41a70fc93a39a73f4ccb70a303e",
+      "bytes": 64181,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "180eba7ac1d4dd59112c450c3e485d597e290c97e00a68ee015a20a53957d7ec",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-d/EA_A.log",
+          "sha256": "b56ce54ff5abe642aefd080b7f1ab4b85fbb340aa5193f8b4b82cd4f8287a578",
+          "bytes": 20266,
+          "recordedSha256": "b56ce54ff5abe642aefd080b7f1ab4b85fbb340aa5193f8b4b82cd4f8287a578",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-d/EA_B.log",
+          "sha256": "9ae0400167a7c31a01e0dd7f50522487fe7dee5b9ea6be3a072c9bef88779479",
+          "bytes": 20590,
+          "recordedSha256": "9ae0400167a7c31a01e0dd7f50522487fe7dee5b9ea6be3a072c9bef88779479",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-d/server.log",
+          "sha256": "f778bd68056f63ce2bb65d9eb44a88f9beaa93ceebbc17ced05a7e78eaae7330",
+          "bytes": 31255,
+          "recordedSha256": "f778bd68056f63ce2bb65d9eb44a88f9beaa93ceebbc17ced05a7e78eaae7330",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-socket-e/receipt.json",
+      "sha256": "cc80e6d8f00b50bf0dba826710ee2ee2ee6224676865b69e4ade45f64b3d8acf",
+      "bytes": 64157,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "74bb66a30123751fd80501c966d6b6ec4425015058e8f83b53dcb2c5e7f3e3b4",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-e/EA_A.log",
+          "sha256": "8c5b794f945decdc1ae877ea3b406cc5439b939d0df7379d0ddf6de3b6fa9ea3",
+          "bytes": 20398,
+          "recordedSha256": "8c5b794f945decdc1ae877ea3b406cc5439b939d0df7379d0ddf6de3b6fa9ea3",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-e/EA_B.log",
+          "sha256": "13de177b0a4161f8b1cf2d9a988570f8df1a40bc52299aea59aa0f866aa014a3",
+          "bytes": 20448,
+          "recordedSha256": "13de177b0a4161f8b1cf2d9a988570f8df1a40bc52299aea59aa0f866aa014a3",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-e/server.log",
+          "sha256": "07f1af380260f16b4de8c9ddebc35bd4d120480234df644c8b7a92d1ceb797e8",
+          "bytes": 31717,
+          "recordedSha256": "07f1af380260f16b4de8c9ddebc35bd4d120480234df644c8b7a92d1ceb797e8",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-socket-f/receipt.json",
+      "sha256": "afc00c11751b0610333118a2f822764f723214f3edbb00308d632440a36c51fb",
+      "bytes": 64758,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "74bb66a30123751fd80501c966d6b6ec4425015058e8f83b53dcb2c5e7f3e3b4",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-f/EA_A.log",
+          "sha256": "194613734ddc0d2d50ec44c4e860d25363dc681195bf7e9a0ea0e0ce83410346",
+          "bytes": 18455,
+          "recordedSha256": "194613734ddc0d2d50ec44c4e860d25363dc681195bf7e9a0ea0e0ce83410346",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-f/EA_B.log",
+          "sha256": "6f5482c3f802ca53334ad636fa7c381aa5f2589a7f40fddec4ac8adee9b36e4e",
+          "bytes": 20073,
+          "recordedSha256": "6f5482c3f802ca53334ad636fa7c381aa5f2589a7f40fddec4ac8adee9b36e4e",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-f/server.log",
+          "sha256": "0b0b8aa93f88deb26ba15560294fa56a125203c6a1873b2165cfb3b79b6c6394",
+          "bytes": 29124,
+          "recordedSha256": "0b0b8aa93f88deb26ba15560294fa56a125203c6a1873b2165cfb3b79b6c6394",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-socket-g/receipt.json",
+      "sha256": "0d7713ac35f35d185bcfc615e0e12a7919adce4eb641bd15fe6d9b5c8c7b2f1b",
+      "bytes": 64716,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "74bb66a30123751fd80501c966d6b6ec4425015058e8f83b53dcb2c5e7f3e3b4",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-g/EA_A.log",
+          "sha256": "d261df0d20f04983e065b8297fc8d821d99bdaabf7328a11bdd41dba44182d31",
+          "bytes": 21631,
+          "recordedSha256": "d261df0d20f04983e065b8297fc8d821d99bdaabf7328a11bdd41dba44182d31",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-g/EA_B.log",
+          "sha256": "b1e666ff5130972d35e59eb3b19ec7dd2baa8c09f79ee4dfdcf84f0080f3df34",
+          "bytes": 21817,
+          "recordedSha256": "b1e666ff5130972d35e59eb3b19ec7dd2baa8c09f79ee4dfdcf84f0080f3df34",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-g/server.log",
+          "sha256": "19c4620bab3cdaea1ab1e54d0dff74331cfeef18ff23fc262644c4cc7dcb5ebb",
+          "bytes": 34754,
+          "recordedSha256": "19c4620bab3cdaea1ab1e54d0dff74331cfeef18ff23fc262644c4cc7dcb5ebb",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-socket-k/receipt.json",
+      "sha256": "176a318a6c2a8c6af05f37faaa6bf3ac2d7361e5d4429c2c71396b10103446b3",
+      "bytes": 64759,
+      "disposition": "accepted",
+      "scope": "Two distinct socket clients; 118 server assertions, actual native frame order, paid Crucible transfer conservation, late proximity observer, stop/restart/removal and client disconnect cleanup; no true late connection, paid Infuser or human hearing claim.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "74d8ad004cd9f40f64f90218094c28d36357073984ec1b0f2522da4d957e8bf9",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-k/EA_A.log",
+          "sha256": "6c2579fe60b21bf8b90cfad94e5a3cd79b898487f2ce0c1dd02f5ece1369c67d",
+          "bytes": 21905,
+          "recordedSha256": "6c2579fe60b21bf8b90cfad94e5a3cd79b898487f2ce0c1dd02f5ece1369c67d",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-k/EA_B.log",
+          "sha256": "d69951fa5eb3a07d0f7f2060cd4b43e72479b79e6a2361af4be6920dbe0fccc6",
+          "bytes": 21951,
+          "recordedSha256": "d69951fa5eb3a07d0f7f2060cd4b43e72479b79e6a2361af4be6920dbe0fccc6",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-socket-k/server.log",
+          "sha256": "c564666794ef09b6bbf7c009efd8a64a881f501f83fcb810452da3c6cb6450b4",
+          "bytes": 35038,
+          "recordedSha256": "c564666794ef09b6bbf7c009efd8a64a881f501f83fcb810452da3c6cb6450b4",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612fabric-world-e/receipt.json",
+      "sha256": "5136cf16dca608c6e0d1c93fc58f5bbad16cdc8ca5753494542fb208ad52e4b4",
+      "bytes": 32942,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "74bb66a30123751fd80501c966d6b6ec4425015058e8f83b53dcb2c5e7f3e3b4",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612fabric-world-e/EA_A.log",
+          "sha256": "876a9ff51c004a0dde7715e87ad1c0070cde959e97b67cb0e04f8721a2a50038",
+          "bytes": 45267,
+          "recordedSha256": "876a9ff51c004a0dde7715e87ad1c0070cde959e97b67cb0e04f8721a2a50038",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-g/receipt.json",
+      "sha256": "9865467b7ce6b33a4378a9aecf5037e1b381ddbd2c4310de9906a758297334e3",
+      "bytes": 45248,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "63d36a768a092e1bd203c8e788fc4e9b08a9558f316e3f04088e019af024aea7",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-g/EA_A.log",
+          "sha256": "471161eb7fd2d319cbf8ed3b80ae3e750457137cf8de3b65e134c942ee94d6b1",
+          "bytes": 51673,
+          "recordedSha256": "471161eb7fd2d319cbf8ed3b80ae3e750457137cf8de3b65e134c942ee94d6b1",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-h/receipt.json",
+      "sha256": "28fba3145074536ff537ec55376b829a719421ba688a6433ebfc27048fc4ffca",
+      "bytes": 45248,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "63d36a768a092e1bd203c8e788fc4e9b08a9558f316e3f04088e019af024aea7",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-h/EA_A.log",
+          "sha256": "40c2b84f5c1ed64e07f83662ed6c74417da685d892e286e50d076be7aa246ad4",
+          "bytes": 54662,
+          "recordedSha256": "40c2b84f5c1ed64e07f83662ed6c74417da685d892e286e50d076be7aa246ad4",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-i/receipt.json",
+      "sha256": "0f470761bbc846cc41a4cb36af529a0cf60d7c28f844a7007d1d84f2934e27e5",
+      "bytes": 45248,
+      "disposition": "diagnostic",
+      "scope": "Old candidate causal recovery probe: valid restored definition remains suppressed by stale unavailable cache; clearing only that cache restores actual playback. Unassisted result remains FAIL.",
+      "reportedResult": "FAIL",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "63d36a768a092e1bd203c8e788fc4e9b08a9558f316e3f04088e019af024aea7",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-i/EA_A.log",
+          "sha256": "8155a5cc9c6923156f465b7d798361e0a950aedad6c9959198b0ceed89326f9d",
+          "bytes": 61718,
+          "recordedSha256": "8155a5cc9c6923156f465b7d798361e0a950aedad6c9959198b0ceed89326f9d",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-j/receipt.json",
+      "sha256": "e058d2a9c8441c2ed817ffba7d400f82ff5efe3b4ea0da4e5df011c8d3f296a7",
+      "bytes": 45269,
+      "disposition": "accepted",
+      "scope": "129 joined-world plus 62 controlled missing/corrupt/restored resource assertions; actual audio-thread channel playback, retained captions, cleanup and no manual intervention; controlled Infuser presentation is not paid Infuser gameplay.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world with isolated resource recovery",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "ac750e3821a5f5a43ad714250751b03dcc9c34dcc177e8395f9a1fa05f549b39",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-resource-j/EA_A.log",
+          "sha256": "be533c77847269e7a9e085b6964806db98c9491259f913da89d3f7037a894856",
+          "bytes": 61400,
+          "recordedSha256": "be533c77847269e7a9e085b6964806db98c9491259f913da89d3f7037a894856",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-c/receipt.json",
+      "sha256": "859329301737c4f00095001954772239f2cf1cacb367b9b5ad546028c02ab60a",
+      "bytes": 102048,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "ef067e741f7a00fb3494032377651ba4ae255873331cd084a0119bc852e685a3",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-c/EA_A.log",
+          "sha256": "1aaf2027cf2a82752e7c6faf2fd3b82bbe7067656fbd198151803c84a9822a65",
+          "bytes": 30346,
+          "recordedSha256": "1aaf2027cf2a82752e7c6faf2fd3b82bbe7067656fbd198151803c84a9822a65",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-c/EA_B.log",
+          "sha256": "e2646237f0cad615e7e702957ced82cb7a546eec76217c62253ab024051dc144",
+          "bytes": 30438,
+          "recordedSha256": "e2646237f0cad615e7e702957ced82cb7a546eec76217c62253ab024051dc144",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-c/server.log",
+          "sha256": "21d00180f86d5621ae8d5ea60b4bb9a562e175f7f16780ff9263c2acaf80501d",
+          "bytes": 44205,
+          "recordedSha256": "21d00180f86d5621ae8d5ea60b4bb9a562e175f7f16780ff9263c2acaf80501d",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-d/receipt.json",
+      "sha256": "d17d256cea091bd3722dd434f70c3b9ef185d2a0eeadc90c0cf6a69571cba7bc",
+      "bytes": 103228,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "fe0eb34af1749ba7f9a2469a16e9eb2c92f0b37d89d54dbd2f4b93eb3cd20dca",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-d/EA_A.log",
+          "sha256": "9bdfbf438b603a2a5a107e31c28a10b864fd510dec830cd8a20d38c139f25004",
+          "bytes": 30572,
+          "recordedSha256": "9bdfbf438b603a2a5a107e31c28a10b864fd510dec830cd8a20d38c139f25004",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-d/EA_B.log",
+          "sha256": "c121aaeb6ad8596c7fd2bdda9af10602042b93bfc188f6541a736493ca21d5de",
+          "bytes": 30643,
+          "recordedSha256": "c121aaeb6ad8596c7fd2bdda9af10602042b93bfc188f6541a736493ca21d5de",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-d/server.log",
+          "sha256": "bcb234e2b5d7dcb5bf07b97dae0a8d5a26d12c95c7e0645704b99d0bbe7a0e5e",
+          "bytes": 44436,
+          "recordedSha256": "bcb234e2b5d7dcb5bf07b97dae0a8d5a26d12c95c7e0645704b99d0bbe7a0e5e",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-e/receipt.json",
+      "sha256": "f4ff1a0ab4d27fa1c6b0c935cb813a82922c6bce6dc8f66882328916746e5b6d",
+      "bytes": 103189,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "63d36a768a092e1bd203c8e788fc4e9b08a9558f316e3f04088e019af024aea7",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-e/EA_A.log",
+          "sha256": "e14f7ba3823596e35142087c8992f07cf07f798091e1524459c0dd08a8d8f70a",
+          "bytes": 30405,
+          "recordedSha256": "e14f7ba3823596e35142087c8992f07cf07f798091e1524459c0dd08a8d8f70a",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-e/EA_B.log",
+          "sha256": "6e02415bb041c0a378a0a3b8c778fd8a9b2487516177b897b466b12b9ba85733",
+          "bytes": 30569,
+          "recordedSha256": "6e02415bb041c0a378a0a3b8c778fd8a9b2487516177b897b466b12b9ba85733",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-e/server.log",
+          "sha256": "80d1d92096ce3de833b57cf06a6a1aac78d829fae1411e4f88a8f6763bec9ff5",
+          "bytes": 43820,
+          "recordedSha256": "80d1d92096ce3de833b57cf06a6a1aac78d829fae1411e4f88a8f6763bec9ff5",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-g/receipt.json",
+      "sha256": "74021a1e5ad0f910e04f82fbf3c0c5a5e1c4aba1aff8d84f6210cbaf705109d9",
+      "bytes": 103752,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "63d36a768a092e1bd203c8e788fc4e9b08a9558f316e3f04088e019af024aea7",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-g/EA_A.log",
+          "sha256": "7ce588aba54dac18e6cbebe68f7dfc1810c92e522f7b44b66cd9c7e6044cc3d6",
+          "bytes": 31404,
+          "recordedSha256": "7ce588aba54dac18e6cbebe68f7dfc1810c92e522f7b44b66cd9c7e6044cc3d6",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-g/EA_B.log",
+          "sha256": "4163c92e12e3af09abf1155745a05e7ff26233bbd7dabf4e26ea8e6a6f56d8c9",
+          "bytes": 31677,
+          "recordedSha256": "4163c92e12e3af09abf1155745a05e7ff26233bbd7dabf4e26ea8e6a6f56d8c9",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-g/server.log",
+          "sha256": "5d5c19123a398efff0978b6f7f9996c467897f51e2492b206dc064ffb7ca37e7",
+          "bytes": 46715,
+          "recordedSha256": "5d5c19123a398efff0978b6f7f9996c467897f51e2492b206dc064ffb7ca37e7",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-k/receipt.json",
+      "sha256": "d87a62bd7a08c089192cbe71349f40462a2a7425af1cdb598b7b435fbae14748",
+      "bytes": 103795,
+      "disposition": "accepted",
+      "scope": "Two distinct socket clients; 118 server assertions, actual native frame order, paid Crucible transfer conservation, late proximity observer, stop/restart/removal and client disconnect cleanup; no true late connection, paid Infuser or human hearing claim.",
+      "reportedResult": "PASS",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "ac750e3821a5f5a43ad714250751b03dcc9c34dcc177e8395f9a1fa05f549b39",
+      "matchesCurrentProvider": true,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-k/EA_A.log",
+          "sha256": "f6d6887c84e6d622e1634a80ba7577a90f62d02891c4ca217c83c1a571bebfe2",
+          "bytes": 31505,
+          "recordedSha256": "f6d6887c84e6d622e1634a80ba7577a90f62d02891c4ca217c83c1a571bebfe2",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-k/EA_B.log",
+          "sha256": "5ebdd39ad4eb920664ace132bf4f6ec21ff308af00a3f29dad14dee2301358ff",
+          "bytes": 31584,
+          "recordedSha256": "5ebdd39ad4eb920664ace132bf4f6ec21ff308af00a3f29dad14dee2301358ff",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-socket-k/server.log",
+          "sha256": "14c0f24052f331475462503a7d143e6cfdb18463f42dde9d3ccd48241729f544",
+          "bytes": 47190,
+          "recordedSha256": "14c0f24052f331475462503a7d143e6cfdb18463f42dde9d3ccd48241729f544",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/final-2612neoforge-world-e/receipt.json",
+      "sha256": "e1a7005345db3d31023c897b0fbe67722f5e3c3b39ee2eff3c2b7ae186877f2f",
+      "bytes": 44570,
+      "disposition": "superseded",
+      "scope": "Earlier candidate/archive or pre-reload-repair coverage retained historically; does not establish current pinned-reload-final acceptance.",
+      "reportedResult": "PASS",
+      "reportedMode": "exact packaged joined world",
+      "target": "2612NeoForge",
+      "testedArchiveSha256": "63d36a768a092e1bd203c8e788fc4e9b08a9558f316e3f04088e019af024aea7",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/final-2612neoforge-world-e/EA_A.log",
+          "sha256": "a386f38da11b4b59efef7cd8566238cb3bbe91b61a50c500817d3e0ac38bf28f",
+          "bytes": 46425,
+          "recordedSha256": "a386f38da11b4b59efef7cd8566238cb3bbe91b61a50c500817d3e0ac38bf28f",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-a/receipt.json",
+      "sha256": "3491c5d7a396e1f23366bdae59851f039437034f7ebfed300cce9c683af30829",
+      "bytes": 64074,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "c83f4834601d51319b0ddfa4945458739768d0fab6c5124a006fa300ca779442",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-a/server.log",
+          "sha256": "800741ef7f4d5fe54db485179531b32b5b1080e846a470d7eb5c5b325659b11b",
+          "bytes": 8644,
+          "recordedSha256": "800741ef7f4d5fe54db485179531b32b5b1080e846a470d7eb5c5b325659b11b",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-b/receipt.json",
+      "sha256": "83a866d5370d08dad091e1763282e696be55b6b499d637527649b4ebd769a287",
+      "bytes": 65206,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "c83f4834601d51319b0ddfa4945458739768d0fab6c5124a006fa300ca779442",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-b/EA_A.log",
+          "sha256": "79e21dbe9a69cd0d62a857bd71bb5f200453ce7d1666674825f6b11e96e8a2ed",
+          "bytes": 19849,
+          "recordedSha256": "79e21dbe9a69cd0d62a857bd71bb5f200453ce7d1666674825f6b11e96e8a2ed",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-b/EA_B.log",
+          "sha256": "ecb51d8e140eeaf196d5a435917401ee6c4e620c1f283e3c979bf56bdd274073",
+          "bytes": 19497,
+          "recordedSha256": "ecb51d8e140eeaf196d5a435917401ee6c4e620c1f283e3c979bf56bdd274073",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-b/server.log",
+          "sha256": "9bf82a49132f6674913d819abb34419041b9a0b13a38cf70c07928d2b92339cd",
+          "bytes": 29192,
+          "recordedSha256": "9bf82a49132f6674913d819abb34419041b9a0b13a38cf70c07928d2b92339cd",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Synthetic dispatch scenes; no paid transfer gameplay",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-c/receipt.json",
+      "sha256": "7489005cba80d19dd310f37b7f724723295e686a782bb6c3810e74665be2c81e",
+      "bytes": 65781,
+      "disposition": "diagnostic",
+      "scope": "Preserved failed setup, fixture, negative-control or old-candidate run. See its original log and receipt; no current acceptance claim.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "c83f4834601d51319b0ddfa4945458739768d0fab6c5124a006fa300ca779442",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-c/EA_A.log",
+          "sha256": "698f8ac5a94e9c75d5cda074fb32659d42979b3d4935d3a5da51afdfee9ac305",
+          "bytes": 19734,
+          "recordedSha256": "698f8ac5a94e9c75d5cda074fb32659d42979b3d4935d3a5da51afdfee9ac305",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-c/EA_B.log",
+          "sha256": "04bb2a5eed42d1bf3bbdde3f4c7ad39e062687cb9172c5fc0cfc9316c74da49e",
+          "bytes": 19663,
+          "recordedSha256": "04bb2a5eed42d1bf3bbdde3f4c7ad39e062687cb9172c5fc0cfc9316c74da49e",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-c/server.log",
+          "sha256": "daa1d4b763113b5e17b44a91cb25615eba09e91c61ba392c2c3a57ef99868070",
+          "bytes": 28726,
+          "recordedSha256": "daa1d4b763113b5e17b44a91cb25615eba09e91c61ba392c2c3a57ef99868070",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    },
+    {
+      "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-d/receipt.json",
+      "sha256": "d2a71c4582d30ddff1ee7fe7008c943eae75faeef07cfc80dd0e81aed084830e",
+      "bytes": 65781,
+      "disposition": "diagnostic",
+      "scope": "Intentional negative control against the original integration archive. Eligible natural HUD frames reproduce reversed ordering; FAIL is expected diagnostic evidence, never current acceptance.",
+      "reportedResult": "FAIL",
+      "reportedMode": "production loader; exact packaged mod; dedicated loopback server; two socket clients",
+      "target": "2612Fabric",
+      "testedArchiveSha256": "c83f4834601d51319b0ddfa4945458739768d0fab6c5124a006fa300ca779442",
+      "matchesCurrentProvider": false,
+      "prePostInputsUnchanged": true,
+      "logs": [
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-d/EA_A.log",
+          "sha256": "3efc0c28588c7c79f1af30608aaead3039f03dfa494785a49d8d9a3b9aaca788",
+          "bytes": 19806,
+          "recordedSha256": "3efc0c28588c7c79f1af30608aaead3039f03dfa494785a49d8d9a3b9aaca788",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-d/EA_B.log",
+          "sha256": "2c3f4ef59534e0d1cf151842e14f3aee64d6cb956c25d68183d3fdea7bfff1ad",
+          "bytes": 20015,
+          "recordedSha256": "2c3f4ef59534e0d1cf151842e14f3aee64d6cb956c25d68183d3fdea7bfff1ad",
+          "matches": true
+        },
+        {
+          "path": "build/audio-packaged-acceptance/negative-2612fabric-frame-order-d/server.log",
+          "sha256": "e2bf2ff7ad317942c3560b83c28c38f0b9ffc8dc3615e456704d0608b01efb72",
+          "bytes": 32845,
+          "recordedSha256": "e2bf2ff7ad317942c3560b83c28c38f0b9ffc8dc3615e456704d0608b01efb72",
+          "matches": true
+        }
+      ],
+      "limitations": [
+        "Paid Crucible covers native placement/binding, real reservoir grant, late chunk observer, stop/restart/removal; paid Infuser and socket reconnect pending",
+        "No human listening or HUD layout approval",
+        "Performance microbenchmark is controlled controller work only"
+      ]
+    }
+  ],
+  "retainedAuditLogs": [
+    {
+      "path": "build/audio-audit-20261102/caption-targeted-production-b.log",
+      "sha256": "f0aac062ef631134ca9cb7714dde00ba08ff7abf8a6ca3c2b372a957311f4062",
+      "bytes": 14186
+    },
+    {
+      "path": "build/audio-audit-20261102/caption-targeted-production.log",
+      "sha256": "2130da404efc95528839dd4c5edee0ca81670cf3d89ca35836e573861fbeddd7",
+      "bytes": 6356
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211fabric-socket-c-runner.log",
+      "sha256": "bac6c4634d392eb010bbbbfc9e0794dd13eec44d9b52577c4e21bbe9e6823b94",
+      "bytes": 55759
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211fabric-socket-e-runner.log",
+      "sha256": "f3a1bd23cf8b4b24b44410cd99525304c496d8f84e261b152a4bdbce3f0e86a7",
+      "bytes": 56802
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211fabric-socket-g-runner.log",
+      "sha256": "9c5c733fcc980ad9a3a04669789bbb1a753f0f2bb312463d053b82e547b021ed",
+      "bytes": 57300
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211fabric-socket-k-runner.log",
+      "sha256": "cf5dc31049ec6b666beed2919dacbc6637628899e54a556f37988a67bc3e90e2",
+      "bytes": 57343
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211fabric-world-e-runner.log",
+      "sha256": "b2dd55a48e8e466d4d1bd9dace741011a5e51e8d4c6fa9c07382d2b31a0f3246",
+      "bytes": 31044
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211neoforge-socket-e-runner.log",
+      "sha256": "789cfab0791301cd30614b797ed6f1e7c2fb3e85eda69146db333e07b252a8cc",
+      "bytes": 134093
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211neoforge-socket-g-runner.log",
+      "sha256": "0f53da286082cb77b954703da26a7fa7a77827ec38e867fe654543d1589d5993",
+      "bytes": 134646
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211neoforge-socket-k-runner.log",
+      "sha256": "aa8b137283fe97ce2c40db12e4adee31f1309d7cdfb11a0b5f10053417cb1e1c",
+      "bytes": 134689
+    },
+    {
+      "path": "build/audio-audit-20261102/final-1211neoforge-world-e-runner.log",
+      "sha256": "856d587b235729dadce48be78185c6a06e18dcdda72dbadbf6b6b13ff9fbf550",
+      "bytes": 53276
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612fabric-socket-d-runner.log",
+      "sha256": "d087dda1333ba9c56b4fb6f01c3b1988a0f07dd3e2443e74800b16a3795057a5",
+      "bytes": 62655
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612fabric-socket-e-runner.log",
+      "sha256": "2dca999071c184531c2e9db43d29caa2f85382cfbf8294993a738afc0b9e110b",
+      "bytes": 62631
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612fabric-socket-f-runner.log",
+      "sha256": "e1298a2d72c594c9d28d5a8b0a5b09d1d6395c040ab2b843a2dbac68bca60c75",
+      "bytes": 63222
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612fabric-socket-g-runner.log",
+      "sha256": "b42cb110ed7dce641109bda550d9927e7a2d80198ef86763c7f3ed6c373fdfd0",
+      "bytes": 63180
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612fabric-socket-k-runner.log",
+      "sha256": "f251d2392606a77b6a223de1d4d0c69a59f96af73ec79931cfaf90e3e9614d1c",
+      "bytes": 63223
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612fabric-world-e-runner.log",
+      "sha256": "313c00d4b72c6284e8687b10f186bdf7c21c911df9fe1e299d3662cd0cdebd87",
+      "bytes": 32397
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612neoforge-socket-c-runner.log",
+      "sha256": "10b2c10a341752c1b9a4fd556d03892e4938673c9580e989dc227448b4002390",
+      "bytes": 99910
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612neoforge-socket-d-runner.log",
+      "sha256": "f7a6a86252706098437057444e0c3fd7400c5614c159f537862cf442b1374cf4",
+      "bytes": 101032
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612neoforge-socket-e-runner.log",
+      "sha256": "ee68ca7e5cd30f2dc8ba27b4b99b92a27e4e57426c1c5fe909f3c9ab8eca1878",
+      "bytes": 100993
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612neoforge-socket-g-runner.log",
+      "sha256": "3e5c28c93912f30a042a1983637482cf9959fa6c64408cfaaf5f661ef2be9647",
+      "bytes": 101546
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612neoforge-socket-k-runner.log",
+      "sha256": "01ad77230b6b5066db58e5ae485acdef038f99ffc0706c0ba53ea72cf7bab97f",
+      "bytes": 101589
+    },
+    {
+      "path": "build/audio-audit-20261102/final-2612neoforge-world-e-runner.log",
+      "sha256": "b39d962b16e206f4c1452d51c1cc49faf135ee7e71c583d483d3097908379bdd",
+      "bytes": 43839
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-1.21.1-caption-b.log",
+      "sha256": "bdf2177522a023e56a9d74967b1fb860a99ef954d1742b01956a8fc5d40307ce",
+      "bytes": 2187
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-1.21.1-caption.log",
+      "sha256": "50b559b52f425ca0f54d37427eefa0a0bd49cbb65731b4c62ad00f90821cf0af",
+      "bytes": 2232
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-1.21.1-final.log",
+      "sha256": "04303d6612cd25f325341ec801e2e5c70fa1e8f51443f348c19bfdff33367824",
+      "bytes": 2187
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-1.21.1-reload-final.log",
+      "sha256": "de851e6b63530895e57ca356c7bfdc9f571ee1ab89b2144619cac793cb1a182a",
+      "bytes": 2232
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-1.21.1-retry.log",
+      "sha256": "6836276cf0b7c7c6c9e41ce7f0e17492abee2201343ded08c4430dfb7e0b5e37",
+      "bytes": 2187
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-1.21.1-stable-position.log",
+      "sha256": "04303d6612cd25f325341ec801e2e5c70fa1e8f51443f348c19bfdff33367824",
+      "bytes": 2187
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-26.1.2-caption-b.log",
+      "sha256": "969eac5b127c19c30e8f61b46b43a3aebe95fa1c9bbae924b058b28401729d1c",
+      "bytes": 2149
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-26.1.2-caption.log",
+      "sha256": "397affec90b07cc98d488a28684dcbba90aa3fed44148cc6140505091db1a5d3",
+      "bytes": 2194
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-26.1.2-final.log",
+      "sha256": "d9f31ba1a3a5e832b22be15528fb9354c6d6d46ee1a9df990bd73fcefae924da",
+      "bytes": 2149
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-26.1.2-reload-final.log",
+      "sha256": "db304185beb4a06c9220098ae88fe724fe540b546ced9896b99c773ef660d983",
+      "bytes": 2194
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-26.1.2-retry.log",
+      "sha256": "969eac5b127c19c30e8f61b46b43a3aebe95fa1c9bbae924b058b28401729d1c",
+      "bytes": 2149
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-26.1.2-stable-position.log",
+      "sha256": "d9f31ba1a3a5e832b22be15528fb9354c6d6d46ee1a9df990bd73fcefae924da",
+      "bytes": 2149
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-2612-a.log",
+      "sha256": "ae0ef114d071c6ff5e04c3fcfa93b062a762d005d0562d002e1be846bb963b59",
+      "bytes": 997
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-2612-b.log",
+      "sha256": "4579ae5b58096264c092eb5d45e8793f52fa9fb21c223d32510bc08d059be40e",
+      "bytes": 3274
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-fabric-2612-c.log",
+      "sha256": "fedcbcb0e2b4abdc0c5305a48815b5f58f7b2e8e67eded4fc8b3ce829116368d",
+      "bytes": 2106
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-1.21.1-caption-b.log",
+      "sha256": "4f4c6b6065efc90d44f05c5c8e168f2280ac1425bc78398805e56d3b9ce37ec9",
+      "bytes": 2298
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-1.21.1-caption.log",
+      "sha256": "1483fc8ecafc048b6352f2332d116a21cb70c49e4735ce713272662de62956a1",
+      "bytes": 2287
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-1.21.1-final.log",
+      "sha256": "a83045e4a141337ed5c50e841377a0659a4171f3afa5ee21704da5e78551970e",
+      "bytes": 2287
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-1.21.1-reload-final.log",
+      "sha256": "1483fc8ecafc048b6352f2332d116a21cb70c49e4735ce713272662de62956a1",
+      "bytes": 2287
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-1.21.1-retry.log",
+      "sha256": "92c600a93a3c9170419dba289b236088aeb08e007318459bf134b8198f88f086",
+      "bytes": 2287
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-1.21.1-stable-position.log",
+      "sha256": "4f4c6b6065efc90d44f05c5c8e168f2280ac1425bc78398805e56d3b9ce37ec9",
+      "bytes": 2298
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-caption-b.log",
+      "sha256": "98db19e7098b7dfab2303daffbfd9f7f811aaf48019ed2a172460c57bfb087f8",
+      "bytes": 2260
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-caption.log",
+      "sha256": "8017bab7cca30af969093a8925c22fd8ef378f3142a72cc4d1185ae089eff506",
+      "bytes": 2249
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-final.log",
+      "sha256": "da723b0c5c76a6e4b7e7666286e4d29d3bdff87777a44327cf036884ca1004af",
+      "bytes": 2249
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-reload-final.log",
+      "sha256": "da723b0c5c76a6e4b7e7666286e4d29d3bdff87777a44327cf036884ca1004af",
+      "bytes": 2249
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-resource-diagnostics-b.log",
+      "sha256": "f32917b5fbb45a1354b5b6e0b599347934f32609a9474c92c9cde0e3162c62bf",
+      "bytes": 2215
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-resource-diagnostics-i.log",
+      "sha256": "c63308a60088bc2bbf1999dc191014acd13c5e21eefa462b6337fe5b86cf5f43",
+      "bytes": 2215
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-resource-diagnostics.log",
+      "sha256": "c7e0dbcc443f9b630dce222c2cc594629b6a76773ae216cc3defd8196e467127",
+      "bytes": 3717
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-retry.log",
+      "sha256": "f73f5fbd9a3afbf25667f2af63c1d743ef8cddeb893ad265dcd0744ecf95a07e",
+      "bytes": 2260
+    },
+    {
+      "path": "build/audio-audit-20261102/fixture-neoforge-26.1.2-stable-position.log",
+      "sha256": "98db19e7098b7dfab2303daffbfd9f7f811aaf48019ed2a172460c57bfb087f8",
+      "bytes": 2260
+    },
+    {
+      "path": "build/audio-audit-20261102/fresh-clean-final.log",
+      "sha256": "9f6544da29ce17bd3129ca64113c4a0d1a18685e40edaf19b98a3626b84067fd",
+      "bytes": 1355
+    },
+    {
+      "path": "build/audio-audit-20261102/fresh-clean-reload-final.log",
+      "sha256": "186fea913243d4492f6403b11b8cf34573b837e95c68cdde9d677faff992655f",
+      "bytes": 1355
+    },
+    {
+      "path": "build/audio-audit-20261102/fresh-clean.log",
+      "sha256": "a2336db45b623c9c7423d63c95df0116c68fa83b63d35e44a1778e423febd6ff",
+      "bytes": 1355
+    },
+    {
+      "path": "build/audio-audit-20261102/fresh-supported-final.log",
+      "sha256": "bbea47b3ead012263f9798b05564e1cd1b1a4b38d5db8795c453fbb6ce0e20b1",
+      "bytes": 171754
+    },
+    {
+      "path": "build/audio-audit-20261102/fresh-supported-reload-final.log",
+      "sha256": "83c2be466d18ce483f0431b4a209b738fe973156bb35d17f25f04b116775fe52",
+      "bytes": 171753
+    },
+    {
+      "path": "build/audio-audit-20261102/fresh-supported.log",
+      "sha256": "e82836f142bc49bf3634b866a2c97bbf5eb9fc877624c8d8b388a2fb95f5c0c2",
+      "bytes": 68183
+    },
+    {
+      "path": "build/audio-audit-20261102/independent-assets.log",
+      "sha256": "1093acbaacea1ebf0b664d97f018dd5c65a7148efae4054c3916de2d8181403b",
+      "bytes": 791
+    },
+    {
+      "path": "build/audio-audit-20261102/negative-2612fabric-frame-order-a-runner.log",
+      "sha256": "70848c15f46b54de368986a1919f53f3a31768d39c7a75aeedb5e63c19d102ee",
+      "bytes": 62664
+    },
+    {
+      "path": "build/audio-audit-20261102/negative-2612fabric-frame-order-b-runner.log",
+      "sha256": "a5b20349a829ee29b6942bc4aed39d202e4f4fc9e4a913dcf6663a143fc4090e",
+      "bytes": 63680
+    },
+    {
+      "path": "build/audio-audit-20261102/negative-2612fabric-frame-order-c-runner.log",
+      "sha256": "715f35714b9ec9d34acb62b388972d846feb68fe8b915f2d1e50e2b1d4d92ed7",
+      "bytes": 64245
+    },
+    {
+      "path": "build/audio-audit-20261102/negative-2612fabric-frame-order-d-runner.log",
+      "sha256": "5924578e4f67acfc7620cb0d50855ef293d7eb110de156d2379fb7ea91821ae4",
+      "bytes": 64245
+    },
+    {
+      "path": "build/audio-audit-20261102/packaged-launcher-tests-final-f.log",
+      "sha256": "f683add7ae5903e39a1ec518383780e0172eadabb169585a8582507c413afbb6",
+      "bytes": 128
+    },
+    {
+      "path": "build/audio-audit-20261102/packaged-launcher-tests-final.log",
+      "sha256": "391f8b503592140324c985a6804b911e73608831fe060501355d7f706162e7f6",
+      "bytes": 2447
+    },
+    {
+      "path": "build/audio-audit-20261102/packaged-launcher-tests-latest.log",
+      "sha256": "87149bb748eecd21f68563c5edb664475797ddba4ce82a3b9440f768b73164a5",
+      "bytes": 2447
+    },
+    {
+      "path": "build/audio-audit-20261102/packaged-launcher-tests.log",
+      "sha256": "d02d10835a52a88a10eeed27611e85960b612bfc73c297ee4eb620b1b6482046",
+      "bytes": 2447
+    },
+    {
+      "path": "build/audio-audit-20261102/prepare-1211neo-final.log",
+      "sha256": "71560f83afb18ee48109f8a12c6e62ce2e2807c8c69ef4764db9cacd4a13bc44",
+      "bytes": 350
+    },
+    {
+      "path": "build/audio-audit-20261102/production-candidate-b.log",
+      "sha256": "b6c80390ae63ee04f02c2262de103ed321f761b72066ca11204746fb794c2181",
+      "bytes": 5029
+    },
+    {
+      "path": "build/audio-audit-20261102/production-candidate-c.log",
+      "sha256": "2aa043d5811c67b0745b93cd9df43f074e06b3a6c7513c2935c2e4c955bb426e",
+      "bytes": 4919
+    },
+    {
+      "path": "build/audio-audit-20261102/production-candidate.log",
+      "sha256": "4ea86d6f49b8da18a4c41d5dd72b976002f3c305f06bd78d2fe320e6dd9ac0ad",
+      "bytes": 2035
+    },
+    {
+      "path": "build/audio-audit-20261102/python-authoring-tests.log",
+      "sha256": "3f70bc6de59715f4e8c7eae6d939fd57b3f0d2a7bf837d06c56ea7865436b1ce",
+      "bytes": 7775
+    },
+    {
+      "path": "build/audio-audit-20261102/python-release-tests-final.log",
+      "sha256": "b228ea704fb72ce442bc436b357579fb9d16f2c10d9a245d2ccc083d8efd91af",
+      "bytes": 241
+    },
+    {
+      "path": "build/audio-audit-20261102/python-release-tests-reload-final.log",
+      "sha256": "7129ba94dcbb89185eb842ad2a8857e35e524cba88020a4a05eb53f238eb3723",
+      "bytes": 241
+    },
+    {
+      "path": "build/audio-audit-20261102/python-release-tests.log",
+      "sha256": "94b8a40f698d5b1a8dbd4ab695589f2d855e3350626991a9d46ff07c2b45fec8",
+      "bytes": 241
+    },
+    {
+      "path": "build/audio-audit-20261102/reload-targeted-production.log",
+      "sha256": "a9df7be91d252a16526c3312680862aaa4055fc1aa32949bac32c5c63e1d7ff8",
+      "bytes": 14407
+    },
+    {
+      "path": "build/audio-audit-20261102/server-fabric-1.21.1-final.log",
+      "sha256": "dcd583771c764e2b46db5f9fc7def6e3bab6d96eb543d235ee3763911f6069ee",
+      "bytes": 9273
+    },
+    {
+      "path": "build/audio-audit-20261102/server-fabric-1.21.1-reload-final.log",
+      "sha256": "0bab714f7ce84d1ce041ced3314f25dfe2a8a5a887e936cb78f364fadc3a57e3",
+      "bytes": 9316
+    },
+    {
+      "path": "build/audio-audit-20261102/server-fabric-26.1.2-final.log",
+      "sha256": "c4f8aa9896af5f7abd5f702773cba2e39b8a3bda57794ae7d76da22c3b6c4d82",
+      "bytes": 20883
+    },
+    {
+      "path": "build/audio-audit-20261102/server-fabric-26.1.2-reload-final.log",
+      "sha256": "9611abf2a6c5b61041751ca5418d5d14f2f720948478c0de892b4abdd1f01c96",
+      "bytes": 20923
+    },
+    {
+      "path": "build/audio-audit-20261102/server-neoforge-1.21.1-final.log",
+      "sha256": "3034173f2ff8056d4e637ef6de70ab7cd62161ca09650ff081395eee0281fee4",
+      "bytes": 10461
+    },
+    {
+      "path": "build/audio-audit-20261102/server-neoforge-1.21.1-reload-final.log",
+      "sha256": "eba4c421839d9ff78f0a085481b7fa108af24ff599d62ffed32b64bbcd471ce5",
+      "bytes": 10462
+    },
+    {
+      "path": "build/audio-audit-20261102/server-neoforge-26.1.2-final.log",
+      "sha256": "500d4c312071ce8ccd9e2c6bd5d4289cc2b16cfcd5fb9198cbbb9f914f5e7a1c",
+      "bytes": 24472
+    },
+    {
+      "path": "build/audio-audit-20261102/server-neoforge-26.1.2-reload-final.log",
+      "sha256": "92afacb83ae7848045b70ff0eb3ed61d57831dad3f1499b04f07cf757fd1adaf",
+      "bytes": 24408
+    },
+    {
+      "path": "build/audio-audit-20261102/socket-2612fabric-b-runner.log",
+      "sha256": "74b111569819b0019afbf7cb1b2bebf83330d3ddef048a3b7d6122fe3175a847",
+      "bytes": 61546
+    },
+    {
+      "path": "build/audio-audit-20261102/source-audit.log",
+      "sha256": "34547f97812effaef79201605a5796a6b06bf1087265b06ba326f4be83e65aab",
+      "bytes": 118
+    },
+    {
+      "path": "build/audio-audit-20261102/targeted-runtime-b.log",
+      "sha256": "1d5e0097d74ba57dbd7b11bb4805a212f27e2c2c37c3560297c894e0fdd31c8d",
+      "bytes": 12626
+    },
+    {
+      "path": "build/audio-audit-20261102/targeted-runtime.log",
+      "sha256": "b37d313e79ac8c270121fcca23a4658ede82e5c0ebd06682db7cdcb6ee5eb24a",
+      "bytes": 5622
+    }
+  ],
+  "remaining": [
+    {
+      "classification": "required",
+      "status": "PENDING",
+      "area": "multiplayer authorization",
+      "check": "Representative native and supported FTB membership scenes, including unauthorized/observer privacy; actual paid Infuser transfer."
+    },
+    {
+      "classification": "required",
+      "status": "PENDING",
+      "area": "multiplayer lifecycle",
+      "check": "True new socket late join and reconnect, UI/C2S channel initiation, and concurrent paid transactions; proximity late observation and production service invocation do not substitute."
+    },
+    {
+      "classification": "required",
+      "status": "PENDING",
+      "area": "gameplay combinations",
+      "check": "All 0–8 pylon states/transitions in actual gameplay, authorized flight gameplay and simultaneous machinery/weapon/skill scenes."
+    },
+    {
+      "classification": "required",
+      "status": "PENDING",
+      "area": "native performance",
+      "check": "Representative idle/dense native-world CPU, allocation, actual voice/source counts and packet deltas under identical hardware/settings; unchanged-state traffic must be measured."
+    },
+    {
+      "classification": "required",
+      "status": "PENDING",
+      "area": "human listening",
+      "check": "Native mix, perceived seams, natural tails, family balance, fatigue and all variants using the in-game checklist."
+    },
+    {
+      "classification": "required",
+      "status": "PENDING",
+      "area": "human HUD",
+      "check": "Caption/HUD coexistence and readability at supported GUI scales, menus and muted settings."
+    },
+    {
+      "classification": "required",
+      "status": "PENDING",
+      "area": "rights",
+      "check": "Owner/reviewer confirms actual redistribution terms and attribution against exact selected takes through the existing final review owner."
+    },
+    {
+      "classification": "additional",
+      "status": "PENDING",
+      "area": "generic visual reload notification",
+      "check": "Investigate unchanged generic ClientPacketDispatch presentation epoch observed on NeoForge 26.1.2 across real reloads. Audio is repaired by the native sound commit hook; impact on visual features was not tested and no visual failure is claimed."
+    },
+    {
+      "classification": "additional",
+      "status": "PENDING",
+      "area": "broader compatibility",
+      "check": "Additional devices/hot swaps, third-party resource packs, fallback locales, launchers, operating systems, optional mod/version combinations and hardware."
+    },
+    {
+      "classification": "additional",
+      "status": "PENDING",
+      "area": "extended performance/recovery",
+      "check": "More players, latency/loss injection, prolonged soak, populations beyond practical scenarios, cross-machine authoring restore and disposable manual Audacity capture."
+    },
+    {
+      "classification": "retained_finding",
+      "severity": "Low",
+      "status": "PENDING",
+      "area": "unselected historical recovery",
+      "check": "art/audio-manifest.json: process_complete_a r0001/r0002 and resonance_body_a r0002/r0003 lack exact original frozen input/tool-version archives. Existing recorded files match hashes and no approved selected take is affected. Requesting full original-generation provenance for these revisions reproduces the limitation; missing historical evidence cannot be fabricated. This does not block the selected audio set."
+    }
+  ],
+  "historyNotes": [
+    "The first fresh-supported.log gate was aborted and superseded after the caption defect; it is not a final PASS.",
+    "The 21m 4s fresh-supported-final.log gate passed for the caption-repaired candidate but was superseded by the subsequently confirmed sound-resource recovery repair.",
+    "The current fresh-supported-reload-final.log gate was still running when this DRAFT was prepared; no final full-gate PASS is claimed.",
+    "Exact older world-e/socket-g receipts are retained and superseded; they cannot cover the final reload hook by implication.",
+    "Negative frame-order controls and resource-i manual-cache-clear diagnostics retain FAIL outcomes; a causal intervention does not turn unassisted recovery into a pass.",
+    "The current resource-j run on NeoForge 26.1.2 reports restored actual OpenAL playback while its generic presentation epoch remains unchanged. This is audio recovery evidence; visual consequences are untested additional follow-up.",
+    "Approved sounds, manifest/catalog/selection and all 196 promoted file pins remain unchanged. No regeneration, creative revision, publication or Prism-world modification is claimed.",
+    "The post-resource-repair final fresh gate passed in 20m24s (282 tasks:277 executed,5 up-to-date). Final native runs use the exact same four regenerated provider hashes; finalization occurs only after this review."
+  ],
+  "outcomeDeclaration": {
+    "path": "build/audio-audit-20261102/final-status.json",
+    "sha256": "70a7fe4deb03b9a8cf6a5da350a6bacfa6c4c344b5d72c5bfe3bca7d9342abf9",
+    "bytes": 28696
+  },
+  "receiptGenerator": {
+    "path": "build/audio-audit-20261102/finalize_receipt.py",
+    "sha256": "450901c6e4e801789361d0e4d7ce25949605dcc21573780e014a21a250ae6d5c",
+    "bytes": 17687
+  },
+  "limitations": [
+    "Stage outcomes and scope are explicit owner declarations backed by named evidence; file presence never implies runtime PASS.",
+    "Historical/superseded runs remain listed and do not establish acceptance of current source or archive bytes.",
+    "No human listening, HUD layout or rights acceptance is inferred from automated checks."
+  ]
+}

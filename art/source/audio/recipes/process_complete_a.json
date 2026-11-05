@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "assetId": "process_complete_a",
+  "seed": 104729,
+  "sampleRate": 48000,
+  "duration": 0.65,
+  "peakDb": -7,
+  "layers": [
+    {
+      "name": "fundamental",
+      "type": "tone",
+      "frequency": 660,
+      "harmonics": [
+        1,
+        0.18,
+        0.05
+      ],
+      "variationCents": 4,
+      "gain": 0.32,
+      "fm": {
+        "rate": 3,
+        "depth": 0.3
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.015,
+          1
+        ],
+        [
+          0.2,
+          0.55
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "overtone",
+      "type": "tone",
+      "frequency": 990,
+      "variationCents": 3,
+      "gain": 0.18,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.04,
+          0.8
+        ],
+        [
+          0.4,
+          0.35
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "air",
+      "type": "noise",
+      "lowHz": 1800,
+      "highHz": 7500,
+      "gain": 0.035,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.01,
+          1
+        ],
+        [
+          0.15,
+          0.15
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    }
+  ]
+}

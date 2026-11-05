@@ -1,0 +1,235 @@
+{
+  "schema": 1,
+  "date": "2026-11-01 America/Anchorage",
+  "purpose": "Completed approved-audio preparation for prompt 7; sound bytes unchanged.",
+  "selection": "art/source/audio/handoffs/prompt7-20261101.json",
+  "auditReport": "docs/audio/PROMPT7-AUDIO-AUDIT.json",
+  "auditSha256": "f057f3cfcae883b665113147af2532cd2bcd221dae0cb63642223eb4720fffae",
+  "totals": {
+    "takes": 51,
+    "stems": 233,
+    "loops": 19,
+    "runtime": 49,
+    "demonstration": 2
+  },
+  "runtimeOneShots": 30,
+  "approvedMaterialGaps": [],
+  "relocationsRequired": [],
+  "recoveryRequired": [],
+  "selectedCreativeApproval": "accepted",
+  "finalNativeReview": "pending",
+  "promotionPerformed": false,
+  "history": {
+    "takes": 87,
+    "uniqueRecordedFilesRecheckedUnchangedAfterAudit": 1193,
+    "missingLegacyProvenance": [
+      {
+        "asset": "process_complete_a",
+        "revision": "r0001",
+        "selected": false,
+        "missingRecordedFields": [
+          "stems",
+          "authoringInputs"
+        ],
+        "existingUnrecordedStems": [
+          {
+            "layer": "fundamental",
+            "path": "masters/process/process_complete_a/r0001/fundamental.wav",
+            "sha256": "aa228d2991ee745c4ab1d327dba54e3f94ade104b22d743667f7b2b5050dd0d4",
+            "bytes": 93644
+          },
+          {
+            "layer": "overtone",
+            "path": "masters/process/process_complete_a/r0001/overtone.wav",
+            "sha256": "afdc35d292d2b9a1f5fb3c692bc529eca0101bb5874d30a235f882da5a161c05",
+            "bytes": 93644
+          },
+          {
+            "layer": "air",
+            "path": "masters/process/process_complete_a/r0001/air.wav",
+            "sha256": "6a88506895dcfa4415ccef75fe019db439b777368462fe1411aa8110e8b1e5a9",
+            "bytes": 93644
+          }
+        ],
+        "missingLayerFiles": [],
+        "recipeContainsSettingsAndSeed": true,
+        "seed": 104729,
+        "authoringInputsFileExists": false,
+        "exactAuthoringToolVersionsRecorded": false,
+        "note": "Layer files and full settings/seed recipe exist. Legacy manifest omitted stems and original-input/tool archives; exact historical tool-version provenance cannot be established from this record. Unselected history preserved, not an approved-set gap."
+      },
+      {
+        "asset": "process_complete_a",
+        "revision": "r0002",
+        "selected": false,
+        "missingRecordedFields": [
+          "stems",
+          "authoringInputs"
+        ],
+        "existingUnrecordedStems": [
+          {
+            "layer": "fundamental",
+            "path": "masters/process/process_complete_a/r0002/fundamental.wav",
+            "sha256": "aa228d2991ee745c4ab1d327dba54e3f94ade104b22d743667f7b2b5050dd0d4",
+            "bytes": 93644
+          },
+          {
+            "layer": "overtone",
+            "path": "masters/process/process_complete_a/r0002/overtone.wav",
+            "sha256": "afdc35d292d2b9a1f5fb3c692bc529eca0101bb5874d30a235f882da5a161c05",
+            "bytes": 93644
+          },
+          {
+            "layer": "air",
+            "path": "masters/process/process_complete_a/r0002/air.wav",
+            "sha256": "6a88506895dcfa4415ccef75fe019db439b777368462fe1411aa8110e8b1e5a9",
+            "bytes": 93644
+          }
+        ],
+        "missingLayerFiles": [],
+        "recipeContainsSettingsAndSeed": true,
+        "seed": 104729,
+        "authoringInputsFileExists": false,
+        "exactAuthoringToolVersionsRecorded": false,
+        "note": "Layer files and full settings/seed recipe exist. Legacy manifest omitted stems and original-input/tool archives; exact historical tool-version provenance cannot be established from this record. Unselected history preserved, not an approved-set gap."
+      },
+      {
+        "asset": "resonance_body_a",
+        "revision": "r0002",
+        "selected": false,
+        "missingRecordedFields": [
+          "stems",
+          "authoringInputs"
+        ],
+        "existingUnrecordedStems": [
+          {
+            "layer": "resonance",
+            "path": "masters/machine/resonance_body_a/r0002/resonance.wav",
+            "sha256": "9115f9ffc4f3550ba0382fc3fd327ec12034dd0b3f90713a449ea1c5d37c4bdf",
+            "bytes": 396044
+          },
+          {
+            "layer": "filtered_motion",
+            "path": "masters/machine/resonance_body_a/r0002/filtered_motion.wav",
+            "sha256": "44a1bfde4e25e79d6f885614b5c6cb55bb3ea2055d60f749a74935cb22add383",
+            "bytes": 396044
+          }
+        ],
+        "missingLayerFiles": [],
+        "recipeContainsSettingsAndSeed": true,
+        "seed": 130363,
+        "authoringInputsFileExists": false,
+        "exactAuthoringToolVersionsRecorded": false,
+        "note": "Layer files and full settings/seed recipe exist. Legacy manifest omitted stems and original-input/tool archives; exact historical tool-version provenance cannot be established from this record. Unselected history preserved, not an approved-set gap."
+      },
+      {
+        "asset": "resonance_body_a",
+        "revision": "r0003",
+        "selected": false,
+        "missingRecordedFields": [
+          "stems",
+          "authoringInputs"
+        ],
+        "existingUnrecordedStems": [
+          {
+            "layer": "resonance",
+            "path": "masters/machine/resonance_body_a/r0003/resonance.wav",
+            "sha256": "9115f9ffc4f3550ba0382fc3fd327ec12034dd0b3f90713a449ea1c5d37c4bdf",
+            "bytes": 396044
+          },
+          {
+            "layer": "filtered_motion",
+            "path": "masters/machine/resonance_body_a/r0003/filtered_motion.wav",
+            "sha256": "44a1bfde4e25e79d6f885614b5c6cb55bb3ea2055d60f749a74935cb22add383",
+            "bytes": 396044
+          }
+        ],
+        "missingLayerFiles": [],
+        "recipeContainsSettingsAndSeed": true,
+        "seed": 130363,
+        "authoringInputsFileExists": false,
+        "exactAuthoringToolVersionsRecorded": false,
+        "note": "Layer files and full settings/seed recipe exist. Legacy manifest omitted stems and original-input/tool archives; exact historical tool-version provenance cannot be established from this record. Unselected history preserved, not an approved-set gap."
+      }
+    ]
+  },
+  "materialEvidence": {
+    "allStemsPcm24AndNonSilent": true,
+    "maximumIntegerPcm24StemSumDelta": 4,
+    "maximumDeltaPerLayerPcm24Step": 0.5,
+    "flattenedSubstituteLayers": 0,
+    "intentionalSingleLayerCases": [
+      {
+        "asset": "beam_player_p0_v2",
+        "revision": "r0001",
+        "layer": "00_foundation_chime",
+        "reason": "Intentionally one modal foundation note for zero pylons; preserved original single-layer source, not a flattened replacement."
+      },
+      {
+        "asset": "beam_infuser_p0_v2",
+        "revision": "r0001",
+        "layer": "00_foundation_chime",
+        "reason": "Intentionally one modal foundation note for zero pylons; preserved original single-layer source, not a flattened replacement."
+      }
+    ]
+  },
+  "loopValidation": {
+    "loopCount": 19,
+    "decodedPeriodsPerLoop": 8,
+    "joins": 133,
+    "flags": 0,
+    "maximumSeamDelta": 0.004443423822522163,
+    "nativeLoopAcceptanceClaimed": false
+  },
+  "checks": {
+    "pythonTests": 46,
+    "audioBuildAssertionsPerVersion": 52,
+    "versions": [
+      "1.21.1",
+      "26.1.2"
+    ],
+    "ownershipChecksPassed": true
+  },
+  "evidenceFiles": {
+    "build/audio-integration-prep-20261101-python.log": {
+      "sha256": "3af00cb01c3bd477811ee5e4465540dd762146923bdda328f37d3706f6dd89fd",
+      "bytes": 7519
+    },
+    "build/audio-integration-prep-20261101-assets.log": {
+      "sha256": "cb53bb67fe657a9d1eec8126b0b0dcf6cc4f2e8938e39a9c0d25f28809da269e",
+      "bytes": 5707
+    },
+    "build/audio-integration-materials-20261101.json": {
+      "sha256": "a38bae6c363ed0febcde14cc69dcfe6e28aff9b2cbfb7c7ba27a7447e20afcce",
+      "bytes": 453251
+    },
+    "build/audio-integration-history-20261101.json": {
+      "sha256": "337f1ec7871351d745ee6db1aec535160744fc8a9dd20f3f395fdc9e5e132b42",
+      "bytes": 496203
+    }
+  },
+  "sourceHashes": {
+    "C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\art\\source\\audio\\handoffs\\prompt7-20261101.json": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\art\\audio-manifest.json": "04e3c046c500cef2207d0c0c86ffd414679d8315c71f014fc2abe44a0d44e7cd",
+    "C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\art\\audio-catalog.json": "1c08a586a6ddbf36c6d6daa950c0793c646ea02e46f31497f08fae1a43bc5a7f"
+  },
+  "auditTools": {
+    "audit.py": "0abd719dbaa4eb7ec4bf2ca2741b1a6a8774f32ecf5b310cdc02042798b46b69",
+    "audio.py": "3aeb4074c06ed0364aeb3ec5771d48965bbb3a2d64f1f400abbaf8e403f16571",
+    "quality.py": "476623e2cbd75225b6a6aa2d4413aeb0f57c2d6b8cea03a5e7a533b225d92823",
+    "encoding.py": "be8d356137dd1f836450646e59c3c1f4b27f89a9df957b9ae77ed957706e15d4",
+    "audacity.py": "71e1777ddf1770be468800e5d5ae0b950e4d2a1537535e8fca35191ad3827aa0",
+    "storage.py": "c9033e04b4ba7f038099094bf4f56f828397eda6a57859441f298e769d740f94"
+  },
+  "remainingIntegration": [
+    "Use exact runtime selection; exclude two approved build demonstrations.",
+    "Implement destination/pylon beam lifecycle, confirmed Focus installation, deterministic ceremony selection, approved silence and current impact/rescue routing.",
+    "Complete actual native mix/loop/listening and redistribution record before shared review/promote.",
+    "Promote existing bytes only; then regenerate build-owned resources and validate supported targets."
+  ],
+  "limitations": [
+    "Creative approval is recorded; no unperformed native mix or loop review flags were set.",
+    "Historical unselected source tool-version archives cannot be recovered exactly from current scripts.",
+    "No regeneration, encoding, audio/source editing or runtime/gameplay changes occurred."
+  ]
+}

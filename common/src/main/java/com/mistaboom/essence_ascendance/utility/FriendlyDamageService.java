@@ -25,6 +25,7 @@ public final class FriendlyDamageService {
         State state = context.state(SkillIds.FRIENDLY_FIRE_WARD, State::new);
         boolean firstThisTick = state.lastBlockedAt != context.now();
         state.record(context.now(), target.getDisplayName().getString());
+        if (firstThisTick) com.mistaboom.essence_ascendance.network.FeedbackDispatch.player(owner, "interface.denied");
         if (firstThisTick) MicroVisualFeedback.utility(owner.serverLevel(), target.getBoundingBox().getCenter(),
                 target.getId() * 31L ^ context.now());
         return true;

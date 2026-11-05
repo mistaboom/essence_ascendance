@@ -38,6 +38,8 @@ public final class SkillEffectHudOverlay {
     private static final Map<ResourceLocation, AnimatedCard> CARDS = new LinkedHashMap<>();
     private static final List<ResourceLocation> STACK_ORDER = new ArrayList<>();
     private static long lastFrameNanos;
+    private static double captionLift;
+    private static int viewportWidth,viewportHeight;
 
     private SkillEffectHudOverlay() { }
 
@@ -56,13 +58,15 @@ public final class SkillEffectHudOverlay {
             clearMotion();
             return;
         }
-        int bottom = graphics.guiHeight() - 59;
-        int availableHeight = bottom - 6;
-        if (availableHeight < 30 || graphics.guiWidth() < WIDTH + 12) return;
+        int normalBottom = graphics.guiHeight() - 59;
+        if (normalBottom - 6 < 30 || graphics.guiWidth() < WIDTH + 12) return;
         int columns = Math.max(1, (graphics.guiWidth() / 2) / (WIDTH + GAP));
         long now = SkillEffectHudClientState.estimatedServerGameTime();
         List<SkillEffectHudEntry> desired = com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudPriority.order(entries, now);
 
+        if(viewportWidth!=graphics.guiWidth() || viewportHeight!=graphics.guiHeight()) {
+            viewportWidth=graphics.guiWidth(); viewportHeight=graphics.guiHeight(); captionLift=0; lastFrameNanos=0;
+        }
         long frameNanos = System.nanoTime();
         double deltaSeconds = lastFrameNanos == 0L ? 0.0
                 : Math.clamp((frameNanos - lastFrameNanos) / 1_000_000_000.0, 0.0, 0.1);
@@ -71,6 +75,15 @@ public final class SkillEffectHudOverlay {
         synchronizeCards(desired);
         animateSlots(deltaSeconds);
         pruneClosedCards();
+        int left=graphics.guiWidth()-6-columns*(WIDTH+GAP)+GAP;
+        // Include the existing optional overflow label below the cards in the stack's clearance.
+        int footer=GAP+minecraft.font.lineHeight;
+        int desiredBottom=com.mistaboom.essence_ascendance.client.audio.CaptionRouter.cardStackBottom(
+                graphics.guiWidth(),graphics.guiHeight(),left,graphics.guiWidth()-6,normalBottom+footer)-footer;
+        animateCaptionLift(normalBottom-desiredBottom,deltaSeconds);
+        int bottom=normalBottom-(int)Math.round(captionLift);
+        int availableHeight=bottom-6;
+        if(availableHeight<30) return;
 
         List<AnimatedCard> ordered = orderedCards();
         List<PositionedCard> positioned = new ArrayList<>();
@@ -173,6 +186,13 @@ public final class SkillEffectHudOverlay {
         }
     }
 
+    /** The whole right stack uses the same clock, speeds and approach as its existing opening/closing slots. */
+    private static void animateCaptionLift(int target,double deltaSeconds) {
+        if(deltaSeconds<=0) return;
+        double speed=target>=captionLift?SLOT_OPEN_PIXELS_PER_SECOND:SLOT_CLOSE_PIXELS_PER_SECOND;
+        captionLift=approach(captionLift,target,speed*deltaSeconds);
+    }
+
     private static void pruneClosedCards() {
         List<ResourceLocation> closed = new ArrayList<>();
         for (ResourceLocation id : STACK_ORDER) {
@@ -209,6 +229,7 @@ public final class SkillEffectHudOverlay {
         CARDS.clear();
         STACK_ORDER.clear();
         lastFrameNanos = 0L;
+        captionLift=0; viewportWidth=viewportHeight=0;
     }
 
     private static int height(SkillEffectHudEntry entry) { return SkillEffectHudLayout.height(entry.lines().size()); }
@@ -218,7 +239,7 @@ public final class SkillEffectHudOverlay {
     //? if <26.1.2
     private static void renderCard(GuiGraphics graphics, SkillEffectHudEntry entry, int x, int y,
                                    int visibleHeight, long now) {
-        renderPresentationCard(graphics, new CardContent(entry.accent(), entry.title(), entry.badge(), entry.lines(), entry.meter()), x, y, visibleHeight, now);
+        renderPresentationCard(graphics, new CardContent(entry.accent(), entry.title(), entry.badge(), entry.lines(), entry.meter()), x, y, visibleHeight, now, false);
     }
 
     public record CardContent(int accent, Text title, Text badge, List<Text> lines, SkillEffectHudEntry.Meter meter) {}
@@ -226,8 +247,17 @@ public final class SkillEffectHudOverlay {
     /*public static void renderPresentationCard(GuiGraphicsExtractor graphics, CardContent entry, int x, int y, int visibleHeight, long now) {*/
     //? if <26.1.2
     public static void renderPresentationCard(GuiGraphics graphics, CardContent entry, int x, int y, int visibleHeight, long now) {
+        renderPresentationCard(graphics,entry,x,y,visibleHeight,now,true);
+    }
+    //? if >=26.1.2
+    /*private static void renderPresentationCard(GuiGraphicsExtractor graphics, CardContent entry, int x, int y, int visibleHeight, long now, boolean fixed) {*/
+    //? if <26.1.2
+    private static void renderPresentationCard(GuiGraphics graphics, CardContent entry, int x, int y, int visibleHeight, long now, boolean fixed) {
         int fullHeight = SkillEffectHudLayout.height(entry.lines().size());
         int clippedHeight = Math.clamp(visibleHeight, 1, fullHeight);
+        // Fixed channel cards remain obstacles. The moving right stack yields to captions instead; reserving
+        // it here would make captions climb above cards every frame and send the stack chasing them upward.
+        if(fixed) com.mistaboom.essence_ascendance.client.audio.CaptionRouter.reserve(new com.mistaboom.essence_ascendance.client.ui.UiBounds(x,y,WIDTH,clippedHeight));
         graphics.fill(x, y, x + WIDTH, y + clippedHeight, SkillEffectHudLayout.BACKGROUND);
         int fillWidth = SkillEffectHudLayout.progressWidth(entry.meter());
         int fillColor = SkillEffectHudLayout.fillColor(entry.accent());

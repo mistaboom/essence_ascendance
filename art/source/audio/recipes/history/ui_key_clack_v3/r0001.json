@@ -1,0 +1,228 @@
+{
+  "schema": 1,
+  "assetId": "ui_key_clack_v3",
+  "seed": 26110201,
+  "sampleRate": 48000,
+  "duration": 0.095,
+  "peakDb": -9.5,
+  "design": {
+    "title": "Menu key clack A",
+    "description": "A crisp mechanical keypress: plastic downstroke, switch click and a light return. Short and decisively tactile.",
+    "cueIds": [
+      "essence_ascendance:ui.press"
+    ],
+    "provenance": "Original deterministic modal, harmonic and filtered-noise synthesis; no third-party samples.",
+    "review": "pending user listening",
+    "role": "interface",
+    "revisionOf": [
+      "ui_press_v2"
+    ],
+    "repetitionIntervalSeconds": 0.22,
+    "levelIntent": "Crisper and stronger than the previous soft menu plop."
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 660,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.03
+        },
+        {
+          "ratio": 2.13,
+          "gain": 0.58,
+          "decaySeconds": 0.018
+        },
+        {
+          "ratio": 3.71,
+          "gain": 0.25,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.39,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.012,
+          1
+        ],
+        [
+          0.11,
+          0.65
+        ],
+        [
+          0.45,
+          0.12
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_keycap_downstroke",
+      "lengthSeconds": 0.058
+    },
+    {
+      "type": "noise",
+      "lowHz": 1300,
+      "highHz": 7200,
+      "spectralTiltDbOct": -1.5,
+      "gain": 0.28,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.15,
+          0.55
+        ],
+        [
+          0.4,
+          0.1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_switch_click",
+      "lengthSeconds": 0.012
+    },
+    {
+      "type": "modal",
+      "frequency": 310,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.03
+        },
+        {
+          "ratio": 2.13,
+          "gain": 0.58,
+          "decaySeconds": 0.018
+        },
+        {
+          "ratio": 3.71,
+          "gain": 0.25,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.14,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.012,
+          1
+        ],
+        [
+          0.11,
+          0.65
+        ],
+        [
+          0.45,
+          0.12
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_bottom_out",
+      "lengthSeconds": 0.045,
+      "startSeconds": 0.004
+    },
+    {
+      "type": "modal",
+      "frequency": 870,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.03
+        },
+        {
+          "ratio": 2.13,
+          "gain": 0.58,
+          "decaySeconds": 0.018
+        },
+        {
+          "ratio": 3.71,
+          "gain": 0.25,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.15,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.012,
+          1
+        ],
+        [
+          0.11,
+          0.65
+        ],
+        [
+          0.45,
+          0.12
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "04_key_return",
+      "startSeconds": 0.026,
+      "lengthSeconds": 0.049
+    },
+    {
+      "type": "noise",
+      "lowHz": 2000,
+      "highHz": 6400,
+      "spectralTiltDbOct": -1.5,
+      "gain": 0.09,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.15,
+          0.55
+        ],
+        [
+          0.4,
+          0.1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "05_return_click",
+      "startSeconds": 0.027,
+      "lengthSeconds": 0.008
+    }
+  ]
+}

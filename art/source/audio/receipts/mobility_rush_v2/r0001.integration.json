@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "assetId": "mobility_rush_v2",
+  "revision": "r0001",
+  "masterSha256": "6262ef504435e81b6ee31fa6145eabba12ed2160f8962871fa07d0074c266fbd",
+  "approvedSha256": "b0ad2a26116f8b3faa957ddf744e228cb1d2d1a3da64442ed86a62d69582244f",
+  "recipeSha256": "ac0151835fae2ba62e72dd43d95f650e56781c20cc7ff7513aade088e31366ec",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.5173333333333333,
+    "samplePeakDb": -12.500276480306438,
+    "rmsDb": -25.8457222896069,
+    "truePeakDb": -12.5,
+    "integratedLufs": -25.54,
+    "decodedFrames": 24832
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "3e41de601da71734963ebd5f204a815f3d8d357c241ce2558ac2212bdd42e8ca",
+  "backupSha256": "3e41de601da71734963ebd5f204a815f3d8d357c241ce2558ac2212bdd42e8ca",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/mobility/mobility_rush_v2/r0001/mobility_rush_v2.aup3",
+    "backup": "backups/mobility/mobility_rush_v2/r0001/mobility_rush_v2.aup3",
+    "master": "masters/mobility/mobility_rush_v2/r0001/master.wav",
+    "export": "exports/mobility/mobility_rush_v2/r0001/mobility_rush_v2.ogg",
+    "recipe": "masters/mobility/mobility_rush_v2/r0001/recipe.json",
+    "authoringInputs": "masters/mobility/mobility_rush_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "dc197498c3340665cc375507d71f44c640d6bdac9295ac51c5ce684c07f5d6ff",
+    "stems": [
+      {
+        "path": "masters/mobility/mobility_rush_v2/r0001/01_forward_air.wav",
+        "sha256": "df720a899d526b6e1b634cfbf38e8ab2e839bf313c206d4eaa66fb791d5fee40"
+      },
+      {
+        "path": "masters/mobility/mobility_rush_v2/r0001/02_forward_pressure.wav",
+        "sha256": "90e06b9386d64133f80adb907081cdfe2693dbe31a5c4683effe95f59d5d29c5"
+      },
+      {
+        "path": "masters/mobility/mobility_rush_v2/r0001/03_trailing_air.wav",
+        "sha256": "e45ba57ec20c906efd00239173a6a387e00e1b635e034ea110a467b356f3681d"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "b0ad2a26116f8b3faa957ddf744e228cb1d2d1a3da64442ed86a62d69582244f"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "assetId": "static_snap_v2",
+  "seed": 26110111,
+  "sampleRate": 48000,
+  "duration": 0.17,
+  "peakDb": -11,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.arc"
+    ],
+    "role": "element",
+    "description": "Dry static snap with a short electrical fizz tail.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Static snap"
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 500,
+      "highHz": 8000,
+      "spectralTiltDbOct": -2,
+      "gain": 0.42,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_static_snap",
+      "lengthSeconds": 0.028
+    },
+    {
+      "type": "tone",
+      "frequency": 210,
+      "harmonics": [
+        1,
+        0.3,
+        0.07
+      ],
+      "gain": 0.19,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.4,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_pop_pressure",
+      "frequencyEnd": 85,
+      "lengthSeconds": 0.045
+    },
+    {
+      "type": "noise",
+      "lowHz": 2200,
+      "highHz": 6500,
+      "spectralTiltDbOct": -3,
+      "gain": 0.055,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.05,
+          1
+        ],
+        [
+          0.2,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_fizz_tail",
+      "startSeconds": 0.012,
+      "lengthSeconds": 0.14
+    }
+  ]
+}

@@ -255,6 +255,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
         ItemStack installed = held.copy();
         installed.setCount(1);
         setItem(FOCUS_SLOT, installed);
+        com.mistaboom.essence_ascendance.network.MicroVisualFeedback.focusInstalled(this, existing, getItem(FOCUS_SLOT));
 
         if (!player.getAbilities().instabuild) {
             held.shrink(1);
@@ -346,6 +347,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
         clientVisualState = tag.contains(MachineVisualState.TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)
                 //? if <26.1.2
                 ? MachineVisualState.Pylon.read(tag.getCompound(MachineVisualState.TAG)) : null;
+        com.mistaboom.essence_ascendance.audio.AudioSourceBridge.changed(this);
     }
 
     @Override

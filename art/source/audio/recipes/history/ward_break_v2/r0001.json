@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "assetId": "ward_break_v2",
+  "seed": 26110118,
+  "sampleRate": 48000,
+  "duration": 0.62,
+  "peakDb": -10,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:ward.break"
+    ],
+    "role": "guard",
+    "description": "Hollow defensive fracture and released pressure, darker than ice shatter.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Shattering Ward"
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 275,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.15
+        },
+        {
+          "ratio": 1.38,
+          "gain": 0.4,
+          "decaySeconds": 0.1
+        },
+        {
+          "ratio": 2.7,
+          "gain": 0.16,
+          "decaySeconds": 0.05
+        }
+      ],
+      "gain": 0.29,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_hollow_fracture",
+      "lengthSeconds": 0.51
+    },
+    {
+      "type": "noise",
+      "lowHz": 500,
+      "highHz": 4300,
+      "spectralTiltDbOct": -2,
+      "gain": 0.19,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_shell_crack",
+      "lengthSeconds": 0.055
+    },
+    {
+      "type": "noise",
+      "lowHz": 130,
+      "highHz": 1600,
+      "spectralTiltDbOct": -3,
+      "gain": 0.22,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_pressure_release",
+      "startSeconds": 0.025,
+      "lengthSeconds": 0.59
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "assetId": "focus_install_v2",
+  "seed": 26110100,
+  "sampleRate": 48000,
+  "duration": 0.95,
+  "peakDb": -13,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "role": "machine",
+    "description": "Hollow focus seating resonance with a small crystalline settling finish.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "proposedCueIds": [
+      "essence_ascendance:machine.focus.install"
+    ],
+    "cueIds": [],
+    "title": "Focus installed"
+  },
+  "layers": [
+    {
+      "preset": "ceramic",
+      "name": "01_hollow_seat",
+      "frequency": 185,
+      "gain": 0.28,
+      "lengthSeconds": 0.5
+    },
+    {
+      "preset": "air",
+      "name": "02_soft_insertion",
+      "lowHz": 180,
+      "highHz": 1800,
+      "gain": 0.12,
+      "lengthSeconds": 0.22
+    },
+    {
+      "preset": "glass",
+      "name": "03_settling_ring",
+      "frequency": 739.99,
+      "gain": 0.1,
+      "startSeconds": 0.07,
+      "lengthSeconds": 0.88
+    },
+    {
+      "preset": "twinkle",
+      "name": "04_settling_glint",
+      "frequency": 1109.99,
+      "gain": 0.035,
+      "startSeconds": 0.26,
+      "lengthSeconds": 0.45
+    }
+  ]
+}

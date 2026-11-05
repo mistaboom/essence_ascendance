@@ -46,6 +46,7 @@ public final class EssenceAscendance {
     }
 
     public static void init() {
+        com.mistaboom.essence_ascendance.audio.AudioContent.init();
         /* Definition dependency order. */
         EssenceTypes.init();
         AscendanceTiers.init();

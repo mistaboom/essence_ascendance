@@ -6,12 +6,25 @@
 
 | Reference | Version |
 | --- | --- |
+| Current command guidance and release targets | **1.0.0-beta.14**, refreshed November 4, 2026 |
 | This wiki's balance/configuration guide | **1.0.0-beta.9**, refreshed October 18, 2026 |
-| Minecraft / Java | **1.21.1 / 21** |
-| Loaders | Fabric and NeoForge |
-| Release notes and downloads | [Beta.9](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.9) |
+| Minecraft / Java | **1.21.1 / 21** and **26.1.2 / 25** |
+| Loaders | Fabric and NeoForge for each Minecraft version; four separate builds |
+| Release notes and downloads | [Releases](https://github.com/mistaboom/essence_ascendance/releases) |
 
-Use matching mod versions on the server and clients. The wiki describes the published beta.9 balance system; unreleased work in the repository may differ.
+Use the build matching both Minecraft and loader, with matching mod versions on
+the server and clients. This pack-maker guide retains its beta.9 balance refresh
+and dated evidence; current commands and release targets are updated for beta.14.
+Player gameplay instructions remain in the Ascendance Archive.
+
+## Pack-testing commands in beta.14
+
+Local `/essence audio` commands preview a cue or a timed continuous sound on the
+requesting client without triggering gameplay. Operators can use
+`/essence debug audio play <semantic>` to exercise normal server sound routing.
+Minecraft's volume and subtitle settings apply. See [local previews](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands#local-audio)
+and [server diagnostics](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing#audio-playback)
+for exact syntax, permissions and audience limits.
 
 ## Updating from earlier betas
 

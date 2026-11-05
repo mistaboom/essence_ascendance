@@ -19,7 +19,9 @@ allprojects { p ->
             throw new GradleException('Membership fixture requires an audited Library version')
         def mode = enabled ? 'ftb-' + libraryVersion : 'absent'
         def common = p.rootProject.project(":common:${p.targetMinecraft}")
-        def testRun = p.file("build/native-fixtures/membership-native-${p.parent.name}-${mode}-run").canonicalFile
+        def label = p.rootProject.findProperty('membershipAcceptanceLabel') ?: ''
+        if (label && !(label ==~ /[a-z0-9-]+/)) throw new GradleException('Membership acceptance label must be lowercase letters, digits and hyphens')
+        def testRun = p.file("build/native-fixtures/membership-native-${p.parent.name}-${mode}${label ? '-' + label : ''}-run").canonicalFile
         def metadata = p.file("build/native-fixtures/membership-fixture-${p.parent.name}-metadata")
         def fixture = p.tasks.register('membershipNativeFixtureJar', Jar) {
             dependsOn(common.tasks.named('testClasses'))

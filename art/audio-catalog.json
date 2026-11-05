@@ -1,0 +1,2122 @@
+{
+  "schema": 1,
+  "assets": {
+    "process_complete_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:process/complete_a"
+    },
+    "resonance_body_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:machine/resonance_body_a"
+    },
+    "process_warm_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:process/process_warm_a"
+    },
+    "process_warm_b": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:process/process_warm_b"
+    },
+    "cast_warm_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_warm_a"
+    },
+    "cast_warm_b": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_warm_b"
+    },
+    "impact_warm_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:combat/impact_warm_a"
+    },
+    "denied_warm_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:interface/denied_warm_a"
+    },
+    "rescue_warm_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:vitality/rescue_warm_a"
+    },
+    "machine_warm_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:machine/machine_warm_a"
+    },
+    "channel_warm_a": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:channel/channel_warm_a"
+    },
+    "beam_player_build_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:channel/beam_player_build_v2"
+    },
+    "beam_infuser_build_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:channel/beam_infuser_build_v2"
+    },
+    "beam_player_p0_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p0_v2",
+      "master": "source/audio/masters/beam_player_p0_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p0_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p0_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p0_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p1_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p1_v2",
+      "master": "source/audio/masters/beam_player_p1_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p1_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p1_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p1_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p2_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p2_v2",
+      "master": "source/audio/masters/beam_player_p2_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p2_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p2_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p2_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p3_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p3_v2",
+      "master": "source/audio/masters/beam_player_p3_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p3_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p3_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p3_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p4_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p4_v2",
+      "master": "source/audio/masters/beam_player_p4_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p4_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p4_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p4_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p5_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p5_v2",
+      "master": "source/audio/masters/beam_player_p5_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p5_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p5_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p5_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p6_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p6_v2",
+      "master": "source/audio/masters/beam_player_p6_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p6_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p6_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p6_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p7_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p7_v2",
+      "master": "source/audio/masters/beam_player_p7_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p7_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p7_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p7_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_player_p8_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_player_p8_v2",
+      "master": "source/audio/masters/beam_player_p8_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_player_p8_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_player_p8_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_player_p8_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p0_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p0_v2",
+      "master": "source/audio/masters/beam_infuser_p0_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p0_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p0_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p0_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p1_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p1_v2",
+      "master": "source/audio/masters/beam_infuser_p1_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p1_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p1_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p1_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p2_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p2_v2",
+      "master": "source/audio/masters/beam_infuser_p2_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p2_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p2_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p2_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p3_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p3_v2",
+      "master": "source/audio/masters/beam_infuser_p3_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p3_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p3_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p3_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p4_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p4_v2",
+      "master": "source/audio/masters/beam_infuser_p4_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p4_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p4_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p4_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p5_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p5_v2",
+      "master": "source/audio/masters/beam_infuser_p5_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p5_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p5_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p5_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p6_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p6_v2",
+      "master": "source/audio/masters/beam_infuser_p6_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p6_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p6_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p6_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p7_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p7_v2",
+      "master": "source/audio/masters/beam_infuser_p7_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p7_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p7_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p7_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "beam_infuser_p8_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:channel/beam_infuser_p8_v2",
+      "master": "source/audio/masters/beam_infuser_p8_v2/r0001.wav",
+      "approved": "source/audio/approved/beam_infuser_p8_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/beam_infuser_p8_v2/r0001.json",
+      "receipt": "source/audio/receipts/beam_infuser_p8_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "ui_press_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:interface/ui_press_v2"
+    },
+    "ui_accept_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:interface/ui_accept_v2",
+      "master": "source/audio/masters/ui_accept_v2/r0001.wav",
+      "approved": "source/audio/approved/ui_accept_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/ui_accept_v2/r0001.json",
+      "receipt": "source/audio/receipts/ui_accept_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "ui_deny_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:interface/ui_deny_v2",
+      "master": "source/audio/masters/ui_deny_v2/r0001.wav",
+      "approved": "source/audio/approved/ui_deny_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/ui_deny_v2/r0001.json",
+      "receipt": "source/audio/receipts/ui_deny_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "nexus_transaction_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:progression/nexus_transaction_v2",
+      "master": "source/audio/masters/nexus_transaction_v2/r0001.wav",
+      "approved": "source/audio/approved/nexus_transaction_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/nexus_transaction_v2/r0001.json",
+      "receipt": "source/audio/receipts/nexus_transaction_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "focus_install_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:machine/focus_install_v2",
+      "master": "source/audio/masters/focus_install_v2/r0001.wav",
+      "approved": "source/audio/approved/focus_install_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/focus_install_v2/r0001.json",
+      "receipt": "source/audio/receipts/focus_install_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "ascendance_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:progression/ascendance_v2"
+    },
+    "caster_woop_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/caster_woop_v2"
+    },
+    "fire_catch_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:element/fire_catch_v2",
+      "master": "source/audio/masters/fire_catch_v2/r0001.wav",
+      "approved": "source/audio/approved/fire_catch_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/fire_catch_v2/r0001.json",
+      "receipt": "source/audio/receipts/fire_catch_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "combustion_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:element/combustion_v2",
+      "master": "source/audio/masters/combustion_v2/r0001.wav",
+      "approved": "source/audio/approved/combustion_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/combustion_v2/r0001.json",
+      "receipt": "source/audio/receipts/combustion_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "freeze_gust_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:element/freeze_gust_v2",
+      "master": "source/audio/masters/freeze_gust_v2/r0001.wav",
+      "approved": "source/audio/approved/freeze_gust_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/freeze_gust_v2/r0001.json",
+      "receipt": "source/audio/receipts/freeze_gust_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "ice_shatter_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:element/ice_shatter_v2",
+      "master": "source/audio/masters/ice_shatter_v2/r0001.wav",
+      "approved": "source/audio/approved/ice_shatter_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/ice_shatter_v2/r0001.json",
+      "receipt": "source/audio/receipts/ice_shatter_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "static_snap_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:element/static_snap_v2",
+      "master": "source/audio/masters/static_snap_v2/r0001.wav",
+      "approved": "source/audio/approved/static_snap_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/static_snap_v2/r0001.json",
+      "receipt": "source/audio/receipts/static_snap_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "root_bind_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:element/root_bind_v2",
+      "master": "source/audio/masters/root_bind_v2/r0001.wav",
+      "approved": "source/audio/approved/root_bind_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/root_bind_v2/r0001.json",
+      "receipt": "source/audio/receipts/root_bind_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "redirect_clang_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:projectile/redirect_clang_v2",
+      "master": "source/audio/masters/redirect_clang_v2/r0001.wav",
+      "approved": "source/audio/approved/redirect_clang_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/redirect_clang_v2/r0001.json",
+      "receipt": "source/audio/receipts/redirect_clang_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "pierce_thuck_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:projectile/pierce_thuck_v2",
+      "master": "source/audio/masters/pierce_thuck_v2/r0001.wav",
+      "approved": "source/audio/approved/pierce_thuck_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/pierce_thuck_v2/r0001.json",
+      "receipt": "source/audio/receipts/pierce_thuck_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "intercept_tok_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:projectile/intercept_tok_v2",
+      "master": "source/audio/masters/intercept_tok_v2/r0001.wav",
+      "approved": "source/audio/approved/intercept_tok_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/intercept_tok_v2/r0001.json",
+      "receipt": "source/audio/receipts/intercept_tok_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "riposte_ready_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:guard/riposte_ready_v2",
+      "master": "source/audio/masters/riposte_ready_v2/r0001.wav",
+      "approved": "source/audio/approved/riposte_ready_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/riposte_ready_v2/r0001.json",
+      "receipt": "source/audio/receipts/riposte_ready_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "counter_release_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:guard/counter_release_v2",
+      "master": "source/audio/masters/counter_release_v2/r0001.wav",
+      "approved": "source/audio/approved/counter_release_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/counter_release_v2/r0001.json",
+      "receipt": "source/audio/receipts/counter_release_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "ward_break_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:guard/ward_break_v2",
+      "master": "source/audio/masters/ward_break_v2/r0001.wav",
+      "approved": "source/audio/approved/ward_break_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/ward_break_v2/r0001.json",
+      "receipt": "source/audio/receipts/ward_break_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "adrenaline_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:vitality/adrenaline_v2"
+    },
+    "mobility_jump_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:mobility/mobility_jump_v2",
+      "master": "source/audio/masters/mobility_jump_v2/r0001.wav",
+      "approved": "source/audio/approved/mobility_jump_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/mobility_jump_v2/r0001.json",
+      "receipt": "source/audio/receipts/mobility_jump_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "mobility_rush_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:mobility/mobility_rush_v2",
+      "master": "source/audio/masters/mobility_rush_v2/r0001.wav",
+      "approved": "source/audio/approved/mobility_rush_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/mobility_rush_v2/r0001.json",
+      "receipt": "source/audio/receipts/mobility_rush_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "flight_wind_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:mobility/flight_wind_v2",
+      "master": "source/audio/masters/flight_wind_v2/r0001.wav",
+      "approved": "source/audio/approved/flight_wind_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/flight_wind_v2/r0001.json",
+      "receipt": "source/audio/receipts/flight_wind_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "companion_recall_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:utility/companion_recall_v2",
+      "master": "source/audio/masters/companion_recall_v2/r0001.wav",
+      "approved": "source/audio/approved/companion_recall_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/companion_recall_v2/r0001.json",
+      "receipt": "source/audio/receipts/companion_recall_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "ui_press_b_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:interface/ui_press_b_v2"
+    },
+    "caster_woop_b_v2": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/caster_woop_b_v2"
+    },
+    "fire_catch_b_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:element/fire_catch_b_v2",
+      "master": "source/audio/masters/fire_catch_b_v2/r0001.wav",
+      "approved": "source/audio/approved/fire_catch_b_v2/r0001.ogg",
+      "recipe": "source/audio/recipes/history/fire_catch_b_v2/r0001.json",
+      "receipt": "source/audio/receipts/fire_catch_b_v2/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "intercept_tok_b_v2": {
+      "status": "approved",
+      "resource": "essence_ascendance:projectile/intercept_tok_b_v2",
+      "master": "source/audio/masters/intercept_tok_b_v2/r0002.wav",
+      "approved": "source/audio/approved/intercept_tok_b_v2/r0002.ogg",
+      "recipe": "source/audio/recipes/history/intercept_tok_b_v2/r0002.json",
+      "receipt": "source/audio/receipts/intercept_tok_b_v2/r0002.integration.json",
+      "revision": "r0002"
+    },
+    "ascendance_ceremony_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:progression/ascendance_ceremony_v3"
+    },
+    "awakening_ceremony_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:progression/awakening_ceremony_v3"
+    },
+    "ui_key_clack_v3": {
+      "status": "approved",
+      "resource": "essence_ascendance:interface/ui_key_clack_v3",
+      "master": "source/audio/masters/ui_key_clack_v3/r0001.wav",
+      "approved": "source/audio/approved/ui_key_clack_v3/r0001.ogg",
+      "recipe": "source/audio/recipes/history/ui_key_clack_v3/r0001.json",
+      "receipt": "source/audio/receipts/ui_key_clack_v3/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "ui_key_clack_b_v3": {
+      "status": "approved",
+      "resource": "essence_ascendance:interface/ui_key_clack_b_v3",
+      "master": "source/audio/masters/ui_key_clack_b_v3/r0001.wav",
+      "approved": "source/audio/approved/ui_key_clack_b_v3/r0001.ogg",
+      "recipe": "source/audio/recipes/history/ui_key_clack_b_v3/r0001.json",
+      "receipt": "source/audio/receipts/ui_key_clack_b_v3/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "cast_tonal_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_tonal_v3"
+    },
+    "cast_tonal_b_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_tonal_b_v3"
+    },
+    "adrenaline_heartbeat_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:vitality/adrenaline_heartbeat_v3"
+    },
+    "magic_impact_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/magic_impact_v3"
+    },
+    "magic_impact_b_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/magic_impact_b_v3"
+    },
+    "death_defiance_v3": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:vitality/death_defiance_v3"
+    },
+    "ascendance_chimes_v4": {
+      "status": "approved",
+      "resource": "essence_ascendance:progression/ascendance_chimes_v4",
+      "master": "source/audio/masters/ascendance_chimes_v4/r0001.wav",
+      "approved": "source/audio/approved/ascendance_chimes_v4/r0001.ogg",
+      "recipe": "source/audio/recipes/history/ascendance_chimes_v4/r0001.json",
+      "receipt": "source/audio/receipts/ascendance_chimes_v4/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "awakening_chimes_v4": {
+      "status": "approved",
+      "resource": "essence_ascendance:progression/awakening_chimes_v4",
+      "master": "source/audio/masters/awakening_chimes_v4/r0001.wav",
+      "approved": "source/audio/approved/awakening_chimes_v4/r0001.ogg",
+      "recipe": "source/audio/recipes/history/awakening_chimes_v4/r0001.json",
+      "receipt": "source/audio/receipts/awakening_chimes_v4/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "cast_punch_v4": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_punch_v4"
+    },
+    "cast_punch_b_v4": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_punch_b_v4"
+    },
+    "adrenaline_heartbeat_v4": {
+      "status": "approved",
+      "resource": "essence_ascendance:vitality/adrenaline_heartbeat_v4",
+      "master": "source/audio/masters/adrenaline_heartbeat_v4/r0001.wav",
+      "approved": "source/audio/approved/adrenaline_heartbeat_v4/r0001.ogg",
+      "recipe": "source/audio/recipes/history/adrenaline_heartbeat_v4/r0001.json",
+      "receipt": "source/audio/receipts/adrenaline_heartbeat_v4/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "magic_impact_v4": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/magic_impact_v4"
+    },
+    "magic_impact_b_v4": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/magic_impact_b_v4"
+    },
+    "death_defiance_v4": {
+      "status": "approved",
+      "resource": "essence_ascendance:vitality/death_defiance_v4",
+      "master": "source/audio/masters/death_defiance_v4/r0001.wav",
+      "approved": "source/audio/approved/death_defiance_v4/r0001.ogg",
+      "recipe": "source/audio/recipes/history/death_defiance_v4/r0001.json",
+      "receipt": "source/audio/receipts/death_defiance_v4/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "cast_crystal_v5": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_crystal_v5"
+    },
+    "cast_air_v5": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_air_v5"
+    },
+    "cast_release_v5": {
+      "status": "authoring_only",
+      "resource": "essence_ascendance:weapon/cast_release_v5"
+    },
+    "magic_impact_soft_v5": {
+      "status": "approved",
+      "resource": "essence_ascendance:weapon/magic_impact_soft_v5",
+      "master": "source/audio/masters/magic_impact_soft_v5/r0001.wav",
+      "approved": "source/audio/approved/magic_impact_soft_v5/r0001.ogg",
+      "recipe": "source/audio/recipes/history/magic_impact_soft_v5/r0001.json",
+      "receipt": "source/audio/receipts/magic_impact_soft_v5/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "magic_impact_soft_b_v5": {
+      "status": "approved",
+      "resource": "essence_ascendance:weapon/magic_impact_soft_b_v5",
+      "master": "source/audio/masters/magic_impact_soft_b_v5/r0001.wav",
+      "approved": "source/audio/approved/magic_impact_soft_b_v5/r0001.ogg",
+      "recipe": "source/audio/recipes/history/magic_impact_soft_b_v5/r0001.json",
+      "receipt": "source/audio/receipts/magic_impact_soft_b_v5/r0001.integration.json",
+      "revision": "r0001"
+    },
+    "cast_wineglass": {
+      "status": "approved",
+      "resource": "essence_ascendance:weapon/cast_wineglass",
+      "master": "source/audio/masters/cast_wineglass/r0002.wav",
+      "approved": "source/audio/approved/cast_wineglass/r0002.ogg",
+      "recipe": "source/audio/recipes/history/cast_wineglass/r0002.json",
+      "receipt": "source/audio/receipts/cast_wineglass/r0002.integration.json",
+      "revision": "r0002"
+    }
+  },
+  "policies": {
+    "playback": {
+      "process": {
+        "category": "BLOCKS",
+        "gain": 0.4,
+        "pitch": 1.0,
+        "attenuation": "linear",
+        "priority": 20
+      },
+      "machine": {
+        "category": "BLOCKS",
+        "gain": 0.25,
+        "pitch": 1.0,
+        "attenuation": "linear",
+        "priority": 10
+      },
+      "explosion": {
+        "category": "PLAYERS",
+        "gain": 0.35,
+        "pitch": 1.5,
+        "attenuation": "linear",
+        "priority": 40
+      },
+      "interface": {
+        "category": "MASTER",
+        "gain": 0.35,
+        "pitch": 1,
+        "attenuation": "none",
+        "priority": 60
+      },
+      "channel": {
+        "category": "BLOCKS",
+        "gain": 0.15,
+        "pitch": 1,
+        "attenuation": "none",
+        "priority": 20
+      },
+      "cast": {
+        "category": "PLAYERS",
+        "gain": 0.6,
+        "pitch": 1,
+        "attenuation": "linear",
+        "priority": 40
+      },
+      "guard_contact": {
+        "category": "PLAYERS",
+        "gain": 0.35,
+        "pitch": 1.15,
+        "attenuation": "linear",
+        "priority": 40
+      },
+      "guard_ready": {
+        "category": "PLAYERS",
+        "gain": 0.35,
+        "pitch": 1,
+        "attenuation": "linear",
+        "priority": 40
+      },
+      "drag": {
+        "category": "PLAYERS",
+        "gain": 0.35,
+        "pitch": 0.8,
+        "attenuation": "linear",
+        "priority": 40
+      },
+      "intercept": {
+        "category": "PLAYERS",
+        "gain": 0.45,
+        "pitch": 1,
+        "attenuation": "linear",
+        "priority": 40
+      },
+      "flight": {
+        "category": "PLAYERS",
+        "gain": 1.0,
+        "pitch": 1,
+        "attenuation": "linear",
+        "priority": 8
+      },
+      "focus": {
+        "category": "BLOCKS",
+        "gain": 0.15,
+        "pitch": 1,
+        "attenuation": "linear",
+        "priority": 8
+      },
+      "critical": {
+        "category": "PLAYERS",
+        "gain": 0.45,
+        "pitch": 1,
+        "attenuation": "none",
+        "priority": 90
+      },
+      "progression": {
+        "category": "MASTER",
+        "gain": 0.45,
+        "pitch": 1,
+        "attenuation": "none",
+        "priority": 65
+      },
+      "denied": {
+        "category": "MASTER",
+        "gain": 0.3,
+        "pitch": 1,
+        "attenuation": "none",
+        "priority": 70
+      },
+      "ceremony": {
+        "category": "PLAYERS",
+        "gain": 0.6,
+        "pitch": 1,
+        "attenuation": "linear",
+        "priority": 65
+      },
+      "ability": {
+        "category": "PLAYERS",
+        "gain": 0.4,
+        "pitch": 1,
+        "attenuation": "linear",
+        "priority": 40
+      }
+    },
+    "recipients": {
+      "near_machine": {
+        "scope": "world",
+        "radius": 16
+      },
+      "near_combat": {
+        "scope": "world",
+        "radius": 16
+      },
+      "local_ui": {
+        "scope": "ui"
+      },
+      "private": {
+        "scope": "player"
+      }
+    },
+    "admission": {
+      "process": {
+        "group": "process",
+        "perSource": 1,
+        "perGroup": 8,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "machine": {
+        "group": "machine",
+        "perSource": 1,
+        "perGroup": 12,
+        "repeatTicks": 0,
+        "overflow": "prefer_near"
+      },
+      "combat": {
+        "group": "combat",
+        "perSource": 4,
+        "perGroup": 16,
+        "repeatTicks": 0,
+        "overflow": "prefer_near"
+      },
+      "interface": {
+        "group": "interface",
+        "perSource": 1,
+        "perGroup": 4,
+        "repeatTicks": 2,
+        "overflow": "prefer_near"
+      },
+      "channel": {
+        "group": "channel",
+        "perSource": 1,
+        "perGroup": 1,
+        "repeatTicks": 0,
+        "overflow": "prefer_near"
+      },
+      "element_fire": {
+        "group": "element_fire",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "element_ice": {
+        "group": "element_ice",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "element_arc": {
+        "group": "element_arc",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "projectile": {
+        "group": "projectile",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "guard": {
+        "group": "guard",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "mobility": {
+        "group": "mobility",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 6,
+        "overflow": "prefer_near"
+      },
+      "utility": {
+        "group": "utility",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "ceremony": {
+        "group": "ceremony",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "weapon": {
+        "group": "weapon",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 2,
+        "overflow": "prefer_near"
+      },
+      "denied": {
+        "group": "denied",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "progression": {
+        "group": "progression",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 0,
+        "overflow": "prefer_near"
+      },
+      "critical": {
+        "group": "critical",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 0,
+        "overflow": "prefer_near"
+      },
+      "status": {
+        "group": "status",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 10,
+        "overflow": "prefer_near"
+      },
+      "flight": {
+        "group": "flight",
+        "perSource": 1,
+        "perGroup": 4,
+        "repeatTicks": 0,
+        "overflow": "prefer_near"
+      },
+      "guard_ready": {
+        "group": "guard_ready",
+        "perSource": 2,
+        "perGroup": 12,
+        "repeatTicks": 0,
+        "overflow": "prefer_near"
+      }
+    },
+    "lifecycle": {
+      "sustain": {
+        "attackTicks": 4,
+        "releaseTicks": 6,
+        "resume": "body_only",
+        "restartBackoffTicks": 20
+      }
+    }
+  },
+  "cues": {
+    "essence_ascendance:process.complete": {
+      "playback": "process",
+      "recipients": "near_machine",
+      "admission": "process",
+      "subtitleKey": "subtitles.essence_ascendance.process.complete",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "process_complete_a",
+            "weight": 1
+          }
+        ]
+      },
+      "fallback": "minecraft:block.enchantment_table.use"
+    },
+    "essence_ascendance:machine.resonance.body": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p0_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:combat.explosion": {
+      "playback": "explosion",
+      "recipients": "near_combat",
+      "admission": "combat",
+      "subtitleKey": "subtitles.essence_ascendance.combat.explosion",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:entity.generic.explode",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:ui.press": {
+      "playback": "interface",
+      "recipients": "local_ui",
+      "admission": "interface",
+      "subtitleKey": "none",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "ui_key_clack_v3",
+            "weight": 1
+          },
+          {
+            "asset": "ui_key_clack_b_v3",
+            "weight": 1
+          }
+        ]
+      },
+      "subtitleReason": "Routine activation; existing control narration and result text own meaning."
+    },
+    "essence_ascendance:interface.acknowledge": {
+      "playback": "interface",
+      "recipients": "private",
+      "admission": "interface",
+      "subtitleKey": "subtitles.essence_ascendance.interface.acknowledge",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "ui_accept_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p0_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:weapon.cast.release": {
+      "playback": "cast",
+      "recipients": "near_combat",
+      "admission": "weapon",
+      "subtitleKey": "subtitles.essence_ascendance.weapon.cast.release",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "cast_wineglass",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:weapon.glaive.swipe": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "weapon",
+      "subtitleKey": "subtitles.essence_ascendance.weapon.glaive.swipe",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:entity.player.attack.sweep",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:weapon.glaive.stab": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "weapon",
+      "subtitleKey": "subtitles.essence_ascendance.weapon.glaive.stab",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:entity.player.attack.knockback",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:weapon.glaive.contact": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "weapon",
+      "subtitleKey": "subtitles.essence_ascendance.weapon.glaive.contact",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:entity.player.attack.strong",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:weapon.bolt.impact": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "weapon",
+      "subtitleKey": "subtitles.essence_ascendance.weapon.bolt.impact",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "magic_impact_soft_v5",
+            "weight": 1
+          },
+          {
+            "asset": "magic_impact_soft_b_v5",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:combat.guard.impact": {
+      "playback": "guard_contact",
+      "recipients": "near_combat",
+      "admission": "guard",
+      "subtitleKey": "subtitles.essence_ascendance.combat.guard.impact",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:item.shield.block",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:combat.guard.ready": {
+      "playback": "guard_ready",
+      "recipients": "near_combat",
+      "admission": "guard_ready",
+      "subtitleKey": "subtitles.essence_ascendance.combat.guard.ready",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "riposte_ready_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:combat.guard.release": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "guard",
+      "subtitleKey": "subtitles.essence_ascendance.combat.guard.release",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "counter_release_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:combat.guard.return": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "guard",
+      "subtitleKey": "subtitles.essence_ascendance.combat.guard.return",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:item.shield.block",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:combat.protection": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "status",
+      "subtitleKey": "subtitles.essence_ascendance.combat.protection",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.enchantment_table.use",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:ward.break": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "guard",
+      "subtitleKey": "subtitles.essence_ascendance.ward.break",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "ward_break_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:projectile.drag.enter": {
+      "playback": "drag",
+      "recipients": "near_combat",
+      "admission": "projectile",
+      "subtitleKey": "subtitles.essence_ascendance.projectile.drag.enter",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.honey_block.slide",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:projectile.intercept": {
+      "playback": "intercept",
+      "recipients": "near_combat",
+      "admission": "projectile",
+      "subtitleKey": "subtitles.essence_ascendance.projectile.intercept",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "intercept_tok_v2",
+            "weight": 1
+          },
+          {
+            "asset": "intercept_tok_b_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:projectile.redirect": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "projectile",
+      "subtitleKey": "subtitles.essence_ascendance.projectile.redirect",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "redirect_clang_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:projectile.pierce": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "projectile",
+      "subtitleKey": "subtitles.essence_ascendance.projectile.pierce",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "pierce_thuck_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:element.fire.apply": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "element_fire",
+      "subtitleKey": "subtitles.essence_ascendance.element.fire.apply",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "fire_catch_v2",
+            "weight": 1
+          },
+          {
+            "asset": "fire_catch_b_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:element.fire.burst": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "element_fire",
+      "subtitleKey": "subtitles.essence_ascendance.element.fire.burst",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "combustion_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:element.ice.freeze": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "element_ice",
+      "subtitleKey": "subtitles.essence_ascendance.element.ice.freeze",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "freeze_gust_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:element.ice.shatter": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "element_ice",
+      "subtitleKey": "subtitles.essence_ascendance.element.ice.shatter",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "ice_shatter_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:element.arc": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "element_arc",
+      "subtitleKey": "subtitles.essence_ascendance.element.arc",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "static_snap_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:element.root": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "projectile",
+      "subtitleKey": "subtitles.essence_ascendance.element.root",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "root_bind_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:mobility.launch": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "mobility",
+      "subtitleKey": "subtitles.essence_ascendance.mobility.launch",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "mobility_jump_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:mobility.boost": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "mobility",
+      "subtitleKey": "subtitles.essence_ascendance.mobility.boost",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "mobility_rush_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:utility.transfer": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "utility",
+      "subtitleKey": "subtitles.essence_ascendance.utility.transfer",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.enchantment_table.use",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:utility.seal": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "utility",
+      "subtitleKey": "subtitles.essence_ascendance.utility.seal",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.beacon.activate",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:utility.release": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "utility",
+      "subtitleKey": "subtitles.essence_ascendance.utility.release",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.beacon.deactivate",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:utility.recall": {
+      "playback": "ability",
+      "recipients": "near_combat",
+      "admission": "utility",
+      "subtitleKey": "subtitles.essence_ascendance.utility.recall",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "companion_recall_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:progression.ascend": {
+      "playback": "ceremony",
+      "recipients": "near_combat",
+      "admission": "ceremony",
+      "subtitleKey": "subtitles.essence_ascendance.progression.ascend",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "ascendance_chimes_v4",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:interface.denied": {
+      "playback": "denied",
+      "recipients": "private",
+      "admission": "denied",
+      "subtitleKey": "subtitles.essence_ascendance.interface.denied",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "ui_deny_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:progression.purchase": {
+      "playback": "progression",
+      "recipients": "private",
+      "admission": "progression",
+      "subtitleKey": "subtitles.essence_ascendance.progression.purchase",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "nexus_transaction_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.start": {
+      "playback": "progression",
+      "recipients": "private",
+      "admission": "progression",
+      "subtitleKey": "subtitles.essence_ascendance.channel.start",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.beacon.activate",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.stop": {
+      "playback": "progression",
+      "recipients": "private",
+      "admission": "progression",
+      "subtitleKey": "subtitles.essence_ascendance.channel.stop",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.beacon.deactivate",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:vitality.purge": {
+      "playback": "critical",
+      "recipients": "private",
+      "admission": "critical",
+      "subtitleKey": "subtitles.essence_ascendance.vitality.purge",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.amethyst_block.chime",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:vitality.surge": {
+      "playback": "critical",
+      "recipients": "private",
+      "admission": "critical",
+      "subtitleKey": "subtitles.essence_ascendance.vitality.surge",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "adrenaline_heartbeat_v4",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:vitality.rescue": {
+      "playback": "critical",
+      "recipients": "private",
+      "admission": "critical",
+      "subtitleKey": "subtitles.essence_ascendance.vitality.rescue",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "death_defiance_v4",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:vitality.reform": {
+      "playback": "critical",
+      "recipients": "private",
+      "admission": "critical",
+      "subtitleKey": "subtitles.essence_ascendance.vitality.reform",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.beacon.activate",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.focus.body": {
+      "playback": "focus",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.focus.body",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "event": "minecraft:block.beacon.ambient",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:mobility.thrust.body": {
+      "playback": "flight",
+      "recipients": "near_combat",
+      "admission": "flight",
+      "subtitleKey": "subtitles.essence_ascendance.mobility.thrust.body",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "flight_wind_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.focus.install": {
+      "playback": "process",
+      "recipients": "near_machine",
+      "admission": "process",
+      "subtitleKey": "subtitles.essence_ascendance.machine.focus.install",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "focus_install_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:progression.awaken": {
+      "playback": "ceremony",
+      "recipients": "near_combat",
+      "admission": "ceremony",
+      "subtitleKey": "subtitles.essence_ascendance.progression.awaken",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "awakening_chimes_v4",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p1": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p1_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p2": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p2_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p3": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p3_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p4": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p4_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p5": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p5_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p6": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p6_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p7": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p7_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:channel.resonance.body.p8": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.channel.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_player_p8_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p1": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p1_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p2": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p2_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p3": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p3_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p4": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p4_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p5": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p5_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p6": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p6_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p7": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p7_v2",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "essence_ascendance:machine.resonance.body.p8": {
+      "playback": "machine",
+      "recipients": "near_machine",
+      "admission": "machine",
+      "subtitleKey": "subtitles.essence_ascendance.machine.resonance",
+      "variants": {
+        "selection": "native_weighted",
+        "samples": [
+          {
+            "asset": "beam_infuser_p8_v2",
+            "weight": 1
+          }
+        ]
+      }
+    }
+  },
+  "recipes": {
+    "machine.resonance": {
+      "body": "essence_ascendance:machine.resonance.body"
+    },
+    "combat.explosion": {
+      "body": "essence_ascendance:combat.explosion"
+    },
+    "ui.press": {
+      "body": "essence_ascendance:ui.press"
+    },
+    "interface.acknowledge": {
+      "body": "essence_ascendance:interface.acknowledge"
+    },
+    "essence_ascendance:explosive_payload": {
+      "body": "essence_ascendance:combat.explosion"
+    },
+    "channel.resonance": {
+      "body": "essence_ascendance:channel.resonance.body"
+    },
+    "weapon.cast.release": {
+      "body": "essence_ascendance:weapon.cast.release"
+    },
+    "weapon.glaive.swipe": {
+      "body": "essence_ascendance:weapon.glaive.swipe"
+    },
+    "weapon.glaive.stab": {
+      "body": "essence_ascendance:weapon.glaive.stab"
+    },
+    "weapon.glaive.contact": {
+      "body": "essence_ascendance:weapon.glaive.contact"
+    },
+    "weapon.bolt.impact": {
+      "body": "essence_ascendance:weapon.bolt.impact"
+    },
+    "combat.guard.impact": {
+      "body": "essence_ascendance:combat.guard.impact"
+    },
+    "combat.guard.ready": {
+      "body": "essence_ascendance:combat.guard.ready"
+    },
+    "combat.guard.release": {
+      "body": "essence_ascendance:combat.guard.release"
+    },
+    "ward.break": {
+      "body": "essence_ascendance:ward.break"
+    },
+    "projectile.intercept": {
+      "body": "essence_ascendance:projectile.intercept"
+    },
+    "projectile.redirect": {
+      "body": "essence_ascendance:projectile.redirect"
+    },
+    "projectile.pierce": {
+      "body": "essence_ascendance:projectile.pierce"
+    },
+    "element.fire.apply": {
+      "body": "essence_ascendance:element.fire.apply"
+    },
+    "element.fire.burst": {
+      "body": "essence_ascendance:element.fire.burst"
+    },
+    "element.ice.freeze": {
+      "body": "essence_ascendance:element.ice.freeze"
+    },
+    "element.ice.shatter": {
+      "body": "essence_ascendance:element.ice.shatter"
+    },
+    "element.arc": {
+      "body": "essence_ascendance:element.arc"
+    },
+    "element.root": {
+      "body": "essence_ascendance:element.root"
+    },
+    "mobility.launch": {
+      "body": "essence_ascendance:mobility.launch"
+    },
+    "mobility.boost": {
+      "body": "essence_ascendance:mobility.boost"
+    },
+    "utility.recall": {
+      "body": "essence_ascendance:utility.recall"
+    },
+    "progression.ascend": {
+      "body": "essence_ascendance:progression.ascend",
+      "maximumA": 0.5,
+      "alternatives": [
+        {
+          "body": "essence_ascendance:progression.awaken",
+          "minimumA": 0.500001
+        }
+      ]
+    },
+    "interface.denied": {
+      "body": "essence_ascendance:interface.denied"
+    },
+    "progression.purchase": {
+      "body": "essence_ascendance:progression.purchase"
+    },
+    "vitality.surge": {
+      "body": "essence_ascendance:vitality.surge"
+    },
+    "vitality.rescue": {
+      "body": "essence_ascendance:vitality.rescue"
+    },
+    "mobility.thrust.body": {
+      "body": "essence_ascendance:mobility.thrust.body"
+    },
+    "essence_ascendance:ignition": {
+      "body": "essence_ascendance:element.fire.apply"
+    },
+    "essence_ascendance:combustion": {
+      "body": "essence_ascendance:element.fire.burst"
+    },
+    "essence_ascendance:freeze": {
+      "body": "essence_ascendance:element.ice.freeze"
+    },
+    "essence_ascendance:shatter": {
+      "body": "essence_ascendance:element.ice.shatter"
+    },
+    "essence_ascendance:rooting": {
+      "body": "essence_ascendance:element.root"
+    },
+    "essence_ascendance:projectile_redirect": {
+      "body": "essence_ascendance:projectile.redirect"
+    },
+    "essence_ascendance:projectile_pierce": {
+      "body": "essence_ascendance:projectile.pierce"
+    },
+    "essence_ascendance:shield_ram": {
+      "body": "essence_ascendance:combat.guard.impact"
+    },
+    "essence_ascendance:guard_response": {
+      "body": "essence_ascendance:combat.guard.ready"
+    },
+    "essence_ascendance:shattering_ward": {
+      "body": "essence_ascendance:ward.break"
+    },
+    "essence_ascendance:mobility_launch": {
+      "body": "essence_ascendance:mobility.launch"
+    },
+    "essence_ascendance:momentum_surge": {
+      "body": "essence_ascendance:mobility.boost"
+    },
+    "essence_ascendance:companion_recall": {
+      "body": "essence_ascendance:utility.recall"
+    },
+    "essence_ascendance:ascendance_ceremony": {
+      "body": "essence_ascendance:progression.ascend",
+      "maximumA": 0.5,
+      "alternatives": [
+        {
+          "body": "essence_ascendance:progression.awaken",
+          "minimumA": 0.500001
+        }
+      ]
+    },
+    "essence_ascendance:static_arc": {
+      "body": "essence_ascendance:element.arc",
+      "maximumA": 0
+    },
+    "essence_ascendance:riposte_release": {
+      "body": "essence_ascendance:combat.guard.release",
+      "minimumA": 0.5
+    },
+    "essence_ascendance:stored_force": {
+      "body": "essence_ascendance:combat.guard.release",
+      "minimumB": 0.5
+    },
+    "machine.focus.install": {
+      "body": "essence_ascendance:machine.focus.install"
+    },
+    "channel.resonance.p1": {
+      "body": "essence_ascendance:channel.resonance.body.p1"
+    },
+    "channel.resonance.p2": {
+      "body": "essence_ascendance:channel.resonance.body.p2"
+    },
+    "channel.resonance.p3": {
+      "body": "essence_ascendance:channel.resonance.body.p3"
+    },
+    "channel.resonance.p4": {
+      "body": "essence_ascendance:channel.resonance.body.p4"
+    },
+    "channel.resonance.p5": {
+      "body": "essence_ascendance:channel.resonance.body.p5"
+    },
+    "channel.resonance.p6": {
+      "body": "essence_ascendance:channel.resonance.body.p6"
+    },
+    "channel.resonance.p7": {
+      "body": "essence_ascendance:channel.resonance.body.p7"
+    },
+    "channel.resonance.p8": {
+      "body": "essence_ascendance:channel.resonance.body.p8"
+    },
+    "machine.resonance.p1": {
+      "body": "essence_ascendance:machine.resonance.body.p1"
+    },
+    "machine.resonance.p2": {
+      "body": "essence_ascendance:machine.resonance.body.p2"
+    },
+    "machine.resonance.p3": {
+      "body": "essence_ascendance:machine.resonance.body.p3"
+    },
+    "machine.resonance.p4": {
+      "body": "essence_ascendance:machine.resonance.body.p4"
+    },
+    "machine.resonance.p5": {
+      "body": "essence_ascendance:machine.resonance.body.p5"
+    },
+    "machine.resonance.p6": {
+      "body": "essence_ascendance:machine.resonance.body.p6"
+    },
+    "machine.resonance.p7": {
+      "body": "essence_ascendance:machine.resonance.body.p7"
+    },
+    "machine.resonance.p8": {
+      "body": "essence_ascendance:machine.resonance.body.p8"
+    },
+    "progression.awaken": {
+      "body": "essence_ascendance:progression.awaken"
+    }
+  },
+  "sourceProfiles": {
+    "machine.resonance": {
+      "recipe": "machine.resonance",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance": {
+      "recipe": "channel.resonance",
+      "lifecycle": "sustain"
+    },
+    "mobility.thrust": {
+      "recipe": "mobility.thrust.body",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p1": {
+      "recipe": "channel.resonance.p1",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p2": {
+      "recipe": "channel.resonance.p2",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p3": {
+      "recipe": "channel.resonance.p3",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p4": {
+      "recipe": "channel.resonance.p4",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p5": {
+      "recipe": "channel.resonance.p5",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p6": {
+      "recipe": "channel.resonance.p6",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p7": {
+      "recipe": "channel.resonance.p7",
+      "lifecycle": "sustain"
+    },
+    "channel.resonance.p8": {
+      "recipe": "channel.resonance.p8",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p1": {
+      "recipe": "machine.resonance.p1",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p2": {
+      "recipe": "machine.resonance.p2",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p3": {
+      "recipe": "machine.resonance.p3",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p4": {
+      "recipe": "machine.resonance.p4",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p5": {
+      "recipe": "machine.resonance.p5",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p6": {
+      "recipe": "machine.resonance.p6",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p7": {
+      "recipe": "machine.resonance.p7",
+      "lifecycle": "sustain"
+    },
+    "machine.resonance.p8": {
+      "recipe": "machine.resonance.p8",
+      "lifecycle": "sustain"
+    }
+  }
+}

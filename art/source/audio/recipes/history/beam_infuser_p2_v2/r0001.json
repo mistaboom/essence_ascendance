@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "assetId": "beam_infuser_p2_v2",
+  "seed": 110202,
+  "sampleRate": 48000,
+  "duration": 12,
+  "peakDb": -18,
+  "loop": {
+    "mode": "periodic"
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 523.25,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.03634654,
+      "am": {
+        "rate": 0.08333333333333333,
+        "depth": 0.12
+      },
+      "envelope": [
+        [
+          0,
+          0.88
+        ],
+        [
+          0.22,
+          1
+        ],
+        [
+          0.53,
+          0.76
+        ],
+        [
+          0.81,
+          0.96
+        ],
+        [
+          1,
+          0.88
+        ]
+      ],
+      "name": "00_foundation_chime",
+      "phase": 0.0,
+      "seed": 110100
+    },
+    {
+      "type": "modal",
+      "frequency": 784,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.03016763,
+      "am": {
+        "rate": 0.16666666666666666,
+        "depth": 0.132
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.217,
+          0.85
+        ],
+        [
+          0.307,
+          0
+        ],
+        [
+          0.352,
+          0
+        ],
+        [
+          0.447,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "01_pylon_01_chime",
+      "phase": 1.318,
+      "seed": 110101
+    },
+    {
+      "type": "modal",
+      "frequency": 659.25,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.02616951,
+      "am": {
+        "rate": 0.25,
+        "depth": 0.144
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.354,
+          0.85
+        ],
+        [
+          0.444,
+          0
+        ],
+        [
+          0.489,
+          0
+        ],
+        [
+          0.584,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "02_pylon_02_chime",
+      "phase": 2.636,
+      "seed": 110102
+    }
+  ],
+  "design": {
+    "title": "Infuser beam - 2 pylons / 3 notes",
+    "description": "Gentle sustained wind-chime resonance without a strike. 3 independently editable note layer(s); Brighter C-major sixth/ninth family. Upper notes breathe and periodically disappear; root remains present.",
+    "cueIds": [
+      "essence_ascendance:machine.resonance.body"
+    ],
+    "destination": "infuser",
+    "pylonCount": 2,
+    "noteCount": 3,
+    "frequenciesHz": [
+      523.25,
+      784,
+      659.25
+    ],
+    "role": "continuous_beam",
+    "loopPeriodSeconds": 12,
+    "loudnessStrategy": "Equal-power note weighting keeps chord density from multiplying overall loudness. Runtime onset/offset fades required.",
+    "runtimeHandoff": "Actual active transfer only. Replace duplicated machine/private/focus hums; destination+pylon identity; phase-coherent stem additions or crossfaded states; global density budget.",
+    "reference": "User-described wind-chime resonance. Original synthesized modal partials; no samples or copied melody."
+  }
+}

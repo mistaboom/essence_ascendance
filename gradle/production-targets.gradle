@@ -94,10 +94,28 @@ def verifyPackagedRuntimeAssets = { zip, names, counts, expected, loader ->
         if (!java.util.Arrays.equals(source.bytes, zip.getInputStream(zip.getEntry(name)).bytes))
             throw new GradleException("${loader}: stale runtime asset ${name}")
     }
-    if (names.any { it.startsWith('art/') || it.endsWith('.bbmodel')
-            || it.contains('textures/armor/ascendance/source/')
-            || it.contains('textures/models/armor/source/') })
-        throw new GradleException("${loader}: packaged asset authoring files")
+    def audioCatalogPath = 'assets/essence_ascendance/audio/catalog.json'
+    def audioCatalog = new groovy.json.JsonSlurper().parseText(zip.getInputStream(zip.getEntry(audioCatalogPath)).text)
+    def catalogSounds = audioCatalog.assets.values().collect { asset ->
+        def id = asset.resource.split(':', 2)
+        "assets/${id[0]}/sounds/${id[1]}.ogg".toString()
+    } as Set
+    def packagedSounds = names.findAll { it.toLowerCase(java.util.Locale.ROOT).endsWith('.ogg') } as Set
+    if (catalogSounds != packagedSounds)
+        throw new GradleException("${loader}: packaged OGGs disagree with catalog: missing="
+                + (catalogSounds - packagedSounds) + ', unowned=' + (packagedSounds - catalogSounds))
+    def authoringFiles = names.findAll { name ->
+            if (name.endsWith('/')) return false
+            def path = name.toLowerCase(java.util.Locale.ROOT)
+            path.startsWith('art/') || path ==~ /(?:.*\/)?(?:source|tools)\/audio\/.*/
+            || path ==~ /.*\.(aup3?(?:-wal|-shm|-journal)?|wav|flac|bbmodel|bak|backup)$/
+            || path ==~ /(?:.*\/)?(?:audio-manifest|audio-catalog|authoring-inputs|candidate)\.json/
+            || path ==~ /(?:.*\/)?audio\/(?:projects|masters|recipes|receipts|backups|exports|previews|scratch|references)\/.*/
+            || path.startsWith('assets/essence_ascendance/audio/') && path != 'assets/essence_ascendance/audio/catalog.json'
+            || path.contains('textures/armor/ascendance/source/')
+            || path.contains('textures/models/armor/source/') }
+    if (!authoringFiles.empty)
+        throw new GradleException("${loader}: packaged asset authoring files ${authoringFiles}")
 }
 
 // Every exact target uses one archive audit; version aggregates only select providers.

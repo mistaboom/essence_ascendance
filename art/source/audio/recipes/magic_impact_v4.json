@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "assetId": "magic_impact_v4",
+  "seed": 26110431,
+  "sampleRate": 48000,
+  "duration": 0.3,
+  "peakDb": -9,
+  "presetLibrary": "source/audio/presets/revision-v4.json",
+  "design": {
+    "title": "Magic projectile impact - pressure splat A",
+    "description": "A compact noisy energy splat with a rounded thud, a soft crack and short inharmonic grit; its dispersing tail has no musical ring.",
+    "cueIds": [
+      "essence_ascendance:weapon.bolt.impact"
+    ],
+    "provenance": "Original deterministic harmonic, modal and filtered-noise synthesis; no third-party samples or recordings.",
+    "review": "pending user listening",
+    "role": "weapon",
+    "revisionOf": [
+      "magic_impact_v3"
+    ],
+    "replacesNativeEvents": [
+      "minecraft:entity.arrow.hit",
+      "minecraft:entity.arrow.hit_player"
+    ],
+    "repetitionIntervalSeconds": 0.4,
+    "gameplayTrigger": "One existing impact cue for confirmed damaging entity hits and accepted terrain collision; variations do not add surface routing."
+  },
+  "layers": [
+    {
+      "name": "01_pressure_splat",
+      "preset": "energy_splat",
+      "lengthSeconds": 0.195
+    },
+    {
+      "name": "02_soft_crack",
+      "preset": "soft_contact",
+      "lowHz": 700,
+      "highHz": 4600,
+      "spectralTiltDbOct": -1,
+      "gain": 0.24,
+      "lengthSeconds": 0.032
+    },
+    {
+      "name": "03_inharmonic_contact_grit",
+      "preset": "damped_grit",
+      "lengthSeconds": 0.09
+    },
+    {
+      "name": "04_low_pressure_thud",
+      "type": "noise",
+      "lowHz": 70,
+      "highHz": 540,
+      "spectralTiltDbOct": -1,
+      "gain": 0.33,
+      "lengthSeconds": 0.115,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          0.8
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.37,
+          0.56
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "05_dispersing_wake",
+      "preset": "pressure_wake",
+      "gain": 0.12,
+      "startSeconds": 0.032,
+      "lengthSeconds": 0.25
+    }
+  ]
+}

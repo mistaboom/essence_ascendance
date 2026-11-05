@@ -530,6 +530,21 @@ tasks.register('salvageConservationInvariants', JavaExec) {
 tasks.named('balanceInvariants') { dependsOn 'salvageConservationInvariants' }
 
 repositories { maven { url = 'https://chocolateminecraft.com/maven' } }
+[
+    audioRuntimeInvariants: 'com.mistaboom.essence_ascendance.audio.AudioRuntimeTest',
+    audioNativeInvariants: 'com.mistaboom.essence_ascendance.audio.AudioNativeTest'
+].each { taskName, entrypoint ->
+    tasks.register(taskName, JavaExec) {
+        group = 'verification'
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = entrypoint
+        systemProperty 'essence.minecraft', project.targetMinecraft
+        systemProperty 'essence.audio.coverage', rootProject.file('docs/audio/COVERAGE.json').absolutePath
+    }
+}
+tasks.named('balanceInvariants') { dependsOn 'audioRuntimeInvariants', 'audioNativeInvariants' }
+
 apply from: rootProject.file('gradle/test-inputs.gradle')
 
 // Standalone 26.1 JavaExec checks do not pass through a loader. Minecraft now

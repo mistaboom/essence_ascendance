@@ -7,8 +7,6 @@ import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -135,10 +133,6 @@ public final class GuardMobilityController {
             target.hurtMarked = true;
             com.mistaboom.essence_ascendance.network.CombatVisualFeedback.shieldRam(
                     player.serverLevel(), player, target, direction);
-            //? if >=26.1.2
-            /*player.serverLevel().playSound(null, target.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, .35F, 1.15F);*/
-            //? if <26.1.2
-            player.serverLevel().playSound(null, target.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, .35F, 1.15F);
             accepted++; reason = "accepted target=" + contact.id() + "; fraction=" + contact.fraction() + "; push=" + direction;
         }
         if (accepted > 0) SkillHudEvents.record(player, SkillIds.SHIELD_RAM, "targets", accepted);

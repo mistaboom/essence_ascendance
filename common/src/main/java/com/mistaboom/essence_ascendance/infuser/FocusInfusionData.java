@@ -2,6 +2,11 @@ package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.data.NbtVersionCompat;
+import com.mistaboom.essence_ascendance.data.CustomDataReader;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.MapDecoder;
+import com.mojang.serialization.MapLike;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
@@ -20,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /** Shared persistence/validation boundary for partially infused Focus workpieces. */
 public final class FocusInfusionData {
@@ -28,6 +34,25 @@ public final class FocusInfusionData {
     private static final String TARGET_TAG = "target_tier";
     private static final String SESSION_TAG = "session";
     private static final String CONTRIBUTIONS_TAG = "contributions";
+
+    // The native reader supplies NbtOps values. Only these immutable projections leave the decoder;
+    // funding histories and unrelated components are neither traversed nor copied.
+    private static final MapDecoder<Parsed> PROGRESS_READER = new MapDecoder.Implementation<>() {
+        @Override public <T> DataResult<Parsed> decode(DynamicOps<T> ops, MapLike<T> input) {
+            return DataResult.success(input.get(ROOT_TAG) instanceof CompoundTag tag ? parse(tag) : Parsed.ABSENT);
+        }
+        @Override public <T> Stream<T> keys(DynamicOps<T> ops) { return Stream.of(ops.createString(ROOT_TAG)); }
+    };
+    private static final MapDecoder<Boolean> PRESENCE_READER = new MapDecoder.Implementation<>() {
+        @Override public <T> DataResult<Boolean> decode(DynamicOps<T> ops, MapLike<T> input) {
+            return DataResult.success(input.get(ROOT_TAG) instanceof CompoundTag);
+        }
+        @Override public <T> Stream<T> keys(DynamicOps<T> ops) { return Stream.of(ops.createString(ROOT_TAG)); }
+    };
+    private record Parsed(boolean present, Optional<Progress> progress) {
+        private static final Parsed ABSENT = new Parsed(false, Optional.empty());
+        private static final Parsed MALFORMED = new Parsed(true, Optional.empty());
+    }
 
     private FocusInfusionData() {
     }
@@ -40,46 +65,33 @@ public final class FocusInfusionData {
     }
 
     public static Optional<Progress> readRaw(ItemStack stack) {
-        if (!EssenceFocusData.isFocusItem(stack)) {
-            return Optional.empty();
-        }
+        return EssenceFocusData.isFocusItem(stack) ? parsed(stack).progress() : Optional.empty();
+    }
 
+    private static Parsed parsed(ItemStack stack) {
         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
-        if (customData == null) {
-            return Optional.empty();
-        }
-        CompoundTag outer = customData.copyTag();
-        if (!NbtVersionCompat.contains(outer, ROOT_TAG, Tag.TAG_COMPOUND)) {
-            return Optional.empty();
-        }
+        return customData == null ? Parsed.ABSENT : CustomDataReader.read(customData, PROGRESS_READER).getOrThrow();
+    }
 
-        CompoundTag tag = NbtVersionCompat.getCompound(outer, ROOT_TAG);
+    private static Parsed parse(CompoundTag tag) {
         EssenceFocusTier target = parseTier(NbtVersionCompat.getString(tag, TARGET_TAG));
-        if (target == null) {
-            return Optional.empty();
-        }
+        if (target == null) return Parsed.MALFORMED;
         UUID session = NbtVersionCompat.hasUUID(tag, SESSION_TAG) ? NbtVersionCompat.getUUID(tag, SESSION_TAG) : null;
-        CompoundTag contributions = NbtVersionCompat.contains(tag, CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND)
-                ? NbtVersionCompat.getCompound(tag, CONTRIBUTIONS_TAG)
-                : new CompoundTag();
+        CompoundTag contributions = tag.get(CONTRIBUTIONS_TAG) instanceof CompoundTag compound ? compound : null;
         Map<EssenceDefinition, Long> values = new LinkedHashMap<>();
         long total = 0L;
         try {
             for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
-                long amount = NbtVersionCompat.getLong(contributions, essence.id().getPath());
-                if (amount < 0L) {
-                    return Optional.empty();
-                }
+                long amount = contributions == null ? 0L : NbtVersionCompat.getLong(contributions, essence.id().getPath());
+                if (amount < 0L) return Parsed.MALFORMED;
                 total = Math.addExact(total, amount);
                 values.put(essence, amount);
             }
         } catch (ArithmeticException overflow) {
-            return Optional.empty();
+            return Parsed.MALFORMED;
         }
-        if (total > 0L && session == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new Progress(target, session, Map.copyOf(values)));
+        if (total > 0L && session == null) return Parsed.MALFORMED;
+        return new Parsed(true, Optional.of(new Progress(target, session, Map.copyOf(values))));
     }
 
     public static Optional<Progress> readValidated(ItemStack stack) {
@@ -89,18 +101,13 @@ public final class FocusInfusionData {
         }
         FocusInfusionRecipe recipe = recipeOptional.get();
 
-        Map<EssenceDefinition, Long> zero = zeroContributions();
-        Optional<Progress> raw = readRaw(stack);
-        if (raw.isEmpty()) {
-            CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
-            if (customData != null
-                    && NbtVersionCompat.contains(customData.copyTag(), ROOT_TAG, Tag.TAG_COMPOUND)) {
-                return Optional.empty();
-            }
-            return Optional.of(new Progress(recipe.targetTier(), null, zero));
+        Parsed parsed = parsed(stack);
+        if (parsed.progress().isEmpty()) {
+            if (parsed.present()) return Optional.empty();
+            return Optional.of(new Progress(recipe.targetTier(), null, zeroContributions()));
         }
 
-        Progress progress = raw.get();
+        Progress progress = parsed.progress().get();
         if (progress.targetTier() != recipe.targetTier()
                 || progress.totalContributed() > recipe.totalEssenceRequired()) {
             return Optional.empty();
@@ -113,8 +120,7 @@ public final class FocusInfusionData {
             return false;
         }
         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
-        return customData != null
-                && NbtVersionCompat.contains(customData.copyTag(), ROOT_TAG, Tag.TAG_COMPOUND);
+        return customData != null && CustomDataReader.read(customData, PRESENCE_READER).getOrThrow();
     }
 
     public static boolean hasProgress(ItemStack stack) {

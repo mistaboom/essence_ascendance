@@ -32,7 +32,6 @@ public final class ProcessingAccelerationService {
     public static final TagKey<Block> INDUSTRIOUS_PROCESSORS = TagKey.create(
             Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("essence_ascendance", "industrious_processors"));
     private static final Map<BlockEntity, Double> FRACTIONAL_TICKS = new WeakHashMap<>();
-    private static final Map<ServerPlayer, VisualBudget> VISUAL_BUDGETS = new WeakHashMap<>();
 
     private ProcessingAccelerationService() { }
 
@@ -79,12 +78,11 @@ public final class ProcessingAccelerationService {
     }
 
     public static void acknowledgeChangedOutput(BlockEntity blockEntity, Plan plan, List<ItemStack> before) {
-        if (plan.extraTicks() <= 0 || before.isEmpty() || sameContents(before, snapshot(blockEntity))
-                || !(blockEntity.getLevel() instanceof ServerLevel level) || !claimVisual(plan.owner(), level.getGameTime())) return;
+        if (plan.extraTicks() <= 0 || !completedOutput(blockEntity,before,snapshot(blockEntity))
+                || !(blockEntity.getLevel() instanceof ServerLevel level)) return;
         long seed = blockEntity.getBlockPos().asLong() ^ level.getGameTime();
-        MicroVisualFeedback.world(level, TransientVisualIds.WORLD_PROCESSOR_COMPLETE,
-                Vec3.atCenterOf(blockEntity.getBlockPos()).add(0, 0.56, 0), SemanticVisualColor.UTILITY,
-                0.9F, 1.0F, 18, seed);
+        MicroVisualFeedback.processorComplete(level,Vec3.atCenterOf(blockEntity.getBlockPos()).add(0,.56,0),
+                blockEntity instanceof net.minecraft.world.level.block.entity.BrewingStandBlockEntity,seed);
 
         int guiSlot = visibleOutputSlot(plan.owner(), blockEntity);
         if (guiSlot >= 0) MicroVisualFeedback.guiSlot(plan.owner(), TransientVisualIds.GUI_PROCESSOR_COMPLETE,
@@ -105,20 +103,22 @@ public final class ProcessingAccelerationService {
         return -1;
     }
 
-    private static boolean sameContents(List<ItemStack> first, List<ItemStack> second) {
-        if (first.size() != second.size()) return false;
-        for (int slot = 0; slot < first.size(); slot++) {
-            ItemStack a = first.get(slot), b = second.get(slot);
-            if (a.getCount() != b.getCount() || !ItemStack.isSameItemSameComponents(a, b)) return false;
+    /** Native output facts, not any inventory mutation (fuel/input consumption is not completion). */
+    public static boolean completedOutput(BlockEntity source,List<ItemStack> before,List<ItemStack> after) {
+        if(before.size()!=after.size()) return false;
+        if(source instanceof net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity)
+            return after.size()>2 && increased(before.get(2),after.get(2));
+        if(source instanceof net.minecraft.world.level.block.entity.BrewingStandBlockEntity) {
+            for(int slot=0;slot<Math.min(3,after.size());slot++)
+                if(!after.get(slot).isEmpty() && !ItemStack.isSameItemSameComponents(before.get(slot),after.get(slot))) return true;
         }
-        return true;
+        if(source instanceof CampfireBlockEntity) {
+            for(int slot=0;slot<after.size();slot++) if(!before.get(slot).isEmpty() && after.get(slot).isEmpty()) return true;
+        }
+        // Tagged modded processors need an output adapter before claiming semantic completion.
+        return false;
     }
-
-    private static boolean claimVisual(ServerPlayer player, long now) {
-        VisualBudget budget = VISUAL_BUDGETS.computeIfAbsent(player, ignored -> new VisualBudget());
-        if (budget.tick != now) { budget.tick = now; budget.count = 0; }
-        return budget.count++ < 6;
+    private static boolean increased(ItemStack before,ItemStack after) {
+        return !after.isEmpty() && (before.isEmpty() || !ItemStack.isSameItemSameComponents(before,after) || after.getCount()>before.getCount());
     }
-
-    private static final class VisualBudget { long tick = Long.MIN_VALUE; int count; }
 }

@@ -1,0 +1,5 @@
+# Audio source ownership
+
+Current parameterized recipes live in `recipes/`. Shared promotion writes immutable `masters/<assetId>/<revision>.wav`, `approved/<assetId>/<revision>.ogg` and `recipes/history/<assetId>/<revision>.json`. Final-review receipts use `receipts/<assetId>/<revision>.json`; explicitly authorized development integration uses `<revision>.integration.json`, preserving pending final review.
+
+Editable Audacity projects, stems and closed database backups stay under Auxiliary `Audio/`. See [AUTHORING.md](../../../docs/audio/AUTHORING.md). Receipts link those sources, frozen settings, masters and exports by relative paths and content hashes. The catalog and manifest link both stores by asset and revision IDs; ordinary builds read only repository-owned inputs. The 2026-11-02 integration selects 49 creatively approved runtime takes; demonstrations and unselected revisions remain preserved. Native mix/listening, loop acceptance and redistribution review remain separate pending gates. Normal builds never open Audacity, invoke authoring tools or read personal folders; production archives exclude all authoring sources and metadata.

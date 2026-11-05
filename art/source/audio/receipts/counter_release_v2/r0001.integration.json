@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "assetId": "counter_release_v2",
+  "revision": "r0001",
+  "masterSha256": "f16ac50746b6f4966d49accde211a0ce96799d20cba63cdab244e1c3dafbaa8e",
+  "approvedSha256": "8b379ad6c3d4693de56bd14b7e97b2cd4995a6f24762d99f226e49043e9d1bcb",
+  "recipeSha256": "c0a0de001bac405f0401766b0624a3c6a5d256dff4b2827a30a1838829d6ca2e",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.42733333333333334,
+    "samplePeakDb": -9.974993083345051,
+    "rmsDb": -24.954744973741914,
+    "truePeakDb": -9.97,
+    "integratedLufs": -24.45,
+    "decodedFrames": 20512
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "8780a13927cc30e686d3589dfa8eb6459fae1e9ad239aba36b5603694bbdc46e",
+  "backupSha256": "8780a13927cc30e686d3589dfa8eb6459fae1e9ad239aba36b5603694bbdc46e",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/guard/counter_release_v2/r0001/counter_release_v2.aup3",
+    "backup": "backups/guard/counter_release_v2/r0001/counter_release_v2.aup3",
+    "master": "masters/guard/counter_release_v2/r0001/master.wav",
+    "export": "exports/guard/counter_release_v2/r0001/counter_release_v2.ogg",
+    "recipe": "masters/guard/counter_release_v2/r0001/recipe.json",
+    "authoringInputs": "masters/guard/counter_release_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "f7b2f3e09254128ec8abcc02dca8a1def297e0b4f17a513dc85daa702c14a033",
+    "stems": [
+      {
+        "path": "masters/guard/counter_release_v2/r0001/01_blade_draw.wav",
+        "sha256": "10c58864b93d450dcb9699b9789223dddae71d887ac4fb5e932fe62e1125815d"
+      },
+      {
+        "path": "masters/guard/counter_release_v2/r0001/02_blade_ring.wav",
+        "sha256": "68eeeefb6577f6cae80e6e001bcf95e3ad836806e65de3d2e4fd50c5b6e9b1cb"
+      },
+      {
+        "path": "masters/guard/counter_release_v2/r0001/03_release_force.wav",
+        "sha256": "370ccc4a146a7da38f7df3e48152d29e23706fdac4c1be13af277b2edd66276b"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "8b379ad6c3d4693de56bd14b7e97b2cd4995a6f24762d99f226e49043e9d1bcb"
+  }
+}

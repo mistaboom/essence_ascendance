@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "assetId": "pierce_thuck_v2",
+  "revision": "r0001",
+  "masterSha256": "870854b8409e465c52042d6d3cefdd55f65772fe6ac23fffdcaaf52b63a70e7b",
+  "approvedSha256": "2e2d0cd46518c8d5d90aa7e1ebf5002a160d4769981cae6349a1ec4ff82f388e",
+  "recipeSha256": "91678208175426e29176370d97e0a14f68d3489494b8f1c4b3515a604f2f8b5b",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.24933333333333332,
+    "samplePeakDb": -11.086713134904588,
+    "rmsDb": -27.995514271105804,
+    "truePeakDb": -11.08,
+    "integratedLufs": -31.25,
+    "decodedFrames": 11968,
+    "loudnessMethod": "zero_padded_to_400ms"
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "233abff6a4792aa0de9088a5139c2b9a9b7ac33ed87c9be7d0efca8563e2914b",
+  "backupSha256": "233abff6a4792aa0de9088a5139c2b9a9b7ac33ed87c9be7d0efca8563e2914b",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/projectile/pierce_thuck_v2/r0001/pierce_thuck_v2.aup3",
+    "backup": "backups/projectile/pierce_thuck_v2/r0001/pierce_thuck_v2.aup3",
+    "master": "masters/projectile/pierce_thuck_v2/r0001/master.wav",
+    "export": "exports/projectile/pierce_thuck_v2/r0001/pierce_thuck_v2.ogg",
+    "recipe": "masters/projectile/pierce_thuck_v2/r0001/recipe.json",
+    "authoringInputs": "masters/projectile/pierce_thuck_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "d39fbc48fdbcd9bb4411529c167ae48b70ae2858041ec44a8e288acd362c9312",
+    "stems": [
+      {
+        "path": "masters/projectile/pierce_thuck_v2/r0001/01_dense_thuck.wav",
+        "sha256": "22595d3500661064cf1bd9a4fd15f944bc054f09b25a1e8515db4d381c94f38b"
+      },
+      {
+        "path": "masters/projectile/pierce_thuck_v2/r0001/02_fibre_contact.wav",
+        "sha256": "3363b45ce10da959123cd8d887a071f91b9ec661a9ad6c967e2d1e25dc62313b"
+      },
+      {
+        "path": "masters/projectile/pierce_thuck_v2/r0001/03_passing_air.wav",
+        "sha256": "6d85faa22ad711b5d2d5c81c7efcf809680ce78adb7cedb956294cc294094573"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "2e2d0cd46518c8d5d90aa7e1ebf5002a160d4769981cae6349a1ec4ff82f388e"
+  }
+}

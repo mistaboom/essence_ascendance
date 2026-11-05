@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "assetId": "cast_crystal_v5",
+  "seed": 261101501,
+  "sampleRate": 48000,
+  "duration": 0.26,
+  "peakDb": -6.5,
+  "presetLibrary": "source/audio/presets/cast-exploration-v5.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "role": "confirmed combat action",
+    "family": "weapon",
+    "scope": "world",
+    "reference": "New original deterministic material-modal and seeded-air synthesis. No samples, copied melody, or timbre inherited from rejected v2-v4 cast recipes.",
+    "gameplay": "AscendanceCasterItem latches each press; EquipmentWeaponService.castMagic dispatches weapon.cast.release only after successful bolt spawn. A rapid semi-automatic short-range launch, not charge-up or impact.",
+    "runtimeHandoff": "Use the existing accepted-launch world cue once per successful cast; do not add feedback to cooldown-rejected presses or failed bolt spawns. Select one concept after listening approval. Keep projectile impact separate.",
+    "revisionRequest": "Start the cast design again with three clearly distinct material-and-air concepts; avoid oscillating/chirpy bass woops.",
+    "repetitionIntervalSeconds": 0.4,
+    "comparison": "Three alternative concepts, not automatic random variants. Objective loudness is calibrated across this comparison only; subjective listening and game mix remain pending.",
+    "title": "A - Crystal air flick",
+    "description": "A short crystal-facet contact opens a compact air flick. The brief fixed, inharmonic resonance is embedded in the moving air rather than sustained as a musical note.",
+    "levelCalibration": {
+      "targetPadded400msLufs": -27,
+      "method": "Uniform gain adjustment within each concept after actual Vorbis measurement; retain different transient shapes and natural crest factors. Peak ceiling remains -6.5 dBFS.",
+      "listeningStatus": "pending"
+    }
+  },
+  "layers": [
+    {
+      "name": "01_facet_contact",
+      "preset": "surface_contact",
+      "startSeconds": 0,
+      "lengthSeconds": 0.024,
+      "gain": 0.17647421,
+      "seed": 261101501
+    },
+    {
+      "name": "02_crystal_material",
+      "preset": "crystal_facet",
+      "startSeconds": 0.002,
+      "lengthSeconds": 0.16,
+      "gain": 0.272064407,
+      "phase": 0.4,
+      "seed": 261101502
+    },
+    {
+      "name": "03_air_flick",
+      "preset": "moving_air",
+      "startSeconds": 0.002,
+      "lengthSeconds": 0.228,
+      "gain": 0.308829867,
+      "lowHz": 450,
+      "highHz": 4600,
+      "lowHzEnd": 620,
+      "highHzEnd": 1750,
+      "seed": 261101503
+    },
+    {
+      "name": "04_handheld_body",
+      "preset": "elastic_contact",
+      "startSeconds": 0,
+      "lengthSeconds": 0.1,
+      "frequency": 314,
+      "gain": 0.097060815,
+      "seed": 261101504
+    },
+    {
+      "name": "05_receding_grain",
+      "preset": "moving_air",
+      "startSeconds": 0.045,
+      "lengthSeconds": 0.215,
+      "gain": 0.050001026,
+      "lowHz": 900,
+      "highHz": 2800,
+      "lowHzEnd": 700,
+      "highHzEnd": 1300,
+      "seed": 261101505
+    }
+  ]
+}

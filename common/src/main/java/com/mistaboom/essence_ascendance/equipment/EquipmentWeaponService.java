@@ -410,9 +410,7 @@ public final class EquipmentWeaponService {
             LAST_MAGIC_CAST.put(player, evaluation);
             return evaluation;
         }
-        player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(),
-                net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME,
-                net.minecraft.sounds.SoundSource.PLAYERS, 0.6F, 1.6F);
+        com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(player.serverLevel(), "weapon.cast.release", player, player.position());
 
         //? if >=26.1.2
         /*player.getCooldowns().addCooldown(stack, state.castTicks());*/

@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "id": "cast-air-refinement-20261101",
+  "title": "Essence Ascendance - hollow cast refinement",
+  "description": "Selected cast B with slightly less air rush and a small lift in its tonal resonance. Both soft magic impacts are approved and unchanged. The new cast take awaits your review.",
+  "items": [
+    {
+      "asset": "cast_air_v5",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Refined hollow air launch"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "id": "cast",
+      "title": "Refined cast B",
+      "assets": [
+        "cast_air_v5"
+      ]
+    },
+    {
+      "id": "comparison",
+      "title": "Original then refined"
+    },
+    {
+      "id": "reference",
+      "title": "Original B for comparison"
+    }
+  ],
+  "listening": [
+    {
+      "id": "original-then-refined",
+      "title": "Original B then refined B",
+      "description": "Original first, revised second; repeated three times at their authored levels.",
+      "group": "comparison",
+      "path": "previews/cast-air-refinement-20261101/original-then-refined.wav",
+      "sha256": "dee3969eca0b297da0846c5bcd19880841b34d857090ae89fc653e5b5bb76791"
+    },
+    {
+      "id": "original-b",
+      "title": "Original B - hollow air launch",
+      "description": "Previous take selected as the direction; preserved unchanged.",
+      "group": "reference",
+      "path": "previews/cast-exploration-20261101/cast_air_v5-r0001.ogg",
+      "sha256": "6911f6faaac27256530916b09435d6daf2a245b3938473afea5e7a4a6dfc4761"
+    }
+  ]
+}

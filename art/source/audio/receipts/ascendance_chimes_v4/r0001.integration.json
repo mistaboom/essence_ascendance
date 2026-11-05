@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "assetId": "ascendance_chimes_v4",
+  "revision": "r0001",
+  "masterSha256": "1245425fe1683c0cbcd6413fbd5a48855cf687aa6c7a26ed4a860d09b91fba96",
+  "approvedSha256": "8795ebf8e4954408a91a1a8721a4bdbfc7046121c4de521443ddf2156d87cde6",
+  "recipeSha256": "b03eae43071dce6cbebfe1d2883950663032638afe13e206184b44f1df0c4140",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 8.0,
+    "samplePeakDb": -11.022281070386635,
+    "rmsDb": -26.564640598371653,
+    "truePeakDb": -11.01,
+    "integratedLufs": -26.58,
+    "decodedFrames": 384000
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "d1995d77ec87225015aab4325fd22b4db70b1916224b7d6d9b502b113c309598",
+  "backupSha256": "d1995d77ec87225015aab4325fd22b4db70b1916224b7d6d9b502b113c309598",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/progression/ascendance_chimes_v4/r0001/ascendance_chimes_v4.aup3",
+    "backup": "backups/progression/ascendance_chimes_v4/r0001/ascendance_chimes_v4.aup3",
+    "master": "masters/progression/ascendance_chimes_v4/r0001/master.wav",
+    "export": "exports/progression/ascendance_chimes_v4/r0001/ascendance_chimes_v4.ogg",
+    "recipe": "masters/progression/ascendance_chimes_v4/r0001/recipe.json",
+    "authoringInputs": "masters/progression/ascendance_chimes_v4/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "f6ab40bd94ebff1fe85514488489fbf734770390881372da75b3dbd45e10fedf",
+    "stems": [
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/01_beam_foundation.wav",
+        "sha256": "e33c9d65f5d9200c370ef8cfdd21541f44914c81804d8c93b5b3257ad7623d5d"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/02_floating_fifths.wav",
+        "sha256": "b166e6f60785b737fab03642c0a6e736e97dafbced00ac8631497f3098058102"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/03_changing_color.wav",
+        "sha256": "b80583e8f1f01fce36463f881b76f98657054fddec61d6ba7ab7b5eaaaea2591"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/04_suspended_sixths.wav",
+        "sha256": "c3d010c4126108fade28b9f37d1d0e312c60ccfbf16dc053d99d6ec585097bfa"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/05_upper_opening.wav",
+        "sha256": "54d4e4fee6eb96b8bc8fd4372ea6ec6f6539c40ba22ecb86f09ca2e124f25c09"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/06_upper_fifth_bloom.wav",
+        "sha256": "c7b277c30cd2e4347d32645fd146c87a0cfe0f90b5511684c96b7862c4a0e2b6"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/07_wandering_glints.wav",
+        "sha256": "c8a73c302d63a0b5c9cb20ad1033c30747340d0d8ceac4e6299af1cf2704a577"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/08_high_glints.wav",
+        "sha256": "6963612a0da46a27b23abee3f16d42070e6ad336fec697508e9d76ecf71566cd"
+      },
+      {
+        "path": "masters/progression/ascendance_chimes_v4/r0001/09_settling_glints.wav",
+        "sha256": "bac872ad5835545c6d5dc37ea395dc4f81229bad956dce7ff3c181760fd7ef17"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "the others are great."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "8795ebf8e4954408a91a1a8721a4bdbfc7046121c4de521443ddf2156d87cde6"
+  }
+}

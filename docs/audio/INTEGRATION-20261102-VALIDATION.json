@@ -1,0 +1,1529 @@
+{
+  "schema": 1,
+  "date": "2026-11-02",
+  "timezone": "America/Anchorage",
+  "sourceHead": "5bca40bd0196f28f3c49becdac281704fb236191",
+  "workingTree": "dirty; inherited work preserved; no commit or publication",
+  "inputFingerprint": {
+    "count": 2027,
+    "sha256": "c6e296558cefbd47f5c1bbb1b9f6da97a2986185077e41d54535489b6b3ed0f8",
+    "algorithm": "SHA256 over sorted path UTF-8 + NUL + raw file SHA256; exact records in inputs.json",
+    "scope": "Git-visible shared/native source, art, tools, Gradle directory and named build files, plus docs/audio/COVERAGE.json; other documentation and generated outputs excluded",
+    "records": {
+      "path": "build/audio-integration-20261102/inputs.json",
+      "sha256": "f8ce3127fc3bdb25c54101e72082a0a73e89c89885a9662a786bc0e68a162ec5",
+      "bytes": 400944
+    }
+  },
+  "selection": {
+    "path": "art/source/audio/handoffs/prompt7-20261101.json",
+    "sha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "bytes": 16320
+  },
+  "catalog": {
+    "path": "art/audio-catalog.json",
+    "sha256": "beb776210c47e19fe7551daf43733701f235eff9049a40e6d2bb70a94b671a01",
+    "bytes": 70132
+  },
+  "manifest": {
+    "path": "art/audio-manifest.json",
+    "sha256": "511631ad13a567d775e8479623ed850618341dc3ce539d5a17f5248b3c8f6d9a",
+    "bytes": 932228
+  },
+  "sourceAudit": {
+    "path": "build/audio-integration-20261102/source-audit.json",
+    "sha256": "84ac929a3d122701d078d4a76c184a9ad5635794acc213f962eb0837d2e7f19b",
+    "bytes": 1118622
+  },
+  "historyPreservation": {
+    "path": "build/audio-integration-20261102/history-preservation.json",
+    "sha256": "f97d70a78308f5091f7700be50e96ed122b53ac82b086a3b59b86c4e414e846f",
+    "bytes": 495159
+  },
+  "sourceScope": {
+    "acceptedTakes": 51,
+    "runtimeSamples": 49,
+    "oneShots": 30,
+    "loops": 19,
+    "excludedDemonstrations": 2,
+    "preservedRevisions": 87,
+    "preservedRecordedFiles": 1193,
+    "finalReviews": "pending; unchanged",
+    "legacyLimitation": "Four unselected foundation takes lack historical frozen inputs/tool archives; missing evidence was not invented"
+  },
+  "promoted": [
+    {
+      "asset": "adrenaline_heartbeat_v4",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:vitality/adrenaline_heartbeat_v4",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/vitality/adrenaline_heartbeat_v4.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/adrenaline_heartbeat_v4/r0001.ogg",
+        "sha256": "6363f137803116d99a30859f51b0727e4cfa6e61880a1d8b53caebd932185529",
+        "bytes": 5026
+      },
+      "master": {
+        "path": "art/source/audio/masters/adrenaline_heartbeat_v4/r0001.wav",
+        "sha256": "d746572f477f312f9d4e8d32e9bbe10131aada7a7074f5b9f5fe90cad518675c",
+        "bytes": 58364
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/adrenaline_heartbeat_v4/r0001.json",
+        "sha256": "1a468add92bd632973108c8791acc9096911572d10c7ac35e5c788279653da81",
+        "bytes": 5971
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/adrenaline_heartbeat_v4/r0001.integration.json",
+        "sha256": "0aff17fa535b222a80253926c1444f51d2979ad98ab2f59f659d9cdf98ebf2e4",
+        "bytes": 3985
+      }
+    },
+    {
+      "asset": "ascendance_chimes_v4",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:progression/ascendance_chimes_v4",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/progression/ascendance_chimes_v4.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/ascendance_chimes_v4/r0001.ogg",
+        "sha256": "8795ebf8e4954408a91a1a8721a4bdbfc7046121c4de521443ddf2156d87cde6",
+        "bytes": 52110
+      },
+      "master": {
+        "path": "art/source/audio/masters/ascendance_chimes_v4/r0001.wav",
+        "sha256": "1245425fe1683c0cbcd6413fbd5a48855cf687aa6c7a26ed4a860d09b91fba96",
+        "bytes": 1152044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/ascendance_chimes_v4/r0001.json",
+        "sha256": "b03eae43071dce6cbebfe1d2883950663032638afe13e206184b44f1df0c4140",
+        "bytes": 22639
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/ascendance_chimes_v4/r0001.integration.json",
+        "sha256": "e8fc75d0dc29335f1738d06fe73574199499d78652d2af83acdb4ee9373607b7",
+        "bytes": 4544
+      }
+    },
+    {
+      "asset": "awakening_chimes_v4",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:progression/awakening_chimes_v4",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/progression/awakening_chimes_v4.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/awakening_chimes_v4/r0001.ogg",
+        "sha256": "1c36200ec8f4c144c637734da1cce3a7918039439211d0079b3385c92b6ee8ca",
+        "bytes": 26924
+      },
+      "master": {
+        "path": "art/source/audio/masters/awakening_chimes_v4/r0001.wav",
+        "sha256": "005345be054b8154aca1bab6790fea5f2d2dedd1c1623558d90eeebc3a05b400",
+        "bytes": 547244
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/awakening_chimes_v4/r0001.json",
+        "sha256": "7d3686e89f92d4ac21a9f2e442a1f66deb1a35c14db655ffb1aeb7f0be41651a",
+        "bytes": 21107
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/awakening_chimes_v4/r0001.integration.json",
+        "sha256": "7659e81b3ade382356e57b7d8fab3185aa938f79b131dfeecf7164a03d08d017",
+        "bytes": 4524
+      }
+    },
+    {
+      "asset": "beam_infuser_p0_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p0_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p0_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p0_v2/r0001.ogg",
+        "sha256": "51fb9b1cc239a52c847b8a5037668c61148fdeeaa377bbedb10d183c8a8e89da",
+        "bytes": 48435
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p0_v2/r0001.wav",
+        "sha256": "a7dbff8f418276f4e076bdb2e90cacb7a49f06f88aa6845216efa9f06033afac",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p0_v2/r0001.json",
+        "sha256": "af0d5f06cdddaa4d21adfe30c412c2a028af62c94dfa16f8058688877ae2b04f",
+        "bytes": 2111
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p0_v2/r0001.integration.json",
+        "sha256": "15f5193aac7b8e0436be5aacec1bbea8cb38b9a86752bd587e9c9e6696f1a854",
+        "bytes": 3079
+      }
+    },
+    {
+      "asset": "beam_infuser_p1_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p1_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p1_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p1_v2/r0001.ogg",
+        "sha256": "e5c7679fc218c03c8aa31936380704bb0680e089a0ca53862c92a1126d796ea5",
+        "bytes": 65037
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p1_v2/r0001.wav",
+        "sha256": "4ff110dad45d58817c61e96200a74f8fcdd876a7ee18853354cc6421e9169a58",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p1_v2/r0001.json",
+        "sha256": "afa766cef801a385dbd7a7a1acce0cf87efcab485ad6372326dacb354060e51b",
+        "bytes": 3070
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p1_v2/r0001.integration.json",
+        "sha256": "581de6c93edc0b358d8434534b49db84775ef7fff742d01d32e98fefaa445a32",
+        "bytes": 3265
+      }
+    },
+    {
+      "asset": "beam_infuser_p2_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p2_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p2_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p2_v2/r0001.ogg",
+        "sha256": "e61d0467828a32a8018ee408773c92177d97acf8f1c9d9fe69837f60b0e2b042",
+        "bytes": 70458
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p2_v2/r0001.wav",
+        "sha256": "6d84f65250eb7995c7d3ff3734ad1c3ff8947b905d486120dd58bd65c1556eb2",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p2_v2/r0001.json",
+        "sha256": "6d65e8b85f3e77a06d9c8d5c6f4441b4dc174023c0b4dd812eca408cc2e5c90e",
+        "bytes": 4014
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p2_v2/r0001.integration.json",
+        "sha256": "219aeec498ed7b8bf4f93f2d256afb5c2e607860f16fd421d53d85b93436f843",
+        "bytes": 3453
+      }
+    },
+    {
+      "asset": "beam_infuser_p3_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p3_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p3_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p3_v2/r0001.ogg",
+        "sha256": "201ab18288297ec11e558dc1c69c167046292a9fdf78f56532c1bfa9f78a9453",
+        "bytes": 81138
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p3_v2/r0001.wav",
+        "sha256": "361a66066ea3124ae3fc297fb6ab0090e4128699486d2cc90ea9849afc325a5a",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p3_v2/r0001.json",
+        "sha256": "ec52fe7a3b2c11fe1bdc8dea4a20fbe5a6cee5a09fe087e833a9f4f35f124412",
+        "bytes": 4983
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p3_v2/r0001.integration.json",
+        "sha256": "0646717c7704724ec488d019cf7c75e8d2ec6c447f5dd913c667599eff430e6f",
+        "bytes": 3641
+      }
+    },
+    {
+      "asset": "beam_infuser_p4_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p4_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p4_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p4_v2/r0001.ogg",
+        "sha256": "58cabe98242b47a822e71f4d2f14a3edd65c1faa5e57b1b2a8ba73483212a5f4",
+        "bytes": 82920
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p4_v2/r0001.wav",
+        "sha256": "518d69b42bb3ac24b2279e44f40cdffb4a4d4eb364fed752527e542c22f6f611",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p4_v2/r0001.json",
+        "sha256": "8fb6d548bc1f340599ad1dc27aba32ad5b37a2b89a5332e589faf0d7fd6b5085",
+        "bytes": 5949
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p4_v2/r0001.integration.json",
+        "sha256": "efb25ab5a7f1f7e4b9f8a1f0944309351c499c54cef96dcb83da62b0de80829c",
+        "bytes": 3829
+      }
+    },
+    {
+      "asset": "beam_infuser_p5_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p5_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p5_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p5_v2/r0001.ogg",
+        "sha256": "1bee7ded69e7ce9306ed9c7e2cfb32f59dacfa7237720e00907bc80fdd8bbe86",
+        "bytes": 83448
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p5_v2/r0001.wav",
+        "sha256": "a738bfdb2058c73eda195d77c4dfade71e29d04982bee9c7a922a6edaf03f0a8",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p5_v2/r0001.json",
+        "sha256": "4d4c4decc65fc47cb33bc8bd799b9a3b2dcad68a32ee17374f5f7c866b45b477",
+        "bytes": 6891
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p5_v2/r0001.integration.json",
+        "sha256": "febb2770a2e2edd160c084ad20987bbae745733de27fe92cb648f856a3c1ab4a",
+        "bytes": 4018
+      }
+    },
+    {
+      "asset": "beam_infuser_p6_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p6_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p6_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p6_v2/r0001.ogg",
+        "sha256": "d0f51062397447fa772c1313f7ed0b685d91e90e08d128107f9a6c97499483a9",
+        "bytes": 90382
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p6_v2/r0001.wav",
+        "sha256": "f39fddfdb1c20846b0617f47d163ad1b1de42c53de682bc448557b9f8eef2988",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p6_v2/r0001.json",
+        "sha256": "57e60904a1d669ac3eda3b9796c4b1fa8b2e8316f3f317a8017fd8e1177e31e1",
+        "bytes": 7846
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p6_v2/r0001.integration.json",
+        "sha256": "0eb6e352bb9078eae50b7e2ba8aff489d7a10b010f0f688c18b54d4558a6d308",
+        "bytes": 4205
+      }
+    },
+    {
+      "asset": "beam_infuser_p7_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p7_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p7_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p7_v2/r0001.ogg",
+        "sha256": "3a55f853c4b8ffabd091001a7bea26be81dc7074a2328317439ca3d066bfb9fa",
+        "bytes": 90905
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p7_v2/r0001.wav",
+        "sha256": "b97185ac6997cfa487e2074d1732d5a483de9edf0a86db413b04c05f15b58ed2",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p7_v2/r0001.json",
+        "sha256": "93f9f5cdf0dd19c83d2ad9d2a5abb676108b0c571b22ea0f98f879485c93ccd2",
+        "bytes": 8819
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p7_v2/r0001.integration.json",
+        "sha256": "eaf12d660b9ccbeb291057c4aef7a9da4b39b3950ff97f00406fce211127d234",
+        "bytes": 4395
+      }
+    },
+    {
+      "asset": "beam_infuser_p8_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_infuser_p8_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_infuser_p8_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_infuser_p8_v2/r0001.ogg",
+        "sha256": "c1bbfb93c4cd6204cd15913f29109d1a62227b2d2ac577fa99b7857a79853e2d",
+        "bytes": 93802
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_infuser_p8_v2/r0001.wav",
+        "sha256": "003770c65094e6236ee508699373cb5b0882a07c004355c0de27f8a401e9b2cd",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_infuser_p8_v2/r0001.json",
+        "sha256": "9ba3d19f4ab8784a98073ec6dc0c0e10313e29aedf7577bb8e0d7a045580bb72",
+        "bytes": 9759
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_infuser_p8_v2/r0001.integration.json",
+        "sha256": "d57fbfac05d5c967eb50a9bb4916be1b7f05e39bcf2670be4e1483cc4a06e83b",
+        "bytes": 4583
+      }
+    },
+    {
+      "asset": "beam_player_p0_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p0_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p0_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p0_v2/r0001.ogg",
+        "sha256": "d6f4f20b3e25e5e3f57b42b5a470bc2394a07ba2c117e3f18d85afc1a9a00663",
+        "bytes": 46199
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p0_v2/r0001.wav",
+        "sha256": "b3e6ee6670239632813ffd020bd1984b2c7560b634a52270cd29a0b054d8c845",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p0_v2/r0001.json",
+        "sha256": "b523ee2318a71e64b58be5c06aef56534a40d3c39c903e00a4f616d073e2184f",
+        "bytes": 2093
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p0_v2/r0001.integration.json",
+        "sha256": "9f190941d3839ef084f2d16c99707e23826b804a3d64916074cb74f0323692f9",
+        "bytes": 3068
+      }
+    },
+    {
+      "asset": "beam_player_p1_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p1_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p1_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p1_v2/r0001.ogg",
+        "sha256": "657c85ea2705a3973663b391a8cbe1470513242601c04ffbcf693522d652ddef",
+        "bytes": 57058
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p1_v2/r0001.wav",
+        "sha256": "ed1ee7d8447171c0c36a0645ae523510e82a4b93bba4a6dfe4e4304153e0ddf8",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p1_v2/r0001.json",
+        "sha256": "75cc7e677f059d3bbaabbf12e95e6521caf60f6968f16dc10c9f2cbb60ffef1c",
+        "bytes": 3066
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p1_v2/r0001.integration.json",
+        "sha256": "c090251b44d2d1c30bff6ad2344dae83ab5a2d3add2ab1f85650a4f09d1e0fad",
+        "bytes": 3254
+      }
+    },
+    {
+      "asset": "beam_player_p2_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p2_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p2_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p2_v2/r0001.ogg",
+        "sha256": "fd0914c802c08e0d9527d229b08d9896f03b4b9b9ab8b8198c33f0dd52dab2b9",
+        "bytes": 63646
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p2_v2/r0001.wav",
+        "sha256": "a6b51a7fb80abbcb31d6e55e69368fa21290a82774880851af78e4c0c4e4a90b",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p2_v2/r0001.json",
+        "sha256": "9b757fa3eb0bd0e1547662365d7b7e15d3431ec5252e428f178ffdf96612b157",
+        "bytes": 4018
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p2_v2/r0001.integration.json",
+        "sha256": "39aefd3066ed4375c2f66547ec4e2ff470ca75347cd7e233aa1379133e7006bd",
+        "bytes": 3443
+      }
+    },
+    {
+      "asset": "beam_player_p3_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p3_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p3_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p3_v2/r0001.ogg",
+        "sha256": "d297a1a89f0c4b2045778873d61fbf027e448de030f5572f6b75009753aed785",
+        "bytes": 66844
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p3_v2/r0001.wav",
+        "sha256": "a639103052285e0f88c828ea162b05456a4165e69dde9c2562ab6db0f61a8bfd",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p3_v2/r0001.json",
+        "sha256": "425250476dba75b964d7ccee01a0c65027f13023949c36cd357f78301ba95fb1",
+        "bytes": 4977
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p3_v2/r0001.integration.json",
+        "sha256": "21fc3fdb06c5dae0a57675f6ca43b7473a79ff1aab4338ee2e441dad4fbd5885",
+        "bytes": 3629
+      }
+    },
+    {
+      "asset": "beam_player_p4_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p4_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p4_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p4_v2/r0001.ogg",
+        "sha256": "91de69b77f8fa00047a8a50c008ac471fc5916439e6417b4e891b81e7a3bc2d3",
+        "bytes": 73173
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p4_v2/r0001.wav",
+        "sha256": "526c30a3a4c994750aec5d6499332eec6f6b48cc6fdddc0b404bf55c75151a18",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p4_v2/r0001.json",
+        "sha256": "ded8d94f00da68868debc15ec36e6c50a7dca3a89febcf0e7612df7ebd4e83bc",
+        "bytes": 5943
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p4_v2/r0001.integration.json",
+        "sha256": "c4b8e09d3ca48494836a7c718308a34a752f9c938b86a94b7561ea50fdda4a57",
+        "bytes": 3815
+      }
+    },
+    {
+      "asset": "beam_player_p5_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p5_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p5_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p5_v2/r0001.ogg",
+        "sha256": "5d2273cb6f70f97557bfcc5530a5323c1bd3f19569b4b4d1505f967154156ac0",
+        "bytes": 74098
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p5_v2/r0001.wav",
+        "sha256": "341517620c5878a58b563eb0a430c23a4567312ea237ec03070b4ec881d038d1",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p5_v2/r0001.json",
+        "sha256": "f022c6c7c5717dadb0850d96e0be9c6edec4520291a644fea464a5333e866972",
+        "bytes": 6879
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p5_v2/r0001.integration.json",
+        "sha256": "b31a320fc5a77ecb4558cbf9e6c655cace3f4f66da66627eb11019f283ee0243",
+        "bytes": 4004
+      }
+    },
+    {
+      "asset": "beam_player_p6_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p6_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p6_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p6_v2/r0001.ogg",
+        "sha256": "4e81403b6ba17be74021a22b00a2e5a0b079e29a6afa7dbb0c83ca4fbf7ad427",
+        "bytes": 82221
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p6_v2/r0001.wav",
+        "sha256": "fbe7d1930453c0aa35cce5d8a36fe68403bd0ef549d2769e364b76565c1025a6",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p6_v2/r0001.json",
+        "sha256": "90a380bf156ff55caa7b216f964594f0e1c109f8ab788e4284e3b50cbcd9624a",
+        "bytes": 7848
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p6_v2/r0001.integration.json",
+        "sha256": "b8f38b97696f7a1d651a293f1d0fb44345631bdb5a4a1790c826a26f09c4ca05",
+        "bytes": 4191
+      }
+    },
+    {
+      "asset": "beam_player_p7_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p7_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p7_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p7_v2/r0001.ogg",
+        "sha256": "7af7e3ad0c7e3a8acfab6d1108b77a7e0b72ee161ee3714ae885e92712dcdf16",
+        "bytes": 82305
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p7_v2/r0001.wav",
+        "sha256": "7edd3f08306d14925ee192166c953dedfa609a4864a505553755df31ad26100e",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p7_v2/r0001.json",
+        "sha256": "f23aa3bf895a4c27a19feaa9c403ec115cb1a29bf3f829c10a347ea12ce5c88f",
+        "bytes": 8821
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p7_v2/r0001.integration.json",
+        "sha256": "276fc6e89ba1887e1c054eb7c624d278ca6e31ee5dab3e29b08c3c784e871ce9",
+        "bytes": 4378
+      }
+    },
+    {
+      "asset": "beam_player_p8_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:channel/beam_player_p8_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/channel/beam_player_p8_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/beam_player_p8_v2/r0001.ogg",
+        "sha256": "72636a1d260fd6fd56007b71486e7e9183e01a667cc59f291b68826c0d4c343e",
+        "bytes": 84921
+      },
+      "master": {
+        "path": "art/source/audio/masters/beam_player_p8_v2/r0001.wav",
+        "sha256": "5d75b0e8b15c623bef48f7036c619f31535f014e1bb2279b66efea552308b099",
+        "bytes": 1728044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/beam_player_p8_v2/r0001.json",
+        "sha256": "a480b37b4e5c05ed5702444062e5fe286f63865ed8a366dbb3e3397dadec309b",
+        "bytes": 9765
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/beam_player_p8_v2/r0001.integration.json",
+        "sha256": "56240ce7f262d49efcce3b09a8235bb9c41b12f7b92569f513314c877df5d044",
+        "bytes": 4565
+      }
+    },
+    {
+      "asset": "cast_wineglass",
+      "revision": "r0002",
+      "runtimeResource": "essence_ascendance:weapon/cast_wineglass",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/weapon/cast_wineglass.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/cast_wineglass/r0002.ogg",
+        "sha256": "8810c7d7fa3b078f585bd9ac2a0a00486bb812c066a6bcccf317bfbbe879d097",
+        "bytes": 5922
+      },
+      "master": {
+        "path": "art/source/audio/masters/cast_wineglass/r0002.wav",
+        "sha256": "dd78c23db6b94aba170ff33e3e2b418d01a5263374b0bdde18990b330df102f6",
+        "bytes": 115244
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/cast_wineglass/r0002.json",
+        "sha256": "c425dbeca1a76cb76a03fc793806cf1c90029f6d9c7cf8e66b60a90d000b4308",
+        "bytes": 7577
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/cast_wineglass/r0002.integration.json",
+        "sha256": "3de2d4bfb7ff81b2576ef6b255b3f930c7102a15a3024197ba86a4c6fcbbd995",
+        "bytes": 3566
+      }
+    },
+    {
+      "asset": "combustion_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:element/combustion_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/element/combustion_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/combustion_v2/r0001.ogg",
+        "sha256": "3a603a8f59760a9ad972e4e24eba2de5e1cf8ffc0a68918e0953022c2d906418",
+        "bytes": 7086
+      },
+      "master": {
+        "path": "art/source/audio/masters/combustion_v2/r0001.wav",
+        "sha256": "92a60396509c156fb7352560557de039c38deae980cc8cd55b95f7b3500e5337",
+        "bytes": 103724
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/combustion_v2/r0001.json",
+        "sha256": "64fb65359bd2161d8d414d92a6a0ee0d7edb7435e6da1d5690420e4c86c0acb3",
+        "bytes": 2227
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/combustion_v2/r0001.integration.json",
+        "sha256": "33c21057c2f27a99b55ad9c79b4e7e0ce4694fbe97e925c6dc061486e7870073",
+        "bytes": 3342
+      }
+    },
+    {
+      "asset": "companion_recall_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:utility/companion_recall_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/utility/companion_recall_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/companion_recall_v2/r0001.ogg",
+        "sha256": "c36e1150cea41e5edef6cf02067200899bfdcc361b33cdba3d2f56e8123569a2",
+        "bytes": 5839
+      },
+      "master": {
+        "path": "art/source/audio/masters/companion_recall_v2/r0001.wav",
+        "sha256": "2f77e5502bdd9136a28b819d5749d77b467fc13344025b41331509a2010ad07c",
+        "bytes": 70604
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/companion_recall_v2/r0001.json",
+        "sha256": "abb553f58ce44bd5f9b1eac2c15da795497326375aa8723526839dc39e48a19a",
+        "bytes": 2536
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/companion_recall_v2/r0001.integration.json",
+        "sha256": "b06e31a7995989c0f4c7259778ce9f7b342dceb17c525fb2013fb2e3e45f528c",
+        "bytes": 3431
+      }
+    },
+    {
+      "asset": "counter_release_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:guard/counter_release_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/guard/counter_release_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/counter_release_v2/r0001.ogg",
+        "sha256": "8b379ad6c3d4693de56bd14b7e97b2cd4995a6f24762d99f226e49043e9d1bcb",
+        "bytes": 6217
+      },
+      "master": {
+        "path": "art/source/audio/masters/counter_release_v2/r0001.wav",
+        "sha256": "f16ac50746b6f4966d49accde211a0ce96799d20cba63cdab244e1c3dafbaa8e",
+        "bytes": 61964
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/counter_release_v2/r0001.json",
+        "sha256": "c0a0de001bac405f0401766b0624a3c6a5d256dff4b2827a30a1838829d6ca2e",
+        "bytes": 2388
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/counter_release_v2/r0001.integration.json",
+        "sha256": "7248a43dbb17578b15065db5a66dd41f5a434edc170bf5153572fa936dd931ea",
+        "bytes": 3399
+      }
+    },
+    {
+      "asset": "death_defiance_v4",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:vitality/death_defiance_v4",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/vitality/death_defiance_v4.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/death_defiance_v4/r0001.ogg",
+        "sha256": "b278b5ce9138a1d895c18aaec8c826767f796a571d25b7df08942bab56410df2",
+        "bytes": 9433
+      },
+      "master": {
+        "path": "art/source/audio/masters/death_defiance_v4/r0001.wav",
+        "sha256": "6c5fcc0f2ebd3cf38d009a802623e318aaa0f75ae5470b8bf67c0053dd974e19",
+        "bytes": 201644
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/death_defiance_v4/r0001.json",
+        "sha256": "a6f5b997e960890f155a82ccb30424d0857ef4f08ffa428768afdc283e6f5b76",
+        "bytes": 7097
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/death_defiance_v4/r0001.integration.json",
+        "sha256": "152a71e10f87d8b89ef50b4aa370da4fe0e4a001f63f161e4cce40e7bd9e9574",
+        "bytes": 4091
+      }
+    },
+    {
+      "asset": "fire_catch_b_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:element/fire_catch_b_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/element/fire_catch_b_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/fire_catch_b_v2/r0001.ogg",
+        "sha256": "162f11b4d12cdb841cb381a5bdb508a5d3d3a64ac9c7b36c05836d9c6a903cba",
+        "bytes": 6280
+      },
+      "master": {
+        "path": "art/source/audio/masters/fire_catch_b_v2/r0001.wav",
+        "sha256": "5831e0d10ff14b3c0f68e635e670e3898e9cb04bf07ce8572e5401549411fbbc",
+        "bytes": 69164
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/fire_catch_b_v2/r0001.json",
+        "sha256": "5fb43452e735aac9759842e29584eff6cdbe3fc901d90c8804b17faf663eafb2",
+        "bytes": 2968
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/fire_catch_b_v2/r0001.integration.json",
+        "sha256": "88baddce4e9d15776c89a5d567300ba2af300db446a97acb8a74e4f75111a697",
+        "bytes": 3382
+      }
+    },
+    {
+      "asset": "fire_catch_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:element/fire_catch_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/element/fire_catch_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/fire_catch_v2/r0001.ogg",
+        "sha256": "e97c985d6027cc4e2710be1327642385a96dbad6a15d8bd8635fe91ead576edb",
+        "bytes": 6413
+      },
+      "master": {
+        "path": "art/source/audio/masters/fire_catch_v2/r0001.wav",
+        "sha256": "f994510afb4d6b6cfe99ad1979d4ea2e85077edfd186ef5eb5a89cf684ab1f93",
+        "bytes": 69164
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/fire_catch_v2/r0001.json",
+        "sha256": "0db653eb8b71759a7adf62005f49bdd013e9373f7b811e7021d41e8bed16b028",
+        "bytes": 2841
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/fire_catch_v2/r0001.integration.json",
+        "sha256": "423da55d6dc2707470ded3435f504be3beae3a19ab467b5b674bde4a66ee82ac",
+        "bytes": 3355
+      }
+    },
+    {
+      "asset": "flight_wind_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:mobility/flight_wind_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/mobility/flight_wind_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/flight_wind_v2/r0001.ogg",
+        "sha256": "12b13310c1bd124edef7a26009d926fbdb0d39d0820ed9e2b257d414607cca7a",
+        "bytes": 32082
+      },
+      "master": {
+        "path": "art/source/audio/masters/flight_wind_v2/r0001.wav",
+        "sha256": "b200cbfbb06a2069928d4854f7758d3755b65443fbbf617f15baa08ac5b03bc2",
+        "bytes": 1152044
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/flight_wind_v2/r0001.json",
+        "sha256": "e0f6302dae50f417e6946d2d0a0caa166e7170e8a86f9b258e2dd9990287ad83",
+        "bytes": 1728
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/flight_wind_v2/r0001.integration.json",
+        "sha256": "4ee1626a2fd0b4c51e5d1b9beadf98873d242ca6557eaf20546c6da6c17a4ed9",
+        "bytes": 3216
+      }
+    },
+    {
+      "asset": "focus_install_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:machine/focus_install_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/machine/focus_install_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/focus_install_v2/r0001.ogg",
+        "sha256": "6eb3342a44f0f64e19a47d9446ae78701ad0490a20512352d900ab525a979b6d",
+        "bytes": 7248
+      },
+      "master": {
+        "path": "art/source/audio/masters/focus_install_v2/r0001.wav",
+        "sha256": "99a35e1d807948b589be145b29123df2001a2f0a1b3f2c20453794e1099708a6",
+        "bytes": 136844
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/focus_install_v2/r0001.json",
+        "sha256": "aa50c667ec2c9e097dc866fef6bb3e63b67ff31c92182f85ec31ade42d06b69e",
+        "bytes": 3386
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/focus_install_v2/r0001.integration.json",
+        "sha256": "b69c85a2c940cadb687adc078959371bc4a4424035f40231393858ef4a738e36",
+        "bytes": 3582
+      }
+    },
+    {
+      "asset": "freeze_gust_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:element/freeze_gust_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/element/freeze_gust_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/freeze_gust_v2/r0001.ogg",
+        "sha256": "961cca100925145eb2fb3aca5327c8c5f83b2a9e21bb57559958f9c8b0a75e49",
+        "bytes": 7823
+      },
+      "master": {
+        "path": "art/source/audio/masters/freeze_gust_v2/r0001.wav",
+        "sha256": "5e96598b72d25d9ead0ef4afcd3c118b0e5be94446f2dc49a7edacdad162f8f0",
+        "bytes": 100844
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/freeze_gust_v2/r0001.json",
+        "sha256": "7b9bc7af2e03d6041da628c6491a78af9a2a46c9e4136d6598c094985d494052",
+        "bytes": 2386
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/freeze_gust_v2/r0001.integration.json",
+        "sha256": "0331f21bd01b65036b8cde1b6d37c1c1b0df69771a39ef617af3ba24f502f876",
+        "bytes": 3361
+      }
+    },
+    {
+      "asset": "ice_shatter_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:element/ice_shatter_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/element/ice_shatter_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/ice_shatter_v2/r0001.ogg",
+        "sha256": "a3b891837bc70be797506256b80e18f468023a1a3ae5bfc3b79b6985b5b94221",
+        "bytes": 6942
+      },
+      "master": {
+        "path": "art/source/audio/masters/ice_shatter_v2/r0001.wav",
+        "sha256": "b211cee10ff0d7d540fdf407f702079b66239fa2af3c9e7a3f63730929f7140a",
+        "bytes": 103724
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/ice_shatter_v2/r0001.json",
+        "sha256": "4ee2fa0ae301ed6a700ade3c5e0b27749d06eeab69e08537016bf7f58c5798e3",
+        "bytes": 5300
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/ice_shatter_v2/r0001.integration.json",
+        "sha256": "d882bf3edcd2f2257b229ab5783f581ea9ec0a6b0ce0fec3f0bb76420ce0d8f6",
+        "bytes": 4113
+      }
+    },
+    {
+      "asset": "intercept_tok_b_v2",
+      "revision": "r0002",
+      "runtimeResource": "essence_ascendance:projectile/intercept_tok_b_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/projectile/intercept_tok_b_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/intercept_tok_b_v2/r0002.ogg",
+        "sha256": "c2f163e60ca8da7531f0f766eab1ba7b52a0a8d06e09793c9e9166816e13c7d3",
+        "bytes": 4566
+      },
+      "master": {
+        "path": "art/source/audio/masters/intercept_tok_b_v2/r0002.wav",
+        "sha256": "885a4ce85d4cbc4e0c1c9716864e0b0aeac541d2bfbe4bdbf9ab65738c3bb345",
+        "bytes": 28844
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/intercept_tok_b_v2/r0002.json",
+        "sha256": "8985606b5106af5a2a83d65efed5b39fd8df1728de0519f0fff830783aadda5e",
+        "bytes": 2685
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/intercept_tok_b_v2/r0002.integration.json",
+        "sha256": "e3f42285981c206004e35622f7132338a81f8f3b3fa59e30acf153239c525a31",
+        "bytes": 3493
+      }
+    },
+    {
+      "asset": "intercept_tok_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:projectile/intercept_tok_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/projectile/intercept_tok_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/intercept_tok_v2/r0001.ogg",
+        "sha256": "44dbc86113e19ee793e903b936a2f4cc4f89a51fabe3c09ab14897fe8d3f14be",
+        "bytes": 4551
+      },
+      "master": {
+        "path": "art/source/audio/masters/intercept_tok_v2/r0001.wav",
+        "sha256": "d0d2c668cd0cd24f783f2dec9f9c479886e6d67220c862d1e3e0c7ae4ec5f8ed",
+        "bytes": 28844
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/intercept_tok_v2/r0001.json",
+        "sha256": "0692ea1dad8c5676006f4be1f9b0e9d369661733cf56f9ea64fe0b09c9bffc8d",
+        "bytes": 2527
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/intercept_tok_v2/r0001.integration.json",
+        "sha256": "d3cd2959ff70a3171ac1944bb8b8798b63011a510c8ca2ce0d2ff0bf8bf4ee75",
+        "bytes": 3467
+      }
+    },
+    {
+      "asset": "magic_impact_soft_b_v5",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:weapon/magic_impact_soft_b_v5",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/weapon/magic_impact_soft_b_v5.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/magic_impact_soft_b_v5/r0001.ogg",
+        "sha256": "96a6b764615c8909632e14a62b1f785bebf69185a17f96437ca48a4db1b8d674",
+        "bytes": 4981
+      },
+      "master": {
+        "path": "art/source/audio/masters/magic_impact_soft_b_v5/r0001.wav",
+        "sha256": "61adff9adf5b819ae0e94ade3fd80deca16602704b64361b4633cde9ad422677",
+        "bytes": 43244
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/magic_impact_soft_b_v5/r0001.json",
+        "sha256": "c95160a76a5e79c1dc99028dbf604cc03af202d62de961166b18f69437518104",
+        "bytes": 4828
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/magic_impact_soft_b_v5/r0001.integration.json",
+        "sha256": "9ba8b566a2dc1125cc0c04403c4b442461dbc772ffea2d7c7d0eff75ddc2b5b1",
+        "bytes": 3849
+      }
+    },
+    {
+      "asset": "magic_impact_soft_v5",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:weapon/magic_impact_soft_v5",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/weapon/magic_impact_soft_v5.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/magic_impact_soft_v5/r0001.ogg",
+        "sha256": "6ceaabdc9dc0d5d58fea6eeb1096aae349560dda327ebe66de530bd2cd834fe0",
+        "bytes": 5071
+      },
+      "master": {
+        "path": "art/source/audio/masters/magic_impact_soft_v5/r0001.wav",
+        "sha256": "5595856a08d178082e6654376adc3c6eb04b13201fb2dc35b607dd8cee22d14e",
+        "bytes": 43244
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/magic_impact_soft_v5/r0001.json",
+        "sha256": "fd449401f81a483a43914a138f519cd6ba3b58bdf843609402e3f2fc4917321b",
+        "bytes": 4784
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/magic_impact_soft_v5/r0001.integration.json",
+        "sha256": "30d01d57ca9f6cc01b2b83a3860eb4c05675a39ebfe850c921af27482e3374de",
+        "bytes": 3820
+      }
+    },
+    {
+      "asset": "mobility_jump_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:mobility/mobility_jump_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/mobility/mobility_jump_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/mobility_jump_v2/r0001.ogg",
+        "sha256": "0a45a1849be22c222d1a35b049cda98a889a231736d7468367e3d031c2663959",
+        "bytes": 5157
+      },
+      "master": {
+        "path": "art/source/audio/masters/mobility_jump_v2/r0001.wav",
+        "sha256": "601c5a9437ec9d5ef33fab2b59d73c56f7ac02a55c7605a690b8c0f9388c81c5",
+        "bytes": 37484
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/mobility_jump_v2/r0001.json",
+        "sha256": "b272b64a24842f8deff33c4e259fe6c7f0c1fe26cd1352c6dde644eabdac7963",
+        "bytes": 1619
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/mobility_jump_v2/r0001.integration.json",
+        "sha256": "eaf7d5bd450c480f7af2909fd41f6a5e5791e3428f64329dd1f853724d285b52",
+        "bytes": 3258
+      }
+    },
+    {
+      "asset": "mobility_rush_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:mobility/mobility_rush_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/mobility/mobility_rush_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/mobility_rush_v2/r0001.ogg",
+        "sha256": "b0ad2a26116f8b3faa957ddf744e228cb1d2d1a3da64442ed86a62d69582244f",
+        "bytes": 6326
+      },
+      "master": {
+        "path": "art/source/audio/masters/mobility_rush_v2/r0001.wav",
+        "sha256": "6262ef504435e81b6ee31fa6145eabba12ed2160f8962871fa07d0074c266fbd",
+        "bytes": 74924
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/mobility_rush_v2/r0001.json",
+        "sha256": "ac0151835fae2ba62e72dd43d95f650e56781c20cc7ff7513aade088e31366ec",
+        "bytes": 2138
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/mobility_rush_v2/r0001.integration.json",
+        "sha256": "43c2dec6078b734a1e7ba11a2a08239a1f3a0b0dc60bebb3efa69652d338f001",
+        "bytes": 3404
+      }
+    },
+    {
+      "asset": "nexus_transaction_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:progression/nexus_transaction_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/progression/nexus_transaction_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/nexus_transaction_v2/r0001.ogg",
+        "sha256": "efc9ca31201b9d9b49c8b660c29ac7e0bc46db8b827d5b397a0167b540a67f70",
+        "bytes": 5926
+      },
+      "master": {
+        "path": "art/source/audio/masters/nexus_transaction_v2/r0001.wav",
+        "sha256": "6d429829bddc3205e3dad8aad3c293f3afd74a598e6c348ff99906af977fa04f",
+        "bytes": 60524
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/nexus_transaction_v2/r0001.json",
+        "sha256": "d362768e2a081e9b8e3bbe4274c8f584329e1b4695d5e4567e719898731e4d2d",
+        "bytes": 3152
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/nexus_transaction_v2/r0001.integration.json",
+        "sha256": "6aff372aad3e908d687c87a31e21387bccb9b2db0843be40299b39580c647ca3",
+        "bytes": 3666
+      }
+    },
+    {
+      "asset": "pierce_thuck_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:projectile/pierce_thuck_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/projectile/pierce_thuck_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/pierce_thuck_v2/r0001.ogg",
+        "sha256": "2e2d0cd46518c8d5d90aa7e1ebf5002a160d4769981cae6349a1ec4ff82f388e",
+        "bytes": 4810
+      },
+      "master": {
+        "path": "art/source/audio/masters/pierce_thuck_v2/r0001.wav",
+        "sha256": "870854b8409e465c52042d6d3cefdd55f65772fe6ac23fffdcaaf52b63a70e7b",
+        "bytes": 33164
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/pierce_thuck_v2/r0001.json",
+        "sha256": "91678208175426e29176370d97e0a14f68d3489494b8f1c4b3515a604f2f8b5b",
+        "bytes": 2294
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/pierce_thuck_v2/r0001.integration.json",
+        "sha256": "42bc672ff0446dc2d91338e91d711da0f1e4f9e7592c93d68fbaf781549ba8db",
+        "bytes": 3456
+      }
+    },
+    {
+      "asset": "redirect_clang_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:projectile/redirect_clang_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/projectile/redirect_clang_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/redirect_clang_v2/r0001.ogg",
+        "sha256": "81c9c44a25dd36317875b070ac3d82d25ed6a0fbdf4050f1416810ca74e0cd13",
+        "bytes": 5330
+      },
+      "master": {
+        "path": "art/source/audio/masters/redirect_clang_v2/r0001.wav",
+        "sha256": "f9783d36c8a2a3d7c418c8805b1f3570ed1ca682995b56ce795929fd28706c37",
+        "bytes": 46124
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/redirect_clang_v2/r0001.json",
+        "sha256": "38ca78b5efa7756478442c1a9a475c0ee9e9a15d153293866a617c0c1eb3885d",
+        "bytes": 2412
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/redirect_clang_v2/r0001.integration.json",
+        "sha256": "722ce507917031664aee5a8c77d2729e41f80263c3065c11a96a9a335bb72480",
+        "bytes": 3486
+      }
+    },
+    {
+      "asset": "riposte_ready_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:guard/riposte_ready_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/guard/riposte_ready_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/riposte_ready_v2/r0001.ogg",
+        "sha256": "1df74887abe933a33064679a471f64c0accd53ed18e37efac8098b68af78eac1",
+        "bytes": 5305
+      },
+      "master": {
+        "path": "art/source/audio/masters/riposte_ready_v2/r0001.wav",
+        "sha256": "9693b5e7a8a15ddc4fe62fa93558a7fc76e7afec22eed482a72ca11cabbfb959",
+        "bytes": 50444
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/riposte_ready_v2/r0001.json",
+        "sha256": "e508ffa15fcef91d8f465b4b8b59f7e89a37317994a40a8669d4e0e3c9e02bb0",
+        "bytes": 2529
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/riposte_ready_v2/r0001.integration.json",
+        "sha256": "7c74599e41ea801d0d74f049ae45afc600100feedcd3220681fd76866e17f0af",
+        "bytes": 3415
+      }
+    },
+    {
+      "asset": "root_bind_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:element/root_bind_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/element/root_bind_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/root_bind_v2/r0001.ogg",
+        "sha256": "d9ee796175fc1671d1396fc90f7ef83d76de264a278e14a8d72bad915042f46d",
+        "bytes": 5547
+      },
+      "master": {
+        "path": "art/source/audio/masters/root_bind_v2/r0001.wav",
+        "sha256": "bdb11584b4d34a78186f944e9cd5d0deb34fa1e9383b6f4160ba29f8900c3db0",
+        "bytes": 51884
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/root_bind_v2/r0001.json",
+        "sha256": "e35bc0f89cc7c5513faacc69b72294cd105150f6a804ddad8c5b96dd94135fe5",
+        "bytes": 2592
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/root_bind_v2/r0001.integration.json",
+        "sha256": "5082bb181a5eeabd8ff01861ff73cb218e8225c22594b1f7e64e2e07d0bb2e85",
+        "bytes": 3389
+      }
+    },
+    {
+      "asset": "static_snap_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:element/static_snap_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/element/static_snap_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/static_snap_v2/r0001.ogg",
+        "sha256": "accde3aeeecb42d14705083af61b384932af05d6e730e4fae6f4b19c15c9d751",
+        "bytes": 4843
+      },
+      "master": {
+        "path": "art/source/audio/masters/static_snap_v2/r0001.wav",
+        "sha256": "beaf88f3e52550e3d51bd7bc18ee6d7cc4e2349082da12ea1881448efa967545",
+        "bytes": 24524
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/static_snap_v2/r0001.json",
+        "sha256": "d55df372aa3d92c2c8073d48a113ff23e86991218274a88fa8c357e62f3f57ce",
+        "bytes": 1958
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/static_snap_v2/r0001.integration.json",
+        "sha256": "7880607e54f6fb5f021608c33e060d0ad3a2401b27fbc88e4fdfc3040647f838",
+        "bytes": 3409
+      }
+    },
+    {
+      "asset": "ui_accept_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:interface/ui_accept_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/interface/ui_accept_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/ui_accept_v2/r0001.ogg",
+        "sha256": "7021cfbe3189589da659cdd7640004bef315bb95a4128b8813973f9390ccb3f7",
+        "bytes": 5150
+      },
+      "master": {
+        "path": "art/source/audio/masters/ui_accept_v2/r0001.wav",
+        "sha256": "f4f4486cb44e01d9f9b357b4a8501b725d8562db800bbb59b25d6b90cf27c71e",
+        "bytes": 44684
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/ui_accept_v2/r0001.json",
+        "sha256": "a066191e7bff7d43e340bae9f29bed2566b5bcfb6fe0d05ed9563ea82517ade3",
+        "bytes": 2615
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/ui_accept_v2/r0001.integration.json",
+        "sha256": "a622579e66a00d75f470026e9035cdcc3eb077d6136615d8ff3eaf65fcb53584",
+        "bytes": 3409
+      }
+    },
+    {
+      "asset": "ui_deny_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:interface/ui_deny_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/interface/ui_deny_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/ui_deny_v2/r0001.ogg",
+        "sha256": "9c29fb9a1a5c27481d14bb14bb1e545cb7793ecde2dee733bad7fda1b159448f",
+        "bytes": 5069
+      },
+      "master": {
+        "path": "art/source/audio/masters/ui_deny_v2/r0001.wav",
+        "sha256": "992d95b11ca0fa59e2d2ab4982accaa497e811ca7dd550a5fb1669455a6d3a8a",
+        "bytes": 43244
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/ui_deny_v2/r0001.json",
+        "sha256": "a566ddd3b55626e726f8ab8d2b35fb775defda3eab4702a4b75eed39c8d1bb0c",
+        "bytes": 2792
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/ui_deny_v2/r0001.integration.json",
+        "sha256": "7938b2b80587ee3fdbb2fa0e0b739ac07a9aabdb0fae10ed830eca20ec800ee3",
+        "bytes": 3375
+      }
+    },
+    {
+      "asset": "ui_key_clack_b_v3",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:interface/ui_key_clack_b_v3",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/interface/ui_key_clack_b_v3.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/ui_key_clack_b_v3/r0001.ogg",
+        "sha256": "e66f875638785e726c98b51e35009a35fded65a95a05787639435cf75938563a",
+        "bytes": 4643
+      },
+      "master": {
+        "path": "art/source/audio/masters/ui_key_clack_b_v3/r0001.wav",
+        "sha256": "f93e54644cb2a7d06da30f1b258fd93e96c4d123328180eca0668a51921038fb",
+        "bytes": 13724
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/ui_key_clack_b_v3/r0001.json",
+        "sha256": "d353e4f51755f396aecd90c20adc6a36078737b39724db161e509643a9373755",
+        "bytes": 4166
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/ui_key_clack_b_v3/r0001.integration.json",
+        "sha256": "e7da7ece4956f29413236d7902b6e7f7aa38437c9c466b3733a8456814afbd68",
+        "bytes": 3749
+      }
+    },
+    {
+      "asset": "ui_key_clack_v3",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:interface/ui_key_clack_v3",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/interface/ui_key_clack_v3.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/ui_key_clack_v3/r0001.ogg",
+        "sha256": "c4842dc03114c9699672c93bbc2f3a09d95689cb24e512e5677cea4066628e31",
+        "bytes": 4694
+      },
+      "master": {
+        "path": "art/source/audio/masters/ui_key_clack_v3/r0001.wav",
+        "sha256": "0686a8c72363f3853f3ff5e900de079599d41a32d26f4eff27b4c65bb956a1dc",
+        "bytes": 13724
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/ui_key_clack_v3/r0001.json",
+        "sha256": "2203af117ff3101f066171fe4fe373cf6e633128cc4b4d1a4ebb48fda6a9085f",
+        "bytes": 4210
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/ui_key_clack_v3/r0001.integration.json",
+        "sha256": "042e47e0dde07a00dc716102fdaad22cc75e02c06ff0dbd7c06b4aae31b5b069",
+        "bytes": 3717
+      }
+    },
+    {
+      "asset": "ward_break_v2",
+      "revision": "r0001",
+      "runtimeResource": "essence_ascendance:guard/ward_break_v2",
+      "runtimeArchiveEntry": "assets/essence_ascendance/sounds/guard/ward_break_v2.ogg",
+      "approved": {
+        "path": "art/source/audio/approved/ward_break_v2/r0001.ogg",
+        "sha256": "3ee71341daa10c393cefab404624fc87e96998a918e61dfd337e8d8a6dcad975",
+        "bytes": 6083
+      },
+      "master": {
+        "path": "art/source/audio/masters/ward_break_v2/r0001.wav",
+        "sha256": "f27eb8ebbee8e0cd86f45146fb332049186f1250dd5428d0f9f643f5c8e20cf3",
+        "bytes": 89324
+      },
+      "recipe": {
+        "path": "art/source/audio/recipes/history/ward_break_v2/r0001.json",
+        "sha256": "8b83b597a3e078828103f25b1dd61f239d1776813c336e509f020a3ecffde3f2",
+        "bytes": 2288
+      },
+      "receipt": {
+        "path": "art/source/audio/receipts/ward_break_v2/r0001.integration.json",
+        "sha256": "235c456b39335162e51497d29822175ff492510135eed118bbfd8fc99cc0f6b3",
+        "bytes": 3341
+      }
+    }
+  ],
+  "compilation": {
+    "result": "PASS",
+    "clean": {
+      "path": "build/audio-integration-20261102/fresh-clean.log",
+      "sha256": "186fea913243d4492f6403b11b8cf34573b837e95c68cdde9d677faff992655f",
+      "bytes": 1355
+    },
+    "gate": {
+      "path": "build/audio-integration-20261102/fresh-supported.log",
+      "sha256": "98d9eae9ba58a49d5274399f5954a6dfbe23a0da58d15876a5a5a4d96f39675f",
+      "bytes": 171426
+    },
+    "sequence": "separate sequential :cleanProductionOutputs then :checkSupportedTargets",
+    "duration": "18m 10s",
+    "tasks": "282 actionable tasks: 277 executed, 5 up-to-date"
+  },
+  "automatedBehavior": {
+    "result": "PASS",
+    "versions": [
+      "1.21.1",
+      "26.1.2"
+    ],
+    "foundationAssertionsEach": 61,
+    "integrationAssertionsEach": 386,
+    "catalogPolicyAssertionsEach": 1618,
+    "assetAssertionsEach": 93,
+    "nativeAssertions": {
+      "1.21.1": 710,
+      "26.1.2": 708
+    },
+    "authoringTests": 46,
+    "authoringLog": {
+      "path": "build/audio-integration-20261102/python-authoring-tests.log",
+      "sha256": "c1f5fb0c95a5ce6417638c5ac753f5c0ab0b99e57aabcfc10472893cb713a203",
+      "bytes": 7775
+    },
+    "releaseSelectionTests": 25,
+    "releaseSelectionLog": {
+      "path": "build/audio-integration-20261102/python-release-tests.log",
+      "sha256": "e2c491428a64efd64c850904c87928b328634af0de91b5e93992e9a4ba65de5b",
+      "bytes": 241
+    }
+  },
+  "packaging": {
+    "result": "PASS",
+    "catalogOwnedOggsEach": 49,
+    "registeredCues": 62,
+    "customDefinitions": 45,
+    "manifest": {
+      "path": "build/production-artifacts-all.json",
+      "sha256": "2e99674180320476d9f3f359fa8c31f4ca4b67b28b28e57f72218bfa18f1a84d",
+      "bytes": 2009
+    },
+    "targets": [
+      {
+        "target": "1211Fabric",
+        "minecraft": "1.21.1",
+        "loader": "fabric",
+        "java": 21,
+        "task": ":fabric:1.21.1:remapJar",
+        "archive": "fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-fabric.jar",
+        "bytes": 7487396,
+        "sha256": "78955a8c4d0e9b08a83f18c9781214a795aa2d50dfb6a6a935ab65ba47cf9dbf"
+      },
+      {
+        "target": "1211NeoForge",
+        "minecraft": "1.21.1",
+        "loader": "neoforge",
+        "java": 21,
+        "task": ":neoforge:1.21.1:remapJar",
+        "archive": "neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-neoforge.jar",
+        "bytes": 7535248,
+        "sha256": "f9a8677584e201ab0268de86e029e4767a7365e4ebb70c86bbb731b72165c5f6"
+      },
+      {
+        "target": "2612Fabric",
+        "minecraft": "26.1.2",
+        "loader": "fabric",
+        "java": 25,
+        "task": ":fabric:26.1.2:shadowJar",
+        "archive": "fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-fabric.jar",
+        "bytes": 8348160,
+        "sha256": "c831c880623ed2b475dd624425c0c6288d7d2034744a7597c0e12042a9ee6ebd"
+      },
+      {
+        "target": "2612NeoForge",
+        "minecraft": "26.1.2",
+        "loader": "neoforge",
+        "java": 25,
+        "task": ":neoforge:26.1.2:shadowJar",
+        "archive": "neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-neoforge.jar",
+        "bytes": 8353095,
+        "sha256": "27a992cc27dc415f48474770454841f02808398cdffa871729f0cbb2bfa40360"
+      }
+    ],
+    "scope": "Exact task-provider archives, full processed-resource byte equality, catalog OGG set, ownership and authoring exclusions; no packaged-client launch claim"
+  },
+  "nativeServers": {
+    "result": "PASS",
+    "assertionsEach": 107,
+    "logs": {
+      "fabric-1211": {
+        "path": "build/audio-integration-20261102/server-fabric-1211-d.log",
+        "sha256": "23da9e4370db988a63d3670ac2b80b975ada1d356dee36e26ae6439567272b10",
+        "bytes": 9273
+      },
+      "neoforge-1211": {
+        "path": "build/audio-integration-20261102/server-neoforge-1211-d.log",
+        "sha256": "8f62cbbbdb01609e10548d5421bfcbbc156da1f2ed079e0672fd7cda5db4cf8b",
+        "bytes": 10462
+      },
+      "fabric-2612": {
+        "path": "build/audio-integration-20261102/server-fabric-2612-d.log",
+        "sha256": "77c802bbd696a9eb5523027683c33d7a00eb10bc14dd4855fba894bc34c65502",
+        "bytes": 20945
+      },
+      "neoforge-2612": {
+        "path": "build/audio-integration-20261102/server-neoforge-2612-d.log",
+        "sha256": "7f000cf71d169c32b7b9085a6b3d069821a7fcf4ac1a88fad220e17b8a328f8e",
+        "bytes": 24487
+      }
+    },
+    "scope": "Development-classpath native registration plus in-memory world/network recipient and gameplay outcomes; completed before final client-only flight adjustment; server implementation unchanged"
+  },
+  "liveClients": {
+    "result": "PASS",
+    "assertionsEach": 127,
+    "settingsCasesEach": 36,
+    "audioDeviceLoaded": true,
+    "logs": {
+      "fabric-1211": {
+        "path": "build/audio-integration-20261102/client-fabric-1211-e.log",
+        "sha256": "72a37159a2199531a5812cf8a54d87a25bf625e1b804754eea2bb48ba642bafe",
+        "bytes": 48005
+      },
+      "neoforge-1211": {
+        "path": "build/audio-integration-20261102/client-neoforge-1211-e.log",
+        "sha256": "45adb474700e189880f2c214a0bea33a8782271632f76edfb9d78f579b2b6d4f",
+        "bytes": 44361
+      },
+      "fabric-2612": {
+        "path": "build/audio-integration-20261102/client-fabric-2612-e.log",
+        "sha256": "e6dd4579ba13ebd4f371dee78a1121c4ccd0acb625a8320e0195db07f9ea1f62",
+        "bytes": 49500
+      },
+      "neoforge-2612": {
+        "path": "build/audio-integration-20261102/client-neoforge-2612-e.log",
+        "sha256": "8df350b82a0c0d32e56aba2f0376250d1597c23f3982f1b7d04c22b56ae12ed4",
+        "bytes": 45966
+      }
+    },
+    "scope": "Four development-classpath clients joined target-local disposable integrated worlds; real packets/native caption draws/settings, actor concurrency, controlled observer state, flight flags, reload/restart/disconnect. Not full packaged-client or human acceptance"
+  },
+  "multiplayer": {
+    "result": "PARTIAL",
+    "verified": "Native in-memory multiple-player recipient/range/dimension tests; real joined-client local player plus separate tracked disposable entity concurrency; controller multiple-endpoint policies",
+    "pending": "Distinct socket-connected clients, public/private overlap and simultaneous beam/weapon/skill scenarios"
+  },
+  "humanListening": {
+    "result": "PENDING",
+    "scope": "Native mix/levels, all variants, pylon transitions, loop seams, repetition fatigue and dense scenes"
+  },
+  "remaining": [
+    "Exact packaged-client launch/acceptance",
+    "Distinct-client multiplayer acceptance",
+    "Human listening/mix/native loop and fatigue review",
+    "Human HUD/caption coexistence/layout review at GUI scales",
+    "Adversarial resource packs and broader language/device variations",
+    "Live dense-load performance measurements",
+    "Final redistribution/rights review"
+  ],
+  "preservedFailedRuns": [
+    {
+      "path": "build/audio-integration-20261102/client-fabric-1211.log",
+      "sha256": "3b92d71e08d2aee6f586013f80d20182c43a1a7194992621682f5ccab0a9a9ba",
+      "bytes": 434824
+    },
+    {
+      "path": "build/audio-integration-20261102/focused-b.log",
+      "sha256": "484202ef4bf271464050a79aef9797c9e3ebdba435d7af1109d7b7bc033ea055",
+      "bytes": 10215
+    },
+    {
+      "path": "build/audio-integration-20261102/focused.log",
+      "sha256": "5b92ddc4154fc75c5727f07489cf4f9e3d23f67938cc3920dd794ee1fc78bd60",
+      "bytes": 9206
+    },
+    {
+      "path": "build/audio-integration-20261102/fresh-supported-a.log",
+      "sha256": "8200df37216e311397eb64ecdc416a326a073782c747a52eaa6e2be2c1286adb",
+      "bytes": 5538
+    },
+    {
+      "path": "build/audio-integration-20261102/server-fabric-1211-c.log",
+      "sha256": "31229d8df3dbf0f0802b1f6f5095107684730194e7e02f0646c049eb37d3fdea",
+      "bytes": 11691
+    }
+  ],
+  "realPrismInstancesAndWorlds": "untouched"
+}

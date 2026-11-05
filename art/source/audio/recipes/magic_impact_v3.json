@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "assetId": "magic_impact_v3",
+  "seed": 26110231,
+  "sampleRate": 48000,
+  "duration": 0.32,
+  "peakDb": -10,
+  "presetLibrary": "source/audio/presets/revision-v3.json",
+  "design": {
+    "title": "Magic projectile impact A",
+    "description": "A compact luminous contact: firm soft impact, a short G/D energy ring, and a fading particle spray. Shares the cast tone without sounding like an arrow.",
+    "cueIds": [
+      "essence_ascendance:weapon.bolt.impact"
+    ],
+    "provenance": "Original deterministic modal, harmonic and filtered-noise synthesis; no third-party samples.",
+    "review": "pending user listening",
+    "role": "weapon",
+    "replacesNativeEvents": [
+      "minecraft:entity.arrow.hit",
+      "minecraft:entity.arrow.hit_player"
+    ],
+    "repetitionIntervalSeconds": 0.4,
+    "gameplayTrigger": "Same existing cue for confirmed damaging entity hit and accepted terrain collision; no invented surface routing."
+  },
+  "layers": [
+    {
+      "name": "01_energy_contact",
+      "preset": "resonant_energy",
+      "frequency": 392,
+      "frequencyPoints": [
+        [
+          0,
+          440
+        ],
+        [
+          0.08,
+          392
+        ],
+        [
+          1,
+          392
+        ]
+      ],
+      "gain": 0.26,
+      "lengthSeconds": 0.29
+    },
+    {
+      "name": "02_low_impact",
+      "type": "tone",
+      "frequency": 134,
+      "frequencyEnd": 98,
+      "harmonics": [
+        1,
+        0.22
+      ],
+      "gain": 0.13,
+      "decaySeconds": 0.023,
+      "lengthSeconds": 0.1,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.012,
+          1
+        ],
+        [
+          0.11,
+          0.65
+        ],
+        [
+          0.45,
+          0.12
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "03_energy_spray",
+      "type": "noise",
+      "lowHz": 650,
+      "highHz": 4600,
+      "highHzEnd": 1600,
+      "spectralTiltDbOct": -3,
+      "gain": 0.1,
+      "lengthSeconds": 0.11,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          1
+        ],
+        [
+          0.18,
+          0.55
+        ],
+        [
+          0.55,
+          0.13
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "04_hollow_afterring",
+      "preset": "resonant_energy",
+      "frequency": 587.3333,
+      "gain": 0.065,
+      "startSeconds": 0.018,
+      "lengthSeconds": 0.25
+    }
+  ]
+}

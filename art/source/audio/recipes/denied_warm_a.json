@@ -1,0 +1,10 @@
+{
+  "schema":1,"assetId":"denied_warm_a","seed":291031,"sampleRate":48000,"duration":0.28,"peakDb":-14,
+  "presetLibrary":"source/audio/presets/essence-v1.json",
+  "design":{"cueIds":["essence_ascendance:interface.denied"],"role":"private actionable denial","priority":"P0 / 1d, P1 / 3b","description":"Two soft descending knocks; distinct from the upward result and rescue contours.","levelIntent":"subtle but unambiguous; existing reason text remains necessary","repetitionIntervalSeconds":0.5},
+  "layers":[
+    {"preset":"low_pulse","name":"01_first_knock","frequency":288,"frequencyEnd":264,"gain":0.15,"lengthSeconds":0.105},
+    {"preset":"low_pulse","name":"02_lower_knock","frequency":216,"frequencyEnd":192,"gain":0.13,"startSeconds":0.115,"lengthSeconds":0.165},
+    {"preset":"soft_air","name":"03_soft_contact","gain":0.012,"highHz":2200,"lengthSeconds":0.055}
+  ]
+}

@@ -55,7 +55,7 @@ public final class WeaponActionRuntime {
         final Set<UUID> attempted = new HashSet<>();
         long lastTick;
         double outwardEnd, retractDistance, retractSweep;
-        boolean primarySpent, wearSpent, finalized, contact;
+        boolean primarySpent, wearSpent, finalized, contact, contactFeedback;
         int observedInputs;
         int contactedEntity=-1;
         Phase phase=Phase.OUTWARD;
@@ -162,6 +162,8 @@ public final class WeaponActionRuntime {
             //? if <26.1.2
             player.resetAttackStrengthTicker();
             com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
+            com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(player.serverLevel(),
+                    stab ? "weapon.glaive.stab" : "weapon.glaive.swipe", player, player.position());
             return true;
         } finally { gate.busy=false; }
     }
@@ -228,6 +230,10 @@ public final class WeaponActionRuntime {
         if (now>=gate.readyAt && a.phase!=Phase.OUTWARD && a.phase!=Phase.EXTEND && a.phase!=Phase.SWEEP && a.phase!=Phase.RETRACT) a.phase=Phase.IDLE;
         a.observedInputs=0;
         a.lastTick=now;
+        if(a.contact && !a.contactFeedback) {
+            a.contactFeedback=true;
+            com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(player.serverLevel(), "weapon.glaive.contact", player, a.current.blade().center());
+        }
         com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
         } finally { gate.busy=false; }
     }

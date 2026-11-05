@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "assetId": "riposte_ready_v2",
+  "seed": 26110116,
+  "sampleRate": 48000,
+  "duration": 0.35,
+  "peakDb": -12,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:combat.guard.ready"
+    ],
+    "role": "guard",
+    "description": "Wooden clack with a tiny pitched ring to signal the counterattack opportunity.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Riposte ready"
+  },
+  "layers": [
+    {
+      "preset": "wood",
+      "name": "01_ready_clack",
+      "frequency": 390,
+      "gain": 0.28,
+      "lengthSeconds": 0.17
+    },
+    {
+      "preset": "ceramic",
+      "name": "02_ready_ring",
+      "frequency": 880,
+      "gain": 0.09,
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.32
+    },
+    {
+      "preset": "tap",
+      "name": "03_contact",
+      "highHz": 2500,
+      "gain": 0.045,
+      "lengthSeconds": 0.02
+    }
+  ]
+}

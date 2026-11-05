@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "assetId": "mobility_jump_v2",
+  "seed": 26110120,
+  "sampleRate": 48000,
+  "duration": 0.26,
+  "peakDb": -14,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:mobility.launch"
+    ],
+    "role": "mobility",
+    "description": "Short upward air puff with a little lift, shared by enhanced jumps.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Enhanced jump"
+  },
+  "layers": [
+    {
+      "preset": "air",
+      "name": "01_updraft",
+      "lowHz": 300,
+      "highHz": 2200,
+      "lowHzEnd": 1000,
+      "highHzEnd": 3900,
+      "gain": 0.26,
+      "lengthSeconds": 0.25
+    },
+    {
+      "preset": "body",
+      "name": "02_lift_body",
+      "frequency": 90,
+      "frequencyEnd": 180,
+      "gain": 0.075,
+      "lengthSeconds": 0.18
+    }
+  ]
+}

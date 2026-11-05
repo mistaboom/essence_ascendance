@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "assetId": "ui_key_clack_v3",
+  "seed": 26110201,
+  "sampleRate": 48000,
+  "duration": 0.095,
+  "peakDb": -9.5,
+  "presetLibrary": "source/audio/presets/revision-v3.json",
+  "design": {
+    "title": "Menu key clack A",
+    "description": "A crisp mechanical keypress: plastic downstroke, switch click and a light return. Short and decisively tactile.",
+    "cueIds": [
+      "essence_ascendance:ui.press"
+    ],
+    "provenance": "Original deterministic modal, harmonic and filtered-noise synthesis; no third-party samples.",
+    "review": "pending user listening",
+    "role": "interface",
+    "revisionOf": [
+      "ui_press_v2"
+    ],
+    "repetitionIntervalSeconds": 0.22,
+    "levelIntent": "Crisper and stronger than the previous soft menu plop."
+  },
+  "layers": [
+    {
+      "name": "01_keycap_downstroke",
+      "preset": "keycap",
+      "gain": 0.39,
+      "lengthSeconds": 0.058
+    },
+    {
+      "name": "02_switch_click",
+      "preset": "switch_click",
+      "gain": 0.28,
+      "lengthSeconds": 0.012
+    },
+    {
+      "name": "03_bottom_out",
+      "preset": "keycap",
+      "frequency": 310,
+      "gain": 0.14,
+      "lengthSeconds": 0.045,
+      "startSeconds": 0.004
+    },
+    {
+      "name": "04_key_return",
+      "preset": "keycap",
+      "frequency": 870,
+      "gain": 0.15,
+      "startSeconds": 0.026,
+      "lengthSeconds": 0.049
+    },
+    {
+      "name": "05_return_click",
+      "preset": "switch_click",
+      "lowHz": 2000,
+      "highHz": 6400,
+      "gain": 0.09,
+      "startSeconds": 0.027,
+      "lengthSeconds": 0.008
+    }
+  ]
+}

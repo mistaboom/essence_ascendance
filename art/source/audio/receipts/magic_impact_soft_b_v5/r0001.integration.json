@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "assetId": "magic_impact_soft_b_v5",
+  "revision": "r0001",
+  "masterSha256": "61adff9adf5b819ae0e94ade3fd80deca16602704b64361b4633cde9ad422677",
+  "approvedSha256": "96a6b764615c8909632e14a62b1f785bebf69185a17f96437ca48a4db1b8d674",
+  "recipeSha256": "c95160a76a5e79c1dc99028dbf604cc03af202d62de961166b18f69437518104",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.29733333333333334,
+    "samplePeakDb": -12.417856090617164,
+    "rmsDb": -29.11959640742205,
+    "truePeakDb": -12.42,
+    "integratedLufs": -30.55,
+    "decodedFrames": 14272,
+    "loudnessMethod": "zero_padded_to_400ms"
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "ae8691603e8a39cd6a1407f9495410a7085e679cb96ce332f908c04b6e7c5232",
+  "backupSha256": "ae8691603e8a39cd6a1407f9495410a7085e679cb96ce332f908c04b6e7c5232",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/weapon/magic_impact_soft_b_v5/r0001/magic_impact_soft_b_v5.aup3",
+    "backup": "backups/weapon/magic_impact_soft_b_v5/r0001/magic_impact_soft_b_v5.aup3",
+    "master": "masters/weapon/magic_impact_soft_b_v5/r0001/master.wav",
+    "export": "exports/weapon/magic_impact_soft_b_v5/r0001/magic_impact_soft_b_v5.ogg",
+    "recipe": "masters/weapon/magic_impact_soft_b_v5/r0001/recipe.json",
+    "authoringInputs": "masters/weapon/magic_impact_soft_b_v5/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "98c1b0e98d82d7f32cc0e0d7d8566eb0079cf13f14a91ad8a5de33751ddd55c1",
+    "stems": [
+      {
+        "path": "masters/weapon/magic_impact_soft_b_v5/r0001/01_pressure_splat.wav",
+        "sha256": "78043235b70f92cc1f9df9557d61f29e05d662dbd88f5fbb2bc7807227ba3e62"
+      },
+      {
+        "path": "masters/weapon/magic_impact_soft_b_v5/r0001/02_soft_crack.wav",
+        "sha256": "1d26258355876df458050cc11cac20735dba4fd2eb118c845e8ae3065a89bd36"
+      },
+      {
+        "path": "masters/weapon/magic_impact_soft_b_v5/r0001/03_inharmonic_contact_grit.wav",
+        "sha256": "d4931a96d553959015a1edda23a4d80a9c1b7085a9c236a02016f549901fd52c"
+      },
+      {
+        "path": "masters/weapon/magic_impact_soft_b_v5/r0001/04_low_pressure_thud.wav",
+        "sha256": "72a810d1e3b0a88ac9f7665cb8ae21390d519e6f73ce79ba3470de76ac0bae8b"
+      },
+      {
+        "path": "masters/weapon/magic_impact_soft_b_v5/r0001/05_dispersing_wake.wav",
+        "sha256": "2a9add2813a45378752b29203e0f244d97b33f786630450c87c28ba530d6a156"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "soft-impacts-a and b are both great for the magic impact sound."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "96a6b764615c8909632e14a62b1f785bebf69185a17f96437ca48a4db1b8d674"
+  }
+}

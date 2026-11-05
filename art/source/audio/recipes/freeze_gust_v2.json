@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "assetId": "freeze_gust_v2",
+  "seed": 26110109,
+  "sampleRate": 48000,
+  "duration": 0.7,
+  "peakDb": -12,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.ice.freeze"
+    ],
+    "role": "element",
+    "description": "Biting short wind gust tightens into a cold crystalline texture.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Freeze - biting gust"
+  },
+  "layers": [
+    {
+      "preset": "air",
+      "name": "01_cold_gust",
+      "lowHz": 1200,
+      "highHz": 6500,
+      "lowHzEnd": 2200,
+      "highHzEnd": 4200,
+      "gain": 0.32,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.7
+        ],
+        [
+          0.3,
+          1
+        ],
+        [
+          0.55,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "lengthSeconds": 0.65
+    },
+    {
+      "preset": "air",
+      "name": "02_wind_body",
+      "lowHz": 150,
+      "highHz": 850,
+      "gain": 0.12,
+      "lengthSeconds": 0.59
+    },
+    {
+      "preset": "glass",
+      "name": "03_ice_setting",
+      "frequency": 990,
+      "gain": 0.045,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.3
+        },
+        {
+          "ratio": 1.51,
+          "gain": 0.4,
+          "decaySeconds": 0.15
+        },
+        {
+          "ratio": 2.69,
+          "gain": 0.1,
+          "decaySeconds": 0.08
+        }
+      ],
+      "startSeconds": 0.14,
+      "lengthSeconds": 0.56
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema":1,"assetId":"process_warm_a","seed":291001,"sampleRate":48000,"duration":0.56,"peakDb":-13,
+  "presetLibrary":"source/audio/presets/essence-v1.json",
+  "design":{"cueIds":["essence_ascendance:process.complete"],"role":"routine result","priority":"P1 / 3b","description":"Warm mineral closure; short unison bloom with a delayed fifth.","levelIntent":"subtle","comparison":"completion A: rounder","repetitionIntervalSeconds":0.65},
+  "layers":[
+    {"preset":"mineral","name":"01_mineral_body","frequency":384,"gain":0.13,"lengthSeconds":0.5},
+    {"preset":"mineral","name":"02_fifth_resolve","frequency":576,"gain":0.045,"startSeconds":0.045,"lengthSeconds":0.515},
+    {"preset":"soft_air","name":"03_soft_energy","gain":0.014,"lengthSeconds":0.22}
+  ]
+}

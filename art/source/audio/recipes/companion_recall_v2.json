@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "assetId": "companion_recall_v2",
+  "seed": 26110123,
+  "sampleRate": 48000,
+  "duration": 0.49,
+  "peakDb": -14,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:utility.recall"
+    ],
+    "role": "utility",
+    "description": "Rounded air-fold fwip and tiny friendly settling note.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Companion recall"
+  },
+  "layers": [
+    {
+      "preset": "air",
+      "name": "01_air_fold",
+      "lowHz": 200,
+      "highHz": 2700,
+      "lowHzEnd": 150,
+      "highHzEnd": 900,
+      "gain": 0.19,
+      "lengthSeconds": 0.26
+    },
+    {
+      "preset": "body",
+      "name": "02_fold_body",
+      "frequency": 180,
+      "frequencyPoints": [
+        [
+          0,
+          150
+        ],
+        [
+          0.45,
+          330
+        ],
+        [
+          1,
+          105
+        ]
+      ],
+      "gain": 0.13,
+      "lengthSeconds": 0.22
+    },
+    {
+      "preset": "ceramic",
+      "name": "03_friendly_settle",
+      "frequency": 660,
+      "gain": 0.1,
+      "startSeconds": 0.19,
+      "lengthSeconds": 0.3
+    }
+  ]
+}

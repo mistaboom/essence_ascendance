@@ -229,7 +229,10 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 activeLink = link.target();
                 for (int i = 0; i < focusTargets.size(); i++)
                     if (focusTargets.get(i).block() == link.block() && link.target().equals(focusTargets.get(i).target())) focusIndex = i;
-                if (button == 0) navigate.accept(link.target());
+                if (button == 0) {
+                    com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"link/"+link.target());
+                    navigate.accept(link.target());
+                }
                 return true;
             }
         }
@@ -262,6 +265,7 @@ public final class ContentViewport implements FullscreenComposition.Input {
 
     @Override public boolean key(int key, int scan, int modifiers) {
         if (focused && activeLink != null && (key == 257 || key == 335 || key == 32)) {
+            com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"link/"+activeLink);
             navigate.accept(activeLink);
             return true;
         }

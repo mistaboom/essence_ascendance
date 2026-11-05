@@ -181,7 +181,15 @@ public final class EssenceCommandTest {
                 Set.of("tier", "attunement", "essence", "bonuses", "skills", "milestones", "crucible", "guide", "reset"));
         literalChildren(dispatcher, List.of("essence", "debug", "player"),
                 Set.of("summary", "attunement", "skills", "milestones", "equipment", "gameplay"));
-        literalChildren(dispatcher, List.of("essence", "debug"), Set.of("player", "item", "machine", "balance", "mappings"));
+        literalChildren(dispatcher, List.of("essence", "debug"), Set.of("player", "item", "machine", "balance", "mappings", "audio"));
+        for (String audio : List.of("", " help", " play weapon.cast.release", " play \"essence_ascendance:weapon.cast.release\"")) {
+            valid(dispatcher, "essence debug audio" + audio, operator);
+            invalid(dispatcher, "essence debug audio" + audio, player);
+            invalid(dispatcher, "essence debug audio" + audio, source(EssenceCommandUtil.ADMIN_PERMISSION - 1));
+        }
+        invalid(dispatcher, "essence debug audio interface.acknowledge", operator);
+        invalid(dispatcher, "essence debug audio play", operator);
+        literalChildren(dispatcher, List.of("essence", "debug", "audio"), Set.of("play"));
         literalChildren(dispatcher, List.of("essence", "debug", "item"), Set.of("inspect", "mapping", "baselines"));
         literalChildren(dispatcher, List.of("essence", "debug", "machine"), Set.of("crucible", "pylon", "infuser"));
         literalChildren(dispatcher, List.of("essence", "debug", "balance"), Set.of("summary", "validate", "item", "bonus", "skill", "cost", "salvage"));
@@ -191,6 +199,7 @@ public final class EssenceCommandTest {
         literalChildren(dispatcher, List.of("essence", "admin", "mappings"), Set.of("reload"));
         literalChildren(dispatcher, List.of("essence", "debug", "mappings"), Set.of("status", "list"));
         namespaceSuggestions();
+        audioCommands(dispatcher, operator);
         // Raw Brigadier completion does not filter requirements; Minecraft filters the sent tree.
         var allowedUsage = dispatcher.getSmartUsage(dispatcher.getRoot().getChild("essence"), player);
         check(allowedUsage.keySet().stream().noneMatch(node -> Set.of("admin", "debug", "test").contains(node.getName())),
@@ -206,7 +215,7 @@ public final class EssenceCommandTest {
         catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) { unknownEssence = true; }
         check(unknownEssence, "Ordinary balance salvage must retain the unknown Essence category response");
         for (String help : List.of("essence help", "essence admin", "essence admin membership", "essence admin membership help", "essence admin player", "essence admin item", "essence admin balance",
-                "essence debug", "essence debug player", "essence debug item", "essence debug machine", "essence debug player gameplay",
+                "essence debug", "essence debug audio", "essence debug audio help", "essence debug player", "essence debug item", "essence debug machine", "essence debug player gameplay",
                 "essence debug player skills", "essence debug player milestones", "essence debug balance", "essence debug mappings", "essence bonuses",
                 "essence debug player attunement", "essence admin player attunement", "essence admin player attunement set", "essence admin player attunement fill",
                 "essence admin player attunement reset", "essence attunement help", "essence test", "essence test skills")) {
@@ -216,6 +225,198 @@ public final class EssenceCommandTest {
             check(!recorded.messages.isEmpty(), "Help emitted no readable output: " + help);
             for (Component message : recorded.messages) verifyHelpLinks(dispatcher, message, operator);
         }
+    }
+
+    private static void audioCommands(CommandDispatcher<CommandSourceStack> server, CommandSourceStack operator) throws Exception {
+        var client = clientAudioDispatcher();
+        var output = new ArrayList<Component>();
+        var local = clientAudioSource(output);
+        check(client.getRoot().getChildren().size() == 1 && client.getRoot().getChild("ea_audio") == null,
+                "Audio client commands must use only the established essence root");
+        var clientRoot = client.getRoot().getChild("essence");
+        check(clientRoot.getCommand() == null && clientRoot.getChildren().size() == 2
+                        && clientRoot.getChild("audio") != null && clientRoot.getChild("server_command") != null,
+                "Local audio registration owns one exact branch plus one shared server fallback");
+        for (String input : List.of("essence", "essence help", "essence team status", "essence debug audio help", "essence admin")) {
+            try { client.execute(input, local); throw new AssertionError("Client consumed server command: " + input); }
+            catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) {
+                check(expected.getType() == com.mojang.brigadier.exceptions.CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
+                                && expected.getType() != com.mojang.brigadier.exceptions.CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument(),
+                        "Server fallback must use UnknownCommand; Fabric consumes UnknownArgument: " + input);
+            }
+        }
+        check(clientRoot.getChild("audio").getChildren().stream().map(com.mojang.brigadier.tree.CommandNode::getName)
+                        .collect(Collectors.toSet()).equals(Set.of("help", "audition", "start", "stop")),
+                "Local audio commands must retain previews without the removed settings menu");
+        for (String input : List.of("essence audio invalid", "essence audio settings", "essence audio stop surplus")) {
+            try { client.execute(input, local); throw new AssertionError("Invalid local audio syntax succeeded"); }
+            catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) {
+                check(expected.getType() != com.mojang.brigadier.exceptions.CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand(),
+                        "Exact local audio branch must retain its own syntax errors instead of using the server fallback");
+            }
+        }
+        for (String help : List.of("essence audio", "essence audio help")) {
+            output.clear(); check(client.execute(help, local) == 1, "Local audio help must execute without a world");
+            check(output.size() >= 6, "Local audio help must identify previews and client-only scope");
+            for (var message : output) verifyHelpLinks(server, message, operator);
+        }
+        for (String input : List.of("essence audio audition interface.acknowledge",
+                "essence audio audition \"essence_ascendance:interface.acknowledge\"", "essence audio start mobility.thrust",
+                "essence audio start \"essence_ascendance:mobility.thrust\"", "essence audio stop")) {
+            var parse = client.parse(input, local);
+            check(!parse.getReader().canRead() && parse.getContext().getCommand() != null, "Missing local action: " + input);
+        }
+        for (String input : List.of("essence audio audition missing.cue", "essence audio start missing.profile")) {
+            output.clear();
+            try { client.execute(input, local); throw new AssertionError("Unknown audio ID succeeded: " + input); }
+            catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) {
+                check(expected.getRawMessage() instanceof Component message
+                                && message.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents translated
+                                && translated.getKey().startsWith("command.essence_ascendance.audio.error.unknown"),
+                        "Unknown audio IDs must report the localized domain error before any playback");
+            }
+            check(output.isEmpty(), "Invalid audio command must not emit a success response");
+        }
+        for (String input : List.of("essence debug audio play missing.cue", "essence debug audio play ui.press")) {
+            try { server.execute(input, operator); throw new AssertionError("Unsupported server audio request succeeded: " + input); }
+            catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) {
+                check(expected.getRawMessage() instanceof Component message
+                                && message.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents translated
+                                && translated.getKey().startsWith("command.essence_ascendance.audio.error."),
+                        "Server audio must reject unknown/local-only cues clearly, before requiring a player or dispatching");
+            }
+        }
+        check(AudioCommands.semantic("interface.acknowledge").equals(AudioCommands.semantic("essence_ascendance:interface.acknowledge")),
+                "Audio cue IDs must use the same default namespace convention as other Essence arguments");
+        check(AudioCommands.profile("mobility.thrust").equals(AudioCommands.profile("essence_ascendance:mobility.thrust")),
+                "Continuous profile IDs must accept short and qualified forms");
+        for (boolean profiles : List.of(false, true)) {
+            var suggestions = (profiles ? AudioCommands.suggestProfiles(new SuggestionsBuilder("\"essence_ascendance:mobility.", 0))
+                    : AudioCommands.suggestSemantics(new SuggestionsBuilder("\"essence_ascendance:interface.", 0))).get().getList();
+            check(!suggestions.isEmpty(), "Audio qualified suggestions must filter a matching prefix");
+            for (var suggestion : suggestions) {
+                var reader = new StringReader(suggestion.getText());
+                String value = StringArgumentType.string().parse(reader);
+                check(!reader.canRead() && value.startsWith("essence_ascendance:"), "Audio suggestions must quote qualified IDs");
+                if (profiles) AudioCommands.profile(value); else AudioCommands.semantic(value);
+            }
+        }
+        check(AudioCommands.suggestSemantics(new SuggestionsBuilder("not_a_known_prefix", 0)).get().isEmpty(),
+                "Audio completion must not dump unrelated catalog IDs");
+        check(server.getCompletionSuggestions(server.parse("essence debug audio play ui.", operator)).get().isEmpty(),
+                "Server playback suggestions exclude client-only cues");
+        check(!client.getCompletionSuggestions(client.parse("essence audio audition ui.", local)).get().isEmpty(),
+                "Local audition still suggests client-only cues");
+        for (String semantic : List.of("riposte_release", "essence_ascendance:stored_force")) {
+            try { AudioCommands.semantic(semantic); throw new AssertionError("Context-only alias resolved without gameplay context"); }
+            catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) {
+                check(expected.getRawMessage() instanceof Component message
+                                && message.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents translated
+                                && translated.getKey().equals("command.essence_ascendance.audio.error.context_cue"),
+                        "Known contextual aliases must not be misreported as unknown cues");
+            }
+        }
+        check(AudioCommands.suggestSemantics(new SuggestionsBuilder("\"essence_ascendance:stored_force", 0)).get().isEmpty(),
+                "Preview suggestions exclude aliases that need unprovided gameplay context");
+        try {
+            verifyHelpLinks(server, EssenceCommandUtil.command("/essence retired_audio_command", Component.literal("invalid")), operator);
+            throw new AssertionError("Server fallback made an unregistered help link appear valid");
+        } catch (AssertionError expected) {
+            check(expected.getMessage().startsWith("Help suggests an unregistered or retired command prefix:"),
+                    "Help validation must reject the fallback-only path");
+        }
+        audioCompletionTree();
+    }
+
+    private static void audioCompletionTree() throws Exception {
+        // A server-owned root already exists when the client receives its completion tree.
+        // Object deliberately differs from the local execution source: completion must not execute audio actions.
+        var dispatcher = new CommandDispatcher<Object>();
+        var source = new Object();
+        var serverRoot = dispatcher.register(com.mojang.brigadier.builder.LiteralArgumentBuilder.<Object>literal("essence")
+                .executes(context -> 11)
+                .then(com.mojang.brigadier.builder.LiteralArgumentBuilder.<Object>literal("help").executes(context -> 12))
+                .then(com.mojang.brigadier.builder.LiteralArgumentBuilder.<Object>literal("team").executes(context -> 13))
+                .then(com.mojang.brigadier.builder.LiteralArgumentBuilder.<Object>literal("debug").executes(context -> 14)));
+        var originalNodes = Map.of("", serverRoot, "help", serverRoot.getChild("help"),
+                "team", serverRoot.getChild("team"), "debug", serverRoot.getChild("debug"));
+        var originalHandlers = originalNodes.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
+                entry -> entry.getValue().getCommand()));
+        var serverResults = Map.of("", 11, "help", 12, "team", 13, "debug", 14);
+        com.mojang.brigadier.tree.CommandNode<Object> firstAudio = null;
+        List<String> firstUsage = null;
+        for (int installation = 0; installation < 2; installation++) {
+            com.mistaboom.essence_ascendance.client.audio.AudioDevelopment.installCompletions(dispatcher);
+            check(dispatcher.getRoot().getChild("essence") == serverRoot,
+                    "Audio completion replaced the server-owned essence root");
+            for (var entry : originalNodes.entrySet()) {
+                var node = entry.getKey().isEmpty() ? serverRoot : serverRoot.getChild(entry.getKey());
+                check(node == entry.getValue() && node.getCommand() == originalHandlers.get(entry.getKey()),
+                        "Audio completion replaced an existing server handler: " + entry.getKey());
+                check(dispatcher.execute("essence" + (entry.getKey().isEmpty() ? "" : " " + entry.getKey()), source)
+                                == serverResults.get(entry.getKey()),
+                        "Audio completion consumed an existing server command: " + entry.getKey());
+            }
+            check(serverRoot.getChildren().stream().map(com.mojang.brigadier.tree.CommandNode::getName)
+                            .collect(Collectors.toSet()).equals(Set.of("help", "team", "debug", "audio")),
+                    "Completion must add only audio, without the local execution server_command fallback");
+            check(dispatcher.getRoot().getChildren().size() == 1 && dispatcher.getRoot().getChild("ea_audio") == null,
+                    "Audio completion reintroduced a retired top-level alias");
+            var audio = serverRoot.getChild("audio");
+            check(audio != null && audio.getCommand() != null && audio.getChildren().stream()
+                            .map(com.mojang.brigadier.tree.CommandNode::getName).collect(Collectors.toSet())
+                            .equals(Set.of("help", "audition", "start", "stop")),
+                    "Audio completion populated a detached copy instead of the active server tree");
+            for (String input : List.of("essence audio", "essence audio help",
+                    "essence audio audition interface.acknowledge", "essence audio start mobility.thrust", "essence audio stop")) {
+                var parsed = dispatcher.parse(input, source);
+                check(!parsed.getReader().canRead() && parsed.getContext().getCommand() != null,
+                        "Merged completion tree lost a complete local action: " + input);
+            }
+            for (var entry : Map.of("essence a", Set.of("audio"),
+                    "essence audio ", Set.of("help", "audition", "start", "stop"),
+                    "essence audio aud", Set.of("audition")).entrySet()) {
+                var suggestions = dispatcher.getCompletionSuggestions(dispatcher.parse(entry.getKey(), source)).get().getList()
+                        .stream().map(com.mojang.brigadier.suggestion.Suggestion::getText).collect(Collectors.toSet());
+                check(suggestions.equals(entry.getValue()), "Merged audio action suggestions are incomplete: " + entry.getKey());
+            }
+            for (var entry : Map.of("essence audio audition interface.", "interface.acknowledge",
+                    "essence audio start mobility.", "mobility.thrust").entrySet()) {
+                var suggestions = dispatcher.getCompletionSuggestions(dispatcher.parse(entry.getKey(), source)).get().getList()
+                        .stream().map(com.mojang.brigadier.suggestion.Suggestion::getText).collect(Collectors.toSet());
+                check(suggestions.contains(entry.getValue()), "Merged audio tree lost catalog suggestions: " + entry.getKey());
+                String prefix = entry.getKey().substring(entry.getKey().lastIndexOf(' ') + 1);
+                check(suggestions.stream().allMatch(value -> value.startsWith(prefix)),
+                        "Merged audio catalog suggestions ignored the typed prefix: " + entry.getKey());
+            }
+            List<String> usage = java.util.Arrays.stream(dispatcher.getAllUsage(serverRoot, source, false)).sorted().toList();
+            if (installation == 0) {
+                firstAudio = audio;
+                firstUsage = usage;
+            } else {
+                check(audio == firstAudio && usage.equals(firstUsage),
+                        "Repeated completion installation duplicated or changed the registered audio branch");
+            }
+        }
+    }
+
+    private static com.mojang.brigadier.CommandDispatcher<dev.architectury.event.events.client.ClientCommandRegistrationEvent.ClientCommandSourceStack> clientAudioDispatcher() {
+        var dispatcher = new com.mojang.brigadier.CommandDispatcher<dev.architectury.event.events.client.ClientCommandRegistrationEvent.ClientCommandSourceStack>();
+        com.mistaboom.essence_ascendance.client.audio.AudioDevelopment.register(dispatcher);
+        return dispatcher;
+    }
+
+    private static dev.architectury.event.events.client.ClientCommandRegistrationEvent.ClientCommandSourceStack clientAudioSource(List<Component> output) {
+        return (dev.architectury.event.events.client.ClientCommandRegistrationEvent.ClientCommandSourceStack) java.lang.reflect.Proxy.newProxyInstance(
+                EssenceCommandTest.class.getClassLoader(), new Class<?>[]{dev.architectury.event.events.client.ClientCommandRegistrationEvent.ClientCommandSourceStack.class},
+                (proxy, method, arguments) -> {
+                    if (method.getName().equals("arch$sendSuccess")) {
+                        check(Boolean.FALSE.equals(arguments[1]), "Local command feedback must never broadcast");
+                        output.add((Component) ((java.util.function.Supplier<?>) arguments[0]).get());
+                        return null;
+                    }
+                    throw new AssertionError("Local help/validation unexpectedly needs native client state: " + method.getName());
+                });
     }
 
     private static void namespaceSuggestions() throws Exception {
@@ -255,7 +456,10 @@ public final class EssenceCommandTest {
             check(input.startsWith("/essence"), "Help suggests a command outside the Essence domain: " + input);
             check(!input.contains("<") && !input.contains("[") && !input.contains("|"), "Help pasted argument notation: " + input);
             var parsed = dispatcher.parse(input.substring(1), source);
-            check(!parsed.getReader().canRead() && !parsed.getContext().getNodes().isEmpty(),
+            var clientParsed = clientAudioDispatcher().parse(input.substring(1), clientAudioSource(new ArrayList<>()));
+            check((!parsed.getReader().canRead() && !parsed.getContext().getNodes().isEmpty())
+                            || (!clientParsed.getReader().canRead() && !clientParsed.getContext().getNodes().isEmpty()
+                                && clientParsed.getContext().getNodes().stream().noneMatch(node -> node.getNode().getName().equals("server_command"))),
                     "Help suggests an unregistered or retired command prefix: " + input);
         }
         component.getSiblings().forEach(child -> verifyHelpLinks(dispatcher, child, source));

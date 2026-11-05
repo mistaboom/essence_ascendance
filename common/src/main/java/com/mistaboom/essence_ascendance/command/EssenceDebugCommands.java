@@ -109,6 +109,7 @@ final class EssenceDebugCommands {
                 .requires(source -> EssenceCommandUtil.hasAdminPermission(source))
                 .executes(context -> showHelp(context.getSource()))
                 .then(Commands.literal("help").executes(context -> showHelp(context.getSource())))
+                .then(AudioCommands.build())
                 .then(playerBranch())
                 .then(Commands.literal("item")
                         .executes(context -> showItemHelp(context.getSource()))
@@ -190,6 +191,7 @@ final class EssenceDebugCommands {
         help(source, "machine", "machine_group");
         help(source, "balance", "balance");
         help(source, "mappings", "mappings");
+        help(source, "audio", "audio");
         return 1;
     }
 

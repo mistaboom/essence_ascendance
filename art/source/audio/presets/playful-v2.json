@@ -1,0 +1,324 @@
+{
+  "schema": 1,
+  "presets": {
+    "wood": {
+      "type": "modal",
+      "frequency": 260,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.028
+        },
+        {
+          "ratio": 2.17,
+          "gain": 0.35,
+          "decaySeconds": 0.017
+        },
+        {
+          "ratio": 3.93,
+          "gain": 0.13,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.32,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "metal": {
+      "type": "modal",
+      "frequency": 430,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.19
+        },
+        {
+          "ratio": 1.47,
+          "gain": 0.44,
+          "decaySeconds": 0.13
+        },
+        {
+          "ratio": 2.09,
+          "gain": 0.21,
+          "decaySeconds": 0.085
+        },
+        {
+          "ratio": 3.13,
+          "gain": 0.08,
+          "decaySeconds": 0.055
+        }
+      ],
+      "gain": 0.24,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "glass": {
+      "type": "modal",
+      "frequency": 700,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.35
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.13,
+          "decaySeconds": 0.16
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.035,
+          "decaySeconds": 0.07
+        }
+      ],
+      "gain": 0.16,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "ceramic": {
+      "type": "modal",
+      "frequency": 420,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.13
+        },
+        {
+          "ratio": 2.43,
+          "gain": 0.19,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 3.91,
+          "gain": 0.07,
+          "decaySeconds": 0.04
+        }
+      ],
+      "gain": 0.23,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "soft_chirp": {
+      "type": "tone",
+      "frequency": 600,
+      "harmonics": [
+        1,
+        0.09,
+        0.015
+      ],
+      "gain": 0.17,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.07,
+          0.7
+        ],
+        [
+          0.16,
+          1
+        ],
+        [
+          0.62,
+          0.6
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "air": {
+      "type": "noise",
+      "lowHz": 250,
+      "highHz": 4200,
+      "spectralTiltDbOct": -3,
+      "gain": 0.17,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "tap": {
+      "type": "noise",
+      "lowHz": 1200,
+      "highHz": 5500,
+      "spectralTiltDbOct": -2,
+      "gain": 0.08,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "body": {
+      "type": "tone",
+      "frequency": 90,
+      "harmonics": [
+        1,
+        0.3,
+        0.07
+      ],
+      "gain": 0.18,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.4,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    "twinkle": {
+      "type": "modal",
+      "frequency": 1500,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.15
+        },
+        {
+          "ratio": 2,
+          "gain": 0.09,
+          "decaySeconds": 0.09
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.035,
+          "decaySeconds": 0.04
+        }
+      ],
+      "gain": 0.035,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          1
+        ],
+        [
+          0.7,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    }
+  }
+}

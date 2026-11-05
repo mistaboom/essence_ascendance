@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "assetId": "ui_key_clack_v3",
+  "revision": "r0001",
+  "masterSha256": "0686a8c72363f3853f3ff5e900de079599d41a32d26f4eff27b4c65bb956a1dc",
+  "approvedSha256": "c4842dc03114c9699672c93bbc2f3a09d95689cb24e512e5677cea4066628e31",
+  "recipeSha256": "2203af117ff3101f066171fe4fe373cf6e633128cc4b4d1a4ebb48fda6a9085f",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.09233333333333334,
+    "samplePeakDb": -9.419470572013529,
+    "rmsDb": -28.262385372466984,
+    "truePeakDb": -9.4,
+    "integratedLufs": -34.55,
+    "decodedFrames": 4432,
+    "loudnessMethod": "zero_padded_to_400ms"
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "ac0662eaa61dad94930edd945386b0fde3fd0524e0517f5210aff48d8b118519",
+  "backupSha256": "ac0662eaa61dad94930edd945386b0fde3fd0524e0517f5210aff48d8b118519",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/interface/ui_key_clack_v3/r0001/ui_key_clack_v3.aup3",
+    "backup": "backups/interface/ui_key_clack_v3/r0001/ui_key_clack_v3.aup3",
+    "master": "masters/interface/ui_key_clack_v3/r0001/master.wav",
+    "export": "exports/interface/ui_key_clack_v3/r0001/ui_key_clack_v3.ogg",
+    "recipe": "masters/interface/ui_key_clack_v3/r0001/recipe.json",
+    "authoringInputs": "masters/interface/ui_key_clack_v3/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "219f0ebbd181bd1efc417a6286c589d2db4491c212dee471dd48900799f4a4c5",
+    "stems": [
+      {
+        "path": "masters/interface/ui_key_clack_v3/r0001/01_keycap_downstroke.wav",
+        "sha256": "45a79a50eebe209eefcd79cb3928fe288d4e883ac859e21e72b1657398943c75"
+      },
+      {
+        "path": "masters/interface/ui_key_clack_v3/r0001/02_switch_click.wav",
+        "sha256": "aa8a126bab5078cbcb5212e940e40b9347c5aa3d6b89ec5a2798e9caf9f52b85"
+      },
+      {
+        "path": "masters/interface/ui_key_clack_v3/r0001/03_bottom_out.wav",
+        "sha256": "d9e61530a2470877e8f91f88028ac492e4488846eeecc233ab47c4a75fa28172"
+      },
+      {
+        "path": "masters/interface/ui_key_clack_v3/r0001/04_key_return.wav",
+        "sha256": "c0bf3c4490dea0017792880e3ecae6c98b23a28e6970e8dab15e8b503fc948ca"
+      },
+      {
+        "path": "masters/interface/ui_key_clack_v3/r0001/05_return_click.wav",
+        "sha256": "9f686d65faff1efcb57eae95353117aff78e52aa5c025123fc624072b4e3d0c6"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "menu clacks are perfect."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "c4842dc03114c9699672c93bbc2f3a09d95689cb24e512e5677cea4066628e31"
+  }
+}

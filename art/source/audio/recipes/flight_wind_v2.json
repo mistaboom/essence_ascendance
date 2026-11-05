@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "assetId": "flight_wind_v2",
+  "seed": 26110122,
+  "sampleRate": 48000,
+  "duration": 8,
+  "peakDb": -22,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:mobility.thrust.body"
+    ],
+    "role": "mobility",
+    "description": "Soft moving air for powered thrust; low hiss, no musical drone.",
+    "levelIntent": "quiet continuous air",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Powered flight wind"
+  },
+  "layers": [
+    {
+      "preset": "air",
+      "name": "01_wind_body",
+      "lowHz": 100,
+      "highHz": 800,
+      "spectralTiltDbOct": -3,
+      "gain": 0.18,
+      "envelope": [
+        [
+          0,
+          0.8
+        ],
+        [
+          0.2,
+          1
+        ],
+        [
+          0.45,
+          0.72
+        ],
+        [
+          0.72,
+          0.9
+        ],
+        [
+          1,
+          0.8
+        ]
+      ],
+      "am": {
+        "rate": 0.125,
+        "depth": 0.14
+      }
+    },
+    {
+      "preset": "air",
+      "name": "02_wind_detail",
+      "lowHz": 800,
+      "highHz": 2600,
+      "spectralTiltDbOct": -6,
+      "gain": 0.07,
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.28,
+          0.9
+        ],
+        [
+          0.62,
+          1
+        ],
+        [
+          0.83,
+          0.75
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "am": {
+        "rate": 0.25,
+        "depth": 0.18
+      }
+    }
+  ],
+  "loop": {
+    "mode": "periodic"
+  }
+}

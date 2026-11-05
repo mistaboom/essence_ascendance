@@ -2,7 +2,7 @@
 
 [Commands index](https://github.com/mistaboom/essence_ascendance/wiki/Commands) · [The Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive)
 
-**Permission: no operator requirement for every entry on this page.** “Server” supports players and console; “Player” requires the sender to be a player. None accepts a trailing player target.
+**Permission: no operator requirement for every entry on this page.** “Server” supports players and console; “Player” requires the sender to be a player; “Client” runs only on your device. None accepts a trailing player target.
 
 Use the Archive for gameplay explanations and resolved values. These commands provide chat summaries and a normal Bonus investment/Ascension path.
 
@@ -17,6 +17,36 @@ No arguments or gameplay prerequisites; each prints the relevant menu and change
 | `/essence bonuses` | Server | `/essence bonuses` |
 | `/essence bonuses help` | Server | `/essence bonuses help` |
 | `/essence attunement help` | Server | `/essence attunement help` |
+| `/essence audio` | Client | `/essence audio` |
+| `/essence audio help` | Client | `/essence audio help` |
+
+## Local audio
+
+These commands require no operator permission, work on your client only and accept
+no player target. Other players hear no preview, and no gameplay action, purchase
+or progression change occurs. The server console cannot use them.
+
+| Exact syntax | Source | Result | Valid example |
+| --- | --- | --- | --- |
+| `/essence audio` | Client | Show audio help with clickable command suggestions | `/essence audio` |
+| `/essence audio help` | Client | Show the same audio help | `/essence audio help` |
+| `/essence audio audition <semantic>` | Client | Request one directly playable cue locally | `/essence audio audition weapon.cast.release` |
+| `/essence audio start <profile>` | Client | Start a continuous local preview for up to 10 seconds; repeat to extend | `/essence audio start mobility.thrust` |
+| `/essence audio stop` | Client | Stop the continuous local preview | `/essence audio stop` |
+
+Use Tab completion to select a cue or continuous profile. Short names default to
+`essence_ascendance:`; quote full IDs, for example
+`/essence audio audition "essence_ascendance:weapon.cast.release"`. Completion filters
+by the text you have typed and quotes qualified IDs. Unknown names fail before
+playback. Gameplay-dependent names such as `riposte_release` and `stored_force`
+need their actual gameplay context; use a directly playable cue from completion.
+
+Repeating the same `start` profile extends the existing preview without restarting
+its body. Choosing a different profile releases the old one. Playback follows your
+Minecraft volume and subtitle settings. For a loop longer than one preview lease,
+repeat the same command before 10 seconds and use `stop` when finished.
+
+These previews let pack makers test local playback without triggering gameplay.
 
 ## Status and wallet
 

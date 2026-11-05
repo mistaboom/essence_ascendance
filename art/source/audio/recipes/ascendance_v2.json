@@ -1,0 +1,372 @@
+{
+  "schema": 1,
+  "assetId": "ascendance_v2",
+  "seed": 26110105,
+  "sampleRate": 48000,
+  "duration": 2.6,
+  "peakDb": -6,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:progression.ascend"
+    ],
+    "role": "progression",
+    "description": "Original rising reveal and triumphant open resolution with sparse related twinkles.",
+    "levelIntent": "ceremony prominent but brief",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Ascendance ceremony"
+  },
+  "layers": [
+    {
+      "preset": "glass",
+      "name": "01_reveal_note",
+      "frequency": 293.665,
+      "gain": 0.17,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 2,
+          "gain": 0.14,
+          "decaySeconds": 0.28
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.045,
+          "decaySeconds": 0.15
+        }
+      ],
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.72,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "lengthSeconds": 0.65
+    },
+    {
+      "preset": "glass",
+      "name": "02_reveal_note",
+      "frequency": 440,
+      "gain": 0.13,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 2,
+          "gain": 0.14,
+          "decaySeconds": 0.28
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.045,
+          "decaySeconds": 0.15
+        }
+      ],
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.72,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "startSeconds": 0.14,
+      "lengthSeconds": 0.7
+    },
+    {
+      "preset": "glass",
+      "name": "03_reveal_note",
+      "frequency": 659.255,
+      "gain": 0.13,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 2,
+          "gain": 0.14,
+          "decaySeconds": 0.28
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.045,
+          "decaySeconds": 0.15
+        }
+      ],
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.72,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "startSeconds": 0.32,
+      "lengthSeconds": 0.8
+    },
+    {
+      "preset": "glass",
+      "name": "04_reveal_note",
+      "frequency": 739.989,
+      "gain": 0.14,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 2,
+          "gain": 0.14,
+          "decaySeconds": 0.28
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.045,
+          "decaySeconds": 0.15
+        }
+      ],
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.72,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "startSeconds": 0.55,
+      "lengthSeconds": 0.9
+    },
+    {
+      "preset": "glass",
+      "name": "05_reveal_note",
+      "frequency": 587.33,
+      "gain": 0.19,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 2,
+          "gain": 0.14,
+          "decaySeconds": 0.28
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.045,
+          "decaySeconds": 0.15
+        }
+      ],
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.72,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "startSeconds": 0.87,
+      "lengthSeconds": 1.2
+    },
+    {
+      "preset": "glass",
+      "name": "06_reveal_note",
+      "frequency": 880,
+      "gain": 0.11,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 2,
+          "gain": 0.14,
+          "decaySeconds": 0.28
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.045,
+          "decaySeconds": 0.15
+        }
+      ],
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.72,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "startSeconds": 1.02,
+      "lengthSeconds": 1.25
+    },
+    {
+      "preset": "glass",
+      "name": "07_reveal_note",
+      "frequency": 1174.66,
+      "gain": 0.075,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 2,
+          "gain": 0.14,
+          "decaySeconds": 0.28
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.045,
+          "decaySeconds": 0.15
+        }
+      ],
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.72,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "startSeconds": 1.15,
+      "lengthSeconds": 1.25
+    },
+    {
+      "preset": "air",
+      "name": "08_reveal_breath",
+      "lowHz": 200,
+      "highHz": 2000,
+      "highHzEnd": 4500,
+      "gain": 0.055,
+      "startSeconds": 0.4,
+      "lengthSeconds": 1.25
+    },
+    {
+      "preset": "body",
+      "name": "09_warm_resolution",
+      "frequency": 146.832,
+      "gain": 0.13,
+      "startSeconds": 0.85,
+      "lengthSeconds": 1.3
+    },
+    {
+      "preset": "twinkle",
+      "name": "10_twinkle",
+      "frequency": 1760,
+      "gain": 0.028,
+      "startSeconds": 1.35,
+      "lengthSeconds": 0.45
+    },
+    {
+      "preset": "twinkle",
+      "name": "11_twinkle",
+      "frequency": 2349.32,
+      "gain": 0.028,
+      "startSeconds": 1.55,
+      "lengthSeconds": 0.45
+    },
+    {
+      "preset": "twinkle",
+      "name": "12_twinkle",
+      "frequency": 2217.46,
+      "gain": 0.028,
+      "startSeconds": 1.82,
+      "lengthSeconds": 0.45
+    },
+    {
+      "preset": "twinkle",
+      "name": "13_twinkle",
+      "frequency": 1760,
+      "gain": 0.028,
+      "startSeconds": 2.05,
+      "lengthSeconds": 0.45
+    }
+  ]
+}

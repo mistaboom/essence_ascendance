@@ -28,6 +28,7 @@ def assetPipelineSources = files(
         rootProject.file('tools/AscendanceArmorGenerator.java'),
         rootProject.file('tools/EssenceBlockTextureGenerator.java'),
         rootProject.file('tools/MaskedTextureWriter.java'), assetSupportSources)
+assetPipelineSources = files(assetPipelineSources, rootProject.file('tools/audio/AudioAssets.java'))
 
 tasks.register('compileAssetPipeline', JavaCompile) {
     dependsOn tasks.named('stonecutterGenerate')
@@ -45,7 +46,9 @@ def generateAssets = tasks.register('generateAssets', JavaExec) {
     dependsOn tasks.named('compileAssetPipeline')
     classpath = files(assetPipelineClasses) + configurations.compileClasspath
     mainClass = 'AssetPipeline'
-    inputs.files(fileTree(artDirectory) { include 'asset-manifest.json', 'source/models/**/*.bbmodel' })
+    inputs.files(fileTree(artDirectory) { include 'asset-manifest.json', 'source/models/**/*.bbmodel', 'audio-*.json', 'source/audio/**' })
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(rootProject.file('common/src/main/resources/assets/essence_ascendance/lang/en_us.json'))
             .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.files(assetPipelineSources).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(targetProfiles)
@@ -84,6 +87,20 @@ def assetOwnershipInvariants = tasks.register('assetOwnershipInvariants') {
         def generatedRoot = generatedAssetResources.get().asFile.canonicalFile
         def authoredRoots = sourceSets.main.resources.srcDirs.findAll { it.canonicalFile != generatedRoot }
         def collisions = []
+        def unownedAudio = []
+        // This catalog owns the entire EA sound namespace, including files that do
+        // not collide with a generated name. Otherwise an orphan checked-in OGG
+        // could silently become an expected packaged resource.
+        authoredRoots.each { sourceRoot ->
+            fileTree(sourceRoot).matching {
+                include 'assets/essence_ascendance/sounds/**',
+                        'assets/essence_ascendance/sounds.json',
+                        'assets/essence_ascendance/audio/**'
+            }.visit { entry -> if (!entry.directory) unownedAudio.add(entry.relativePath.pathString) }
+        }
+        if (!unownedAudio.empty)
+            throw new GradleException('Audio runtime resources must come only from the shared catalog importer:\n'
+                    + unownedAudio.unique().sort().join('\n'))
         fileTree(generatedRoot).visit { entry ->
             if (!entry.directory) {
                 def relative = entry.relativePath.pathString
@@ -120,11 +137,22 @@ tasks.named('check') {
 def assetPipelineTestClasses = layout.buildDirectory.dir('asset-pipeline/test-classes')
 tasks.register('compileAssetPipelineTests', JavaCompile) {
     dependsOn tasks.named('compileAssetPipeline')
-    source = rootProject.files('tools/AssetPipelineTest.java')
+    source = rootProject.files('tools/AssetPipelineTest.java', 'tools/audio/AudioAssetsTest.java')
     destinationDirectory = assetPipelineTestClasses
     classpath = files(assetPipelineClasses) + configurations.compileClasspath
     options.release = 21
 }
+
+tasks.register('audioAssetInvariants', JavaExec) {
+    group = 'verification'
+    description = 'Checks audio approval/provenance, content framing, deterministic import and failed-import isolation without authoring dependencies.'
+    dependsOn tasks.named('compileAssetPipelineTests')
+    classpath = files(assetPipelineTestClasses, assetPipelineClasses) + configurations.compileClasspath
+    mainClass = 'AudioAssetsTest'
+    args(layout.buildDirectory.dir('audio-asset-tests').get().asFile.absolutePath,
+            rootProject.file('tools/audio/fixtures').absolutePath)
+}
+tasks.named('check') { dependsOn 'audioAssetInvariants' }
 tasks.register('assetPipelineInvariants', JavaExec) {
     group = 'verification'
     description = 'Checks source edits, deterministic exports, stitched shield geometry/materials and failed-import isolation.'

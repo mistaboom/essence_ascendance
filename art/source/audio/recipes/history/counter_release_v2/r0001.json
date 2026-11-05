@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "assetId": "counter_release_v2",
+  "seed": 26110117,
+  "sampleRate": 48000,
+  "duration": 0.43,
+  "peakDb": -10,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:combat.guard.release"
+    ],
+    "role": "guard",
+    "description": "Compact sword shing with short metal sheen and force beneath.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Counterattack release"
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 1100,
+      "highHz": 6500,
+      "spectralTiltDbOct": -3,
+      "gain": 0.19,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_blade_draw",
+      "lowHzEnd": 2100,
+      "highHzEnd": 4600,
+      "lengthSeconds": 0.37
+    },
+    {
+      "type": "modal",
+      "frequency": 1180,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.17
+        },
+        {
+          "ratio": 1.49,
+          "gain": 0.28,
+          "decaySeconds": 0.12
+        },
+        {
+          "ratio": 2.13,
+          "gain": 0.09,
+          "decaySeconds": 0.07
+        }
+      ],
+      "gain": 0.15,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_blade_ring",
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.4
+    },
+    {
+      "type": "tone",
+      "frequency": 130,
+      "harmonics": [
+        1,
+        0.3,
+        0.07
+      ],
+      "gain": 0.17,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.4,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_release_force",
+      "frequencyEnd": 75,
+      "lengthSeconds": 0.15
+    }
+  ]
+}

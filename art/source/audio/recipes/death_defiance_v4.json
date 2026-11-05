@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "assetId": "death_defiance_v4",
+  "seed": 26110441,
+  "sampleRate": 48000,
+  "duration": 1.4,
+  "peakDb": -6.5,
+  "presetLibrary": "source/audio/presets/revision-v4.json",
+  "design": {
+    "title": "Death defiance - protective rescue clang",
+    "description": "A bright original rescue clang expands into a weighty bronze body and a brief protective rush, then releases in a warm luminous tail.",
+    "cueIds": [
+      "essence_ascendance:vitality.rescue"
+    ],
+    "provenance": "Original deterministic harmonic, modal and filtered-noise synthesis; no third-party samples or recordings.",
+    "review": "pending user listening",
+    "role": "vitality",
+    "revisionOf": [
+      "death_defiance_v3"
+    ],
+    "replacesNativeEvents": [
+      "minecraft:item.totem.use"
+    ],
+    "gameplayTrigger": "Committed Second Wind or Spirit Walk lethal rescue. Spirit reform remains silent.",
+    "levelIntent": "Critical immediate clang plus weight and an expanding protective body, with no melody or UI bleep sequence."
+  },
+  "layers": [
+    {
+      "name": "01_bright_rescue_clang",
+      "preset": "rescue_clang",
+      "lengthSeconds": 1.14
+    },
+    {
+      "name": "02_deep_bronze_weight",
+      "preset": "rescue_bronze_body",
+      "lengthSeconds": 0.95
+    },
+    {
+      "name": "03_clang_contact",
+      "preset": "soft_contact",
+      "lowHz": 1500,
+      "highHz": 6100,
+      "spectralTiltDbOct": -1,
+      "gain": 0.16,
+      "lengthSeconds": 0.025
+    },
+    {
+      "name": "04_open_protective_bloom",
+      "preset": "protective_bloom",
+      "startSeconds": 0.026,
+      "lengthSeconds": 1.31
+    },
+    {
+      "name": "05_protective_pressure_rush",
+      "preset": "pressure_wake",
+      "lowHz": 160,
+      "highHz": 2800,
+      "highHzEnd": 850,
+      "gain": 0.25,
+      "startSeconds": 0.018,
+      "lengthSeconds": 0.64,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          0.35
+        ],
+        [
+          0.12,
+          0.86
+        ],
+        [
+          0.24,
+          1
+        ],
+        [
+          0.55,
+          0.55
+        ],
+        [
+          0.8,
+          0.13
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "06_shimmering_release",
+      "preset": "rescue_clang",
+      "frequency": 1568,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.35,
+          "phase": 0.7
+        },
+        {
+          "ratio": 2,
+          "gain": 0.17,
+          "decaySeconds": 0.22,
+          "phase": 2
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.065,
+          "decaySeconds": 0.14,
+          "phase": 4.2
+        }
+      ],
+      "gain": 0.062,
+      "startSeconds": 0.07,
+      "lengthSeconds": 1.15,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.5
+        ],
+        [
+          0.11,
+          1
+        ],
+        [
+          0.5,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "07_low_rescue_pressure",
+      "preset": "rounded_pressure",
+      "frequency": 98,
+      "harmonics": [
+        1,
+        0.42,
+        0.17
+      ],
+      "gain": 0.14,
+      "decaySeconds": 0.11,
+      "lengthSeconds": 0.36
+    }
+  ]
+}

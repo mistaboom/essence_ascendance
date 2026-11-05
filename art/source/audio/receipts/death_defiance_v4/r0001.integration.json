@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "assetId": "death_defiance_v4",
+  "revision": "r0001",
+  "masterSha256": "6c5fcc0f2ebd3cf38d009a802623e318aaa0f75ae5470b8bf67c0053dd974e19",
+  "approvedSha256": "b278b5ce9138a1d895c18aaec8c826767f796a571d25b7df08942bab56410df2",
+  "recipeSha256": "a6f5b997e960890f155a82ccb30424d0857ef4f08ffa428768afdc283e6f5b76",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 1.4,
+    "samplePeakDb": -6.358042361731597,
+    "rmsDb": -22.366538415964587,
+    "truePeakDb": -6.35,
+    "integratedLufs": -22.07,
+    "decodedFrames": 67200
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "bb5bfbc629a48d87b75654e3578f0a4e91e06bbd6011b33c16eb512c6c5d07cc",
+  "backupSha256": "bb5bfbc629a48d87b75654e3578f0a4e91e06bbd6011b33c16eb512c6c5d07cc",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/vitality/death_defiance_v4/r0001/death_defiance_v4.aup3",
+    "backup": "backups/vitality/death_defiance_v4/r0001/death_defiance_v4.aup3",
+    "master": "masters/vitality/death_defiance_v4/r0001/master.wav",
+    "export": "exports/vitality/death_defiance_v4/r0001/death_defiance_v4.ogg",
+    "recipe": "masters/vitality/death_defiance_v4/r0001/recipe.json",
+    "authoringInputs": "masters/vitality/death_defiance_v4/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "c6356324964451b97c2cce32d13973ee479bd398001a8a43f0faa2d99894af1e",
+    "stems": [
+      {
+        "path": "masters/vitality/death_defiance_v4/r0001/01_bright_rescue_clang.wav",
+        "sha256": "1178f0ba2334a54bbcd142930fb97c3a3c9880f5dcbcf14bce3e0947efa7dc2a"
+      },
+      {
+        "path": "masters/vitality/death_defiance_v4/r0001/02_deep_bronze_weight.wav",
+        "sha256": "784a610a5329a81d824c5868c43f3741d7f563c568616cb1a2f138c3655639bf"
+      },
+      {
+        "path": "masters/vitality/death_defiance_v4/r0001/03_clang_contact.wav",
+        "sha256": "0611de7425c2d5017e7b2b667e6f3ee18b7631951c27116a4b08d881468573d8"
+      },
+      {
+        "path": "masters/vitality/death_defiance_v4/r0001/04_open_protective_bloom.wav",
+        "sha256": "9074834906c4e9ded0db4c4385b56cb683124ff98d70b5f028df0f8aba600864"
+      },
+      {
+        "path": "masters/vitality/death_defiance_v4/r0001/05_protective_pressure_rush.wav",
+        "sha256": "b7be09a7bf83dc8e7983385a17a8f7b0914907b13074f33ae4ee2e82df29d6a3"
+      },
+      {
+        "path": "masters/vitality/death_defiance_v4/r0001/06_shimmering_release.wav",
+        "sha256": "c1c2e84bdb889c3c7cb9a7743f8225715f8823ee14105a0375dec85ba0bb6182"
+      },
+      {
+        "path": "masters/vitality/death_defiance_v4/r0001/07_low_rescue_pressure.wav",
+        "sha256": "7e5c8698a2b196134385b0b60601a08f6a2613d6bdddeede9a27ea279bb06733"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "the others are great."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "b278b5ce9138a1d895c18aaec8c826767f796a571d25b7df08942bab56410df2"
+  }
+}

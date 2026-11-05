@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "assetId": "adrenaline_heartbeat_v4",
+  "seed": 26110421,
+  "sampleRate": 48000,
+  "duration": 0.405,
+  "peakDb": -7.25,
+  "presetLibrary": "source/audio/presets/revision-v4.json",
+  "design": {
+    "title": "Adrenaline - full chest lub-dub",
+    "description": "One natural chest-and-valve heartbeat pair: a full, dark lub followed by a smaller, shorter dub. Low body leads, with restrained audible valve texture.",
+    "cueIds": [
+      "essence_ascendance:vitality.surge"
+    ],
+    "provenance": "Original deterministic harmonic, modal and filtered-noise synthesis; no third-party samples or recordings.",
+    "review": "pending user listening",
+    "role": "vitality",
+    "revisionOf": [
+      "adrenaline_heartbeat_v3"
+    ],
+    "beatOnsetsSeconds": [
+      0,
+      0.22
+    ],
+    "gameplayTrigger": "Adrenaline threshold activation after actual health loss; private cue.",
+    "levelIntent": "Moderately stronger full-range heartbeat presence with retained low body and restrained midrange texture; no playback-device compensation."
+  },
+  "layers": [
+    {
+      "name": "01_lub_valve_body",
+      "preset": "heart_valve_body",
+      "lengthSeconds": 0.18
+    },
+    {
+      "name": "02_lub_chest_texture",
+      "preset": "heart_chest_texture",
+      "lengthSeconds": 0.185
+    },
+    {
+      "name": "03_lub_low_weight",
+      "preset": "rounded_pressure",
+      "frequency": 68,
+      "harmonics": [
+        1,
+        0.45,
+        0.13
+      ],
+      "gain": 0.3,
+      "decaySeconds": 0.043,
+      "lengthSeconds": 0.145
+    },
+    {
+      "name": "04_dub_valve_body",
+      "preset": "heart_valve_body",
+      "frequency": 96,
+      "gain": 0.27,
+      "startSeconds": 0.22,
+      "lengthSeconds": 0.145
+    },
+    {
+      "name": "05_dub_chest_texture",
+      "preset": "heart_chest_texture",
+      "lowHz": 90,
+      "highHz": 750,
+      "gain": 0.55,
+      "startSeconds": 0.22,
+      "lengthSeconds": 0.14
+    },
+    {
+      "name": "06_dub_low_weight",
+      "preset": "rounded_pressure",
+      "frequency": 83,
+      "harmonics": [
+        1,
+        0.4,
+        0.1
+      ],
+      "gain": 0.18,
+      "decaySeconds": 0.031,
+      "startSeconds": 0.22,
+      "lengthSeconds": 0.12
+    }
+  ]
+}

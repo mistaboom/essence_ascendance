@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "assetId": "cast_wineglass",
+  "revision": "r0002",
+  "masterSha256": "dd78c23db6b94aba170ff33e3e2b418d01a5263374b0bdde18990b330df102f6",
+  "approvedSha256": "8810c7d7fa3b078f585bd9ac2a0a00486bb812c066a6bcccf317bfbbe879d097",
+  "recipeSha256": "c425dbeca1a76cb76a03fc793806cf1c90029f6d9c7cf8e66b60a90d000b4308",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.7973333333333333,
+    "samplePeakDb": -10.943483369086435,
+    "rmsDb": -25.922072901359666,
+    "truePeakDb": -10.87,
+    "integratedLufs": -27.66,
+    "decodedFrames": 38272
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "c2f4482df774cf8f3092a80d0a9e0a9816d143debcd85ed90f5550a4f487ae5a",
+  "backupSha256": "c2f4482df774cf8f3092a80d0a9e0a9816d143debcd85ed90f5550a4f487ae5a",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/weapon/cast_wineglass/r0002/cast_wineglass.aup3",
+    "backup": "backups/weapon/cast_wineglass/r0002/cast_wineglass.aup3",
+    "master": "masters/weapon/cast_wineglass/r0002/master.wav",
+    "export": "exports/weapon/cast_wineglass/r0002/cast_wineglass.ogg",
+    "recipe": "masters/weapon/cast_wineglass/r0002/recipe.json",
+    "authoringInputs": "masters/weapon/cast_wineglass/r0002/authoring-inputs.json",
+    "authoringInputsSha256": "2ffa237a7d868902e4b1b72d9c588ed82de0f0b58590e9790fb9f834cedccff2",
+    "stems": [
+      {
+        "path": "masters/weapon/cast_wineglass/r0002/01_fork_tine_contact.wav",
+        "sha256": "9f9e8704981776cf8739dadc2647388fe884cdd8661d33a32983d03c0fa208c1"
+      },
+      {
+        "path": "masters/weapon/cast_wineglass/r0002/02_paired_bowl_resonance.wav",
+        "sha256": "44c99755dca05e49cfb8dcc1d65b98559908cdf0a7e5ba307c3abe5805dab1bc"
+      },
+      {
+        "path": "masters/weapon/cast_wineglass/r0002/03_upper_glass_modes.wav",
+        "sha256": "42c5742b667112af23509ddb7cb6bae735cd7c0d510075b7d1d0ccc86e6e2e65"
+      },
+      {
+        "path": "masters/weapon/cast_wineglass/r0002/04_dry_contact_grain.wav",
+        "sha256": "5a4e3b0161ccf4cdcdbfb047af04600944115967667c78108cb696f520b3a85f"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "perfect. All sound creation and revisions are complete. Prepare the approved audio for integration by the development chat."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "8810c7d7fa3b078f585bd9ac2a0a00486bb812c066a6bcccf317bfbbe879d097"
+  }
+}

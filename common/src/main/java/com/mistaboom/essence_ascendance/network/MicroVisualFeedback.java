@@ -18,6 +18,16 @@ public final class MicroVisualFeedback {
 
     private MicroVisualFeedback() { }
 
+    /** Call after an authorized hand/menu mutation, never from setters or observer/load paths. */
+    public static void focusInstalled(net.minecraft.world.level.block.entity.BlockEntity host,
+                                      net.minecraft.world.item.ItemStack before,
+                                      net.minecraft.world.item.ItemStack after) {
+        if (host.getLevel() instanceof ServerLevel level
+                && com.mistaboom.essence_ascendance.pylon.EssencePylonContent.isFocus(after)
+                && !net.minecraft.world.item.ItemStack.isSameItemSameComponents(before, after))
+            FeedbackDispatch.world(level, "machine.focus.install", Vec3.atCenterOf(host.getBlockPos()));
+    }
+
     public static void gathering(ServerLevel level, Vec3 position, long seed) {
         world(level, TransientVisualIds.WORLD_GATHERING_SPRITZ, position,
                 SemanticVisualColor.GATHERING, 0.9F, 1.0F, GATHERING_TICKS, seed);
@@ -30,6 +40,14 @@ public final class MicroVisualFeedback {
 
     public static void guiResult(ServerPlayer player, ResourceLocation recipe, SemanticVisualColor color, long seed) {
         gui(player, recipe, GuiVisualEvent.Anchor.RESULT_SLOT, -1, color, seed);
+    }
+
+    /** A native completed operation may already own its result sound (for example brewing). */
+    public static void processorComplete(ServerLevel level,Vec3 position,boolean nativeResultSound,long seed) {
+        TransientVisualDispatch.nearby(level,new WorldVisualEvent(
+                TransientVisualIds.WORLD_PROCESSOR_COMPLETE,level.dimension().location(),position,
+                WorldVisualEvent.NO_ENTITY,WorldVisualEvent.NO_ENTITY,null,new Vec3(0,1,0),
+                .9F,1,VisualIntensity.MICRO,SemanticVisualColor.UTILITY,18,seed,nativeResultSound?1:0,0),WORLD_RADIUS);
     }
 
     public static void guiSlot(ServerPlayer player, ResourceLocation recipe, int slot,

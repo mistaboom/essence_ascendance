@@ -6,7 +6,7 @@ All mod chat commands start with `/essence`. Use Tab completion to discover regi
 
 | Reference | Permission | Typical work |
 | --- | --- | --- |
-| [Player commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands) | No operator requirement | Wallets, Bonuses, Attunement, Ascension and milestones |
+| [Player commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands) | No operator requirement | Wallets, Bonuses, Attunement, Ascension, milestones and local audio previews |
 | [Administration commands](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands) | Level **2** | Grants, resets, tier/item edits, profile reload/rebuild and export |
 | [Diagnostics and testing](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing) | Level **2** | Saved balance explanations, player/machine snapshots and scoped invariant checks |
 | [Native team and machine commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands#native-teams-beta5) | No operator level for ordinary actions; status bypass/recovery have level-2 rules | Beta.5 membership, processing, retained advanced links and own-item recovery |
@@ -22,6 +22,7 @@ The multiplayer branches below were introduced in **beta.5**. Native membership 
 | --- | --- | --- |
 | **Server** | Yes | Yes |
 | **Player** | Yes, own context | No |
+| **Client** | Yes, on your device only | No |
 | **Target** | Self if omitted, or one explicit online player | Supply the trailing player argument |
 
 Targets use Minecraft's single-player entity selector argument. Online names and selectors resolving to exactly one player are accepted. There is no offline-player or mass-edit support. `@s` selects the sender in game; it does not select a player from the server console. A console can use a suitable single-player selector such as `@p`; verify which player it resolves to before a mutation. Sender permissions remain in force when targeting someone else.
@@ -30,7 +31,7 @@ Examples on mutation pages target the in-game operator with `@s`. Use them only 
 
 ## Identifiers
 
-For Essence, Bonus/stat, Skill, milestone and player-tier arguments, short IDs normally default to `essence_ascendance:`. Thus `offense` means `essence_ascendance:offense`. They do not silently default to `minecraft:` or correct letter case.
+For Essence, Bonus/stat, Skill, milestone, player-tier and audio cue/profile arguments, short IDs normally default to `essence_ascendance:`. Thus `offense` means `essence_ascendance:offense`. They do not silently default to `minecraft:` or correct letter case.
 
 Use quoted full IDs:
 
@@ -70,6 +71,20 @@ Accepted syntax does not guarantee funds, storage capacity, a valid purchase, or
 | `/essence balance` | Your available wallet Essence | Reads currency |
 | `/essence debug balance summary` | The installed generated profile | Reads resolved balance data |
 | `/essence admin balance rebuild` | Generate a replacement from current inputs/environment | Writes files and replaces runtime authority |
+
+## Audio commands
+
+Use `/essence audio` or `/essence audio help` for local audio help. Previews
+require no operator permission and affect only your device. The command
+menus provide clickable suggestions and Tab completion. See the exact
+[local audio commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands#local-audio).
+
+Previews use Minecraft's normal volume and subtitle settings.
+
+Operators can use `/essence debug audio` or `/essence debug audio help` for server
+playback guidance, then `/essence debug audio play <semantic>` in game to request a
+cue at their own position. See [audio diagnostics](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing#audio-playback)
+for recipient and context restrictions. This is separate from local preview.
 
 ## Effects and output
 

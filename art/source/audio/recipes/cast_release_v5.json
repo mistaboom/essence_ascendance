@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "assetId": "cast_release_v5",
+  "seed": 261101541,
+  "sampleRate": 48000,
+  "duration": 0.25,
+  "peakDb": -6.5,
+  "presetLibrary": "source/audio/presets/cast-exploration-v5.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "role": "confirmed combat action",
+    "family": "weapon",
+    "scope": "world",
+    "reference": "New original deterministic material-modal and seeded-air synthesis. No samples, copied melody, or timbre inherited from rejected v2-v4 cast recipes.",
+    "gameplay": "AscendanceCasterItem latches each press; EquipmentWeaponService.castMagic dispatches weapon.cast.release only after successful bolt spawn. A rapid semi-automatic short-range launch, not charge-up or impact.",
+    "runtimeHandoff": "Use the existing accepted-launch world cue once per successful cast; do not add feedback to cooldown-rejected presses or failed bolt spawns. Select one concept after listening approval. Keep projectile impact separate.",
+    "revisionRequest": "Start the cast design again with three clearly distinct material-and-air concepts; avoid oscillating/chirpy bass woops.",
+    "repetitionIntervalSeconds": 0.4,
+    "comparison": "Three alternative concepts, not automatic random variants. Objective loudness is calibrated across this comparison only; subjective listening and game mix remain pending.",
+    "title": "C - Soft pressure snap",
+    "description": "A compact release of pressure with a dry elastic-material snap and a muted trailing air pocket. Short inharmonic modes provide tactile color; there is no moving or warbling bass note.",
+    "levelCalibration": {
+      "targetPadded400msLufs": -27,
+      "method": "Uniform gain adjustment within each concept after actual Vorbis measurement; retain different transient shapes and natural crest factors. Peak ceiling remains -6.5 dBFS.",
+      "listeningStatus": "pending"
+    }
+  },
+  "layers": [
+    {
+      "name": "01_pressure_contact",
+      "preset": "surface_contact",
+      "startSeconds": 0,
+      "lengthSeconds": 0.018,
+      "gain": 0.125259587,
+      "lowHz": 280,
+      "highHz": 2200,
+      "spectralTiltDbOct": -5,
+      "seed": 261101541
+    },
+    {
+      "name": "02_elastic_release",
+      "preset": "elastic_contact",
+      "startSeconds": 0,
+      "lengthSeconds": 0.17,
+      "gain": 0.323037881,
+      "frequency": 226,
+      "phase": 0.6,
+      "seed": 261101542
+    },
+    {
+      "name": "03_compressed_air",
+      "preset": "moving_air",
+      "startSeconds": 0.001,
+      "lengthSeconds": 0.19,
+      "gain": 0.309852662,
+      "lowHz": 220,
+      "highHz": 1900,
+      "lowHzEnd": 430,
+      "highHzEnd": 1200,
+      "spectralTiltDbOct": -2,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.015,
+          0.45
+        ],
+        [
+          0.055,
+          1
+        ],
+        [
+          0.16,
+          0.85
+        ],
+        [
+          0.36,
+          0.32
+        ],
+        [
+          0.7,
+          0.055
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "seed": 261101543
+    },
+    {
+      "name": "04_cavity_aftertouch",
+      "preset": "cavity_air",
+      "startSeconds": 0.012,
+      "lengthSeconds": 0.238,
+      "gain": 0.114711411,
+      "lowHz": 480,
+      "highHz": 710,
+      "lowHzEnd": 520,
+      "highHzEnd": 850,
+      "seed": 261101544
+    },
+    {
+      "name": "05_resonant_surface",
+      "preset": "hollow_shell",
+      "startSeconds": 0.004,
+      "lengthSeconds": 0.145,
+      "frequency": 463,
+      "gain": 0.061970532,
+      "seed": 261101545
+    }
+  ]
+}

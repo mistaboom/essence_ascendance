@@ -286,6 +286,7 @@ public final class ReadOnlyDataTableView<R> {
                 }
             }
             var row = rows.get(rowIndex);
+            com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"row/"+row.key());
             selectedKey = row.key();
             if (row.target() != null) navigate.accept(row.target());
         }
@@ -310,7 +311,10 @@ public final class ReadOnlyDataTableView<R> {
         if (key == 257 || key == 335 || key == 32) {
             if (sortFocus >= 0) { sort(table.columns().get(sortFocus)); return true; }
             orderedRows().stream().filter(row -> row.key().equals(selectedKey) && row.target() != null)
-                    .findFirst().ifPresent(row -> navigate.accept(row.target()));
+                    .findFirst().ifPresent(row -> {
+                        com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"row/"+row.key());
+                        navigate.accept(row.target());
+                    });
             return true;
         }
         if (key == 264 || key == 265) {
@@ -328,6 +332,7 @@ public final class ReadOnlyDataTableView<R> {
     }
 
     private void sort(ReadOnlyDataTable.Column<R, ?> column) {
+        com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"sort/"+column.id());
         if (column.id().equals(sortColumn)) sortDirection = sortDirection == ReadOnlyDataTable.SortDirection.ASCENDING
                 ? ReadOnlyDataTable.SortDirection.DESCENDING : ReadOnlyDataTable.SortDirection.ASCENDING;
         else { sortColumn = column.id(); sortDirection = ReadOnlyDataTable.SortDirection.ASCENDING; }

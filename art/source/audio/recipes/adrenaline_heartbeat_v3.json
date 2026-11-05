@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "assetId": "adrenaline_heartbeat_v3",
+  "seed": 26110221,
+  "sampleRate": 48000,
+  "duration": 0.4,
+  "peakDb": -8.5,
+  "presetLibrary": "source/audio/presets/revision-v3.json",
+  "design": {
+    "title": "Adrenaline - one lub-dub",
+    "description": "One close, muffled heartbeat: a fuller lub followed 215 ms later by a shorter, lighter dub. No synthetic breath or repeating pulse.",
+    "cueIds": [
+      "essence_ascendance:vitality.surge"
+    ],
+    "provenance": "Original deterministic modal, harmonic and filtered-noise synthesis; no third-party samples.",
+    "review": "pending user listening",
+    "role": "vitality",
+    "revisionOf": [
+      "adrenaline_v2"
+    ],
+    "beatOnsetsSeconds": [
+      0,
+      0.215
+    ],
+    "gameplayTrigger": "Adrenaline threshold activation after actual health loss; private cue.",
+    "levelIntent": "Organic chest/valve sound, not a pitched bass effect."
+  },
+  "layers": [
+    {
+      "name": "01_lub_chest_body",
+      "preset": "valve_body",
+      "frequency": 59,
+      "gain": 0.3375,
+      "lengthSeconds": 0.17
+    },
+    {
+      "name": "02_lub_valve_texture",
+      "preset": "valve_noise",
+      "gain": 0.29700000000000004,
+      "lengthSeconds": 0.155
+    },
+    {
+      "name": "03_lub_low_weight",
+      "type": "tone",
+      "frequency": 47,
+      "harmonics": [
+        1,
+        0.16
+      ],
+      "gain": 0.17550000000000002,
+      "decaySeconds": 0.031,
+      "lengthSeconds": 0.15,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          0.8
+        ],
+        [
+          0.14,
+          1
+        ],
+        [
+          0.6,
+          0.3
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "04_dub_chest_body",
+      "preset": "valve_body",
+      "frequency": 76,
+      "gain": 0.21600000000000003,
+      "startSeconds": 0.215,
+      "lengthSeconds": 0.135
+    },
+    {
+      "name": "05_dub_valve_texture",
+      "preset": "valve_noise",
+      "lowHz": 55,
+      "highHz": 390,
+      "gain": 0.20925000000000002,
+      "startSeconds": 0.215,
+      "lengthSeconds": 0.12
+    }
+  ]
+}

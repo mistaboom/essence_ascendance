@@ -23,7 +23,7 @@ public final class CombatVisualFeedback {
 
     public static void shieldRam(ServerLevel level, Entity source, Entity target, Vec3 direction) {
         Vec3 center = target.getBoundingBox().getCenter();
-        link(level, TransientVisualIds.WORLD_SHIELD_RAM, center, null, target, center, direction,
+        link(level, TransientVisualIds.WORLD_SHIELD_RAM, center, source, target, center, direction,
                 1.20F, 1.0F, VisualIntensity.STANDARD, SemanticVisualColor.DEFENSE, 18,
                 level.getGameTime() * 31L ^ source.getId() * 17L ^ target.getId(), 0, 0);
     }

@@ -1,8 +1,10 @@
 package com.mistaboom.essence_ascendance.pylon;
 
+import com.mistaboom.essence_ascendance.data.CustomDataReader;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapDecoder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import org.jetbrains.annotations.Nullable;
@@ -11,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 public final class EssenceFocusData {
     private static final String ROOT_TAG = "essence_ascendance_focus";
     private static final String TIER_TAG = "tier";
+    private static final MapDecoder<String> TIER_READER = Codec.STRING.fieldOf(TIER_TAG).codec().fieldOf(ROOT_TAG);
 
     private EssenceFocusData() {
     }
@@ -40,11 +43,7 @@ public final class EssenceFocusData {
         if (customData == null) {
             return null;
         }
-        CompoundTag outer = customData.copyTag();
-        if (!outer.contains(ROOT_TAG, Tag.TAG_COMPOUND)) {
-            return null;
-        }
-        String serialized = outer.getCompound(ROOT_TAG).getString(TIER_TAG);
+        String serialized = CustomDataReader.read(customData, TIER_READER).result().orElse("");
         for (EssenceFocusTier tier : EssenceFocusTier.values()) {
             if (tier.serializedName().equals(serialized)) {
                 return tier;

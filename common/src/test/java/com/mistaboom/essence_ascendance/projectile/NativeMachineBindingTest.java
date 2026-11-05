@@ -23,6 +23,7 @@ public final class NativeMachineBindingTest {
         EssenceConfigManager.install(RuntimeBalanceDefinition.bootstrap());
         try {
             var f = new ProjectileNativeInterceptionTest.Fixture(); NativeGuardOutcomeTest.registry(f);
+            focusDataProjections();
             f.level.memoryMachines = new HashMap<>(); f.level.memoryBlocks = new HashMap<>();
             var a = f.player; var b = f.player(Vec3.ZERO, "teammate"); var neighbor = f.player(Vec3.ZERO, "neighbor");
             PoolId pool = f.saved.nativeMembership().create(a.getUUID(), "Factory");
@@ -422,6 +423,80 @@ public final class NativeMachineBindingTest {
         handler.invoke(null,a,new com.mistaboom.essence_ascendance.network.EssenceCrucibleSelectionPayload(73,CrucibleChannelSelection.SELECT_NONE,f.saved.getPlayerData(a.getUUID()).crucibleChannelSelectionRevision()));
         check(aData.crucibleChannelSelection()==selection && !menu.stillValid(a),"Binding changes reject the real stale selection-menu request");
         source.stopChanneling(); f.close();
+    }
+
+    private static void focusDataProjections() {
+        final String root = "essence_ascendance_focus_infusion";
+        var stack = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());
+        var recipe = FocusInfusionRecipe.forWorkpiece(stack).orElseThrow();
+        var component = net.minecraft.core.component.DataComponents.CUSTOM_DATA;
+        check(FocusInfusionData.readRaw(stack).isEmpty() && FocusInfusionData.readValidated(stack).orElseThrow().totalContributed() == 0,
+                "Absent Focus progress starts at zero");
+        var outer = new net.minecraft.nbt.CompoundTag(); outer.putString(root, "wrong type");
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(!FocusInfusionData.hasInfusionTag(stack) && FocusInfusionData.readValidated(stack).isPresent(),
+                "Legacy wrong-type root is absent, not a malformed compound");
+        var tag = new net.minecraft.nbt.CompoundTag(); outer.put(root, tag);
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(FocusInfusionData.hasInfusionTag(stack) && FocusInfusionData.readRaw(stack).isEmpty() && FocusInfusionData.readValidated(stack).isEmpty(),
+                "Existing compound with absent target is rejected");
+        tag.putString("target_tier", recipe.targetTier().serializedName());
+        tag.putIntArray("session", new int[]{1,2,3});
+        var contributions = new net.minecraft.nbt.CompoundTag(); tag.put("contributions", contributions);
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(FocusInfusionData.readValidated(stack).orElseThrow().sessionId() == null,
+                "Malformed session remains harmless only with zero contribution");
+        var offense = EssenceTypes.OFFENSE.id().getPath(); var defense = EssenceTypes.DEFENSE.id().getPath();
+        contributions.putLong(offense, 1);
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(FocusInfusionData.readRaw(stack).isEmpty(), "Paid progress cannot lose its valid session identity");
+        var session = UUID.randomUUID(); NbtVersionCompat.putUUID(tag, "session", session);
+        contributions.putLong(offense, -1);
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(FocusInfusionData.readRaw(stack).isEmpty(), "Negative contribution remains rejected");
+        contributions.putLong(offense, Long.MAX_VALUE); contributions.putLong(defense, 1);
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(FocusInfusionData.readRaw(stack).isEmpty(), "Overflow across independent contribution entries remains rejected");
+        contributions.putLong(offense, 7); contributions.putString(defense, "not numeric");
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        var progress = FocusInfusionData.readValidated(stack).orElseThrow();
+        check(progress.sessionId().equals(session) && progress.totalContributed() == 7 && progress.contribution(EssenceTypes.DEFENSE) == 0,
+                "Typed numeric semantics and session identity match the historical native reader");
+        check(progress.contributions().size() == FocusInfusionRecipe.coreAttributeEssences().size(), "Projection retains every core contribution key");
+        boolean immutable = false;
+        try { progress.contributions().put(EssenceTypes.DEFENSE, 9L); } catch (UnsupportedOperationException expected) { immutable = true; }
+        check(immutable, "Projected contribution values cannot mutate saved state");
+        var pool = PoolId.newNative(PoolId.Kind.SOLO);
+        FocusInfusionData.recordFunding(stack, pool, Map.of(EssenceTypes.OFFENSE.id(), 7L));
+        var paid = stack.get(component); var paidBefore = paid.copyTag();
+        for (int repeat = 0; repeat < 100; repeat++) {
+            check(FocusInfusionData.readValidated(stack).orElseThrow().totalContributed() == 7 && EssenceFocusData.tier(stack) == null,
+                    "Repeated read-only projections retain exact paid progress without changing completed tier");
+        }
+        check(stack.get(component) == paid && paid.copyTag().equals(paidBefore), "Reads preserve component identity and complete funding provenance");
+        FocusInfusionData.addContribution(stack, recipe, EssenceTypes.DEFENSE, 2);
+        var after = NbtVersionCompat.getCompound(stack.get(component).copyTag(), root);
+        check(after.get("funding").equals(NbtVersionCompat.getCompound(paidBefore, root).get("funding")),
+                "Copy-on-write progress changes retain existing funding provenance");
+        check(FocusInfusionData.readValidated(stack).orElseThrow().totalContributed() == 9 && FocusInfusionData.readValidated(stack).orElseThrow().sessionId().equals(session),
+                "Mutation is immediately visible without stale projection caches");
+        contributions.putLong(offense, recipe.totalEssenceRequired() + 1); contributions.putLong(defense, 0);
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(FocusInfusionData.readRaw(stack).isPresent() && FocusInfusionData.readValidated(stack).isEmpty(),
+                "Raw valid totals still obey current recipe bounds");
+        var previous = EssenceConfigManager.serverRuntime(); var changed = previous.toJson();
+        for (var entry : changed.getAsJsonObject("infuser").getAsJsonObject("focusUpgrades").entrySet()) {
+            var value = entry.getValue().getAsJsonObject();
+            value.addProperty("totalEssenceRequired", value.get("totalEssenceRequired").getAsLong() * 2);
+        }
+        try {
+            EssenceConfigManager.install(RuntimeBalanceDefinition.fromJson(changed));
+            check(FocusInfusionData.readValidated(stack).isPresent(), "Recipe reload revalidates the same unchanged saved component");
+        } finally { EssenceConfigManager.install(previous); }
+        check(FocusInfusionData.readValidated(stack).isEmpty(), "Restored recipe bounds immediately reject formerly admissible progress");
+        tag.putString("target_tier", EssenceFocusTier.TRANSCENDENT.serializedName()); contributions.putLong(offense, 1);
+        stack.set(component, net.minecraft.world.item.component.CustomData.of(outer));
+        check(FocusInfusionData.readRaw(stack).isPresent() && FocusInfusionData.readValidated(stack).isEmpty(), "Wrong next tier is still rejected independently of amount");
     }
 
     private static void concurrentChannelContract() throws Exception {
@@ -854,7 +929,7 @@ public final class NativeMachineBindingTest {
         check(EssenceSavedData.get(actor.serverLevel().getServer()).save(new net.minecraft.nbt.CompoundTag(), actor.registryAccess()).equals(funds),
                 "Simulations, aborts and real item transfers cannot spend or publish essence");
     }
-    private static EssenceInfuserBlockEntity preparedInfuser(ProjectileNativeInterceptionTest.Fixture f,BlockPos pos,
+    static EssenceInfuserBlockEntity preparedInfuser(ProjectileNativeInterceptionTest.Fixture f,BlockPos pos,
                                                             EssenceCrucibleBlockEntity source,ItemStack input) throws Exception {
         var machine=sharedSourceInfuser(f,pos,f.player);
         var focus=new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());EssenceFocusData.setTier(focus,EssenceFocusTier.DORMANT);
@@ -871,7 +946,7 @@ public final class NativeMachineBindingTest {
     private static long availableTotal(ProjectileNativeInterceptionTest.Fixture f,net.minecraft.server.level.ServerPlayer actor) {
         return EssenceTypes.ORDERED.stream().mapToLong(type->f.saved.getPlayerData(actor.getUUID()).getAvailable(type)).sum();
     }
-    private static void tickChannels(ProjectileNativeInterceptionTest.Fixture f,EssenceCrucibleBlockEntity source,List<EssenceInfuserBlockEntity> machines,int ticks) {
+    static void tickChannels(ProjectileNativeInterceptionTest.Fixture f,EssenceCrucibleBlockEntity source,List<EssenceInfuserBlockEntity> machines,int ticks) {
         for(int t=0;t<ticks;t++) {
             f.level.tick++;EssenceCrucibleBlockEntity.serverTick(f.level,source.getBlockPos(),source.getBlockState(),source);
             for(var machine:machines)EssenceInfuserBlockEntity.serverTick(f.level,machine.getBlockPos(),machine.getBlockState(),machine);
@@ -879,11 +954,11 @@ public final class NativeMachineBindingTest {
         }
     }
 
-    private static EssenceCrucibleBlockEntity crucible(ProjectileNativeInterceptionTest.Fixture f, BlockPos pos, net.minecraft.server.level.ServerPlayer owner) {
+    static EssenceCrucibleBlockEntity crucible(ProjectileNativeInterceptionTest.Fixture f, BlockPos pos, net.minecraft.server.level.ServerPlayer owner) {
         var machine = new EssenceCrucibleBlockEntity(pos, EssenceCrucibleContent.ESSENCE_CRUCIBLE.get().defaultBlockState());
         install(f, machine); machine.bindOnPlacement(owner); return machine;
     }
-    private static void install(ProjectileNativeInterceptionTest.Fixture f, net.minecraft.world.level.block.entity.BlockEntity machine) {
+    static void install(ProjectileNativeInterceptionTest.Fixture f, net.minecraft.world.level.block.entity.BlockEntity machine) {
         machine.setLevel(f.level); f.level.memoryMachines.put(machine.getBlockPos(), machine); f.level.memoryBlocks.put(machine.getBlockPos(), machine.getBlockState());
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); checks++; }

@@ -133,6 +133,7 @@ public final class EssenceCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence attunement [category]", EssenceText.command("attunement.help")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence ascend", EssenceText.command("help.ascend")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence milestones [milestone]", EssenceText.command("help.milestones")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence audio", EssenceText.command("audio.help.client_only")));
 
         if (EssenceCommandUtil.hasAdminPermission(source)) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("help.development")));

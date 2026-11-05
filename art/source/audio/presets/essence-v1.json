@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "presets": {
+    "mineral": {"type":"tone","frequency":320,"harmonics":[1,0.13,0.025],"variationCents":3,"gain":0.12,"envelope":[[0,0],[0.02,1],[0.16,0.5],[0.65,0.07],[1,0]]},
+    "soft_air": {"type":"noise","lowHz":380,"highHz":3400,"gain":0.022,"envelope":[[0,0],[0.04,1],[0.3,0.25],[1,0]]},
+    "energy_sweep": {"type":"tone","frequency":300,"frequencyEnd":720,"harmonics":[1,0.1],"variationCents":5,"gain":0.13,"envelope":[[0,0],[0.05,0.8],[0.24,1],[0.75,0.12],[1,0]]},
+    "rounded_body": {"type":"tone","frequency":128,"harmonics":[1,0.1,0.035],"gain":0.072,"am":{"rate":0.5,"depth":0.15},"fm":{"rate":0.25,"depth":0.12},"envelope":[[0,1],[1,1]]},
+    "flow": {"type":"noise","lowHz":210,"highHz":1600,"gain":0.012,"am":{"rate":0.75,"depth":0.25},"envelope":[[0,1],[1,1]]},
+    "low_pulse": {"type":"tone","frequency":160,"frequencyEnd":120,"harmonics":[1,0.18,0.045],"gain":0.13,"envelope":[[0,0],[0.07,1],[0.35,0.6],[1,0]]}
+  }
+}

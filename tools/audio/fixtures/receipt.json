@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "assetId": "process_complete_a",
+  "revision": "r0001",
+  "masterSha256": "90aa0dbc24a047e109fec59e877ec766cbf0299b244428bae6cb6cb1c7e3a316",
+  "approvedSha256": "45900d893f024d4fd11fa25d53e7a35499ef34f38e481868af5a7b0a981dfc55",
+  "recipeSha256": "8f550f98729c9674155d52cf7e09ba3ac5375459366972bc8b21090622b4dd37",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.6473333333333333,
+    "samplePeakDb": -6.924787552110933,
+    "rmsDb": -18.851565173569973,
+    "truePeakDb": -6.92,
+    "integratedLufs": -19.61,
+    "decodedFrames": 31072
+  },
+  "loop": false,
+  "review": {
+    "status": "accepted",
+    "reviewer": "AUTOMATED TEST FIXTURE ONLY",
+    "notes": "Simulated review for importer tests; never runtime approval",
+    "license": "Repository test fixture",
+    "attribution": "Procedurally synthesized test fixture",
+    "listened": true,
+    "mixReviewed": true,
+    "loopReviewed": false
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "backupSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}

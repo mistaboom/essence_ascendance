@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "assetId": "redirect_clang_v2",
+  "seed": 26110113,
+  "sampleRate": 48000,
+  "duration": 0.32,
+  "peakDb": -11,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:projectile.redirect"
+    ],
+    "role": "projectile",
+    "description": "Compact metallic deflection with a short directional air flick.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Projectile redirect"
+  },
+  "layers": [
+    {
+      "preset": "metal",
+      "name": "01_metal_deflect",
+      "frequency": 510,
+      "gain": 0.29,
+      "lengthSeconds": 0.31
+    },
+    {
+      "preset": "tap",
+      "name": "02_contact_edge",
+      "gain": 0.09,
+      "lengthSeconds": 0.024
+    },
+    {
+      "preset": "air",
+      "name": "03_direction_flick",
+      "lowHz": 1600,
+      "highHz": 4400,
+      "gain": 0.065,
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.15
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schema":1,"id":"warm-arcane-20261029",
+  "preference":"User selected warm arcane/mineral resonance/soft energy/restrained brightness, subtle everyday feedback and clearly stronger critical feedback on 2026-10-29 America/Los_Angeles.",
+  "comparisons":[
+    {"id":"01-completion-ab","label":"1. Completion A/B · rounder, then more shimmer","assets":["process_warm_a","process_warm_b"],"repeats":3},
+    {"id":"02-actions-and-critical","label":"2. Cast A/B, impact, denial, critical rescue · levels preserved","assets":["cast_warm_a","cast_warm_b","impact_warm_a","denied_warm_a","rescue_warm_a"]},
+    {"id":"03-bodies-ab","label":"3. Machine, then private channel · two periods each","assets":["machine_warm_a","machine_warm_a","channel_warm_a","channel_warm_a"],"gapSeconds":0},
+    {"id":"04-cast-repetition","label":"4. Cast variation stress · alternating at 280 ms onset spacing","assets":["cast_warm_a","cast_warm_b"],"repeats":8,"intervalSeconds":0.28}
+  ],
+  "items":[
+    {"asset":"process_warm_a","family":"process","scope":"world"},
+    {"asset":"process_warm_b","family":"process","scope":"world"},
+    {"asset":"cast_warm_a","family":"weapon","scope":"world"},
+    {"asset":"cast_warm_b","family":"weapon","scope":"world"},
+    {"asset":"impact_warm_a","family":"combat","scope":"world"},
+    {"asset":"denied_warm_a","family":"interface","scope":"ui"},
+    {"asset":"rescue_warm_a","family":"vitality","scope":"ui"},
+    {"asset":"machine_warm_a","family":"machine","scope":"world"},
+    {"asset":"channel_warm_a","family":"channel","scope":"ui"}
+  ]
+}

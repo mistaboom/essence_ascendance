@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "id": "revisions-20261101",
+  "title": "Essence Ascendance - revised sounds",
+  "description": "Revisions from your listening notes: full-length ceremonies, mechanical key clacks, tonal magic casts, one lub-dub, original magic impacts and a brief rescue clang. The other 42 sounds from the previous set are creatively approved and unchanged. These new takes await your feedback.",
+  "preference": "User revisions 2026-11-01 America/Anchorage. Keep previously approved sounds; match 8.0s/3.8s animation durations.",
+  "items": [
+    {
+      "asset": "ascendance_ceremony_v3",
+      "family": "progression",
+      "scope": "world",
+      "title": "Ascendance ceremony - full eight-second triumph"
+    },
+    {
+      "asset": "awakening_ceremony_v3",
+      "family": "progression",
+      "scope": "world",
+      "title": "Awakening ceremony - 3.8-second arrangement"
+    },
+    {
+      "asset": "ui_key_clack_v3",
+      "family": "interface",
+      "scope": "ui",
+      "title": "Menu key clack A"
+    },
+    {
+      "asset": "ui_key_clack_b_v3",
+      "family": "interface",
+      "scope": "ui",
+      "title": "Menu key clack B"
+    },
+    {
+      "asset": "cast_tonal_v3",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic cast - singing woop A"
+    },
+    {
+      "asset": "cast_tonal_b_v3",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic cast - singing woop B"
+    },
+    {
+      "asset": "adrenaline_heartbeat_v3",
+      "family": "vitality",
+      "scope": "ui",
+      "title": "Adrenaline - one lub-dub"
+    },
+    {
+      "asset": "magic_impact_v3",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic projectile impact A"
+    },
+    {
+      "asset": "magic_impact_b_v3",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic projectile impact B"
+    },
+    {
+      "asset": "death_defiance_v3",
+      "family": "vitality",
+      "scope": "ui",
+      "title": "Death defiance - bright rescue chime"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "id": "ceremony",
+      "title": "Triumphant ceremonies",
+      "assets": [
+        "ascendance_ceremony_v3",
+        "awakening_ceremony_v3"
+      ],
+      "description": "Original arrangements follow the animation phases. Main ceremony: 8 seconds; natural Awakening: 3.8 seconds."
+    },
+    {
+      "id": "interface",
+      "title": "Sharper menu clicks",
+      "assets": [
+        "ui_key_clack_v3",
+        "ui_key_clack_b_v3"
+      ]
+    },
+    {
+      "id": "cast",
+      "title": "Tonal magic cast",
+      "assets": [
+        "cast_tonal_v3",
+        "cast_tonal_b_v3"
+      ]
+    },
+    {
+      "id": "vitality",
+      "title": "Heartbeat and rescue",
+      "assets": [
+        "adrenaline_heartbeat_v3",
+        "death_defiance_v3"
+      ]
+    },
+    {
+      "id": "impact",
+      "title": "Original magic projectile impacts",
+      "assets": [
+        "magic_impact_v3",
+        "magic_impact_b_v3"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "menu-clacks-ab",
+      "label": "Menu clack A / B",
+      "group": "interface",
+      "assets": [
+        "ui_key_clack_v3",
+        "ui_key_clack_b_v3"
+      ],
+      "repeats": 3,
+      "gapSeconds": 0.38
+    },
+    {
+      "id": "tonal-casts-ab",
+      "label": "Tonal cast A / B",
+      "group": "cast",
+      "assets": [
+        "cast_tonal_v3",
+        "cast_tonal_b_v3"
+      ],
+      "repeats": 2,
+      "gapSeconds": 0.55
+    },
+    {
+      "id": "magic-impacts-ab",
+      "label": "Magic impact A / B",
+      "group": "impact",
+      "assets": [
+        "magic_impact_v3",
+        "magic_impact_b_v3"
+      ],
+      "repeats": 2,
+      "gapSeconds": 0.6
+    },
+    {
+      "id": "cast-impact-context",
+      "label": "Cast followed by impact",
+      "group": "impact",
+      "assets": [
+        "cast_tonal_v3",
+        "magic_impact_v3",
+        "cast_tonal_b_v3",
+        "magic_impact_b_v3"
+      ],
+      "gapSeconds": 0.32
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "assetId": "ui_press_v2",
+  "seed": 26110101,
+  "sampleRate": 48000,
+  "duration": 0.13,
+  "peakDb": -19,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:ui.press"
+    ],
+    "role": "interface",
+    "description": "Polished tiny tactile plop; no prolonged electronic ring.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Menu press"
+  },
+  "layers": [
+    {
+      "preset": "soft_chirp",
+      "name": "01_round_key",
+      "frequency": 580,
+      "frequencyPoints": [
+        [
+          0,
+          670
+        ],
+        [
+          0.15,
+          550
+        ],
+        [
+          1,
+          340
+        ]
+      ],
+      "gain": 0.12,
+      "lengthSeconds": 0.075
+    },
+    {
+      "preset": "tap",
+      "name": "02_fingertip",
+      "highHz": 3600,
+      "gain": 0.055,
+      "lengthSeconds": 0.018
+    },
+    {
+      "preset": "wood",
+      "name": "03_key_body",
+      "frequency": 460,
+      "gain": 0.07,
+      "lengthSeconds": 0.08
+    }
+  ]
+}

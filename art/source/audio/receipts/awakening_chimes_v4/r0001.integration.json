@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "assetId": "awakening_chimes_v4",
+  "revision": "r0001",
+  "masterSha256": "005345be054b8154aca1bab6790fea5f2d2dedd1c1623558d90eeebc3a05b400",
+  "approvedSha256": "1c36200ec8f4c144c637734da1cce3a7918039439211d0079b3385c92b6ee8ca",
+  "recipeSha256": "7d3686e89f92d4ac21a9f2e442a1f66deb1a35c14db655ffb1aeb7f0be41651a",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 3.8,
+    "samplePeakDb": -11.02405108194253,
+    "rmsDb": -25.747749663332748,
+    "truePeakDb": -11.02,
+    "integratedLufs": -25.72,
+    "decodedFrames": 182400
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "030be6e949a83cc0b3aebf6718d026eaa65ec2e775421b41a4cc55f60d956402",
+  "backupSha256": "030be6e949a83cc0b3aebf6718d026eaa65ec2e775421b41a4cc55f60d956402",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/progression/awakening_chimes_v4/r0001/awakening_chimes_v4.aup3",
+    "backup": "backups/progression/awakening_chimes_v4/r0001/awakening_chimes_v4.aup3",
+    "master": "masters/progression/awakening_chimes_v4/r0001/master.wav",
+    "export": "exports/progression/awakening_chimes_v4/r0001/awakening_chimes_v4.ogg",
+    "recipe": "masters/progression/awakening_chimes_v4/r0001/recipe.json",
+    "authoringInputs": "masters/progression/awakening_chimes_v4/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "05e974be965de887246579abe20a4a36f5c5ba5224622946b2ed6b65983641ce",
+    "stems": [
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/01_beam_foundation.wav",
+        "sha256": "11ef4b3ab3e2efdceb84d58d58af96ee1ed80da73df6eb56fc34e9cb18fce521"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/02_floating_fifths.wav",
+        "sha256": "4be145c1c3096c524320aeca9cf7330c8afa40ba059d666be5193d19910a68e6"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/03_changing_color.wav",
+        "sha256": "f685df529f0503cfba5f2aa81309ccbe8cfcc7037e1a54b14839f0fa9041ee46"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/04_suspended_sixths.wav",
+        "sha256": "d4a23ba24109c91cc31cc51b761535ae4aac70b416758922c98af3d98c1b59af"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/05_upper_opening.wav",
+        "sha256": "ec8fa769cbb601781d372b9d669457b11787ec381feed9927229cf3b6e237021"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/06_upper_fifth_bloom.wav",
+        "sha256": "ebae2e8479637272ff1fe2d7f0e6e3d493ed35f5f83b793362b374ac3bb9ada1"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/07_wandering_glints.wav",
+        "sha256": "fe14229997ebab60de9e42dd5e0baea7734fe13868cf5875cdfc86f55acd4fc1"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/08_high_glints.wav",
+        "sha256": "98125d3332462ebfb0c1419187e46f3dd6322a906457b53e5eaad3e0a40ca11e"
+      },
+      {
+        "path": "masters/progression/awakening_chimes_v4/r0001/09_settling_glints.wav",
+        "sha256": "d774e7401328f34df2a2c2ced58ac37cc25ae09a6b050c8ceec8196f1eaa5fb2"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "the others are great."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "1c36200ec8f4c144c637734da1cce3a7918039439211d0079b3385c92b6ee8ca"
+  }
+}

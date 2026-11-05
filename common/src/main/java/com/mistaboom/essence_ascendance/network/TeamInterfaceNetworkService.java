@@ -54,9 +54,9 @@ public final class TeamInterfaceNetworkService {
     }
     private static void syncHud(ServerPlayer player) {
         var links = EssenceCrucibleChannelService.links(player);
-        var payload = new ChannelSessionsPayload(player.getId(), player.serverLevel().dimension().location(), links.size(), EssenceSavedData.get(player.server).getPlayerData(player.getUUID()).crucibleChannelSelection(),
-                links.stream().limit(ChannelSessionsPayload.MAX_LINKS).map(l -> new ChannelSessionsPayload.Link(l.source().pos().asLong(), l.feedback().reason().name(), l.feedback().allocated(), l.feedback().actual())).toList());
-        if ((!payload.equals(HUD.get(player)) || player.tickCount % 16 == 0) && NetworkManager.canPlayerReceive(player, ChannelSessionsPayload.TYPE)) {
+        var payload = new ChannelSessionsPayload(player.getId(), player.serverLevel().dimension().location(), links.size(), EssenceSavedData.get(player.server).getPlayerData(player.getUUID()).crucibleChannelSelection(), player.serverLevel().getGameTime(),
+                links.stream().limit(ChannelSessionsPayload.MAX_LINKS).map(l -> new ChannelSessionsPayload.Link(l.source().pos().asLong(), l.generation(), l.feedback().reason().name(), l.feedback().allocated(), l.feedback().actual())).toList());
+        if ((HUD.get(player)==null || !payload.links().equals(HUD.get(player).links()) || payload.selection()!=HUD.get(player).selection() || payload.total()!=HUD.get(player).total() || player.tickCount % 16 == 0) && NetworkManager.canPlayerReceive(player, ChannelSessionsPayload.TYPE)) {
             NetworkManager.sendToPlayer(player, payload); HUD.put(player, payload);
         }
     }
@@ -143,8 +143,13 @@ public final class TeamInterfaceNetworkService {
                 || payload.action() < 0 || payload.action() >= sent.choices.size()) { sync(player, true); return; }
         Choice choice = sent.choices.get(payload.action());
         boolean completed = false;
-        try { execute(player, menu, choice, payload.input()); completed = true; }
+        try {
+            execute(player, menu, choice, payload.input()); completed = true;
+            if (!Set.of("requests_open", "manage_open", "back", "open_machine").contains(choice.code))
+                FeedbackDispatch.player(player, "interface.acknowledge");
+        }
         catch (IllegalArgumentException | IllegalStateException | ArithmeticException denied) {
+            FeedbackDispatch.player(player, "interface.denied");
             PlayerMessageCompat.send(player, Component.translatable("gui.essence_ascendance.team.action_denied"), false);
         }
         if (player.containerMenu == menu && ServerMenuAccess.isCurrent(player, menu)) sync(player, true);

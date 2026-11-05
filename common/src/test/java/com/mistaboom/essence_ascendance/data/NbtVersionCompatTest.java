@@ -51,7 +51,37 @@ public final class NbtVersionCompatTest {
         try { NbtVersionCompat.getUUID(tag, "owner"); }
         catch (IllegalArgumentException expected) { rejected = true; }
         check(rejected, "malformed UUID read rejected");
+        immutableCustomDataProjection();
         System.out.println("NbtVersionCompatTest: " + checks + " assertions passed");
+    }
+
+    private static void immutableCustomDataProjection() {
+        var outer = new CompoundTag();
+        outer.putLong("selected", 42);
+        var unrelated = new CompoundTag();
+        for (int index = 0; index < 128; index++) unrelated.putLong("payment_" + index, index);
+        outer.put("unrelated_funding", unrelated);
+        var scalar = com.mojang.serialization.Codec.LONG.fieldOf("selected");
+        var data = net.minecraft.world.item.component.CustomData.of(outer);
+        var before = data.copyTag();
+        check(CustomDataReader.read(data, scalar).getOrThrow() == 42, "native custom-data decoder projects only its selected value");
+        check(data.copyTag().equals(before), "projection leaves all funding and source values unchanged");
+        for (var tier : com.mistaboom.essence_ascendance.pylon.EssenceFocusTier.values()) {
+            var tierTag = new CompoundTag(); tierTag.putString("tier", tier.serializedName());
+            outer.put("essence_ascendance_focus", tierTag);
+            data = net.minecraft.world.item.component.CustomData.of(outer);
+            check(com.mistaboom.essence_ascendance.pylon.EssenceFocusData.tierFromData(data) == tier,
+                    "completed tier is independent of unrelated funding size");
+            check(data.copyTag().equals(outer), "tier projection never mutates persisted data");
+        }
+        for (String invalid : new String[]{"", "DORMANT", "unknown"}) {
+            var tierTag = new CompoundTag(); tierTag.putString("tier", invalid); outer.put("essence_ascendance_focus", tierTag);
+            check(com.mistaboom.essence_ascendance.pylon.EssenceFocusData.tierFromData(net.minecraft.world.item.component.CustomData.of(outer)) == null,
+                    "invalid serialized tier remains Latent");
+        }
+        outer.putInt("essence_ascendance_focus", 1);
+        check(com.mistaboom.essence_ascendance.pylon.EssenceFocusData.tierFromData(net.minecraft.world.item.component.CustomData.of(outer)) == null,
+                "wrong root type remains Latent");
     }
 
     private static void check(boolean condition, String description) {

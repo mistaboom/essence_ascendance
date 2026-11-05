@@ -1,0 +1,10 @@
+{
+  "schema":1,"assetId":"cast_warm_a","seed":291011,"sampleRate":48000,"duration":0.24,"peakDb":-10,
+  "presetLibrary":"source/audio/presets/essence-v1.json",
+  "design":{"cueIds":["essence_ascendance:weapon.cast.release"],"role":"confirmed combat action","priority":"P1 / 3a","description":"Compact rising energy flick followed by a low mineral trace.","levelIntent":"clear action, below rescue","comparison":"cast variant A","repetitionIntervalSeconds":0.28},
+  "layers":[
+    {"preset":"energy_sweep","name":"01_release_sweep","frequency":280,"frequencyEnd":740,"gain":0.19,"lengthSeconds":0.13},
+    {"preset":"soft_air","name":"02_air_release","gain":0.05,"highHz":4200,"lengthSeconds":0.19},
+    {"preset":"mineral","name":"03_mineral_trace","frequency":384,"gain":0.05,"startSeconds":0.025,"lengthSeconds":0.215}
+  ]
+}

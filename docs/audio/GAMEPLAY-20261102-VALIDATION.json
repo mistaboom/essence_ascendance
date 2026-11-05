@@ -1,0 +1,1528 @@
+{
+  "schema": 1,
+  "kind": "maintained_owner_reviewed_audio_gameplay_validation",
+  "result": "HEADLESS_PASS_HUMAN_ACCEPTANCE_PENDING",
+  "auditSeriesDate": "2026-11-02",
+  "date": "2026-11-04",
+  "timezone": "America/Anchorage",
+  "reviewedBy": "root",
+  "reviewedAtUtc": "2026-11-04T23:07:23.484351+00:00",
+  "conclusion": "PASS: Required headless native gameplay and representative performance acceptance completed in six exact packaged sessions. The fresh clean and full four-target gate passed; all rebuilt archives match accepted pins and frozen source inputs remain unchanged. Human listening/mix/loop, HUD and recorded rights approval remain PENDING.",
+  "scope": "Outstanding actual native gameplay and representative performance requirements only. Current production packages, actual server plus distinct native clients, real interface/request and membership paths. No synthetic/controller-only substitute. No visible human client or screen-control session.",
+  "sourceHead": "5bca40bd0196f28f3c49becdac281704fb236191",
+  "inputs": {
+    "count": 2048,
+    "sha256": "fc30295a7f2f4c3bae562d916eeac59b093a468132eadc6a14ee69f1b8f4df0c",
+    "algorithm": "SHA256 over sorted path UTF-8 + NUL + raw file SHA256",
+    "scope": "Git-visible common/fabric/neoforge src, art, tools, Gradle directory and named build files, plus docs/audio/COVERAGE.json; other documentation and generated outputs excluded"
+  },
+  "sourceSnapshot": {
+    "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-inputs-20261104.json",
+    "sha256": "90e9e9780680ee5416f83413dc53114aa2f620217758e8335d35623881e856ae",
+    "bytes": 388737
+  },
+  "initialInputSnapshot": {
+    "path": "build/audio-gameplay-acceptance-20261102/initial-inputs.json",
+    "sha256": "236adf1aeb177bdcdb5528e2505a69526aed9e3a0e93e853ac5d1eab377816f9",
+    "bytes": 386229
+  },
+  "initialInputFingerprint": "7e026e7cc05e114552f5343d9c6cea86f562752eb2f084feb9fed11db6df9d5b",
+  "deltaFromInitialPass": {
+    "added": [
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/data/CustomDataReader.java",
+        "sha256": "aca0044d88967b057bfd6a642384b25c4933fcf4f7a639d3d5c307aebcd323cc"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/mixin/CustomDataReadMixin.java",
+        "sha256": "66af51bb7f9179294e69560e1b81007fda674fc227a411be56a1e02f78b4ad37"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/AudioGameplayAcceptance.java",
+        "sha256": "de83475d909b68446b281821f240a3f47bc28cefbe249d913c4be477ce7481c9"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/AudioGameplaySession.java",
+        "sha256": "df7de1c9977fc598e1eb60643975dfacb5420be324039928d8fee94536894cce"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/AudioNativePerformanceAcceptance.java",
+        "sha256": "de3d61aaf81d49a93bcf763ea11fdba70af6be42d40f32f687cb93915f536b64"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/AudioPaidMachines.java",
+        "sha256": "aad3bc2eb5f461d9429698f1cf9d7c5f44f508beeb4017bf5f99275c820db792"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/mixin/AudioHiddenWindowMixin.java",
+        "sha256": "2f431f890ed7af8f823eedec865067dd8580cef23b53124cb00294e581ae0340"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/mixin/AudioNetworkPerformanceMixin.java",
+        "sha256": "a393a163744ace7eedd4032a546473600ebd1ef76c1f6d047b70df4fe10775bc"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/mixin/AudioPacketEncoderPerformanceMixin.java",
+        "sha256": "08bd78da71370324c2e33dfbec85b6c4e32fc0e445dc254f700d6df37f0c4950"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/mixin/AudioRuntimePerformanceMixin.java",
+        "sha256": "fb112d6d58ebf12435291f2b53ce8c1f049a5643aac2563bfc561b3afc3483ad"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/mixin/AudioSoundBufferPerformanceMixin.java",
+        "sha256": "83c95232610ad5ffa98cf2292bd7fa9e042b07d59da459c9bc48f40bac66196a"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/mixin/AudioSoundEnginePerformanceMixin.java",
+        "sha256": "5de4bed964e5027144188e120753fbd5bd0121337f6373bd012b445336deeef3"
+      }
+    ],
+    "removed": [],
+    "changed": [
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/client/EssenceAscendanceClient.java",
+        "priorSha256": "5cf02bbaccf79a97c93dbf73baa46a1cba5a920435ce386352b1a2436a5b445f",
+        "sha256": "488982e61afa1a0cd5b879f841c7232cd60347c57976ea67f8c332499e14e088"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/client/audio/AudioRuntime.java",
+        "priorSha256": "2d3fb8aff3cc406edbd6718cfcb40fcc1184f9fc2d78b3d4b6461458f95f7035",
+        "sha256": "4bc60217225d839bef2a335268516762381833a47e313c35fe6ebb2fb93f1239"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/crucible/ConcurrentChannelScheduler.java",
+        "priorSha256": "664834f1db5b47974f3fd5d245c0b3121db04dbf7f97ef886a4ea3fccda4bf8b",
+        "sha256": "94e481ed2cd9b854335956fed69181fd3266fa308d0380ab0d1f74b002056435"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/crucible/EssenceCrucibleBlockEntity.java",
+        "priorSha256": "60cee0b04569fbd95c3a147a5238072e1cf610878a8a21ee85dca2d06bd0e0b2",
+        "sha256": "6055729f9f4e86268d6d4ec3011fc3d6a49b4109649f888e1ebe0bed82df7dee"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/crucible/EssenceCrucibleChannelService.java",
+        "priorSha256": "8844310f748dd66c94c6c53d78ad01d3b76b9b6a58d5671eddb5e179586db4ec",
+        "sha256": "1dcc958746b5f3b76ac2fde6858d0742ccad3d76fca8756248569c059c1bdb5c"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/infuser/EssenceInfuserBlockEntity.java",
+        "priorSha256": "1dc846b7b9e6a09868c5b6d9f50843d5293d86c907382ca965178100d467bfad",
+        "sha256": "12486619d7c0b4fceb3ad9f994a1054958122f3e6b2e8c9a5857702455285f63"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/infuser/FocusInfusionData.java",
+        "priorSha256": "0f38f2216e12f7f463125dd2b3b5a3316732a3d80f8374631e2d1f0264ff9f0d",
+        "sha256": "26b7e418ffac159fcbb536ee6ce8d2b1ca95ff89aea71f5950ed4f5aaa7f799b"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/pylon/EssenceFocusData.java",
+        "priorSha256": "0b98a33a5c7751c6b3095bd77c8ddfa403ed839d290594600e84a97c7e63a8e4",
+        "sha256": "4d0d22ca13d4f8e9bb11c9ddc77912be49c1b560ca123f1d9379f1bd060da0c4"
+      },
+      {
+        "path": "common/src/main/java/com/mistaboom/essence_ascendance/team/compat/FtbTeamsMembershipProvider.java",
+        "priorSha256": "641eecc8223e0b0ff7fdfaa591c289bba478d171b629f62e202939d38c57562e",
+        "sha256": "0b968a2cd51c5746365a171a84be5aa16eaf339320386cf5cbc52c9ed9e7e3e4"
+      },
+      {
+        "path": "common/src/main/resources/essence_ascendance.mixins.json",
+        "priorSha256": "b4654a663f462345b5177621bc94876c90c9541b1b9683319145b5c078c72b0d",
+        "sha256": "00fde1a53fcd2746ac3666c7fc49afc49964a3e3b5369b7c33e19ac31483694f"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audio/AudioNativeTest.java",
+        "priorSha256": "ed502f46f7092f215ab4024163def970a2cc5ccf4cdf1f69a51094d874396275",
+        "sha256": "d6ca720c238f49ecb40e3e0dba3c15e801f7e28224e4a0f9586ea1e95fe04c3a"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/AudioLoaderTest.java",
+        "priorSha256": "4bb6f26f21dbf1fdc7194e607398df43e387bba17cbc260ce788be1139393b30",
+        "sha256": "cba5d9d2ae4102e5abb7e2641848f41f2a40ed151231f61a3dac9eb80b70d513"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/AudioMultiplayerAcceptance.java",
+        "priorSha256": "190e30c8b946e30ff28f5e90b3097234b0adab36852daa07dee149f43f075253",
+        "sha256": "412d44bdea3733ca0591934b8048094258b512f5b1446a0dcc42cb00f02c1c80"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/audiofixture/mixin/AudioCaptionFrameMixin.java",
+        "priorSha256": "330c70cae575a66dbaeb6cd78ac515502e078011945b8f8755fc4de517ec723a",
+        "sha256": "a0e83e81e1cdd08b9a2e35ca9b1e3ae9e15aaabfb3234055b85283c4cc649846"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/crucible/ConcurrentChannelSchedulerTest.java",
+        "priorSha256": "2f72208dbd6be6d24d1af08cc74fb7508aaff06b442c713e065b3883b430d989",
+        "sha256": "d27fbdf0265c6cc9e3dc9321e3a5aabf73b9befc192df3b676653f8f4710e02e"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/data/NbtVersionCompatTest.java",
+        "priorSha256": "a6477853430b2bfa2e1d35a8acff38f524952cd2f25c33bbe9d2a01de4572409",
+        "sha256": "bf8dd19622a4ff173daf6f621686fa3aa02b80b09ac749d11c8113039afa494d"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/projectile/NativeMachineBindingTest.java",
+        "priorSha256": "4ba1fcc1c0c44996e5ea4d047b71f0873e881a441295e827c58c31f3cb116b59",
+        "sha256": "58667836a4e4f335c78ab2be17b255e350b4683d02a7758954e8a1473640a393"
+      },
+      {
+        "path": "common/src/test/java/com/mistaboom/essence_ascendance/team/compat/FtbTeamsApiBoundaryTest.java",
+        "priorSha256": "c6d03839ffca8dff2b6e4a71793c387224d10c0fa80413f6cad0c4d88f4e73e0",
+        "sha256": "d7fafceff34507d4e83f554f6d3c311abf62453b969d0714304bfb1615b94969"
+      },
+      {
+        "path": "fabric/src/main/java/com/mistaboom/essence_ascendance/team/compat/fabric/FtbTeamsEventBridgeImpl.java",
+        "priorSha256": "b33340ecdf33bb1bc06ed633a3ac05704aa7a6137b1c10a5fc8be0c3e7a97933",
+        "sha256": "642f1b0c029f1a2ee9e0c471f96a311e4490b4fe9e9bf100da77d31fbc21498d"
+      },
+      {
+        "path": "gradle/audio-native-hooks.init.gradle",
+        "priorSha256": "6a69971809f00e26991f5739f352f35f5cf13554d381909cbe2cbebc97414d6c",
+        "sha256": "8e0741e7f1379c6c4b93540f4a97737ec0ab979453e2494784748b17b8815cb5"
+      },
+      {
+        "path": "gradle/membership-native-hooks.init.gradle",
+        "priorSha256": "7db52a08d7c15185d3a8e71824880908f562cd38d81190c42eeeeea620a0b32c",
+        "sha256": "3bd3ad6d08db2d7a73c2c80f44e4c96be89c576e5c7570d3717a899fa49ecf07"
+      },
+      {
+        "path": "neoforge/src/main/java/com/mistaboom/essence_ascendance/neoforge/EssenceAscendanceNeoForgeClient.java",
+        "priorSha256": "5661f935c10e231c0d32e74de484bc1bd7e55b023ffc759584e23699acdc4e55",
+        "sha256": "0c4040555b1a210b59dd397d71268804f6649b02907936eae8245248533fe367"
+      },
+      {
+        "path": "neoforge/src/main/java/com/mistaboom/essence_ascendance/team/compat/neoforge/FtbTeamsEventBridgeImpl.java",
+        "priorSha256": "7202a75b607bfe44c6a09f46d12492b969d56666979d36409806da8bfa51a176",
+        "sha256": "23f8d78956ef49c56c23f20d1ab73732ac7f884771256c89364809422cdd7d33"
+      },
+      {
+        "path": "tools/audio/packaged_acceptance.py",
+        "priorSha256": "d804bf2ec287668dabdf7004f156f6a6f429bd3d6a32cde9948f80a8c428cb01",
+        "sha256": "f12c5e796224ec86da6dbb72d793fdc8efc503000c12acb6845c0b3ca1bae158"
+      },
+      {
+        "path": "tools/audio/test_packaged_acceptance.py",
+        "priorSha256": "7ad2606ae7483abc3baba2ff38cbcca160e69d8cf94222de9b5686b9d12b508e",
+        "sha256": "5a3c22f553d9ba7e92167c2ff635110747bdfb1f03487b71057ac15d9450ca45"
+      }
+    ],
+    "unchangedCount": 2011
+  },
+  "approvedArtPreservation": {
+    "result": "PASS",
+    "artFilesUnchangedFromInitialPass": 345,
+    "approvedDefinitions": {
+      "catalog": {
+        "path": "art/audio-catalog.json",
+        "sha256": "beb776210c47e19fe7551daf43733701f235eff9049a40e6d2bb70a94b671a01",
+        "bytes": 70132
+      },
+      "manifest": {
+        "path": "art/audio-manifest.json",
+        "sha256": "511631ad13a567d775e8479623ed850618341dc3ce539d5a17f5248b3c8f6d9a",
+        "bytes": 932228
+      },
+      "selection": {
+        "path": "art/source/audio/handoffs/prompt7-20261101.json",
+        "sha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+        "bytes": 16320
+      }
+    },
+    "selectedPromotionsUnchangedFromIntegration": 49,
+    "scope": "Exact bytes/inventory only; no creative revision, listening or rights approval inferred"
+  },
+  "fullBuild": {
+    "result": "PASS",
+    "scope": "Standalone cleanProductionOutputs followed sequentially by checkSupportedTargets passed. Six exact packaged native sessions finished before Gradle began. All four rebuilt archives match the accepted pins and the frozen 2048-input fingerprint is unchanged. Windows process-tree CPU/memory limits and host-reserve watchdog applied; no native measurement overlaps Gradle.",
+    "inputSnapshot": {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-inputs-20261104.json",
+      "sha256": "90e9e9780680ee5416f83413dc53114aa2f620217758e8335d35623881e856ae",
+      "bytes": 388737
+    },
+    "postGateFixtureChanges": [],
+    "finalFixtureInputSnapshot": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-inputs-20261104.json",
+    "finalFixtureBuilds": [
+      {
+        "target": "2612Fabric",
+        "exitCode": 0,
+        "log": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.log",
+        "requiredText": [
+          "BUILD SUCCESSFUL"
+        ],
+        "fixture": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/2612Fabric/audio-native-fixture.jar",
+        "fixtureSha256": "210d6ffcbd067f6ebfce02a3c4748ffe2d0b5674d8f3928d4b982f5f7a95529c",
+        "guardReceipt": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.receipt.json"
+      },
+      {
+        "target": "1211NeoForge",
+        "exitCode": 0,
+        "log": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.log",
+        "requiredText": [
+          "BUILD SUCCESSFUL"
+        ],
+        "fixture": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/1211NeoForge/audio-native-fixture.jar",
+        "fixtureSha256": "b258c7f253c7515251b562462b72d7a5ecb8f3f86a748bfe40f4f327272db37a",
+        "guardReceipt": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.receipt.json"
+      },
+      {
+        "target": "2612NeoForge",
+        "exitCode": 0,
+        "log": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.log",
+        "requiredText": [
+          "BUILD SUCCESSFUL"
+        ],
+        "fixture": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/2612NeoForge/audio-native-fixture.jar",
+        "fixtureSha256": "23370998c8cfed465ddd1306b3e9213735e6f35a029a454943b9e3c585cedb8e",
+        "guardReceipt": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.receipt.json"
+      },
+      {
+        "target": "1211Fabric",
+        "exitCode": 0,
+        "log": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.log",
+        "requiredText": [
+          "BUILD SUCCESSFUL"
+        ],
+        "fixture": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/1211Fabric/audio-packaged-fixture.jar",
+        "fixtureSha256": "e31a3c72d38a8fcd1eb9b21aa49d15f107fa56e6c969d214c3a0500bbb19af71",
+        "guardReceipt": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.receipt.json"
+      }
+    ],
+    "finalLauncherRegression": null,
+    "clean": {
+      "exitCode": 0,
+      "log": {
+        "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.log",
+        "sha256": "5a321b8a888f8997da71c1b5faef9d73a3a0f3899cdb399eeea3f9168b62b998",
+        "bytes": 1622
+      },
+      "requiredText": [
+        "BUILD SUCCESSFUL"
+      ],
+      "result": "PASS",
+      "guardReceipt": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.receipt.json",
+      "guardExit": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.exit.txt"
+    },
+    "supported": {
+      "exitCode": 0,
+      "log": {
+        "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.log",
+        "sha256": "37804938926300f7dd1259ae23af8f0cbd2793e9c305edd4cd1d887fb8f90aa0",
+        "bytes": 171589
+      },
+      "requiredText": [
+        "BUILD SUCCESSFUL"
+      ],
+      "result": "PASS",
+      "guardReceipt": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.receipt.json",
+      "guardExit": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.exit.txt",
+      "elapsed": "18m 6s",
+      "tasks": {
+        "total": 282,
+        "executed": 277,
+        "upToDate": 5
+      }
+    },
+    "inputFingerprint": "fc30295a7f2f4c3bae562d916eeac59b093a468132eadc6a14ee69f1b8f4df0c",
+    "rebuiltIdentityEvidence": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-build-identity-20261104.json",
+    "fixtureRevalidation": {
+      "result": "UNCHANGED_FROM_FULL_GATE",
+      "postGateFixtureChanges": [],
+      "scope": "All final source inputs exactly match the full supported-target gate snapshot"
+    }
+  },
+  "rebuiltIdentity": {
+    "result": "PASS",
+    "fullSupportedExitCode": 0,
+    "guardExitCode": 0,
+    "build": "18m 6s; 282 tasks,277 executed,5 up-to-date",
+    "sourceCount": 2048,
+    "sourceFingerprint": "fc30295a7f2f4c3bae562d916eeac59b093a468132eadc6a14ee69f1b8f4df0c",
+    "archives": [
+      {
+        "target": "1211Fabric",
+        "sha256": "fbe8042bdbcfe7cd2487644e9ddc5533c5d262f4ad9a467a784390fa29dca852",
+        "exactBytesMatchAcceptedPin": true
+      },
+      {
+        "target": "1211NeoForge",
+        "sha256": "111689b225c424250ab7f48f7d5a9c1327dacd81cb47fa70319634e2b715b937",
+        "exactBytesMatchAcceptedPin": true
+      },
+      {
+        "target": "2612Fabric",
+        "sha256": "cd35d23aba410ffedc47ef9f72222e0bca9fa2b3059cbd268e406a9939d37e9c",
+        "exactBytesMatchAcceptedPin": true
+      },
+      {
+        "target": "2612NeoForge",
+        "sha256": "2d0a19d26e61039e4fe61886ffe60f54adef9b8e79ea62ac72544554f3dc322f",
+        "exactBytesMatchAcceptedPin": true
+      }
+    ],
+    "approvedArtChanged": [],
+    "scope": "Fresh standalone cleanup then full gate; rebuilt exact bytes match all six accepted native runs; source unchanged"
+  },
+  "packaging": {
+    "result": "PASS",
+    "scope": "Independently checked provider hashes, full processed assets/data byte equality, approved sample bytes, captions and authoring exclusion; no runtime acceptance inferred",
+    "manifest": {
+      "path": "build/production-artifacts-all.json",
+      "sha256": "0c18229c05e5ae7b5766aa568d5abb8b6c7cc31c95195d5cf1412184ec078852",
+      "bytes": 2009
+    },
+    "targets": [
+      {
+        "target": "1211Fabric",
+        "minecraft": "1.21.1",
+        "loader": "fabric",
+        "java": 21,
+        "task": ":fabric:1.21.1:remapJar",
+        "archive": "fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-fabric.jar",
+        "bytes": 7496422,
+        "sha256": "fbe8042bdbcfe7cd2487644e9ddc5533c5d262f4ad9a467a784390fa29dca852",
+        "path": "fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-fabric.jar",
+        "processedResourceCount": 539,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      },
+      {
+        "target": "1211NeoForge",
+        "minecraft": "1.21.1",
+        "loader": "neoforge",
+        "java": 21,
+        "task": ":neoforge:1.21.1:remapJar",
+        "archive": "neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-neoforge.jar",
+        "bytes": 7544213,
+        "sha256": "111689b225c424250ab7f48f7d5a9c1327dacd81cb47fa70319634e2b715b937",
+        "path": "neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-neoforge.jar",
+        "processedResourceCount": 539,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      },
+      {
+        "target": "2612Fabric",
+        "minecraft": "26.1.2",
+        "loader": "fabric",
+        "java": 25,
+        "task": ":fabric:26.1.2:shadowJar",
+        "archive": "fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-fabric.jar",
+        "bytes": 8356850,
+        "sha256": "cd35d23aba410ffedc47ef9f72222e0bca9fa2b3059cbd268e406a9939d37e9c",
+        "path": "fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-fabric.jar",
+        "processedResourceCount": 617,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      },
+      {
+        "target": "2612NeoForge",
+        "minecraft": "26.1.2",
+        "loader": "neoforge",
+        "java": 25,
+        "task": ":neoforge:26.1.2:shadowJar",
+        "archive": "neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-neoforge.jar",
+        "bytes": 8362055,
+        "sha256": "2d0a19d26e61039e4fe61886ffe60f54adef9b8e79ea62ac72544554f3dc322f",
+        "path": "neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-neoforge.jar",
+        "processedResourceCount": 617,
+        "catalogOwnedOggs": 49,
+        "registeredCues": 62,
+        "customDefinitions": 45,
+        "structuralResult": "PASS"
+      }
+    ]
+  },
+  "acceptedNativeRuns": [
+    {
+      "target": "2612Fabric",
+      "membership": "native",
+      "receipt": "build/audio-packaged-acceptance/gameplay-2612fabric-native-final-20261104-c/receipt.json",
+      "scope": "Full hidden exact packaged native gameplay: backward server-time correction preserves the original paid body; distinct real socket clients late-connect and disconnect/reconnect while paid sources remain active; real interface/C2S paths, membership changes, paid Infuser, both pylon families, authorized flight and mixed activity; six actual unprofiled idle/dense/stopped performance windows each for the server, actor and reconnected observer. Windows guard v2 limits are part of the measured host conditions.",
+      "path": "build/audio-packaged-acceptance/gameplay-2612fabric-native-final-20261104-c/receipt.json",
+      "sha256": "bc09623146606a3f5611146103e4263b4b5d62b7d9acdf188ebd28e53f629e11",
+      "bytes": 315209,
+      "productionSha256": "cd35d23aba410ffedc47ef9f72222e0bca9fa2b3059cbd268e406a9939d37e9c",
+      "fixtureSha256": "210d6ffcbd067f6ebfce02a3c4748ffe2d0b5674d8f3928d4b982f5f7a95529c",
+      "processExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "scenario": "native-gameplay",
+      "soundDevice": "OpenAL Soft on Speakers (Steam Streaming Speakers)",
+      "runtimeInputsCurrentlyVerified": 139
+    },
+    {
+      "target": "1211NeoForge",
+      "membership": "native",
+      "receipt": "build/audio-packaged-acceptance/gameplay-1211neoforge-native-final-20261104-b/receipt.json",
+      "scope": "Full hidden exact packaged native gameplay: backward server-time correction preserves the original paid body; distinct real socket clients late-connect and disconnect/reconnect while paid sources remain active; real interface/C2S paths, membership changes, paid Infuser, both pylon families, authorized flight and mixed activity; six actual unprofiled idle/dense/stopped performance windows each for the server, actor and reconnected observer. Windows guard v2 limits are part of the measured host conditions.",
+      "path": "build/audio-packaged-acceptance/gameplay-1211neoforge-native-final-20261104-b/receipt.json",
+      "sha256": "0cc1e5a0899d7d718dfee9b2baee2e38e8f79035113f1ea21b6a70cea2987186",
+      "bytes": 432078,
+      "productionSha256": "111689b225c424250ab7f48f7d5a9c1327dacd81cb47fa70319634e2b715b937",
+      "fixtureSha256": "b258c7f253c7515251b562462b72d7a5ecb8f3f86a748bfe40f4f327272db37a",
+      "processExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "scenario": "native-gameplay",
+      "soundDevice": "OpenAL Soft on Speakers (Steam Streaming Speakers)",
+      "runtimeInputsCurrentlyVerified": 267
+    },
+    {
+      "target": "2612NeoForge",
+      "membership": "native",
+      "receipt": "build/audio-packaged-acceptance/gameplay-2612neoforge-native-final-20261104-a/receipt.json",
+      "scope": "Full hidden exact packaged native gameplay: backward server-time correction preserves the original paid body; distinct real socket clients late-connect and disconnect/reconnect while paid sources remain active; real interface/C2S paths, membership changes, paid Infuser, both pylon families, authorized flight and mixed activity; six actual unprofiled idle/dense/stopped performance windows each for the server, actor and reconnected observer. Windows guard v2 limits are part of the measured host conditions.",
+      "path": "build/audio-packaged-acceptance/gameplay-2612neoforge-native-final-20261104-a/receipt.json",
+      "sha256": "489ad99f0b38645d31d15cdebe89473aa0280418aa3ab1602429963b2acc45e0",
+      "bytes": 396296,
+      "productionSha256": "2d0a19d26e61039e4fe61886ffe60f54adef9b8e79ea62ac72544554f3dc322f",
+      "fixtureSha256": "23370998c8cfed465ddd1306b3e9213735e6f35a029a454943b9e3c585cedb8e",
+      "processExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "scenario": "native-gameplay",
+      "soundDevice": "OpenAL Soft on Speakers (Steam Streaming Speakers)",
+      "runtimeInputsCurrentlyVerified": 206
+    },
+    {
+      "target": "1211Fabric",
+      "membership": "native",
+      "receipt": "build/audio-packaged-acceptance/gameplay-1211fabric-native-final-20261104-f/receipt.json",
+      "scope": "Full hidden exact packaged native gameplay: backward server-time correction preserves the original paid body; distinct real socket clients late-connect and disconnect/reconnect while paid sources remain active; real interface/C2S paths, membership changes, paid Infuser, both pylon families, authorized flight and mixed activity; six actual unprofiled idle/dense/stopped performance windows each for the server, actor and reconnected observer. Windows guard v2 limits are part of the measured host conditions.",
+      "path": "build/audio-packaged-acceptance/gameplay-1211fabric-native-final-20261104-f/receipt.json",
+      "sha256": "d6ccde8bc80f63d18b481e1877390d7a5d2aab86b00fea5bf3640ee33fc0c008",
+      "bytes": 310284,
+      "productionSha256": "fbe8042bdbcfe7cd2487644e9ddc5533c5d262f4ad9a467a784390fa29dca852",
+      "fixtureSha256": "e31a3c72d38a8fcd1eb9b21aa49d15f107fa56e6c969d214c3a0500bbb19af71",
+      "processExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "scenario": "native-gameplay",
+      "soundDevice": "OpenAL Soft on Speakers (Steam Streaming Speakers)",
+      "runtimeInputsCurrentlyVerified": 128
+    },
+    {
+      "target": "2612NeoForge",
+      "membership": "ftb",
+      "receipt": "build/audio-packaged-acceptance/gameplay-2612neoforge-ftb-final-20261104-e/receipt.json",
+      "scope": "Full hidden exact packaged native gameplay: backward server-time correction preserves the original paid body; distinct real socket clients late-connect and disconnect/reconnect while paid sources remain active; real interface/C2S paths, membership changes, paid Infuser, both pylon families, authorized flight and mixed activity; six actual unprofiled idle/dense/stopped performance windows each for the server, actor and reconnected observer. Windows guard v2 limits are part of the measured host conditions.",
+      "path": "build/audio-packaged-acceptance/gameplay-2612neoforge-ftb-final-20261104-e/receipt.json",
+      "sha256": "095d0d2fd0887a0767f97ff6ab62e1010445d877dfb5c99933b30c6a3962aa8a",
+      "bytes": 406609,
+      "productionSha256": "2d0a19d26e61039e4fe61886ffe60f54adef9b8e79ea62ac72544554f3dc322f",
+      "fixtureSha256": "23370998c8cfed465ddd1306b3e9213735e6f35a029a454943b9e3c585cedb8e",
+      "processExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "scenario": "native-gameplay",
+      "soundDevice": "OpenAL Soft on Speakers (Steam Streaming Speakers)",
+      "runtimeInputsCurrentlyVerified": 212
+    },
+    {
+      "target": "1211Fabric",
+      "membership": "ftb",
+      "receipt": "build/audio-packaged-acceptance/gameplay-1211fabric-ftb-final-20261104-h/receipt.json",
+      "scope": "Full hidden exact packaged native gameplay: backward server-time correction preserves the original paid body; distinct real socket clients late-connect and disconnect/reconnect while paid sources remain active; real interface/C2S paths, membership changes, paid Infuser, both pylon families, authorized flight and mixed activity; six actual unprofiled idle/dense/stopped performance windows each for the server, actor and reconnected observer. Windows guard v2 limits are part of the measured host conditions.",
+      "path": "build/audio-packaged-acceptance/gameplay-1211fabric-ftb-final-20261104-h/receipt.json",
+      "sha256": "2c01265fac0d485373f93de1a7f620e083db0c03fd449b1da78ea7736a6494a1",
+      "bytes": 326438,
+      "productionSha256": "fbe8042bdbcfe7cd2487644e9ddc5533c5d262f4ad9a467a784390fa29dca852",
+      "fixtureSha256": "e31a3c72d38a8fcd1eb9b21aa49d15f107fa56e6c969d214c3a0500bbb19af71",
+      "processExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "scenario": "native-gameplay",
+      "soundDevice": "OpenAL Soft on Speakers (Steam Streaming Speakers)",
+      "runtimeInputsCurrentlyVerified": 134
+    }
+  ],
+  "nativeSummary": {
+    "nativeWindowCount": 108,
+    "serverWindows": 36,
+    "clientWindows": 72,
+    "nativeProcessExits": 24,
+    "allNativeExitCodesZero": true,
+    "allGuardResultsPass": true,
+    "allGuardActualCommandsZero": true,
+    "allGuardOwnedRemainingZero": true,
+    "allGuardOwnedTerminatedZero": true,
+    "nonOverlappingNativeSessionsVerified": true,
+    "totalServerAssertions": 2473,
+    "totalPaidHelperAssertions": 780,
+    "guardTotals": {
+      "peakJobCommittedBytes": 5937549312,
+      "minimumAvailablePhysicalBytes": 20148928512,
+      "minimumCommitHeadroomBytes": 18694549504,
+      "totalNativeSessionWallSeconds": 2580.8602788999992
+    }
+  },
+  "actualNativePerformance": {
+    "result": "VERIFIED_NATIVE_MEASUREMENTS",
+    "reports": [
+      {
+        "path": "build/audio-gameplay-acceptance-20261102/final-native-compact-20261104.json",
+        "sha256": "b621faba73a082e9bee6f3489903a6811a0d8d0086aeab40d66e3e14141ab574",
+        "bytes": 134933
+      },
+      {
+        "path": "build/audio-gameplay-acceptance-20261102/final-native-compact-20261104.md",
+        "sha256": "5ea93f6b96077365de2a33395ee5c12a5a1a2cc39c295d2586dc1a64a32182eb",
+        "bytes": 15400
+      }
+    ],
+    "rawAndDetailedEvidence": {
+      "path": "build/audio-gameplay-acceptance-20261102/completion-evidence-20261104.json",
+      "sha256": "132c7ac2db4ae8dfc5a6572725d0ba94d860fcaae5510f4558851339768a1e62",
+      "bytes": 2409528
+    },
+    "scope": "108 native idle/dense/stopped windows: actual discovery, owned/native playing source counts, real decoder-worker completions, process/audio-thread CPU, Java allocations and packet/socket traffic. Tables retain per-target and per-window observations.",
+    "limitations": [
+      "Actual hidden native clients and real paid loaded sources; no synthetic sink or injected source state.",
+      "OpenAL channel.playing verifies native state, not human audibility, perceived mix, seamlessness or HUD legibility.",
+      "Whole-process CPU includes rendering, gameplay, networking, JVM/GC and native audio threads. It is not isolated audio CPU or foreground GPU acceptance.",
+      "Sound-engine Java-thread CPU is measured; Java MXBean cannot separately attribute native OpenAL mixer-thread CPU. Process CPU includes those native threads.",
+      "Thread allocation is Java heap only, excluding native/direct buffers. Surviving-thread totals explicitly report thread churn.",
+      "Windows thread CPU counters are quantized; a zero short-region CPU delta does not mean zero work. Prefer tick wall/heap and whole-window CPU comparisons.",
+      "Per-tick AudioRuntime measurements include its bounded discovery; packet-triggered callbacks outside that tick are counted, not individually timed.",
+      "Cumulative decoder-worker observations include setup/prior gameplay; measured-window decode deltas distinguish cached steady loops from cold decoding.",
+      "Idle-loaded is a real game world, potentially including residual native dropped items; process totals include that world overhead.",
+      "Same host, fixed hidden-window settings and two simultaneous clients; broader hardware, drivers, latency/loss and soak coverage remain separate.",
+      "p95 ranges below are ranges of independently measured window percentiles, not a pooled sample percentile.",
+      "Each range spans independently measured windows; client ranges span both current clients. Percentiles are never pooled.",
+      "Server traffic covers both clients. Server and client windows are independently bounded and must not be subtracted as exact matching intervals.",
+      "Encoded payload bytes precede compression/framing. Socket bytes include framing but exclude TCP/IP headers.",
+      "Decoder cumulative totals are taken once from each current client process after its final window, never summed over cumulative observations; in full gameplay B is the reconnected process.",
+      "The cumulative decoder totals include real cold/setup/prior-gameplay work; they are not steady-window decode costs.",
+      "Allocation GB and MB below are decimal Java allocated bytes, not retained heap or native/direct allocations.",
+      "Allsix timings use the same guarded CPU/memory/priority profile. Same-host results are not unconstrained desktop or broadhardware benchmark measurements.",
+      "Native process CPU includes OpenAL mixing, but native mixer CPU and native/direct allocations are not isolated. Java allocated bytes are not retained/peak process memory.",
+      "Guard job peak committed memory is separately measured and cannotbe substituted for per-window Java allocation.",
+      "No hearing, perceived loop/mix, HUD legibility or provenance/rights approval inferred. Human checks remain pending.",
+      "Previous failed, interrupted, profiled and superseded-package receipts retain their original status and are excluded from these six accepted sessions."
+    ]
+  },
+  "hostEnvironment": {
+    "binding": {
+      "path": "build/audio-gameplay-acceptance-20261102/host-environment.json",
+      "sha256": "af009a8a2a4a1d0d8e7071fe3d42f6a2a23c5ef6c5c40441aa9adf0c8ab3d1bd",
+      "bytes": 1190
+    },
+    "reportedEnvironment": {
+      "capturedUtc": "2026-11-03T03:35:48.0770685Z",
+      "timezone": "America/Anchorage",
+      "operatingSystem": {
+        "Caption": "Microsoft Windows 11 Pro",
+        "Version": "10.0.26300",
+        "BuildNumber": "26300",
+        "OSArchitecture": "64-bit",
+        "TotalVisibleMemorySize": 33307868
+      },
+      "processors": [
+        {
+          "Name": "12th Gen Intel(R) Core(TM) i5-12600K",
+          "NumberOfCores": 10,
+          "NumberOfLogicalProcessors": 16
+        }
+      ],
+      "javaMaximumHeapBytes": 2147483648,
+      "javaActiveProcessorCount": 4,
+      "topology": "One dedicated server and two distinct native client JVMs on same Windows host, loopback sockets; sequential acceptance runs",
+      "audioDevice": "OpenAL Soft on Speakers (Steam Streaming Speakers)",
+      "nativeWindow": "Hidden real GLFW/OpenGL; actual visibility and device verified per record",
+      "clientSettings": {
+        "music": 0.0,
+        "simulationDistance": 5,
+        "nativeMaster": 1.0,
+        "height": 480,
+        "eaFamilyGains": 1.0,
+        "nativeSubtitles": true,
+        "width": 854,
+        "continuous": true,
+        "nativePlayers": 1.0,
+        "maxFps": 30,
+        "nativeBlocks": 1.0,
+        "renderDistance": 3,
+        "captions": "ALWAYS"
+      }
+    },
+    "scope": "Recorded host configuration; each accepted window separately binds actual JVM/client/device settings"
+  },
+  "hostConstraintProfile": {
+    "cpu_rate_percent": 25,
+    "job_memory_bytes": 8589934592,
+    "priority_class": "BELOW_NORMAL",
+    "kill_on_close": true,
+    "minimum_host_available_bytes": 6442450944,
+    "minimum_commit_headroom_bytes": 6442450944,
+    "poll_seconds": 2,
+    "drain_seconds": 15,
+    "wall_timeout_seconds": 1800
+  },
+  "verifiedNativeJobLimits": {
+    "limit_flags": 8736,
+    "priority_class": 16384,
+    "job_memory_bytes": 8589934592,
+    "cpu_flags": 5,
+    "cpu_rate": 2500
+  },
+  "guardRunner": {
+    "path": "build/audio-gameplay-acceptance-20261102/guarded_run.py",
+    "sha256": "c27f6c71a3034676fa9dab3b1cf414f49e6b4c78fc0f37e1883130cf8a86e220",
+    "bytes": 19268
+  },
+  "hostInterruption": {
+    "result": "CAUSE_UNESTABLISHED",
+    "binding": {
+      "path": "build/audio-gameplay-acceptance-20261102/host-interruption-20261104.json",
+      "sha256": "662135bf9b8d7a440498fbb175b36d9076702e150d0638337724ed878674a034",
+      "bytes": 4916
+    },
+    "scope": "Earlier run interrupted by reported whole-host freeze/unexpected shutdown; no completed receipt or invented exit. Excluded from acceptance. No recurrence reported in protected continuation; CPU/memory/watchdog limits do not contain GPU/kernel/driver faults."
+  },
+  "humanPreparation": {
+    "result": "PREPARED_NOT_CLIENT_LAUNCHED",
+    "target": "1211Fabric",
+    "finalInputReview": {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-final-input-review-20261104.json",
+      "sha256": "263bff093ed97642ab7ec6e8623a9b82aa098d3fd4cc874dfbfd91c8835601e9",
+      "bytes": 630
+    },
+    "manifest": {
+      "path": "build/audio-packaged-acceptance/human-1211fabric-final-v2/human-inputs.json",
+      "sha256": "21e7184b76a5c9a8652fdfe095826d725964d5d4354b373754731ce335440924",
+      "bytes": 53698
+    },
+    "serverOnlySmoke": {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-server-only-smoke-20261104.json",
+      "sha256": "84c850533f35bcd413d2b697ff495e05a67f76ce05612fec0d6a024a79691cdb",
+      "bytes": 931
+    },
+    "criticalInputsVerified": 121,
+    "productionSha256": "fbe8042bdbcfe7cd2487644e9ddc5533c5d262f4ad9a467a784390fa29dca852",
+    "launcher": "build/audio-packaged-acceptance/human-1211fabric-final-v2/launch-human.ps1",
+    "checklist": "docs/audio/GAMEPLAY-20261102.md",
+    "checklistHeading": "Human acceptance \u2014 Minecraft 1.21.1 Fabric"
+  },
+  "humanListening": {
+    "result": "PENDING",
+    "scope": "User listening, approved-design mix and loop-seam acceptance."
+  },
+  "humanHud": {
+    "result": "PENDING",
+    "scope": "User readability/coexistence check at GUI scales 1/2/3."
+  },
+  "rightsReview": {
+    "result": "PENDING",
+    "scope": "User redistribution approval after provenance/licence review; no inferred legal signoff."
+  },
+  "remaining": {
+    "required": [
+      "Human listening/mix/loop acceptance",
+      "Human HUD acceptance",
+      "Explicit selected-audio rights review"
+    ],
+    "additional": [
+      "Broader hardware/output devices/resource packs/locales/operating systems",
+      "Other supported FTB loader/version cross-product combinations beyond the two representative accepted scenarios",
+      "WAN latency/loss and long-soak coverage",
+      "Native OpenAL mixer CPU and native/direct allocations isolated with platform-specific profiling",
+      "Unselected historical-source limitations outside this pass",
+      "Separate generic visual-reload investigation outside this audio acceptance pass"
+    ]
+  },
+  "additionalEvidence": [
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-f-dense-full-stack-attribution.txt",
+      "scope": "Profiled historical server allocation attribution, not final timing acceptance",
+      "sha256": "3f1bfa300a7728b224c1e9b33019bafc4e0568b2c3552c8c0201a2cf9ab94064",
+      "bytes": 28955
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-g-dense-full-stack-attribution.txt",
+      "scope": "Profiled historical server allocation attribution, not final timing acceptance",
+      "sha256": "17f4fb750cbddb4c30a7c196150befacf0d05baff7a029f5defbb1b8b11fa14c",
+      "bytes": 4331
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-h-dense-full-stack-attribution.txt",
+      "scope": "Profiled historical server allocation attribution, not final timing acceptance",
+      "sha256": "e1400fa502e156ce85df9e576adc1848e057d0885222eec92ffb8fb2fbfc8498",
+      "bytes": 19313
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/2612Fabric/audio-native-fixture.jar",
+      "scope": "Exact external fixture pin for 2612Fabric; native receipt binds this fixture separately from production.",
+      "sha256": "210d6ffcbd067f6ebfce02a3c4748ffe2d0b5674d8f3928d4b982f5f7a95529c",
+      "bytes": 153575
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.receipt.json",
+      "scope": "Completed final external fixture compilation for 2612Fabric under constrained Windows process-tree limits.",
+      "sha256": "1785aaf968345f6ff9ee456010b63c68b0757f6cef38d519fb428c2741674169",
+      "bytes": 3050
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.configuration.json",
+      "scope": "Completed final external fixture compilation for 2612Fabric under constrained Windows process-tree limits.",
+      "sha256": "f7364aa59abe1c2a2d68b358cfea45531c183c80434e119d59e287be32c2dd0b",
+      "bytes": 2029
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.samples.jsonl",
+      "scope": "Completed final external fixture compilation for 2612Fabric under constrained Windows process-tree limits.",
+      "sha256": "50a460c29d87fb38173d82ad4eb4f86a4d4d0223b2b0ee0340141164e6d6559c",
+      "bytes": 2390
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.exit.txt",
+      "scope": "Completed final external fixture compilation for 2612Fabric under constrained Windows process-tree limits.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.log",
+      "scope": "Completed final external fixture compilation for 2612Fabric under constrained Windows process-tree limits.",
+      "sha256": "5983466077ae79d09a8b33d46c39c6c66c50c5863b3af4b7ffa571149941051a",
+      "bytes": 2460
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612Fabric-20261104-guard.child.json",
+      "scope": "Completed final external fixture compilation for 2612Fabric under constrained Windows process-tree limits.",
+      "sha256": "b6710ccc0cac01c6ee6b216243b5aff91e08d16b9fb997f0a3cf59e3215e45eb",
+      "bytes": 480
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/1211NeoForge/audio-native-fixture.jar",
+      "scope": "Exact external fixture pin for 1211NeoForge; native receipt binds this fixture separately from production.",
+      "sha256": "b258c7f253c7515251b562462b72d7a5ecb8f3f86a748bfe40f4f327272db37a",
+      "bytes": 154487
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.receipt.json",
+      "scope": "Completed final external fixture compilation for 1211NeoForge under constrained Windows process-tree limits.",
+      "sha256": "28bf2416859cf7f7919dd303c5e08369c76c2b7e1d1528c3fb3cfc807ae509dc",
+      "bytes": 3055
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.configuration.json",
+      "scope": "Completed final external fixture compilation for 1211NeoForge under constrained Windows process-tree limits.",
+      "sha256": "158914cad252c0325aca5127c3b762c63a360ca285fa86e3fa2dd92b5855c116",
+      "bytes": 2031
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.samples.jsonl",
+      "scope": "Completed final external fixture compilation for 1211NeoForge under constrained Windows process-tree limits.",
+      "sha256": "fc51a08760bae937cb7d439d6ecb63bc1c0306861ab8a7d2d5e4702de267e4d7",
+      "bytes": 2389
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.exit.txt",
+      "scope": "Completed final external fixture compilation for 1211NeoForge under constrained Windows process-tree limits.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.log",
+      "scope": "Completed final external fixture compilation for 1211NeoForge under constrained Windows process-tree limits.",
+      "sha256": "598d9b0b1c13b9739ca3e8903c4edc9ba95aaa078bfbec1ca2e18ec48a5e0786",
+      "bytes": 2564
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211NeoForge-20261104-guard.child.json",
+      "scope": "Completed final external fixture compilation for 1211NeoForge under constrained Windows process-tree limits.",
+      "sha256": "dca2f02e091d12e1056742d6d36247dc5ca91e50f553b4327288474b77e35467",
+      "bytes": 483
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/2612NeoForge/audio-native-fixture.jar",
+      "scope": "Exact external fixture pin for 2612NeoForge; native receipt binds this fixture separately from production.",
+      "sha256": "23370998c8cfed465ddd1306b3e9213735e6f35a029a454943b9e3c585cedb8e",
+      "bytes": 155039
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.receipt.json",
+      "scope": "Completed final external fixture compilation for 2612NeoForge under constrained Windows process-tree limits.",
+      "sha256": "3e8bbee266945a4441718b53007d006c37c4146ab0a6920b60ec3d99c0d5025c",
+      "bytes": 3053
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.configuration.json",
+      "scope": "Completed final external fixture compilation for 2612NeoForge under constrained Windows process-tree limits.",
+      "sha256": "fab2ed4f95561490cc4c6dd0802f743e06af58c2eaed64f6e9d9d5a62cb54594",
+      "bytes": 2031
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.samples.jsonl",
+      "scope": "Completed final external fixture compilation for 2612NeoForge under constrained Windows process-tree limits.",
+      "sha256": "93d5a00ee51aba05ca40963d6a4f92644f43c0b09e568039940ce693da3d8e59",
+      "bytes": 2391
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.exit.txt",
+      "scope": "Completed final external fixture compilation for 2612NeoForge under constrained Windows process-tree limits.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.log",
+      "scope": "Completed final external fixture compilation for 2612NeoForge under constrained Windows process-tree limits.",
+      "sha256": "fab75382663ed0d66695712859cb87c18b309b99918f329783c359b167a659ba",
+      "bytes": 2526
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-2612NeoForge-20261104-guard.child.json",
+      "scope": "Completed final external fixture compilation for 2612NeoForge under constrained Windows process-tree limits.",
+      "sha256": "edfb8a3e064a802e5840bfcc8ead08ec4ca28e0ac20633ddef1ff5df7f98a596",
+      "bytes": 482
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/fixtures/presentation-clock-final-20261104/1211Fabric/audio-packaged-fixture.jar",
+      "scope": "Exact external fixture pin for 1211Fabric; native receipt binds this fixture separately from production.",
+      "sha256": "e31a3c72d38a8fcd1eb9b21aa49d15f107fa56e6c969d214c3a0500bbb19af71",
+      "bytes": 153043
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.receipt.json",
+      "scope": "Completed final external fixture compilation for 1211Fabric under constrained Windows process-tree limits.",
+      "sha256": "49e62b3818ab486bdd1509b657dcb83e8f4a420bb00aa3f993ac5a532805f361",
+      "bytes": 3053
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.configuration.json",
+      "scope": "Completed final external fixture compilation for 1211Fabric under constrained Windows process-tree limits.",
+      "sha256": "275731cc6ff685be0bb6fd25a63c3a8c3807f5718e02466555470f194d1801d5",
+      "bytes": 2030
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.samples.jsonl",
+      "scope": "Completed final external fixture compilation for 1211Fabric under constrained Windows process-tree limits.",
+      "sha256": "5836d504f47a960154613f6741c1d9f01c5009ff2126f70bac750e0395f69f39",
+      "bytes": 2794
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.exit.txt",
+      "scope": "Completed final external fixture compilation for 1211Fabric under constrained Windows process-tree limits.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.log",
+      "scope": "Completed final external fixture compilation for 1211Fabric under constrained Windows process-tree limits.",
+      "sha256": "f755a09ce914b1c45894d19195339857c557a8aa0e20d04b35e8178f9265b6e9",
+      "bytes": 2775
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-1211Fabric-20261104-guard.child.json",
+      "scope": "Completed final external fixture compilation for 1211Fabric under constrained Windows process-tree limits.",
+      "sha256": "6bea32cd9443098e2ad462f401cbca985916e6b7dda0c67dc52d4cd1db83d6a7",
+      "bytes": 480
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-final-20261104-c-guard.receipt.json",
+      "scope": "Final 2612Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "373200f17842c8cee9f4fd7e094cc0b2f59e6e21666b859fdd1efcbb5b4fdb59",
+      "bytes": 4141
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-final-20261104-c-guard.configuration.json",
+      "scope": "Final 2612Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "cf9895d88b483c583665913bac1e0f54dbd844bdf163b5f01081470635e85335",
+      "bytes": 2566
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-final-20261104-c-guard.samples.jsonl",
+      "scope": "Final 2612Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "4feb64628d5c9aab0640856b89d4a44c7b1bb06c4d0d08cabc723143a216ead8",
+      "bytes": 85373
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-final-20261104-c-guard.exit.txt",
+      "scope": "Final 2612Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211neoforge-native-final-20261104-b-guard.receipt.json",
+      "scope": "Final 1211NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "f5117da5d8f98cb063de716fa85ebce68684c19acd1bf235d8030f7dfa02892e",
+      "bytes": 4157
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211neoforge-native-final-20261104-b-guard.configuration.json",
+      "scope": "Final 1211NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "424488d74f65c8976dc807d825198080337b5ec7b42744d12569d8d499d562cb",
+      "bytes": 2573
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211neoforge-native-final-20261104-b-guard.samples.jsonl",
+      "scope": "Final 1211NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "de5a4bbd0a3a2204f0ce5963f799c108deae09bc81ee07b2589f2d6467435757",
+      "bytes": 93815
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211neoforge-native-final-20261104-b-guard.exit.txt",
+      "scope": "Final 1211NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-native-final-20261104-a-guard.receipt.json",
+      "scope": "Final 2612NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "f66ffbc09def68981058a8ec957a0949c65091ddb4e9059214ac410673d7c8ef",
+      "bytes": 4155
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-native-final-20261104-a-guard.configuration.json",
+      "scope": "Final 2612NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "0a1258285cb49d5f1ab9b87e67aff7defe8c7e4b20e658da24a709c984eb6f68",
+      "bytes": 2573
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-native-final-20261104-a-guard.samples.jsonl",
+      "scope": "Final 2612NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "9a3f045f6dcff40a976cd0df82d5a05f85ba4e896f461981646c6fb90a54366f",
+      "bytes": 84586
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-native-final-20261104-a-guard.exit.txt",
+      "scope": "Final 2612NeoForge native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-native-final-20261104-f-guard.receipt.json",
+      "scope": "Final 1211Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "74d5ef577a214e0344e8ca4f4bf8d413afab511fa1b306b4ab99ec61fb1a67a4",
+      "bytes": 4145
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-native-final-20261104-f-guard.configuration.json",
+      "scope": "Final 1211Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "c1c6e27bb5f268f19ab9196fd590ffc06c2541d211fd2fa7d909434e7dca9b60",
+      "bytes": 2568
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-native-final-20261104-f-guard.samples.jsonl",
+      "scope": "Final 1211Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "efbe67e3c738f995f093d3e77643da1bbef9f89ff9ce5950bb19e7b17834d357",
+      "bytes": 86650
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-native-final-20261104-f-guard.exit.txt",
+      "scope": "Final 1211Fabric native native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-ftb-final-20261104-e-guard.receipt.json",
+      "scope": "Final 2612NeoForge ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "e3f01da8959715388464b9777b0852348d7454cba2329a73a0c05822c2e1f552",
+      "bytes": 4144
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-ftb-final-20261104-e-guard.configuration.json",
+      "scope": "Final 2612NeoForge ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "8233c4a38b7e2c79ef82879d4b1c1b571fa28752db82d7ad63f1031a52ceab85",
+      "bytes": 2568
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-ftb-final-20261104-e-guard.samples.jsonl",
+      "scope": "Final 2612NeoForge ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "a454ebe5fac358e5ee62421eadff8fc1f6a36e71ea3ce9037bd23e269b14f090",
+      "bytes": 85423
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612neoforge-ftb-final-20261104-e-guard.exit.txt",
+      "scope": "Final 2612NeoForge ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-ftb-final-20261104-h-guard.receipt.json",
+      "scope": "Final 1211Fabric ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "b10071a2a4eb75b0ac5e6fed3687081138145b27b2d8732ec9fdd68858fc7dbb",
+      "bytes": 4133
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-ftb-final-20261104-h-guard.configuration.json",
+      "scope": "Final 1211Fabric ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "51d10107e86b4fcea865ad04209c56851297cd0b8a40f8914030f2ab0de2dfb4",
+      "bytes": 2562
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-ftb-final-20261104-h-guard.samples.jsonl",
+      "scope": "Final 1211Fabric ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "161b3bccd6908752fa827d7d708a766f064b906f6040a0019d711979d6475805",
+      "bytes": 86262
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-1211fabric-ftb-final-20261104-h-guard.exit.txt",
+      "scope": "Final 1211Fabric ftb native session host containment and actual launcher exit; whole-tree CPU25%, committed-memory8GiB, below-normal priority and physical/commit reserves6GiB.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-run-plan-20261104.json",
+      "scope": "Concrete six-run matrix, pinned production/fixture directories, frozen source fingerprint and guard revision.",
+      "sha256": "510b05aaa39dac4e714433022c5e8898ea67bf017f93b1399a42a9e97516330f",
+      "bytes": 1443
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-fixture-pins-20261104.json",
+      "scope": "All four exact external fixture pins and guarded build receipts.",
+      "sha256": "b006ab5ede424df98850536c8a39d8db1e2212b138e7767a3b326f825f3fcedb",
+      "bytes": 2047
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-package-delta-20261104.json",
+      "scope": "Four provider archives changed only the shared AudioRuntime.class relative to the prior production candidate; assets and other package entries are byte-identical.",
+      "sha256": "1f933b71db8f1aad143938bb046ac828d002e1dd7869165e8a7819d25753a4f3",
+      "bytes": 1530
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-clean-preflight-20261104.json",
+      "scope": "Resolved safe clean targets and frozen-source preflight; separate from full supported-target success.",
+      "sha256": "a9153f91d015930080cac2ca3e3f73afa25801ee0fb56d0a6a400b88193dcbe3",
+      "bytes": 7396
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-clock-rewind-confirmed-20261104.json",
+      "scope": "Preserved failed native trace establishing the server-correctable clock lifecycle defect; failure stays historical and is not accepted as final gameplay.",
+      "sha256": "f817f5598f2d855d0373408055bf5006f1d4df490b0696d0f1033b36706371aa",
+      "bytes": 9574
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-repair-evidence-20261104.json",
+      "scope": "Implementation checkpoint for shared monotonic presentation-clock ownership; its historical pending verification fields are superseded only by separately bound focused/final native evidence, not silently rewritten.",
+      "sha256": "d3ac73892a66630dda6d5a7192eb196b72ef1c5974a7feb00b6c2034bc46d4ca",
+      "bytes": 3574
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-repair.patch",
+      "scope": "Exact shared owner/permanent regression repair patch; approved audio assets, gains and selections unchanged.",
+      "sha256": "b0388ecf3486e5b2bd65f2bf5cc0a61ae1fc97da393fc4d360125c0554322022",
+      "bytes": 12285
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/hidden-window-repair-evidence-20261104.json",
+      "scope": "Historical modern hidden-window fixture hook correction; actual native visibility must still be established by each final receipt.",
+      "sha256": "3e9be340078fe9ade223880403f5b68f2157185d60b08d86eec3b2b6c6a4316b",
+      "bytes": 1735
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/hidden-window-neo1211-repair-evidence-20261104.json",
+      "scope": "Legacy NeoForge actual packaged window-hook compatibility correction, confined to the shared external fixture.",
+      "sha256": "945818e34873f8849d37ba3dc6cf64dd971f38c9f243e9b15eb02160896ad966",
+      "bytes": 4732
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/hidden-window-neo1211-repair.patch",
+      "scope": "Exact test-only legacy NeoForge hidden-window hook repair.",
+      "sha256": "f5d6e766590c886044aafa2a33bc151062d859bd169215c2a8068916ddca6066",
+      "bytes": 4042
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/host-interruption-20261104.json",
+      "scope": "User-reported whole-host freeze and unexpected reboot; interrupted session is not accepted, cause not established.",
+      "sha256": "662135bf9b8d7a440498fbb175b36d9076702e150d0638337724ed878674a034",
+      "bytes": 4916
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/host-environment.json",
+      "scope": "Recorded hardware/OS baseline; final guards and per-window runtime settings define the actual constrained measurement conditions.",
+      "sha256": "af009a8a2a4a1d0d8e7071fe3d42f6a2a23c5ef6c5c40441aa9adf0c8ab3d1bd",
+      "bytes": 1190
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/host-environment-resume-20261104.json",
+      "scope": "Host environment checkpoint after resume.",
+      "sha256": "f062bda556287983e5532820742fc181b0be5b35a5a527bfa041a857a4be1122",
+      "bytes": 582
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/guarded_run-before-drain-20261104.py",
+      "scope": "Preserved initial process-tree guard revision for historical evidence bindings.",
+      "sha256": "c8532bd6fd8d37ec5ff445f13e5211c4b6c80501918fdb828203212148b36f08",
+      "bytes": 18008
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/guarded_run.py",
+      "scope": "Final Windows Job Object guard v2 used by all six accepted sessions; contains CPU/memory safeguards but cannot contain GPU/driver faults.",
+      "sha256": "c27f6c71a3034676fa9dab3b1cf414f49e6b4c78fc0f37e1883130cf8a86e220",
+      "bytes": 19268
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/guard-drain-revision-20261104.json",
+      "scope": "Bounded natural-descendant shutdown correction, preserving prior guard hash and final regression/native subprocess smoke evidence.",
+      "sha256": "8ae28f3a046a630c0e00b2590b5d3da3afa870fc6d07f865e3ad701177e1b819",
+      "bytes": 1501
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/guard-drain-regression-20261104.log",
+      "scope": "14 focused process-tree guard regression tests; no game or Gradle launched by these tests.",
+      "sha256": "784a0cdf25a2e772dff3f18a9324a5b2f66bf8875160823fc9e40f23bd3367b9",
+      "bytes": 1966
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/guard-smoke-20261104-123639/smoke-receipt.json",
+      "scope": "Actual tiny Windows child/grandchild containment, delayed natural shutdown, true nonzero exit and deadline cleanup smoke; no native gameplay claim.",
+      "sha256": "de06a0a9932b0a734401f9db74c0da6066eefcfd96828f72862c561e0f88d257",
+      "bytes": 2372
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-server-only-smoke-20261104.json",
+      "scope": "Prepared fixture-free Minecraft1.21.1 Fabric human scene server-only startup, save and graceful shutdown; no visible client, listening or HUD approval.",
+      "sha256": "84c850533f35bcd413d2b697ff495e05a67f76ce05612fec0d6a024a79691cdb",
+      "bytes": 931
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-server-only-smoke-20261104.log",
+      "scope": "Actual fixture-free prepared human server startup/save/shutdown log; client was not launched.",
+      "sha256": "57a0fb739262290e893fea0575ad2c070d6aac0d33350046375ee5987ccc9dbf",
+      "bytes": 15811
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/pinned-presentation-clock-20261104/manifest.json",
+      "scope": "Exact pre-clean provider manifest used to pin all six native sessions; root must compare fresh full-gate archives before completion.",
+      "sha256": "0c18229c05e5ae7b5766aa568d5abb8b6c7cc31c95195d5cf1412184ec078852",
+      "bytes": 2009
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/clock-repair-focused-20261104-guard.receipt.json",
+      "scope": "Focused existing audio runtime/native checks for both Minecraft versions after the shared clock repair; excludes full gate and actual gameplay claims.",
+      "sha256": "32bee814cca56095a71da0c635fd51bf7bb0062076659628521e902b5b6c8d27",
+      "bytes": 15281
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/clock-repair-focused-20261104-guard.configuration.json",
+      "scope": "Focused existing audio runtime/native checks for both Minecraft versions after the shared clock repair; excludes full gate and actual gameplay claims.",
+      "sha256": "f634b0181f328d52b36bf6854ac8599e307879b7c92b923060b6fc5a81385704",
+      "bytes": 2108
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/clock-repair-focused-20261104-guard.samples.jsonl",
+      "scope": "Focused existing audio runtime/native checks for both Minecraft versions after the shared clock repair; excludes full gate and actual gameplay claims.",
+      "sha256": "bc0d5bb3ec2890278508a7dde839b8ec094637a81b24069bf5aec8ad9fcc1e4e",
+      "bytes": 10452
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/clock-repair-focused-20261104-guard.exit.txt",
+      "scope": "Focused existing audio runtime/native checks for both Minecraft versions after the shared clock repair; excludes full gate and actual gameplay claims.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/clock-repair-focused-20261104-guard.log",
+      "scope": "Focused existing audio runtime/native checks for both Minecraft versions after the shared clock repair; excludes full gate and actual gameplay claims.",
+      "sha256": "dff2f3fb91792e81d6b63b714923ba80d523d8f63af06fa8ece16206efd1ddc1",
+      "bytes": 7233
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/clock-repair-focused-20261104-guard.child.json",
+      "scope": "Focused existing audio runtime/native checks for both Minecraft versions after the shared clock repair; excludes full gate and actual gameplay claims.",
+      "sha256": "3fa290c907f5284023c3ca6b574cd3e7e57b16426947ace4a07107bfe4fd6e95",
+      "bytes": 559
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-providers-20261104-guard.receipt.json",
+      "scope": "Four final candidate production provider builds used by the accepted native sessions; fresh supported-target gate remains separate.",
+      "sha256": "658cfd5156c7514a04291364e63596e2c7510e103022a62bad0a6800f709e880",
+      "bytes": 2910
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-providers-20261104-guard.configuration.json",
+      "scope": "Four final candidate production provider builds used by the accepted native sessions; fresh supported-target gate remains separate.",
+      "sha256": "78097686bfa86e1fdb332bb7ffb5ccd458577d2064144602a53748be0176996e",
+      "bytes": 1959
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-providers-20261104-guard.samples.jsonl",
+      "scope": "Four final candidate production provider builds used by the accepted native sessions; fresh supported-target gate remains separate.",
+      "sha256": "1db4a9c3a0b90599da24f7abc817ac501e762fc43cdaba8e071530f9daf985c4",
+      "bytes": 6821
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-providers-20261104-guard.exit.txt",
+      "scope": "Four final candidate production provider builds used by the accepted native sessions; fresh supported-target gate remains separate.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-providers-20261104-guard.log",
+      "scope": "Four final candidate production provider builds used by the accepted native sessions; fresh supported-target gate remains separate.",
+      "sha256": "51165fcf667522fc25d43d3c1e4d0597a950e78e8b68f0c87020cb5c4367b23b",
+      "bytes": 5240
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-providers-20261104-guard.child.json",
+      "scope": "Four final candidate production provider builds used by the accepted native sessions; fresh supported-target gate remains separate.",
+      "sha256": "d41fa9f8d0464f38e64aa4bee75cbf8601bf7908b9d86dea05f2675b0d8de30a",
+      "bytes": 410
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.receipt.json",
+      "scope": "Actual standalone safe clean completed successfully with zero child/guard exits and no owned processes remaining.",
+      "sha256": "86605629c16768af525bea389ed40954fc264ef1449bde5aeddd0314cbea1810",
+      "bytes": 2902
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.configuration.json",
+      "scope": "Actual standalone safe clean completed successfully with zero child/guard exits and no owned processes remaining.",
+      "sha256": "f20d0637336b4c482830adf4cc51854526f448d95376a25cd5d8b5c2e0dcc0b2",
+      "bytes": 1958
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.samples.jsonl",
+      "scope": "Actual standalone safe clean completed successfully with zero child/guard exits and no owned processes remaining.",
+      "sha256": "2e0df2c52236fc7eda0f0d3615945536d6c384ff96bcf7557183d139627b1d0f",
+      "bytes": 2788
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.exit.txt",
+      "scope": "Actual standalone safe clean completed successfully with zero child/guard exits and no owned processes remaining.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.log",
+      "scope": "Actual standalone safe clean completed successfully with zero child/guard exits and no owned processes remaining.",
+      "sha256": "5a321b8a888f8997da71c1b5faef9d73a3a0f3899cdb399eeea3f9168b62b998",
+      "bytes": 1622
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-clean-20261104-guard.child.json",
+      "scope": "Actual standalone safe clean completed successfully with zero child/guard exits and no owned processes remaining.",
+      "sha256": "3a2b450712fc019d4773558f4acd50ca64f29ec5f70fb16de86525216e4bc1f7",
+      "bytes": 408
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-clock-trace-20261104-b-guard.receipt.json",
+      "scope": "Historical failed real native clock trace under guard v1; not one of the six accepted final sessions.",
+      "sha256": "8d1ef6b58f0f7eacb2a0af1adde456a5831603f14116b44f2082335045839fe1",
+      "bytes": 4151
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-clock-trace-20261104-b-guard.configuration.json",
+      "scope": "Historical failed real native clock trace under guard v1; not one of the six accepted final sessions.",
+      "sha256": "3f5023208f971e73758a85b72e5e7e0bd81d5267140b5c74ee40c96b18177dac",
+      "bytes": 2555
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-clock-trace-20261104-b-guard.samples.jsonl",
+      "scope": "Historical failed real native clock trace under guard v1; not one of the six accepted final sessions.",
+      "sha256": "a3bfc97f09b3092b8866ad53f2d09286d56a2f0f9082490e852a669907a6f850",
+      "bytes": 13672
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/gameplay-2612fabric-native-clock-trace-20261104-b-guard.exit.txt",
+      "scope": "Historical failed real native clock trace under guard v1; not one of the six accepted final sessions.",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-packaged-acceptance/gameplay-2612fabric-native-clock-trace-20261104-b/receipt.json",
+      "scope": "Failed native clock-rewind reproduction preserved as negative evidence, not final acceptance.",
+      "sha256": "5d487f417805c5de426488f4428d61f3bc0151ef48106e3214515e820c53ba6e",
+      "bytes": 70060
+    },
+    {
+      "path": "build/audio-packaged-acceptance/human-1211fabric-final-v2/human-inputs.json",
+      "scope": "Fixture-free prepared human acceptance scene/launcher for Minecraft1.21.1 Fabric, derived from final native run f; human client remains unlaunched.",
+      "sha256": "21e7184b76a5c9a8652fdfe095826d725964d5d4354b373754731ce335440924",
+      "bytes": 53698
+    },
+    {
+      "path": "build/audio-packaged-acceptance/human-1211fabric-final-v2/launch-human.py",
+      "scope": "Fixture-free prepared human acceptance scene/launcher for Minecraft1.21.1 Fabric, derived from final native run f; human client remains unlaunched.",
+      "sha256": "2e3ef856677cafd3191e55a83a3a8036505d624f8acfbe77951f05cce789b894",
+      "bytes": 362
+    },
+    {
+      "path": "build/audio-packaged-acceptance/human-1211fabric-final-v2/launch-human.ps1",
+      "scope": "Fixture-free prepared human acceptance scene/launcher for Minecraft1.21.1 Fabric, derived from final native run f; human client remains unlaunched.",
+      "sha256": "09d5ef4925909973682164656bad58ee476c036fc9ada49031b5db286a88a651",
+      "bytes": 248
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-server-only-guard-20261104.receipt.json",
+      "scope": "Windows-guarded fixture-free prepared human server-only smoke; no client/listening/HUD approval.",
+      "sha256": "51f70e4d94b823bcb514885cd51b09e9b0416b1053a28c4230f3f7584d99eccf",
+      "bytes": 3186
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-server-only-guard-20261104.configuration.json",
+      "scope": "Windows-guarded fixture-free prepared human server-only smoke; no client/listening/HUD approval.",
+      "sha256": "384489712e42e2424686a18db837ec71e757694c02b44fe5bc0103de6927beab",
+      "bytes": 2102
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-server-only-guard-20261104.samples.jsonl",
+      "scope": "Windows-guarded fixture-free prepared human server-only smoke; no client/listening/HUD approval.",
+      "sha256": "480ae85c3f241d28f34ff7e4c63b3c24c1767a9b548e178b7c2c249c80f8c5e1",
+      "bytes": 2790
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-server-only-guard-20261104.exit.txt",
+      "scope": "Windows-guarded fixture-free prepared human server-only smoke; no client/listening/HUD approval.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-2612fabric-c-independent-review-20261104.json",
+      "scope": "Independent final native receipt/input/clock-continuity/gameplay/performance review; applies only to its named accepted session.",
+      "sha256": "1685a5842b51c0a2befd89be753e725c18249e3cdcadb20c83047e471b193513",
+      "bytes": 12585
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-1211neoforge-b-independent-review-20261104.json",
+      "scope": "Independent final native receipt/input/clock-continuity/gameplay/performance review; applies only to its named accepted session.",
+      "sha256": "122650d78d668dbf505afb11861cbddabf15ca8c3dcd8ec8a1b86189c503bcbf",
+      "bytes": 9164
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-2612neoforge-a-independent-review-20261104.json",
+      "scope": "Independent final native receipt/input/clock-continuity/gameplay/performance review; applies only to its named accepted session.",
+      "sha256": "c030012d2bc009a3a3dd9d43549504b2d35e47a1c1dd09956212b4c8dbe0a336",
+      "bytes": 9539
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/native-1211fabric-f-independent-review-20261104.json",
+      "scope": "Independent final native receipt/input/clock-continuity/gameplay/performance review; applies only to its named accepted session.",
+      "sha256": "e0d67bca7f58efb4abfe774fc5589d5afc02391b496fef783e0747cd83002b6a",
+      "bytes": 11085
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/ftb-2612neoforge-e-independent-review-20261104.json",
+      "scope": "Independent final native receipt/input/clock-continuity/gameplay/performance review; applies only to its named accepted session.",
+      "sha256": "bd11dc87f5886b7cf8b49b425f79b8a98947ad661707bf3f3c0add6512c7b4f7",
+      "bytes": 13744
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/ftb-1211fabric-h-independent-review-20261104.json",
+      "scope": "Independent final native receipt/input/clock-continuity/gameplay/performance review; applies only to its named accepted session.",
+      "sha256": "9a1fb6c01d5cd7dc092554c4885b325bf4c1db8e5804bb8120fd435dd371b564",
+      "bytes": 14335
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/final-native-compact-20261104.json",
+      "scope": "Combined final six-session actual native metric summary; includes constrained-host timing and explicit native memory/mixer attribution limits.",
+      "sha256": "b621faba73a082e9bee6f3489903a6811a0d8d0086aeab40d66e3e14141ab574",
+      "bytes": 134933
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/final-native-compact-20261104.md",
+      "scope": "Combined final six-session actual native metric summary; includes constrained-host timing and explicit native memory/mixer attribution limits.",
+      "sha256": "5ea93f6b96077365de2a33395ee5c12a5a1a2cc39c295d2586dc1a64a32182eb",
+      "bytes": 15400
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/final-six-native-independent-verification-20261104.json",
+      "scope": "Independent final six-session verification: 108 real performance windows,24 zero native process exits,2473 server assertions and780 paid-helper assertions; identical final guard profile, no session overlap and native work ended before Gradle. Full supported-target gate is separately bound by its final actual-zero-exit receipt.",
+      "sha256": "71bca3d018a642ae1849bb8b04b7f8b5dc56290e17f9364b0372b9c5886db8cf",
+      "bytes": 99396
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-build-identity-20261104.json",
+      "scope": "Final rebuilt production/source identity: accepted pins unchanged, no approved art changes.",
+      "sha256": "24281b43db2dc9f9230e2e4f3b886c7c8a6335bacbda2e7e2472d4b4f843f4e9",
+      "bytes": 1131
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/human-final-v2-final-input-review-20261104.json",
+      "scope": "Final fixture-free human preparation inputs/settings/current provider verified without launching a client.",
+      "sha256": "263bff093ed97642ab7ec6e8623a9b82aa098d3fd4cc874dfbfd91c8835601e9",
+      "bytes": 630
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.log",
+      "scope": "Final full supported-target gate, completed actual exit 0 under verified Windows guard v2; 18m6s,282 tasks; no owned descendants remain.",
+      "sha256": "37804938926300f7dd1259ae23af8f0cbd2793e9c305edd4cd1d887fb8f90aa0",
+      "bytes": 171589
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.receipt.json",
+      "scope": "Final full supported-target gate, completed actual exit 0 under verified Windows guard v2; 18m6s,282 tasks; no owned descendants remain.",
+      "sha256": "558d1051a74ad1a578bde48fe7a70584208e237a2f19f8780da8e34388f6f96f",
+      "bytes": 2911
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.exit.txt",
+      "scope": "Final full supported-target gate, completed actual exit 0 under verified Windows guard v2; 18m6s,282 tasks; no owned descendants remain.",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.configuration.json",
+      "scope": "Final full supported-target gate, completed actual exit 0 under verified Windows guard v2; 18m6s,282 tasks; no owned descendants remain.",
+      "sha256": "67a032de4b24f325474759401073419d905cd13f6a9845bb6a632543b8fbe033",
+      "bytes": 1958
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.samples.jsonl",
+      "scope": "Final full supported-target gate, completed actual exit 0 under verified Windows guard v2; 18m6s,282 tasks; no owned descendants remain.",
+      "sha256": "36994ccdb309743145eaea2cbfddafd6fe6d94500913a58fdc58587131e8f18a",
+      "bytes": 221243
+    },
+    {
+      "path": "build/audio-gameplay-acceptance-20261102/presentation-clock-final-supported-20261104-guard.child.json",
+      "scope": "Final full supported-target gate, completed actual exit 0 under verified Windows guard v2; 18m6s,282 tasks; no owned descendants remain.",
+      "sha256": "e393251e937da2e8c45236fe77073306e326f9fa557bfbcdeb656e897b988ccd",
+      "bytes": 408
+    }
+  ],
+  "declaration": {
+    "path": "build/audio-gameplay-acceptance-20261102/completion-declaration-20261104.json",
+    "sha256": "0e1d6f07c321c928c4e91f835c53923a5e4869953b90e473bf7be51371c48cd6",
+    "bytes": 46030
+  },
+  "derivedEvidence": {
+    "path": "build/audio-gameplay-acceptance-20261102/completion-evidence-20261104.json",
+    "sha256": "132c7ac2db4ae8dfc5a6572725d0ba94d860fcaae5510f4558851339768a1e62",
+    "bytes": 2409528
+  },
+  "history": {
+    "excludedRunCount": 63,
+    "detailedBindingsIn": {
+      "path": "build/audio-gameplay-acceptance-20261102/completion-evidence-20261104.json",
+      "sha256": "132c7ac2db4ae8dfc5a6572725d0ba94d860fcaae5510f4558851339768a1e62",
+      "bytes": 2409528
+    },
+    "notes": [
+      "Failed setup/fixture runs and profiled F/G/H attribution runs remain diagnostic and are excluded from final acceptance.",
+      "Earlier current-archive reload/resource runs are retained with their original hashes and scopes; they do not silently become acceptance of a new production archive.",
+      "The interrupted unguarded native1211Fabric run d remains INTERRUPTED_NOT_ACCEPTED with no invented process exit or performance result; host-freeze cause is not established.",
+      "All six current accepted native timings use the same guard v2 constrained host profile. Earlier unconstrained FTB/native timings remain historical and are not pooled as identical resource conditions.",
+      "The fresh supported-target gate completed with actual exit zero after all six native sessions. Final archive/source equality is separately recorded; no failed or interrupted attempt contributes to acceptance."
+    ],
+    "scope": "Original failure, interruption, profiling and superseded-package dispositions are retained. None silently upgraded to current acceptance."
+  },
+  "limitations": [
+    "This maintained record is the owner-reviewed completion decision; the bound aggregation helper only collected evidence.",
+    "PASS applies to required headless native gameplay/performance and the full four-target gate. Human hearing/mix/seams, HUD readability and recorded provenance/rights approval remain PENDING.",
+    "Results describe one Windows host, two simultaneous distinct clients over loopback, the stated constrained resource profile and fixed OpenAL output device.",
+    "Broader device/pack/OS/FTB cross-product/WAN/soak coverage and isolated native mixer CPU/native allocation attribution are additional coverage; historical source limitations and generic visual reload are outside this pass."
+  ]
+}

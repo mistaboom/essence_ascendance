@@ -111,10 +111,23 @@ public final class ConcurrentChannelScheduler<S, R> {
         entries.entrySet().removeIf(e -> e.getKey().receiver().equals(receiver) && e.getValue().identity == identity);
     }
     public List<Session<S, R>> sessions() { return entries.values().stream().map(e -> e.session).toList(); }
+    /** Observer fact only: reading committed work must never re-run consumer admission or demand. */
+    public long transferred(Session<S, R> session) {
+        return current(session) ? transferred(entries.get(session.key())) : 0;
+    }
+    /** Direct lookup retains receiver incarnation protection without scanning unrelated registrations. */
+    public long transferred(S source, R receiver, Object identity) {
+        Entry entry = entries.get(new Key<>(source, receiver));
+        return entry != null && entry.identity == identity && sources.get(source) == entry.source ? transferred(entry) : 0;
+    }
+    private long transferred(Entry entry) { return recent(entry) ? entry.transferred : 0; }
+    private boolean recent(Entry entry) {
+        return entry.feedbackTick != Long.MIN_VALUE && lastTick - entry.feedbackTick <= INTERVAL * 2L;
+    }
     public Feedback feedback(Session<S, R> session) {
         if (!current(session)) return new Feedback(Long.MIN_VALUE, 0, 0, false);
         Entry entry = entries.get(session.key());
-        boolean recent = entry.feedbackTick != Long.MIN_VALUE && lastTick - entry.feedbackTick <= INTERVAL * 2L;
+        boolean recent = recent(entry);
         return new Feedback(entry.feedbackTick, recent ? entry.allocated : 0, recent ? entry.transferred : 0,
                 entry.consumer.valid() && entry.consumer.demand() > 0 && entry.consumer.ratePerSecond() != 0);
     }

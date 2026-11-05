@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "assetId": "ice_shatter_v2",
+  "revision": "r0001",
+  "masterSha256": "b211cee10ff0d7d540fdf407f702079b66239fa2af3c9e7a3f63730929f7140a",
+  "approvedSha256": "a3b891837bc70be797506256b80e18f468023a1a3ae5bfc3b79b6985b5b94221",
+  "recipeSha256": "4ee2fa0ae301ed6a700ade3c5e0b27749d06eeab69e08537016bf7f58c5798e3",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.7173333333333334,
+    "samplePeakDb": -9.713094443396296,
+    "rmsDb": -26.24551167062946,
+    "truePeakDb": -9.71,
+    "integratedLufs": -26.63,
+    "decodedFrames": 34432
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "019172c42a42e7d0b74f2a969f3fe4b003f7a1857a985537813d09a98bff8c4b",
+  "backupSha256": "019172c42a42e7d0b74f2a969f3fe4b003f7a1857a985537813d09a98bff8c4b",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/element/ice_shatter_v2/r0001/ice_shatter_v2.aup3",
+    "backup": "backups/element/ice_shatter_v2/r0001/ice_shatter_v2.aup3",
+    "master": "masters/element/ice_shatter_v2/r0001/master.wav",
+    "export": "exports/element/ice_shatter_v2/r0001/ice_shatter_v2.ogg",
+    "recipe": "masters/element/ice_shatter_v2/r0001/recipe.json",
+    "authoringInputs": "masters/element/ice_shatter_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "fcc81e8673329c817899821cef154af21786b905d36704809a09fb4873d2ca2b",
+    "stems": [
+      {
+        "path": "masters/element/ice_shatter_v2/r0001/01_fracture.wav",
+        "sha256": "b9cae99447b85bdfc7e71cea0ab20a4ef01c437606e487eceb9f706ab71971b2"
+      },
+      {
+        "path": "masters/element/ice_shatter_v2/r0001/02_cold_break_body.wav",
+        "sha256": "ae2593b7e94638b26cec384abe29a069130d3f0627b33b15e491b2b256c0f8f0"
+      },
+      {
+        "path": "masters/element/ice_shatter_v2/r0001/03_falling_fragment.wav",
+        "sha256": "e4458f3c701bf2d19ef8362a073c61bc9d364e522eb94e03d998f668bc358a73"
+      },
+      {
+        "path": "masters/element/ice_shatter_v2/r0001/04_falling_fragment.wav",
+        "sha256": "71bfffe8bd2ed6bf28aebc63ad52f87b3b787192979a597ebd1021e101bdda89"
+      },
+      {
+        "path": "masters/element/ice_shatter_v2/r0001/05_falling_fragment.wav",
+        "sha256": "292a21f510e58e33a31de37b13285a5ae3ec37db9c4027d142df9e121593a0da"
+      },
+      {
+        "path": "masters/element/ice_shatter_v2/r0001/06_falling_fragment.wav",
+        "sha256": "abe3c7ba17949578a91caf00ef45eadec08b3b2bad144618f9ec9191872f101e"
+      },
+      {
+        "path": "masters/element/ice_shatter_v2/r0001/07_falling_fragment.wav",
+        "sha256": "dc5b794fed75aee1816a9db15e7e84857a2df44851e3146d190fb7763da5a357"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "a3b891837bc70be797506256b80e18f468023a1a3ae5bfc3b79b6985b5b94221"
+  }
+}

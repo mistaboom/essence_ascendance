@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class TransientVisualClientMixin {
     @Inject(method = "tick", at = @At("TAIL"))
     private void essenceAscendance$transientLifecycle(CallbackInfo ci) {
+        com.mistaboom.essence_ascendance.client.audio.AudioRuntime.tick();
         TransientWorldVisuals.tick();
         com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals.tick();
         AscensionAnimation.tick();

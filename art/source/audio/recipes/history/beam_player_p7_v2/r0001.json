@@ -1,0 +1,482 @@
+{
+  "schema": 1,
+  "assetId": "beam_player_p7_v2",
+  "seed": 110107,
+  "sampleRate": 48000,
+  "duration": 12,
+  "peakDb": -18,
+  "loop": {
+    "mode": "periodic"
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.03053675,
+      "am": {
+        "rate": 0.08333333333333333,
+        "depth": 0.12
+      },
+      "envelope": [
+        [
+          0,
+          0.88
+        ],
+        [
+          0.22,
+          1
+        ],
+        [
+          0.53,
+          0.76
+        ],
+        [
+          0.81,
+          0.96
+        ],
+        [
+          1,
+          0.88
+        ]
+      ],
+      "name": "00_foundation_chime",
+      "phase": 0.0,
+      "seed": 110100
+    },
+    {
+      "type": "modal",
+      "frequency": 587.333333,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.02534551,
+      "am": {
+        "rate": 0.16666666666666666,
+        "depth": 0.132
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.217,
+          0.85
+        ],
+        [
+          0.307,
+          0
+        ],
+        [
+          0.352,
+          0
+        ],
+        [
+          0.447,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "01_pylon_01_chime",
+      "phase": 1.318,
+      "seed": 110101
+    },
+    {
+      "type": "modal",
+      "frequency": 493.916667,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.02198646,
+      "am": {
+        "rate": 0.25,
+        "depth": 0.144
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.354,
+          0.85
+        ],
+        [
+          0.444,
+          0
+        ],
+        [
+          0.489,
+          0
+        ],
+        [
+          0.584,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "02_pylon_02_chime",
+      "phase": 2.636,
+      "seed": 110102
+    },
+    {
+      "type": "modal",
+      "frequency": 659.25,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.01832205,
+      "am": {
+        "rate": 0.08333333333333333,
+        "depth": 0.156
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.491,
+          0.85
+        ],
+        [
+          0.581,
+          0
+        ],
+        [
+          0.626,
+          0
+        ],
+        [
+          0.721,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "03_pylon_03_chime",
+      "phase": 3.954,
+      "seed": 110103
+    },
+    {
+      "type": "modal",
+      "frequency": 880,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.01496301,
+      "am": {
+        "rate": 0.16666666666666666,
+        "depth": 0.16799999999999998
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.628,
+          0.85
+        ],
+        [
+          0.718,
+          0
+        ],
+        [
+          0.763,
+          0
+        ],
+        [
+          0.858,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "04_pylon_04_chime",
+      "phase": 5.272,
+      "seed": 110104
+    },
+    {
+      "type": "modal",
+      "frequency": 784,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.01160397,
+      "am": {
+        "rate": 0.25,
+        "depth": 0.18
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.115,
+          0.85
+        ],
+        [
+          0.205,
+          0
+        ],
+        [
+          0.25,
+          0
+        ],
+        [
+          0.345,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "05_pylon_05_chime",
+      "phase": 6.59,
+      "seed": 110105
+    },
+    {
+      "type": "modal",
+      "frequency": 1174.666667,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.00977176,
+      "am": {
+        "rate": 0.08333333333333333,
+        "depth": 0.192
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.252,
+          0.85
+        ],
+        [
+          0.342,
+          0
+        ],
+        [
+          0.387,
+          0
+        ],
+        [
+          0.482,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "06_pylon_06_chime",
+      "phase": 7.908,
+      "seed": 110106
+    },
+    {
+      "type": "modal",
+      "frequency": 987.75,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.00824492,
+      "am": {
+        "rate": 0.16666666666666666,
+        "depth": 0.20400000000000001
+      },
+      "envelope": [
+        [
+          0,
+          0.65
+        ],
+        [
+          0.389,
+          0.85
+        ],
+        [
+          0.479,
+          0
+        ],
+        [
+          0.524,
+          0
+        ],
+        [
+          0.619,
+          0.95
+        ],
+        [
+          1,
+          0.65
+        ]
+      ],
+      "name": "07_pylon_07_chime",
+      "phase": 9.226,
+      "seed": 110107
+    }
+  ],
+  "design": {
+    "title": "Player beam - 7 pylons / 8 notes",
+    "description": "Gentle sustained wind-chime resonance without a strike. 8 independently editable note layer(s); G-major sixth/ninth family. Upper notes breathe and periodically disappear; root remains present.",
+    "cueIds": [
+      "essence_ascendance:channel.resonance.body"
+    ],
+    "destination": "player",
+    "pylonCount": 7,
+    "noteCount": 8,
+    "frequenciesHz": [
+      392,
+      587.333333,
+      493.916667,
+      659.25,
+      880,
+      784,
+      1174.666667,
+      987.75
+    ],
+    "role": "continuous_beam",
+    "loopPeriodSeconds": 12,
+    "loudnessStrategy": "Equal-power note weighting keeps chord density from multiplying overall loudness. Runtime onset/offset fades required.",
+    "runtimeHandoff": "Actual active transfer only. Replace duplicated machine/private/focus hums; destination+pylon identity; phase-coherent stem additions or crossfaded states; global density budget.",
+    "reference": "User-described wind-chime resonance. Original synthesized modal partials; no samples or copied melody."
+  }
+}

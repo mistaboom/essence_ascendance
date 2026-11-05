@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "id": "chime-revisions-20261101",
+  "title": "Essence Ascendance - chime-led revisions",
+  "description": "Ceremonies rebuilt from the approved channeling chimes, tighter punchy casts, a fuller natural heartbeat, atonal magic contacts and a fuller rescue. Menu clacks and the other approved sounds are unchanged. These eight new takes await your feedback.",
+  "items": [
+    {
+      "asset": "ascendance_chimes_v4",
+      "family": "progression",
+      "scope": "world",
+      "title": "Ascendance - evolving wind chimes"
+    },
+    {
+      "asset": "awakening_chimes_v4",
+      "family": "progression",
+      "scope": "world",
+      "title": "Awakening - evolving wind chimes"
+    },
+    {
+      "asset": "cast_punch_v4",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic cast A - firm tonal woop"
+    },
+    {
+      "asset": "cast_punch_b_v4",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic cast B - firm tonal woop"
+    },
+    {
+      "asset": "adrenaline_heartbeat_v4",
+      "family": "vitality",
+      "scope": "ui",
+      "title": "Adrenaline - natural lub-dub"
+    },
+    {
+      "asset": "magic_impact_v4",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic impact A - atonal energy contact"
+    },
+    {
+      "asset": "magic_impact_b_v4",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic impact B - atonal energy contact"
+    },
+    {
+      "asset": "death_defiance_v4",
+      "family": "vitality",
+      "scope": "ui",
+      "title": "Death defiance - protective clang and bloom"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "id": "ceremony",
+      "title": "Evolving wind-chime ceremonies",
+      "description": "Same chime family as channeling, with changing combinations and more movement. Full animation lengths: 8 seconds and 3.8 seconds.",
+      "assets": [
+        "ascendance_chimes_v4",
+        "awakening_chimes_v4"
+      ]
+    },
+    {
+      "id": "cast",
+      "title": "More punch, less warble",
+      "assets": [
+        "cast_punch_v4",
+        "cast_punch_b_v4"
+      ]
+    },
+    {
+      "id": "heartbeat",
+      "title": "One natural heartbeat",
+      "assets": [
+        "adrenaline_heartbeat_v4"
+      ],
+      "description": "Full-range balance with low chest weight and restrained valve texture; not tailored to laptop or streamed playback."
+    },
+    {
+      "id": "impact",
+      "title": "Less pitched magic impacts",
+      "assets": [
+        "magic_impact_v4",
+        "magic_impact_b_v4"
+      ]
+    },
+    {
+      "id": "rescue",
+      "title": "More presence for death defiance",
+      "assets": [
+        "death_defiance_v4"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "punch-casts-ab",
+      "label": "Cast A / B",
+      "group": "cast",
+      "assets": [
+        "cast_punch_v4",
+        "cast_punch_b_v4"
+      ],
+      "repeats": 2,
+      "gapSeconds": 0.65
+    },
+    {
+      "id": "atonal-impacts-ab",
+      "label": "Impact A / B",
+      "group": "impact",
+      "assets": [
+        "magic_impact_v4",
+        "magic_impact_b_v4"
+      ],
+      "repeats": 2,
+      "gapSeconds": 0.65
+    },
+    {
+      "id": "cast-impact-context",
+      "label": "Cast followed by impact",
+      "group": "impact",
+      "assets": [
+        "cast_punch_v4",
+        "magic_impact_v4",
+        "cast_punch_b_v4",
+        "magic_impact_b_v4"
+      ],
+      "gapSeconds": 0.32
+    }
+  ]
+}

@@ -4,6 +4,11 @@
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
+    "AudioCommandCompletionMixin",
+    "AudioSubtitleMixin",
+    "AudioSoundReloadMixin",
+    "AudioCaptionFrameMixin",
+    "AudioBlockSourceMixin",
     "GlaiveFirstPersonMixin",
     "GlaiveHeldLayerMixin",
     "GlaivePlayerModelMixin",
@@ -66,6 +71,7 @@
     "ShieldItemRendererMixin"
   ],
   "mixins": [
+    "CustomDataReadMixin",
     "EquipmentPolicyStackMixin",
     "EquipmentPolicyInventoryMixin",
     "EquipmentPolicyPlayerMixin",

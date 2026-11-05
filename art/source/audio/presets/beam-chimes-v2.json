@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "presets": {
+    "suspended_chime": {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.035,
+      "am": {
+        "rate": 0.1666666667,
+        "depth": 0.14
+      },
+      "envelope": [
+        [
+          0,
+          0.85
+        ],
+        [
+          0.5,
+          1
+        ],
+        [
+          1,
+          0.85
+        ]
+      ]
+    }
+  }
+}

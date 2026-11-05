@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "assetId": "death_defiance_v3",
+  "seed": 26110241,
+  "sampleRate": 48000,
+  "duration": 0.76,
+  "peakDb": -7,
+  "presetLibrary": "source/audio/presets/revision-v3.json",
+  "design": {
+    "title": "Death defiance - bright rescue chime",
+    "description": "One original bright bell-clang with a clear open fifth and a short shimmering decay. Only the rescue moment; no long whoosh, rattle, melody, or later reform repeat.",
+    "cueIds": [
+      "essence_ascendance:vitality.rescue"
+    ],
+    "provenance": "Original deterministic modal, harmonic and filtered-noise synthesis; no third-party samples.",
+    "review": "pending user listening",
+    "role": "vitality",
+    "replacesNativeEvents": [
+      "minecraft:item.totem.use"
+    ],
+    "gameplayTrigger": "Committed Second Wind or Spirit Walk lethal rescue. Spirit reform remains silent.",
+    "levelIntent": "Critical, immediately recognizable onset; strongest of these short effects."
+  },
+  "layers": [
+    {
+      "name": "01_bright_rescue_clang",
+      "preset": "rescue_bell",
+      "frequency": 784,
+      "gain": 0.35,
+      "lengthSeconds": 0.72
+    },
+    {
+      "name": "02_open_fifth",
+      "preset": "rescue_bell",
+      "frequency": 1176,
+      "gain": 0.13,
+      "startSeconds": 0.003,
+      "lengthSeconds": 0.66,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.23
+        },
+        {
+          "ratio": 2,
+          "gain": 0.17,
+          "decaySeconds": 0.13
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.06,
+          "decaySeconds": 0.075
+        }
+      ]
+    },
+    {
+      "name": "03_hollow_bell_body",
+      "preset": "resonant_energy",
+      "frequency": 392,
+      "gain": 0.12,
+      "lengthSeconds": 0.36
+    },
+    {
+      "name": "04_clang_contact",
+      "preset": "switch_click",
+      "lowHz": 1800,
+      "highHz": 6900,
+      "gain": 0.115,
+      "lengthSeconds": 0.018
+    },
+    {
+      "name": "05_upper_glint",
+      "preset": "resonant_energy",
+      "frequency": 1568,
+      "gain": 0.048,
+      "startSeconds": 0.009,
+      "lengthSeconds": 0.32
+    }
+  ]
+}

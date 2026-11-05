@@ -732,3 +732,39 @@ Publication remains pending. After reviewing and committing these sources with t
 The user authorized including all current implementation, authored art, Archive and wiki changes, committing/pushing them together, publishing the wiki, and releasing both loaders through the existing GitHub Actions pipeline to GitHub, CurseForge and Modrinth. The next version is beta.9 because beta.8 is already published. Canonical wiki references now target beta.9; the beta.8 fresh-world requirement remains explicitly scoped to upgrades from beta.7 or earlier. Beta.9 introduces no additional stored-format break over beta.8.
 
 The glaive/Archive additions and accepted 4/5/6/8/9/10 ordinary / 30 personalized ranges are included. Archive multi-lesson navigation and live action/reference presentation are retained. Older balance/configuration evidence and dated wiki checks remain historical; they are not replaced by new gameplay claims. The new CHECKS-1.0.0-beta.9.json records current Markdown/anchor/sidebar/TOML checks. The existing publisher's disposable-repository tests pass. Actual remote pipeline/publication verification is recorded separately in PUBLICATION.md.
+
+## Pack-testing audio command refresh — 2026-11-04
+
+The user explicitly authorized wiki publication with beta.14, then clarified that
+the wiki remains for modpack makers. Player sound/gameplay guidance belongs in
+the in-game Archive. The proposed broad audio page and navigation/cross-page
+additions were withdrawn before publication; no Archive change was made.
+
+Current scope is Commands, Player-Commands, Diagnostics-and-Testing,
+Version-and-Maintenance and _Footer. Existing command-reference edits are retained
+and limited to practical pack testing: local no-operator previews, ten-second
+continuous preview extension/stop, Tab completion and quoted identifiers, plus
+level-2 server diagnostics with normal private/nearby-world routing. Unreleased
+test-package history and retired interim syntax are omitted. Version/footer
+labels identify beta.14 and all four Minecraft/loader targets; historical beta.9
+balance and test claims keep their original scope.
+
+Source inspection covered `client/audio/AudioDevelopment`, `command/AudioCommands`,
+`client/audio/AudioRuntime`, `art/audio-catalog.json` and `gradle/targets.json`.
+The documented examples resolve to directly playable catalog entries; `settings`
+is absent from the local command tree. This documentation work does not execute
+gameplay, rebuild packages, or establish new listening/performance results.
+
+Static documentation checks pass across all **22 canonical pages**: **160 wiki
+links/heading anchors**, complete sidebar coverage, balanced fences, five TOML
+examples parsed, and no trailing whitespace. Scoped `git diff --check` passes.
+Only the five canonical pages listed above and this append-only audit remain
+changed by the wiki follow-up; the withdrawn guide is absent and the other
+proposed cross-page edits have been restored. Publisher remote preview and
+publication checks are still pending, owned by the release task.
+
+Publication is **PENDING**. After committing/pushing the reviewed canonical pages,
+preview and publish the same five-page selection through `tools/wiki/publish.ps1`
+as described in [PUBLISHING.md](PUBLISHING.md). Root owns publication and will add
+remote evidence to [PUBLICATION.md](PUBLICATION.md); no wiki push was performed
+by this documentation subtask.

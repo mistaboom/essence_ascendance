@@ -1,0 +1,1154 @@
+{
+  "schema": 1,
+  "assetId": "ascendance_chimes_v4",
+  "seed": 261101401,
+  "sampleRate": 48000,
+  "duration": 8.0,
+  "peakDb": -11,
+  "design": {
+    "title": "Ascendance - floating ceremony chimes",
+    "description": "The approved channeling wind-chime material opens into changing, softly overlapping voicings. Notes float in and out at irregular intervals; varied higher glints gather into a broad chime bloom at visual release, then settle through the complete animation. No struck attack, rhythm section or fanfare melody.",
+    "cueIds": [
+      "essence_ascendance:progression.ascend"
+    ],
+    "role": "ceremony",
+    "family": "progression",
+    "scope": "world",
+    "reference": "Derived directly from the approved original beam-chimes-v2 suspended_chime modal partial ratios and strengths. Original note scheduling and amplitude curves; no external samples or copied melody.",
+    "paletteSource": {
+      "presetLibrary": "source/audio/presets/beam-chimes-v2.json",
+      "preset": "suspended_chime",
+      "partialRatios": [
+        1,
+        2.756,
+        5.404,
+        8.933
+      ],
+      "partialGains": [
+        0.9,
+        0.105,
+        0.026,
+        0.004
+      ],
+      "approvedReferenceAsset": "beam_player_p8_v2"
+    },
+    "animationTiming": {
+      "source": "AscendanceTierFeedback.play; AscendanceCeremonyRecipe.shape/release; AscensionAnimation.render",
+      "durationTicks": 160,
+      "durationSeconds": 8.0,
+      "gatherEndSeconds": 1.76,
+      "buildStartSeconds": 1.44,
+      "captionStartSeconds": 4.16,
+      "releaseStartSeconds": 4.64,
+      "settleStartSeconds": 6.08,
+      "visualEndSeconds": 8.0,
+      "cameraEaseEndSeconds": 8.8
+    },
+    "runtimeHandoff": "Start once with the actual admitted ceremony animation, including deferred Nexus handling. Select the eight-second ascendance or separately arranged 3.8-second natural Awakening asset from the event lifetime. Do not stretch pitch or add the camera-only 800ms ease-out to cue length.",
+    "revisionRequest": "Replace the rejected fanfare completely with the approved channeling wind-chime character and more variation.",
+    "composition": "Nine editable chime tracks. Irregular entries and changing voicings replace a metered melody; the shorter take is separately scheduled, not resampled.",
+    "repetitionIntervalSeconds": 9.0
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.142,
+      "am": {
+        "rate": 0.13,
+        "depth": 0.055
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.008,
+          0.02
+        ],
+        [
+          0.028,
+          0.23
+        ],
+        [
+          0.068,
+          0.67
+        ],
+        [
+          0.15,
+          0.71
+        ],
+        [
+          0.23,
+          0.48
+        ],
+        [
+          0.315,
+          0.64
+        ],
+        [
+          0.405,
+          0.4
+        ],
+        [
+          0.49,
+          0.57
+        ],
+        [
+          0.55,
+          0.8
+        ],
+        [
+          0.58,
+          1
+        ],
+        [
+          0.65,
+          0.9
+        ],
+        [
+          0.76,
+          0.58
+        ],
+        [
+          0.88,
+          0.28
+        ],
+        [
+          0.96,
+          0.045
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_beam_foundation",
+      "phase": 0,
+      "seed": 261101401
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 3.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 1.7
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.9
+        }
+      ],
+      "gain": 0.07,
+      "am": {
+        "rate": 0.19,
+        "depth": 0.07
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.05
+        ],
+        [
+          0.065,
+          0.28
+        ],
+        [
+          0.13,
+          0.78
+        ],
+        [
+          0.21,
+          1
+        ],
+        [
+          0.38,
+          0.83
+        ],
+        [
+          0.62,
+          0.48
+        ],
+        [
+          0.82,
+          0.17
+        ],
+        [
+          0.94,
+          0.035
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.1,
+      "name": "02_floating_fifths",
+      "seed": 261101402,
+      "events": [
+        {
+          "startSeconds": 0.24,
+          "lengthSeconds": 2.76,
+          "frequency": 587.333333,
+          "gain": 0.088,
+          "phase": 1.318
+        },
+        {
+          "startSeconds": 2.43,
+          "lengthSeconds": 1.67,
+          "frequency": 784,
+          "gain": 0.057,
+          "phase": 2.1
+        },
+        {
+          "startSeconds": 4.3,
+          "lengthSeconds": 3.7,
+          "frequency": 587.333333,
+          "gain": 0.119,
+          "phase": 2.9,
+          "envelope": [
+            [
+              0,
+              0
+            ],
+            [
+              0.0220541,
+              0.08
+            ],
+            [
+              0.0551351,
+              0.48
+            ],
+            [
+              0.0918919,
+              1
+            ],
+            [
+              0.219027,
+              0.93
+            ],
+            [
+              0.436973,
+              0.65
+            ],
+            [
+              0.7094054,
+              0.25
+            ],
+            [
+              0.891027,
+              0.042
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 3.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 1.7
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.9
+        }
+      ],
+      "gain": 0.07,
+      "am": {
+        "rate": 0.19,
+        "depth": 0.07
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.05
+        ],
+        [
+          0.065,
+          0.28
+        ],
+        [
+          0.13,
+          0.78
+        ],
+        [
+          0.21,
+          1
+        ],
+        [
+          0.38,
+          0.83
+        ],
+        [
+          0.62,
+          0.48
+        ],
+        [
+          0.82,
+          0.17
+        ],
+        [
+          0.94,
+          0.035
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.1,
+      "name": "03_changing_color",
+      "seed": 261101403,
+      "events": [
+        {
+          "startSeconds": 0.71,
+          "lengthSeconds": 2.26,
+          "frequency": 493.916667,
+          "gain": 0.075,
+          "phase": 2.636
+        },
+        {
+          "startSeconds": 2.69,
+          "lengthSeconds": 1.55,
+          "frequency": 659.25,
+          "gain": 0.068,
+          "phase": 1.4
+        },
+        {
+          "startSeconds": 4.39,
+          "lengthSeconds": 3.55,
+          "frequency": 493.916667,
+          "gain": 0.099,
+          "phase": 4.2,
+          "envelope": [
+            [
+              0,
+              0
+            ],
+            [
+              0.0169014,
+              0.08
+            ],
+            [
+              0.0422535,
+              0.48
+            ],
+            [
+              0.0704225,
+              1
+            ],
+            [
+              0.2005634,
+              0.93
+            ],
+            [
+              0.423662,
+              0.65
+            ],
+            [
+              0.7025352,
+              0.25
+            ],
+            [
+              0.8884507,
+              0.042
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 3.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 1.7
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.9
+        }
+      ],
+      "gain": 0.07,
+      "am": {
+        "rate": 0.19,
+        "depth": 0.07
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.05
+        ],
+        [
+          0.065,
+          0.28
+        ],
+        [
+          0.13,
+          0.78
+        ],
+        [
+          0.21,
+          1
+        ],
+        [
+          0.38,
+          0.83
+        ],
+        [
+          0.62,
+          0.48
+        ],
+        [
+          0.82,
+          0.17
+        ],
+        [
+          0.94,
+          0.035
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.1,
+      "name": "04_suspended_sixths",
+      "seed": 261101404,
+      "events": [
+        {
+          "startSeconds": 1.35,
+          "lengthSeconds": 2.3,
+          "frequency": 659.25,
+          "gain": 0.062,
+          "phase": 3.954
+        },
+        {
+          "startSeconds": 3.13,
+          "lengthSeconds": 1.24,
+          "frequency": 880,
+          "gain": 0.047,
+          "phase": 5.1
+        },
+        {
+          "startSeconds": 4.46,
+          "lengthSeconds": 3.39,
+          "frequency": 659.25,
+          "gain": 0.081,
+          "phase": 3.3,
+          "envelope": [
+            [
+              0,
+              0
+            ],
+            [
+              0.0127434,
+              0.08
+            ],
+            [
+              0.0318584,
+              0.48
+            ],
+            [
+              0.0530973,
+              1
+            ],
+            [
+              0.1856637,
+              0.93
+            ],
+            [
+              0.4129204,
+              0.65
+            ],
+            [
+              0.6969912,
+              0.25
+            ],
+            [
+              0.8863717,
+              0.042
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 3.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 1.7
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.9
+        }
+      ],
+      "gain": 0.07,
+      "am": {
+        "rate": 0.19,
+        "depth": 0.07
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.05
+        ],
+        [
+          0.065,
+          0.28
+        ],
+        [
+          0.13,
+          0.78
+        ],
+        [
+          0.21,
+          1
+        ],
+        [
+          0.38,
+          0.83
+        ],
+        [
+          0.62,
+          0.48
+        ],
+        [
+          0.82,
+          0.17
+        ],
+        [
+          0.94,
+          0.035
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.1,
+      "name": "05_upper_opening",
+      "seed": 261101405,
+      "events": [
+        {
+          "startSeconds": 1.9,
+          "lengthSeconds": 1.76,
+          "frequency": 784,
+          "gain": 0.053,
+          "phase": 5.272
+        },
+        {
+          "startSeconds": 3.54,
+          "lengthSeconds": 1.02,
+          "frequency": 987.75,
+          "gain": 0.04,
+          "phase": 2.7
+        },
+        {
+          "startSeconds": 4.42,
+          "lengthSeconds": 3.28,
+          "frequency": 784,
+          "gain": 0.077,
+          "phase": 1.5,
+          "envelope": [
+            [
+              0,
+              0
+            ],
+            [
+              0.0160976,
+              0.08
+            ],
+            [
+              0.0402439,
+              0.48
+            ],
+            [
+              0.0670732,
+              1
+            ],
+            [
+              0.1976829,
+              0.93
+            ],
+            [
+              0.4215854,
+              0.65
+            ],
+            [
+              0.7014634,
+              0.25
+            ],
+            [
+              0.8880488,
+              0.042
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 3.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 1.7
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.9
+        }
+      ],
+      "gain": 0.07,
+      "am": {
+        "rate": 0.19,
+        "depth": 0.07
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.05
+        ],
+        [
+          0.065,
+          0.28
+        ],
+        [
+          0.13,
+          0.78
+        ],
+        [
+          0.21,
+          1
+        ],
+        [
+          0.38,
+          0.83
+        ],
+        [
+          0.62,
+          0.48
+        ],
+        [
+          0.82,
+          0.17
+        ],
+        [
+          0.94,
+          0.035
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.1,
+      "name": "06_upper_fifth_bloom",
+      "seed": 261101406,
+      "events": [
+        {
+          "startSeconds": 2.24,
+          "lengthSeconds": 1.36,
+          "frequency": 1174.666667,
+          "gain": 0.036,
+          "phase": 6.59
+        },
+        {
+          "startSeconds": 3.79,
+          "lengthSeconds": 0.85,
+          "frequency": 1318.5,
+          "gain": 0.025,
+          "phase": 4.8
+        },
+        {
+          "startSeconds": 4.53,
+          "lengthSeconds": 2.84,
+          "frequency": 1174.666667,
+          "gain": 0.048,
+          "phase": 4.4,
+          "envelope": [
+            [
+              0,
+              0
+            ],
+            [
+              0.0092958,
+              0.08
+            ],
+            [
+              0.0232394,
+              0.48
+            ],
+            [
+              0.0387324,
+              1
+            ],
+            [
+              0.1733099,
+              0.93
+            ],
+            [
+              0.4040141,
+              0.65
+            ],
+            [
+              0.6923944,
+              0.25
+            ],
+            [
+              0.8846479,
+              0.042
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 1.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.25
+        }
+      ],
+      "gain": 0.025,
+      "am": {
+        "rate": 0.23,
+        "depth": 0.04
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.08
+        ],
+        [
+          0.065,
+          0.45
+        ],
+        [
+          0.12,
+          1
+        ],
+        [
+          0.25,
+          0.75
+        ],
+        [
+          0.48,
+          0.34
+        ],
+        [
+          0.73,
+          0.105
+        ],
+        [
+          0.9,
+          0.016
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.7,
+      "name": "07_wandering_glints",
+      "seed": 261101407,
+      "events": [
+        {
+          "startSeconds": 0.93,
+          "lengthSeconds": 0.9,
+          "frequency": 784,
+          "gain": 0.022,
+          "phase": 1.7
+        },
+        {
+          "startSeconds": 1.76,
+          "lengthSeconds": 0.98,
+          "frequency": 1174.666667,
+          "gain": 0.025,
+          "phase": 3.9
+        },
+        {
+          "startSeconds": 2.91,
+          "lengthSeconds": 0.87,
+          "frequency": 987.75,
+          "gain": 0.026,
+          "phase": 2.5
+        },
+        {
+          "startSeconds": 3.49,
+          "lengthSeconds": 0.86,
+          "frequency": 1318.5,
+          "gain": 0.027,
+          "phase": 4.8
+        },
+        {
+          "startSeconds": 4.16,
+          "lengthSeconds": 0.65,
+          "frequency": 880,
+          "gain": 0.031,
+          "phase": 2.8
+        },
+        {
+          "startSeconds": 5.2,
+          "lengthSeconds": 1.05,
+          "frequency": 987.75,
+          "gain": 0.024,
+          "phase": 3.4
+        }
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 1.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.25
+        }
+      ],
+      "gain": 0.025,
+      "am": {
+        "rate": 0.23,
+        "depth": 0.04
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.08
+        ],
+        [
+          0.065,
+          0.45
+        ],
+        [
+          0.12,
+          1
+        ],
+        [
+          0.25,
+          0.75
+        ],
+        [
+          0.48,
+          0.34
+        ],
+        [
+          0.73,
+          0.105
+        ],
+        [
+          0.9,
+          0.016
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.7,
+      "name": "08_high_glints",
+      "seed": 261101408,
+      "events": [
+        {
+          "startSeconds": 2.52,
+          "lengthSeconds": 0.88,
+          "frequency": 1568,
+          "gain": 0.013,
+          "phase": 2.4
+        },
+        {
+          "startSeconds": 3.25,
+          "lengthSeconds": 0.81,
+          "frequency": 1318.5,
+          "gain": 0.019,
+          "phase": 1.3
+        },
+        {
+          "startSeconds": 3.94,
+          "lengthSeconds": 0.71,
+          "frequency": 1174.666667,
+          "gain": 0.027,
+          "phase": 4.1
+        },
+        {
+          "startSeconds": 4.51,
+          "lengthSeconds": 0.98,
+          "frequency": 1568,
+          "gain": 0.022,
+          "phase": 2.6
+        },
+        {
+          "startSeconds": 5.58,
+          "lengthSeconds": 0.95,
+          "frequency": 1760,
+          "gain": 0.013,
+          "phase": 5.3
+        }
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 392,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105,
+          "decaySeconds": 1.0
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026,
+          "decaySeconds": 0.55
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004,
+          "decaySeconds": 0.25
+        }
+      ],
+      "gain": 0.025,
+      "am": {
+        "rate": 0.23,
+        "depth": 0.04
+      },
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.08
+        ],
+        [
+          0.065,
+          0.45
+        ],
+        [
+          0.12,
+          1
+        ],
+        [
+          0.25,
+          0.75
+        ],
+        [
+          0.48,
+          0.34
+        ],
+        [
+          0.73,
+          0.105
+        ],
+        [
+          0.9,
+          0.016
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "variationCents": 1.7,
+      "name": "09_settling_glints",
+      "seed": 261101409,
+      "events": [
+        {
+          "startSeconds": 5.01,
+          "lengthSeconds": 1.1,
+          "frequency": 1318.5,
+          "gain": 0.023,
+          "phase": 4.7
+        },
+        {
+          "startSeconds": 5.83,
+          "lengthSeconds": 1.17,
+          "frequency": 1174.666667,
+          "gain": 0.022,
+          "phase": 1.8
+        },
+        {
+          "startSeconds": 6.47,
+          "lengthSeconds": 1.24,
+          "frequency": 784,
+          "gain": 0.026,
+          "phase": 3.6
+        },
+        {
+          "startSeconds": 7.04,
+          "lengthSeconds": 0.96,
+          "frequency": 987.75,
+          "gain": 0.013,
+          "phase": 5.5
+        }
+      ]
+    }
+  ]
+}

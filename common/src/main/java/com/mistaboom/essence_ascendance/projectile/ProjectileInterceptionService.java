@@ -11,8 +11,6 @@ import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
 import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -107,7 +105,7 @@ public final class ProjectileInterceptionService {
         if (successes > 0) {
             com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.INTERCEPTOR, "targets", successes);
             if (airSwing) player.resetAttackStrengthTicker();
-            player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.45F, 1.2F);
+            com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(player.serverLevel(), "projectile.intercept", player, player.position());
         }
         ProjectileControlService.record(player, "swing", "Interception: intersected=" + nearby.size() + " accepted=" + successes
                 + " budget=" + tuning.swingBudget() + " readiness=" + tuning.readinessThreshold());

@@ -1,0 +1,449 @@
+{
+  "schema": 1,
+  "id": "playful-chimes-20261101",
+  "title": "Essence Ascendance - sound review 02",
+  "description": "Listen to the beam chords first, then menus, combat and abilities. These are first candidates for your approved direction. Nothing has been promoted to the game. Native choices are unmodified reference audio from the installed game.",
+  "preference": "Approved direction 2026-11-01 America/Anchorage: evolving wind-chime beams; playful tactile effects; vanilla reuse; silence for removed hooks.",
+  "items": [
+    {
+      "asset": "beam_player_build_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - hear all nine stages"
+    },
+    {
+      "asset": "beam_infuser_build_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - hear all nine stages"
+    },
+    {
+      "asset": "beam_player_p0_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 0 pylons / 1 note"
+    },
+    {
+      "asset": "beam_player_p1_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 1 pylons / 2 notes"
+    },
+    {
+      "asset": "beam_player_p2_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 2 pylons / 3 notes"
+    },
+    {
+      "asset": "beam_player_p3_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 3 pylons / 4 notes"
+    },
+    {
+      "asset": "beam_player_p4_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 4 pylons / 5 notes"
+    },
+    {
+      "asset": "beam_player_p5_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 5 pylons / 6 notes"
+    },
+    {
+      "asset": "beam_player_p6_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 6 pylons / 7 notes"
+    },
+    {
+      "asset": "beam_player_p7_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 7 pylons / 8 notes"
+    },
+    {
+      "asset": "beam_player_p8_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Player beam - 8 pylons / 9 notes"
+    },
+    {
+      "asset": "beam_infuser_p0_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 0 pylons / 1 note"
+    },
+    {
+      "asset": "beam_infuser_p1_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 1 pylons / 2 notes"
+    },
+    {
+      "asset": "beam_infuser_p2_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 2 pylons / 3 notes"
+    },
+    {
+      "asset": "beam_infuser_p3_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 3 pylons / 4 notes"
+    },
+    {
+      "asset": "beam_infuser_p4_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 4 pylons / 5 notes"
+    },
+    {
+      "asset": "beam_infuser_p5_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 5 pylons / 6 notes"
+    },
+    {
+      "asset": "beam_infuser_p6_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 6 pylons / 7 notes"
+    },
+    {
+      "asset": "beam_infuser_p7_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 7 pylons / 8 notes"
+    },
+    {
+      "asset": "beam_infuser_p8_v2",
+      "family": "channel",
+      "scope": "world",
+      "title": "Infuser beam - 8 pylons / 9 notes"
+    },
+    {
+      "asset": "ui_press_v2",
+      "family": "interface",
+      "scope": "ui",
+      "title": "Menu press"
+    },
+    {
+      "asset": "ui_accept_v2",
+      "family": "interface",
+      "scope": "ui",
+      "title": "Action accepted"
+    },
+    {
+      "asset": "ui_deny_v2",
+      "family": "interface",
+      "scope": "ui",
+      "title": "Action denied"
+    },
+    {
+      "asset": "nexus_transaction_v2",
+      "family": "progression",
+      "scope": "ui",
+      "title": "Nexus transaction"
+    },
+    {
+      "asset": "focus_install_v2",
+      "family": "machine",
+      "scope": "world",
+      "title": "Focus installed"
+    },
+    {
+      "asset": "ascendance_v2",
+      "family": "progression",
+      "scope": "world",
+      "title": "Ascendance ceremony"
+    },
+    {
+      "asset": "caster_woop_v2",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic cast - low woop"
+    },
+    {
+      "asset": "fire_catch_v2",
+      "family": "element",
+      "scope": "world",
+      "title": "Ignition - catch and crackle"
+    },
+    {
+      "asset": "combustion_v2",
+      "family": "element",
+      "scope": "world",
+      "title": "Combustion - vapor whoosh"
+    },
+    {
+      "asset": "freeze_gust_v2",
+      "family": "element",
+      "scope": "world",
+      "title": "Freeze - biting gust"
+    },
+    {
+      "asset": "ice_shatter_v2",
+      "family": "element",
+      "scope": "world",
+      "title": "Ice shatter"
+    },
+    {
+      "asset": "static_snap_v2",
+      "family": "element",
+      "scope": "world",
+      "title": "Static snap"
+    },
+    {
+      "asset": "root_bind_v2",
+      "family": "element",
+      "scope": "world",
+      "title": "Rooting zap"
+    },
+    {
+      "asset": "redirect_clang_v2",
+      "family": "projectile",
+      "scope": "world",
+      "title": "Projectile redirect"
+    },
+    {
+      "asset": "pierce_thuck_v2",
+      "family": "projectile",
+      "scope": "world",
+      "title": "Projectile pierce"
+    },
+    {
+      "asset": "intercept_tok_v2",
+      "family": "projectile",
+      "scope": "world",
+      "title": "Projectile interception"
+    },
+    {
+      "asset": "riposte_ready_v2",
+      "family": "guard",
+      "scope": "world",
+      "title": "Riposte ready"
+    },
+    {
+      "asset": "counter_release_v2",
+      "family": "guard",
+      "scope": "world",
+      "title": "Counterattack release"
+    },
+    {
+      "asset": "ward_break_v2",
+      "family": "guard",
+      "scope": "world",
+      "title": "Shattering Ward"
+    },
+    {
+      "asset": "adrenaline_v2",
+      "family": "vitality",
+      "scope": "ui",
+      "title": "Adrenaline pulse"
+    },
+    {
+      "asset": "mobility_jump_v2",
+      "family": "mobility",
+      "scope": "world",
+      "title": "Enhanced jump"
+    },
+    {
+      "asset": "mobility_rush_v2",
+      "family": "mobility",
+      "scope": "world",
+      "title": "Rush"
+    },
+    {
+      "asset": "flight_wind_v2",
+      "family": "mobility",
+      "scope": "world",
+      "title": "Powered flight wind"
+    },
+    {
+      "asset": "companion_recall_v2",
+      "family": "utility",
+      "scope": "world",
+      "title": "Companion recall"
+    },
+    {
+      "asset": "ui_press_b_v2",
+      "family": "interface",
+      "scope": "ui",
+      "title": "Menu press - variation B"
+    },
+    {
+      "asset": "caster_woop_b_v2",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Magic cast - low woop - variation B"
+    },
+    {
+      "asset": "fire_catch_b_v2",
+      "family": "element",
+      "scope": "world",
+      "title": "Ignition - catch and crackle - variation B"
+    },
+    {
+      "asset": "intercept_tok_b_v2",
+      "family": "projectile",
+      "scope": "world",
+      "title": "Projectile interception - variation B"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "id": "start",
+      "title": "Start here - hear the chords grow",
+      "assets": [
+        "beam_player_build_v2",
+        "beam_infuser_build_v2"
+      ]
+    },
+    {
+      "id": "player",
+      "title": "Crucible to player - choose active pylons",
+      "presentation": "steps",
+      "description": "Each adds one note. Play buttons include gentle beginning/end fades; repeated checks retain raw loop joins.",
+      "assets": [
+        "beam_player_p0_v2",
+        "beam_player_p1_v2",
+        "beam_player_p2_v2",
+        "beam_player_p3_v2",
+        "beam_player_p4_v2",
+        "beam_player_p5_v2",
+        "beam_player_p6_v2",
+        "beam_player_p7_v2",
+        "beam_player_p8_v2"
+      ]
+    },
+    {
+      "id": "infuser",
+      "title": "Crucible to infuser - choose active pylons",
+      "presentation": "steps",
+      "description": "Each adds one note. Play buttons include gentle beginning/end fades; repeated checks retain raw loop joins.",
+      "assets": [
+        "beam_infuser_p0_v2",
+        "beam_infuser_p1_v2",
+        "beam_infuser_p2_v2",
+        "beam_infuser_p3_v2",
+        "beam_infuser_p4_v2",
+        "beam_infuser_p5_v2",
+        "beam_infuser_p6_v2",
+        "beam_infuser_p7_v2",
+        "beam_infuser_p8_v2"
+      ]
+    },
+    {
+      "id": "interface",
+      "title": "Menus and progression",
+      "assets": [
+        "ui_press_v2",
+        "ui_press_b_v2",
+        "ui_accept_v2",
+        "ui_deny_v2",
+        "nexus_transaction_v2",
+        "focus_install_v2",
+        "ascendance_v2"
+      ]
+    },
+    {
+      "id": "combat",
+      "title": "Magic, elements and projectiles",
+      "assets": [
+        "caster_woop_v2",
+        "caster_woop_b_v2",
+        "fire_catch_v2",
+        "fire_catch_b_v2",
+        "combustion_v2",
+        "freeze_gust_v2",
+        "ice_shatter_v2",
+        "static_snap_v2",
+        "root_bind_v2",
+        "redirect_clang_v2",
+        "pierce_thuck_v2",
+        "intercept_tok_v2",
+        "intercept_tok_b_v2"
+      ]
+    },
+    {
+      "id": "abilities",
+      "title": "Defense, movement and companion",
+      "assets": [
+        "riposte_ready_v2",
+        "counter_release_v2",
+        "ward_break_v2",
+        "adrenaline_v2",
+        "mobility_jump_v2",
+        "mobility_rush_v2",
+        "flight_wind_v2",
+        "companion_recall_v2"
+      ]
+    }
+  ],
+  "nativeReferences": "previews/native-selection-20261101/native-references.json",
+  "comparisons": [
+    {
+      "id": "interface-quick-listen",
+      "label": "Menu, accept, deny, transaction, Focus, ascendance",
+      "group": "interface",
+      "assets": [
+        "ui_press_v2",
+        "ui_accept_v2",
+        "ui_deny_v2",
+        "nexus_transaction_v2",
+        "focus_install_v2",
+        "ascendance_v2"
+      ],
+      "gapSeconds": 0.5
+    },
+    {
+      "id": "combat-quick-listen",
+      "label": "Cast, fire, combustion, freeze, shatter, static, rooting, redirect, pierce, intercept",
+      "group": "combat",
+      "assets": [
+        "caster_woop_v2",
+        "fire_catch_v2",
+        "combustion_v2",
+        "freeze_gust_v2",
+        "ice_shatter_v2",
+        "static_snap_v2",
+        "root_bind_v2",
+        "redirect_clang_v2",
+        "pierce_thuck_v2",
+        "intercept_tok_v2"
+      ],
+      "gapSeconds": 0.6
+    },
+    {
+      "id": "repeated-cast-variation",
+      "label": "Rapid cast repetition - alternating A/B",
+      "group": "combat",
+      "assets": [
+        "caster_woop_v2",
+        "caster_woop_b_v2"
+      ],
+      "repeats": 6,
+      "intervalSeconds": 0.42
+    },
+    {
+      "id": "abilities-quick-listen",
+      "label": "Riposte, counterattack, ward, adrenaline, jump, Rush, flight, recall",
+      "group": "abilities",
+      "assets": [
+        "riposte_ready_v2",
+        "counter_release_v2",
+        "ward_break_v2",
+        "adrenaline_v2",
+        "mobility_jump_v2",
+        "mobility_rush_v2",
+        "flight_wind_v2",
+        "companion_recall_v2"
+      ],
+      "gapSeconds": 0.6
+    }
+  ]
+}

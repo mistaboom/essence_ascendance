@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "assetId": "combustion_v2",
+  "seed": 26110108,
+  "sampleRate": 48000,
+  "duration": 0.72,
+  "peakDb": -8,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.fire.burst"
+    ],
+    "role": "element",
+    "description": "Vapor ignition fwoosh: fast expanding flame pressure without an explosive boom.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Combustion - vapor whoosh"
+  },
+  "layers": [
+    {
+      "preset": "air",
+      "name": "01_ignition_front",
+      "lowHz": 100,
+      "highHz": 3500,
+      "lowHzEnd": 160,
+      "highHzEnd": 1400,
+      "gain": 0.55,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.025,
+          0.45
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.27,
+          0.82
+        ],
+        [
+          0.55,
+          0.3
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "lengthSeconds": 0.65
+    },
+    {
+      "preset": "body",
+      "name": "02_pressure_body",
+      "frequency": 85,
+      "frequencyEnd": 46,
+      "gain": 0.14,
+      "lengthSeconds": 0.31
+    },
+    {
+      "preset": "air",
+      "name": "03_flaring_edge",
+      "lowHz": 1800,
+      "highHz": 5800,
+      "spectralTiltDbOct": -5,
+      "gain": 0.1,
+      "startSeconds": 0.02,
+      "lengthSeconds": 0.35
+    }
+  ]
+}

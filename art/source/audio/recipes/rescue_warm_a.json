@@ -1,0 +1,12 @@
+{
+  "schema":1,"assetId":"rescue_warm_a","seed":291041,"sampleRate":48000,"duration":1.2,"peakDb":-5,
+  "presetLibrary":"source/audio/presets/essence-v1.json",
+  "design":{"cueIds":["essence_ascendance:vitality.rescue"],"role":"private critical survival feedback","priority":"P1 / 3c","description":"Immediate low pulse, rising resolve and sustained open fifth; differentiated by rhythm and length as well as level.","levelIntent":"clearly stronger than everyday feedback","repetitionIntervalSeconds":1.5},
+  "layers":[
+    {"preset":"low_pulse","name":"01_rescue_pulse","frequency":128,"frequencyEnd":192,"gain":0.25,"lengthSeconds":0.24},
+    {"preset":"energy_sweep","name":"02_recovery_lift","frequency":192,"frequencyEnd":384,"gain":0.15,"startSeconds":0.06,"lengthSeconds":0.3},
+    {"preset":"mineral","name":"03_resolve_body","frequency":384,"gain":0.23,"startSeconds":0.13,"lengthSeconds":1.07},
+    {"preset":"mineral","name":"04_open_fifth","frequency":576,"gain":0.075,"startSeconds":0.22,"lengthSeconds":0.98},
+    {"preset":"soft_air","name":"05_energy_bloom","lowHz":500,"highHz":2800,"gain":0.045,"lengthSeconds":0.75}
+  ]
+}

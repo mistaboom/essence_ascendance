@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "id": "cast-exploration-20261101",
+  "title": "Essence Ascendance - fresh cast directions",
+  "description": "Three newly designed cast concepts to choose between, followed by the softer atonal impact pair. The ceremonies, heartbeat, death defiance, menu clacks and other approved sounds are unchanged. These five new takes await your review.",
+  "items": [
+    {
+      "asset": "cast_crystal_v5",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Cast A - crystal flick"
+    },
+    {
+      "asset": "cast_air_v5",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Cast B - hollow air launch"
+    },
+    {
+      "asset": "cast_release_v5",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Cast C - elastic pressure release"
+    },
+    {
+      "asset": "magic_impact_soft_v5",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Soft magic impact A"
+    },
+    {
+      "asset": "magic_impact_soft_b_v5",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Soft magic impact B"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "id": "cast",
+      "title": "Choose a new cast direction",
+      "description": "A, B and C are different concepts, not automatic variations of one sound. The comparison plays each in that order twice.",
+      "assets": [
+        "cast_crystal_v5",
+        "cast_air_v5",
+        "cast_release_v5"
+      ]
+    },
+    {
+      "id": "impact",
+      "title": "Softer magic impacts",
+      "description": "The atonal contact character is retained, with a rounder attack, less bright crack and lower overall level.",
+      "assets": [
+        "magic_impact_soft_v5",
+        "magic_impact_soft_b_v5"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "fresh-casts-abc",
+      "label": "Fresh casts A / B / C",
+      "group": "cast",
+      "assets": [
+        "cast_crystal_v5",
+        "cast_air_v5",
+        "cast_release_v5"
+      ],
+      "repeats": 2,
+      "gapSeconds": 0.65
+    },
+    {
+      "id": "soft-impacts-ab",
+      "label": "Soft impacts A / B",
+      "group": "impact",
+      "assets": [
+        "magic_impact_soft_v5",
+        "magic_impact_soft_b_v5"
+      ],
+      "repeats": 2,
+      "gapSeconds": 0.65
+    }
+  ]
+}

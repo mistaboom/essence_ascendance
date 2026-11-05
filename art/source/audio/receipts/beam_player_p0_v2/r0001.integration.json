@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "assetId": "beam_player_p0_v2",
+  "revision": "r0001",
+  "masterSha256": "b3e6ee6670239632813ffd020bd1984b2c7560b634a52270cd29a0b054d8c845",
+  "approvedSha256": "d6f4f20b3e25e5e3f57b42b5a470bc2394a07ba2c117e3f18d85afc1a9a00663",
+  "recipeSha256": "b523ee2318a71e64b58be5c06aef56534a40d3c39c903e00a4f616d073e2184f",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 12.0,
+    "samplePeakDb": -25.43372087105159,
+    "rmsDb": -30.575985304664158,
+    "truePeakDb": -25.43,
+    "integratedLufs": -31.19,
+    "decodedFrames": 576000,
+    "seamDelta": 0.0038404937367886305
+  },
+  "loop": true,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "f67f38b193e8fc7574fbec9c080ed71dfbf05ed522349c9fb8aab9c3202eb55b",
+  "backupSha256": "f67f38b193e8fc7574fbec9c080ed71dfbf05ed522349c9fb8aab9c3202eb55b",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/channel/beam_player_p0_v2/r0001/beam_player_p0_v2.aup3",
+    "backup": "backups/channel/beam_player_p0_v2/r0001/beam_player_p0_v2.aup3",
+    "master": "masters/channel/beam_player_p0_v2/r0001/master.wav",
+    "export": "exports/channel/beam_player_p0_v2/r0001/beam_player_p0_v2.ogg",
+    "recipe": "masters/channel/beam_player_p0_v2/r0001/recipe.json",
+    "authoringInputs": "masters/channel/beam_player_p0_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "86d5e9850998f49969fb00cdf739befc11c773a0230b030a0b4ed91b462d1df4",
+    "stems": [
+      {
+        "path": "masters/channel/beam_player_p0_v2/r0001/00_foundation_chime.wav",
+        "sha256": "b3e6ee6670239632813ffd020bd1984b2c7560b634a52270cd29a0b054d8c845"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "d6f4f20b3e25e5e3f57b42b5a470bc2394a07ba2c117e3f18d85afc1a9a00663"
+  }
+}

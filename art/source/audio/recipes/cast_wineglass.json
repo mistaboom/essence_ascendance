@@ -1,0 +1,161 @@
+{
+  "schema": 1,
+  "assetId": "cast_wineglass",
+  "seed": 261101601,
+  "sampleRate": 48000,
+  "duration": 0.8,
+  "peakDb": -10.5,
+  "presetLibrary": "source/audio/presets/glass-contact-v1.json",
+  "design": {
+    "title": "Wineglass tine tap - audible falling ring",
+    "description": "The same fork-tine contact and first 32 milliseconds of the glass ring, followed by one continuous audible descent from 1092 Hz to 190 Hz over the remaining resonance. The original material layers and 0.8-second tail are preserved.",
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "role": "confirmed combat action",
+    "family": "weapon",
+    "scope": "world",
+    "reference": "Original synthesized wineglass material from cast_wineglass r0001, now with an intentionally synthetic continuous bend of its existing resonant modes. No new recordings, samples, oscillator layers or borrowed melody.",
+    "gameplay": "EquipmentWeaponService.castMagic dispatches weapon.cast.release only after the bolt successfully spawns. The caster is semi-automatic; rejected cooldown presses and failed bolt spawns do not produce this cue.",
+    "runtimeHandoff": "Use the existing accepted-launch world cue once per successful cast. Review the existing fallback pitch 1.6 before selecting this unity-pitch authored file; preserve the glass tuning rather than inheriting another sound pitch. Allow short concurrent ring tails within the runtime voice budget. Do not add feedback to rejected presses.",
+    "revisionRequest": "Keep the same initial wineglass sound and the same length; make the pitch drop clearly audible rather than too fast or so low that it disappears.",
+    "composition": "The four original material layers remain unchanged apart from one shared continuous frequency path applied to the two resonant layers. Fork contact and contact grain stay identical. No added air, bass oscillator, warble, melody or reverberation.",
+    "repetitionIntervalSeconds": 1.05,
+    "repeatReview": "Full-tail spaced repeats at 1.05-second onsets plus a separate unscaled overlap audition at 400ms onsets; neither changes the candidate itself.",
+    "levelIntent": "Delicate isolated material tap; review at its authored level before runtime mix adjustment.",
+    "listeningStatus": "pending",
+    "revisionOf": {
+      "asset": "cast_wineglass",
+      "revision": "r0001"
+    },
+    "pitchDescent": {
+      "globalTimeFrequencyHz": [
+        [
+          0,
+          1092
+        ],
+        [
+          0.032,
+          1092
+        ],
+        [
+          0.1,
+          850
+        ],
+        [
+          0.18,
+          600
+        ],
+        [
+          0.28,
+          400
+        ],
+        [
+          0.42,
+          260
+        ],
+        [
+          0.58,
+          190
+        ],
+        [
+          0.8,
+          190
+        ]
+      ],
+      "holdInitialSeconds": 0.032,
+      "settledFrequencyHz": 190,
+      "settledAtSeconds": 0.58,
+      "method": "Existing frequencyPoints with continuous integrated phase; normalize global event times to each original resonant layer duration. Contact layers untouched. No amplitude compensation.",
+      "referenceSource": "masters/weapon/cast_wineglass/r0001/authoring-inputs.json"
+    }
+  },
+  "layers": [
+    {
+      "name": "01_fork_tine_contact",
+      "preset": "fork_tine_touch",
+      "startSeconds": 0,
+      "lengthSeconds": 0.024,
+      "seed": 261101601
+    },
+    {
+      "name": "02_paired_bowl_resonance",
+      "preset": "thin_glass_bowl",
+      "startSeconds": 0.0004,
+      "lengthSeconds": 0.7996,
+      "phase": 0.15,
+      "seed": 261101602,
+      "frequencyPoints": [
+        [
+          0,
+          1092.0
+        ],
+        [
+          0.03951975987993998,
+          1092
+        ],
+        [
+          0.1245622811405703,
+          850
+        ],
+        [
+          0.22461230615307654,
+          600
+        ],
+        [
+          0.34967483741870936,
+          400
+        ],
+        [
+          0.5247623811905953,
+          260
+        ],
+        [
+          0.7248624312156078,
+          190
+        ],
+        [
+          1,
+          190.0
+        ]
+      ]
+    },
+    {
+      "name": "03_upper_glass_modes",
+      "preset": "thin_glass_upper_modes",
+      "startSeconds": 0,
+      "lengthSeconds": 0.26,
+      "phase": 0.24,
+      "seed": 261101603,
+      "frequencyPoints": [
+        [
+          0,
+          1092.0
+        ],
+        [
+          0.12307692307692307,
+          1092
+        ],
+        [
+          0.38461538461538464,
+          850
+        ],
+        [
+          0.6923076923076923,
+          600
+        ],
+        [
+          1,
+          440.0
+        ]
+      ]
+    },
+    {
+      "name": "04_dry_contact_grain",
+      "preset": "hard_contact_grain",
+      "startSeconds": 0,
+      "lengthSeconds": 0.009,
+      "seed": 261101604
+    }
+  ]
+}

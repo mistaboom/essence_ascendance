@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "assetId": "cast_air_v5",
+  "seed": 261101521,
+  "sampleRate": 48000,
+  "duration": 0.32,
+  "peakDb": -6.5,
+  "presetLibrary": "source/audio/presets/cast-exploration-v5.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "role": "confirmed combat action",
+    "family": "weapon",
+    "scope": "world",
+    "reference": "New original deterministic material-modal and seeded-air synthesis. No samples, copied melody, or timbre inherited from rejected v2-v4 cast recipes.",
+    "gameplay": "AscendanceCasterItem latches each press; EquipmentWeaponService.castMagic dispatches weapon.cast.release only after successful bolt spawn. A rapid semi-automatic short-range launch, not charge-up or impact.",
+    "runtimeHandoff": "Use existing accepted-launch world cue once per successful cast. Review existing fallback pitch 1.6 before selecting this unity-pitch authored file; no cooldown-rejected or failed-spawn playback. Keep projectile impact separate.",
+    "revisionRequest": "Keep selected B character; slightly reduce hissing air rush and lift only the tonal layers.",
+    "repetitionIntervalSeconds": 0.4,
+    "comparison": "Refinement of selected concept B, not another alternative concept. Compare original r0001 then revised r0002 at their authored levels.",
+    "title": "Hollow air launch - gentler air, lifted resonance",
+    "description": "The selected hollow launch with a little less air rush and a slightly higher shell resonance. Its opening, pressure shape and short timing remain the same.",
+    "levelCalibration": {
+      "method": "Preserve original layer balance except requested reductions; no compensating normalization or boost.",
+      "changes": {
+        "tonalLayersSemitones": 2,
+        "pressureAirGainDb": -1,
+        "releaseBreathGainDb": -3
+      },
+      "listeningStatus": "pending"
+    },
+    "revisionOf": {
+      "asset": "cast_air_v5",
+      "revision": "r0001"
+    }
+  },
+  "layers": [
+    {
+      "name": "01_opening_contact",
+      "preset": "surface_contact",
+      "startSeconds": 0,
+      "lengthSeconds": 0.025,
+      "gain": 0.074569506,
+      "lowHz": 370,
+      "highHz": 1800,
+      "seed": 261101521
+    },
+    {
+      "name": "02_hollow_resonance",
+      "preset": "hollow_shell",
+      "startSeconds": 0,
+      "lengthSeconds": 0.265,
+      "gain": 0.188909414,
+      "frequency": 345.718310879,
+      "phase": 0.25,
+      "seed": 261101522
+    },
+    {
+      "name": "03_pressure_air",
+      "preset": "cavity_air",
+      "startSeconds": 0.003,
+      "lengthSeconds": 0.297,
+      "gain": 0.274701919,
+      "seed": 261101523
+    },
+    {
+      "name": "04_release_breath",
+      "preset": "moving_air",
+      "startSeconds": 0.005,
+      "lengthSeconds": 0.315,
+      "gain": 0.119659979,
+      "lowHz": 550,
+      "highHz": 2400,
+      "lowHzEnd": 750,
+      "highHzEnd": 1750,
+      "seed": 261101524
+    },
+    {
+      "name": "05_dry_rim",
+      "preset": "crystal_facet",
+      "startSeconds": 0,
+      "lengthSeconds": 0.08,
+      "frequency": 645.415677778,
+      "gain": 0.020879462,
+      "seed": 261101525
+    }
+  ]
+}

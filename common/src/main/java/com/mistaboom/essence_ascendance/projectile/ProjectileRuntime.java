@@ -157,6 +157,8 @@ public final class ProjectileRuntime {
                 // Native arrows derive their embedding vector from the pre-impact position.
                 ((ProjectileNativeAccess) projectile).essenceAscendance$impact(hit);
                 state.ended = true;
+                if(projectile instanceof MagicBoltEntity)
+                    com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(owner.serverLevel(), "weapon.bolt.impact", projectile, destination);
                 ProjectileImpactEffects.impact(state, new ProjectileImpactEffects.Impact(projectile, owner, hit, null, 0, false));
                 break;
             }
@@ -171,6 +173,8 @@ public final class ProjectileRuntime {
             try { deflection = ((ProjectileNativeAccess) projectile).essenceAscendance$impact(hit); }
             finally { if (previous == null) IMPACT.remove(); else IMPACT.set(previous); }
             boolean success = probe.accepted && probe.confirmedDamage > 0;
+            if(success && projectile instanceof MagicBoltEntity)
+                com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(owner.serverLevel(), "weapon.bolt.impact", projectile, destination);
             boolean continuing = false;
             int ricochetsBefore = state.ricochets;
             int skillPenetrationsBefore = state.skillPenetrations;

@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "assetId": "riposte_ready_v2",
+  "seed": 26110116,
+  "sampleRate": 48000,
+  "duration": 0.35,
+  "peakDb": -12,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:combat.guard.ready"
+    ],
+    "role": "guard",
+    "description": "Wooden clack with a tiny pitched ring to signal the counterattack opportunity.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Riposte ready"
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 390,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.028
+        },
+        {
+          "ratio": 2.17,
+          "gain": 0.35,
+          "decaySeconds": 0.017
+        },
+        {
+          "ratio": 3.93,
+          "gain": 0.13,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.28,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_ready_clack",
+      "lengthSeconds": 0.17
+    },
+    {
+      "type": "modal",
+      "frequency": 880,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.13
+        },
+        {
+          "ratio": 2.43,
+          "gain": 0.19,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 3.91,
+          "gain": 0.07,
+          "decaySeconds": 0.04
+        }
+      ],
+      "gain": 0.09,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_ready_ring",
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.32
+    },
+    {
+      "type": "noise",
+      "lowHz": 1200,
+      "highHz": 2500,
+      "spectralTiltDbOct": -2,
+      "gain": 0.045,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_contact",
+      "lengthSeconds": 0.02
+    }
+  ]
+}

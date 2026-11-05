@@ -10,6 +10,12 @@ The root README is the shared player-facing project description. Keep build,
 publishing, and maintainer instructions in `docs/` so they do not appear in mod
 store descriptions.
 
+Audio integration uses the shared catalog, promotion receipts and AssetPipeline.
+See [the current audio handoff](audio/INTEGRATION-20261102.md) for exact selected
+revisions, disposable native fixtures and separate listening/release gates. Normal
+builds consume repository-promoted bytes and never require Audacity or a personal
+audio workspace. Keep audio checks catalog-parameterized and Gradle runs sequential.
+
 Use Java 25 for Gradle. The 1.21.1 targets independently use a Java 21 toolchain;
 26.1.2 uses Java 25. Build and check all four production variants:
 

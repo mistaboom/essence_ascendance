@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "assetId": "redirect_clang_v2",
+  "seed": 26110113,
+  "sampleRate": 48000,
+  "duration": 0.32,
+  "peakDb": -11,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:projectile.redirect"
+    ],
+    "role": "projectile",
+    "description": "Compact metallic deflection with a short directional air flick.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Projectile redirect"
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 510,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.19
+        },
+        {
+          "ratio": 1.47,
+          "gain": 0.44,
+          "decaySeconds": 0.13
+        },
+        {
+          "ratio": 2.09,
+          "gain": 0.21,
+          "decaySeconds": 0.085
+        },
+        {
+          "ratio": 3.13,
+          "gain": 0.08,
+          "decaySeconds": 0.055
+        }
+      ],
+      "gain": 0.29,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_metal_deflect",
+      "lengthSeconds": 0.31
+    },
+    {
+      "type": "noise",
+      "lowHz": 1200,
+      "highHz": 5500,
+      "spectralTiltDbOct": -2,
+      "gain": 0.09,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_contact_edge",
+      "lengthSeconds": 0.024
+    },
+    {
+      "type": "noise",
+      "lowHz": 1600,
+      "highHz": 4400,
+      "spectralTiltDbOct": -3,
+      "gain": 0.065,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_direction_flick",
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.15
+    }
+  ]
+}

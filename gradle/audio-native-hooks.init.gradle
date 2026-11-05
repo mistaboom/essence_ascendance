@@ -1,0 +1,162 @@
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'audio'
+// Exact target-local initialization probes; opt-in joined-world checks use copied disposable worlds.
+allprojects { p ->
+    p.afterEvaluate {
+        def requested = gradle.startParameter.taskNames.collect { it.startsWith(':') ? it : ":${it}" }
+        def packaged = requested.size()==1 && requested.first().endsWith(':audioPackagedFixtureJar')
+        if(packaged && !p.rootProject.ext.has('nativeFixtureSelection')) {
+            def target=p.rootProject.targetCatalog.targets.find { it.implemented && requested.first()==":${it.loader}:${it.minecraft}:audioPackagedFixtureJar" }
+            if(target==null) throw new GradleException('Packaged audio fixture requires one exact implemented loader/version task')
+            p.rootProject.ext.nativeFixtureSelection=[projectPath:":${target.loader}:${target.minecraft}".toString(),taskPaths:requested]
+        }
+        if (!p.rootProject.ext.has('nativeFixtureSelection'))
+            p.rootProject.apply from: p.rootProject.file('gradle/native-fixture-selection.gradle')
+        def selection = p.rootProject.nativeFixtureSelection
+        if (p.path != selection.projectPath) return
+        def client = packaged || selection.taskPaths.first().endsWith(':runClient')
+        def acceptance = p.rootProject.findProperty('audioWorldAcceptance') == 'true'
+        if(acceptance && !client) throw new GradleException('Audio world acceptance requires runClient')
+        def label = p.rootProject.findProperty('audioAcceptanceLabel') ?: 'a'
+        if(!(label ==~ /[a-z0-9-]+/)) throw new GradleException('Audio acceptance label must be lowercase letters, digits and hyphens')
+        def neo = p.parent.name == 'neoforge'
+        def modern = p.targetResourceFormat == '26.1'
+        def common = p.rootProject.project(":common:${p.targetMinecraft}")
+        def nativePatterns = ['com/mistaboom/essence_ascendance/projectile/*.class',
+                              'com/mistaboom/essence_ascendance/verification/*.class',
+                              'com/mistaboom/essence_ascendance/infuser/*.class']
+        def commonFixture = null
+        if(neo && !client) {
+            p.apply from: p.rootProject.file('gradle/native-fixture-support.gradle')
+            commonFixture = p.useNativeFixtureCommon('audio',nativePatterns)
+        }
+        def metadata = p.file('build/native-fixtures/audio-metadata')
+        def fixture = p.tasks.register('audioNativeFixtureJar', Jar) {
+            inputs.property('audioFixtureClient',client)
+            inputs.property('audioWorldAcceptance',acceptance)
+            inputs.property('audioPackagedFixture',packaged)
+            dependsOn common.tasks.named('testClasses')
+            archiveFileName = 'audio-native-fixture.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            from(common.sourceSets.test.output) {
+                include 'com/mistaboom/essence_ascendance/audiofixture/AudioLoaderTest*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/AudioMultiplayerAcceptance*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/AudioGameplaySession*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/AudioGameplayAcceptance*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/AudioPaidMachines*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/AudioNativePerformanceAcceptance*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/AudioPerformanceAcceptance*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/mixin/AudioCaptionFrameMixin*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/mixin/AudioHiddenWindowMixin*.class'
+                include 'com/mistaboom/essence_ascendance/audiofixture/mixin/Audio*PerformanceMixin*.class'
+                if(!client && !neo) nativePatterns.each { include it }
+                if(acceptance || packaged) {
+                    include 'com/mistaboom/essence_ascendance/audiofixture/AudioWorldAcceptance*.class'
+                    include 'com/mistaboom/essence_ascendance/audiofixture/AudioResourceAcceptance*.class'
+                    include 'com/mistaboom/essence_ascendance/verification/BlockEntityTestNbtCompat.class'
+                }
+            }
+            from(metadata)
+            doFirst {
+                metadata.mkdirs()
+                new File(metadata,'audio-fixture.mixins.json').text=groovy.json.JsonOutput.toJson([
+                        required:true,package:'com.mistaboom.essence_ascendance.audiofixture.mixin',
+                        compatibilityLevel:"JAVA_${p.targetJava}",
+                        client:['AudioCaptionFrameMixin','AudioHiddenWindowMixin','AudioRuntimePerformanceMixin','AudioSoundEnginePerformanceMixin','AudioSoundBufferPerformanceMixin'],
+                        mixins:['AudioNetworkPerformanceMixin','AudioPacketEncoderPerformanceMixin'],injectors:[defaultRequire:1]])
+                if (p.parent.name == 'fabric') {
+                    def entrypoints = [:]
+                    if (packaged || client) entrypoints['client'] = ['com.mistaboom.essence_ascendance.audiofixture.AudioLoaderTest::clientAndExit']
+                    if (packaged || !client) entrypoints['server'] = ['com.mistaboom.essence_ascendance.audiofixture.AudioLoaderTest::serverAndExit']
+                    def environment = packaged ? '*' : (client ? 'client' : 'server')
+                    new File(metadata,'fabric.mod.json').text = groovy.json.JsonOutput.toJson([
+                            schemaVersion:1, id:'essence_audio_test', version:'1', environment:environment,
+                            entrypoints:entrypoints,
+                            mixins:['audio-fixture.mixins.json'],
+                            depends:[essence_ascendance:'*']])
+                } else {
+                    new File(metadata,'META-INF').mkdirs()
+                    new File(metadata,'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_audio_test"
+version="1"
+displayName="Audio initialization fixture"
+[[mixins]]
+config="audio-fixture.mixins.json"
+[[dependencies.essence_audio_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1.0.0-beta.1,)"
+ordering="AFTER"
+side="BOTH"
+'''
+                }
+            }
+        }
+        // Explicit distributable fixture. Production mod archives are never modified.
+        // Only legacy Fabric uses intermediary runtime names. NeoForge production retains named APIs.
+        if(!modern && !neo) {
+            def remapType = p.tasks.named('remapJar').get().class.superclass
+            p.tasks.register('audioPackagedFixtureJar', remapType) {
+                dependsOn fixture
+                inputFile.set(fixture.flatMap { it.archiveFile })
+                archiveFileName = 'audio-packaged-fixture.jar'
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+                sourceNamespace.set('named')
+                targetNamespace.set('intermediary')
+                addNestedDependencies.set(false)
+            }
+        } else {
+            p.tasks.register('audioPackagedFixtureJar') { dependsOn fixture }
+        }
+        if (p.parent.name == 'neoforge') {
+            def compile = p.tasks.register('compileAudioNativeFixture', JavaCompile) {
+                source p.rootProject.file('gradle/native-fixtures/AudioNativeMod.java')
+                classpath = p.sourceSets.main.compileClasspath
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/audio-classes')
+                options.release = p.targetJava
+                javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+            }
+            fixture.configure { dependsOn compile; from(compile.flatMap { it.destinationDirectory }) }
+        }
+        p.tasks.named(client?'runClient':'runServer').configure { t ->
+            def directory = p.file("build/native-fixtures/audio-${acceptance?'world-'+label:client?'client':'server'}-run").canonicalFile
+            t.internalRunDir.set(directory)
+            t.dependsOn fixture
+            if(commonFixture!=null) {
+                t.dependsOn commonFixture
+                def original = common.tasks.named('jar').get().archiveFile.get().asFile.canonicalFile
+                t.classpath = p.files(t.classpath.files.findAll { it.canonicalFile!=original },commonFixture.flatMap { it.archiveFile })
+                t.doFirst {
+                    if(t.classpath.files*.canonicalFile.contains(original)) throw new GradleException('Audio routing fixture common classes are not isolated')
+                }
+            }
+            t.jvmArgs('-Dessence.audio.fixtureClient='+client)
+            if(!client && modern) t.jvmArgs('-Dessence.audio.afterServerStart=true')
+            if(acceptance) t.jvmArgs('-Dessence.audio.worldAcceptance=true')
+            if (p.parent.name == 'fabric') t.jvmArgs('-Dfabric.addMods='+fixture.get().archiveFile.get().asFile.canonicalPath)
+            if (!client && !neo && !modern) t.args('--initSettings')
+            t.doFirst {
+                if (t.internalRunDir.asFile.get().canonicalFile != directory) throw new GradleException('Unexpected audio fixture directory')
+                directory.mkdirs()
+                if(acceptance) {
+                    def options = new File(directory,'options.txt')
+                    if(!options.exists()) options.text = 'onboardAccessibility:false\ntutorialStep:none\nmaxFps:60\nrenderDistance:4\nsimulationDistance:5\nsoundCategory_music:0.0\n'
+                    def loader = p.parent.name == 'fabric' ? 'fabric' : 'neo'
+                    def version = p.targetMinecraft == '1.21.1' ? '1211' : '2612'
+                    def sourceWorld = p.rootProject.file("build/packaged-${loader}${version}-server/world").canonicalFile
+                    if(!new File(sourceWorld,'level.dat').isFile()) throw new GradleException("Missing exact disposable packaged-server world: ${sourceWorld}")
+                    def destination = new File(directory,'saves/world')
+                    if(!destination.exists()) p.copy { from(sourceWorld); into(destination) }
+                }
+                if (!client && (neo || modern)) {
+                    new File(directory,'eula.txt').text = 'eula=true\n'
+                    new File(directory,'server.properties').text = 'server-ip=127.0.0.1\nserver-port=0\n'
+                }
+                if (p.parent.name == 'neoforge') p.copy { from(fixture.get().archiveFile); into(new File(directory,'mods')) }
+            }
+        }
+    }
+}

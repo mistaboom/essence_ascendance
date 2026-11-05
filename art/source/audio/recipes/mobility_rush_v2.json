@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "assetId": "mobility_rush_v2",
+  "seed": 26110121,
+  "sampleRate": 48000,
+  "duration": 0.52,
+  "peakDb": -12,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:mobility.boost"
+    ],
+    "role": "mobility",
+    "description": "Longer forward rush of air; same material family as enhanced jumps.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Rush"
+  },
+  "layers": [
+    {
+      "preset": "air",
+      "name": "01_forward_air",
+      "lowHz": 250,
+      "highHz": 4400,
+      "lowHzEnd": 120,
+      "highHzEnd": 1900,
+      "gain": 0.3,
+      "lengthSeconds": 0.5
+    },
+    {
+      "preset": "body",
+      "name": "02_forward_pressure",
+      "frequency": 110,
+      "frequencyEnd": 55,
+      "gain": 0.1,
+      "lengthSeconds": 0.25
+    },
+    {
+      "preset": "air",
+      "name": "03_trailing_air",
+      "lowHz": 800,
+      "highHz": 2600,
+      "gain": 0.055,
+      "startSeconds": 0.12,
+      "lengthSeconds": 0.4
+    }
+  ]
+}

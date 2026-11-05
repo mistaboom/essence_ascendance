@@ -12,6 +12,7 @@ import java.util.Optional;
 public final class AscendanceNexusTransactionClientState {
     private static final int MAX_BUFFERED_RESULTS = 32;
     private static final Map<RequestKey, Result> RESULTS = new LinkedHashMap<>();
+    private static final com.mistaboom.essence_ascendance.audio.FeedbackReceipts FEEDBACK = new com.mistaboom.essence_ascendance.audio.FeedbackReceipts();
     private static boolean initialized;
 
     private AscendanceNexusTransactionClientState() {
@@ -41,6 +42,13 @@ public final class AscendanceNexusTransactionClientState {
     private static synchronized void accept(
             AscendanceNexusTransactionResultPayload payload
     ) {
+        var mc=net.minecraft.client.Minecraft.getInstance();
+        if (mc.player!=null && mc.player.containerMenu.containerId==payload.menuId()
+                && FEEDBACK.accept(mc.screen,payload.menuId(),payload.requestId())) {
+            // Ascension's one public ceremony already owns its accent. No purchase accent on top.
+            if(!payload.ascended()) com.mistaboom.essence_ascendance.client.audio.AudioRuntime.player(
+                    payload.accepted()?"progression.purchase":"interface.denied",mc.screen,payload.requestId());
+        }
         RequestKey key = new RequestKey(payload.menuId(), payload.requestId());
         RESULTS.put(key, new Result(
                 payload.menuId(),
@@ -64,7 +72,10 @@ public final class AscendanceNexusTransactionClientState {
 
     public static synchronized void clear() {
         RESULTS.clear();
+        FEEDBACK.clear();
     }
+    public static void expect(Object screen,int menu,long request) { FEEDBACK.expect(screen,menu,request); }
+    public static void forget(Object screen) { FEEDBACK.forget(screen); }
 
     private record RequestKey(int menuId, long requestId) {
     }

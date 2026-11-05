@@ -1,0 +1,10 @@
+{
+  "schema":1,"assetId":"cast_warm_b","seed":291012,"sampleRate":48000,"duration":0.24,"peakDb":-10,
+  "presetLibrary":"source/audio/presets/essence-v1.json",
+  "design":{"cueIds":["essence_ascendance:weapon.cast.release"],"role":"confirmed combat action","priority":"P1 / 3a","description":"Controlled variation of the cast: same contour, slightly softer air and lower sweep.","levelIntent":"clear action, below rescue","comparison":"cast variant B; same semantic identity","repetitionIntervalSeconds":0.28},
+  "layers":[
+    {"preset":"energy_sweep","name":"01_release_sweep","frequency":288,"frequencyEnd":718,"gain":0.19,"lengthSeconds":0.136},
+    {"preset":"soft_air","name":"02_air_release","gain":0.047,"highHz":4050,"lengthSeconds":0.19},
+    {"preset":"mineral","name":"03_mineral_trace","frequency":384,"gain":0.05,"startSeconds":0.028,"lengthSeconds":0.212}
+  ]
+}

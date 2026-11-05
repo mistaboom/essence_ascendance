@@ -25,7 +25,9 @@ public final class InfuserSoulbindNetworkService {
             NetworkManager.sendToPlayer(player, new InfuserSoulbindPromptPayload(menuId, receipt));
     }
     public static boolean handle(ServerPlayer player, InfuserSoulbindPayload payload) {
-        return player.containerMenu instanceof EssenceInfuserMenu menu && menu.containerId == payload.menuId()
+        boolean accepted = player.containerMenu instanceof EssenceInfuserMenu menu && menu.containerId == payload.menuId()
                 && menu.confirmSoulbind(player, payload.receipt());
+        FeedbackDispatch.player(player, accepted ? "interface.acknowledge" : "interface.denied");
+        return accepted;
     }
 }

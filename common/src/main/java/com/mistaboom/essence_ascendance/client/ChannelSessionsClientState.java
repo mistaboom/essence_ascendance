@@ -18,24 +18,40 @@ public final class ChannelSessionsClientState {
     private static ChannelSessionsPayload snapshot;
     private static Object receiptPlayer, receiptLevel;
     private static long receiptTick;
+    private static final com.mistaboom.essence_ascendance.audio.FeedbackStateCursor ORDER=new com.mistaboom.essence_ascendance.audio.FeedbackStateCursor();
     private static boolean initialized;
     public static void init() {
         if (initialized) return; initialized = true;
         NetworkManager.registerReceiver(NetworkManager.Side.S2C, ChannelSessionsPayload.TYPE, ChannelSessionsPayload.CODEC,
-                (p, c) -> ClientPacketDispatch.queue(c, () -> {
+                (p, c) -> ClientPacketDispatch.queueWorld(c, () -> {
                     var mc = Minecraft.getInstance();
                     if (mc.player == null || mc.level == null || p.playerEntityId() != mc.player.getId() || !p.dimension().equals(mc.level.dimension().location())) return;
-                    snapshot = p; receiptPlayer = mc.player; receiptLevel = mc.level; receiptTick = mc.level.getGameTime();
+                    if (!com.mistaboom.essence_ascendance.audio.FeedbackTime.fresh(p.originatingTick(),mc.level.getGameTime())
+                            || mc.level.getGameTime()-p.originatingTick()>20
+                            || snapshot!=null && p.originatingTick()<snapshot.originatingTick()) return;
+                    long next=p.links().isEmpty()?0:p.links().getFirst().generation();
+                    if(!ORDER.accept(mc.player,mc.level,p.originatingTick(),next,!p.links().isEmpty())) return;
+                    snapshot = p; receiptPlayer = mc.player; receiptLevel = mc.level; receiptTick = p.originatingTick();
                 }));
     }
-    public static void clear() { snapshot = null; receiptPlayer = receiptLevel = null; }
+    public static void clear() {
+        ORDER.clear();
+        expire();
+    }
+    private static void expire() {
+        snapshot = null; receiptPlayer = receiptLevel = null;
+    }
+    public static void tick() {
+        var mc = Minecraft.getInstance();
+        if (snapshot != null && (mc.player != receiptPlayer || mc.level != receiptLevel || mc.player == null || !mc.player.isAlive()
+                || mc.level.getGameTime() < receiptTick)) clear();
+        else if(snapshot!=null && mc.level.getGameTime()-receiptTick>20) expire();
+    }
     //? if >=26.1.2
     /*public static void render(GuiGraphicsExtractor graphics) {*/
     //? if <26.1.2
     public static void render(GuiGraphics graphics) {
         var mc = Minecraft.getInstance();
-        if (mc.player != receiptPlayer || mc.level != receiptLevel || mc.player == null || !mc.player.isAlive()
-                || mc.level.getGameTime() - receiptTick > 20) { clear(); return; }
         if (snapshot == null || mc.options.hideGui || mc.screen != null || graphics.guiWidth() < SkillEffectHudLayout.WIDTH * 2 + 24) return;
         int y = 6, shown = 0;
         for (var link : snapshot.links()) {

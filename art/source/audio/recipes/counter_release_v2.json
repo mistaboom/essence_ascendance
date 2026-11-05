@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "assetId": "counter_release_v2",
+  "seed": 26110117,
+  "sampleRate": 48000,
+  "duration": 0.43,
+  "peakDb": -10,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:combat.guard.release"
+    ],
+    "role": "guard",
+    "description": "Compact sword shing with short metal sheen and force beneath.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Counterattack release"
+  },
+  "layers": [
+    {
+      "preset": "air",
+      "name": "01_blade_draw",
+      "lowHz": 1100,
+      "highHz": 6500,
+      "lowHzEnd": 2100,
+      "highHzEnd": 4600,
+      "gain": 0.19,
+      "lengthSeconds": 0.37
+    },
+    {
+      "preset": "metal",
+      "name": "02_blade_ring",
+      "frequency": 1180,
+      "gain": 0.15,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.17
+        },
+        {
+          "ratio": 1.49,
+          "gain": 0.28,
+          "decaySeconds": 0.12
+        },
+        {
+          "ratio": 2.13,
+          "gain": 0.09,
+          "decaySeconds": 0.07
+        }
+      ],
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.4
+    },
+    {
+      "preset": "body",
+      "name": "03_release_force",
+      "frequency": 130,
+      "frequencyEnd": 75,
+      "gain": 0.17,
+      "lengthSeconds": 0.15
+    }
+  ]
+}

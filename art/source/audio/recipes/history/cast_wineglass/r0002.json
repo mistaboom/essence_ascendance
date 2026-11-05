@@ -1,0 +1,325 @@
+{
+  "schema": 1,
+  "assetId": "cast_wineglass",
+  "seed": 261101601,
+  "sampleRate": 48000,
+  "duration": 0.8,
+  "peakDb": -10.5,
+  "design": {
+    "title": "Wineglass tine tap - audible falling ring",
+    "description": "The same fork-tine contact and first 32 milliseconds of the glass ring, followed by one continuous audible descent from 1092 Hz to 190 Hz over the remaining resonance. The original material layers and 0.8-second tail are preserved.",
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "role": "confirmed combat action",
+    "family": "weapon",
+    "scope": "world",
+    "reference": "Original synthesized wineglass material from cast_wineglass r0001, now with an intentionally synthetic continuous bend of its existing resonant modes. No new recordings, samples, oscillator layers or borrowed melody.",
+    "gameplay": "EquipmentWeaponService.castMagic dispatches weapon.cast.release only after the bolt successfully spawns. The caster is semi-automatic; rejected cooldown presses and failed bolt spawns do not produce this cue.",
+    "runtimeHandoff": "Use the existing accepted-launch world cue once per successful cast. Review the existing fallback pitch 1.6 before selecting this unity-pitch authored file; preserve the glass tuning rather than inheriting another sound pitch. Allow short concurrent ring tails within the runtime voice budget. Do not add feedback to rejected presses.",
+    "revisionRequest": "Keep the same initial wineglass sound and the same length; make the pitch drop clearly audible rather than too fast or so low that it disappears.",
+    "composition": "The four original material layers remain unchanged apart from one shared continuous frequency path applied to the two resonant layers. Fork contact and contact grain stay identical. No added air, bass oscillator, warble, melody or reverberation.",
+    "repetitionIntervalSeconds": 1.05,
+    "repeatReview": "Full-tail spaced repeats at 1.05-second onsets plus a separate unscaled overlap audition at 400ms onsets; neither changes the candidate itself.",
+    "levelIntent": "Delicate isolated material tap; review at its authored level before runtime mix adjustment.",
+    "listeningStatus": "pending",
+    "revisionOf": {
+      "asset": "cast_wineglass",
+      "revision": "r0001"
+    },
+    "pitchDescent": {
+      "globalTimeFrequencyHz": [
+        [
+          0,
+          1092
+        ],
+        [
+          0.032,
+          1092
+        ],
+        [
+          0.1,
+          850
+        ],
+        [
+          0.18,
+          600
+        ],
+        [
+          0.28,
+          400
+        ],
+        [
+          0.42,
+          260
+        ],
+        [
+          0.58,
+          190
+        ],
+        [
+          0.8,
+          190
+        ]
+      ],
+      "holdInitialSeconds": 0.032,
+      "settledFrequencyHz": 190,
+      "settledAtSeconds": 0.58,
+      "method": "Existing frequencyPoints with continuous integrated phase; normalize global event times to each original resonant layer duration. Contact layers untouched. No amplitude compensation.",
+      "referenceSource": "masters/weapon/cast_wineglass/r0001/authoring-inputs.json"
+    }
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 3217,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.8,
+          "decaySeconds": 0.0045
+        },
+        {
+          "ratio": 1.713,
+          "gain": 0.27,
+          "decaySeconds": 0.0028
+        },
+        {
+          "ratio": 2.889,
+          "gain": 0.065,
+          "decaySeconds": 0.0015
+        }
+      ],
+      "gain": 0.034,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.012,
+          0.7
+        ],
+        [
+          0.035,
+          1
+        ],
+        [
+          0.28,
+          0.65
+        ],
+        [
+          0.65,
+          0.13
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_fork_tine_contact",
+      "startSeconds": 0,
+      "lengthSeconds": 0.024,
+      "seed": 261101601
+    },
+    {
+      "type": "modal",
+      "frequency": 1092,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.84,
+          "decaySeconds": 0.245
+        },
+        {
+          "ratio": 1.0021978022,
+          "gain": 0.28,
+          "decaySeconds": 0.207,
+          "phase": 0.38
+        }
+      ],
+      "gain": 0.205,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.001,
+          0.82
+        ],
+        [
+          0.002,
+          1
+        ],
+        [
+          0.68,
+          0.98
+        ],
+        [
+          0.85,
+          0.78
+        ],
+        [
+          0.95,
+          0.24
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_paired_bowl_resonance",
+      "startSeconds": 0.0004,
+      "lengthSeconds": 0.7996,
+      "phase": 0.15,
+      "seed": 261101602,
+      "frequencyPoints": [
+        [
+          0,
+          1092.0
+        ],
+        [
+          0.03951975987993998,
+          1092
+        ],
+        [
+          0.1245622811405703,
+          850
+        ],
+        [
+          0.22461230615307654,
+          600
+        ],
+        [
+          0.34967483741870936,
+          400
+        ],
+        [
+          0.5247623811905953,
+          260
+        ],
+        [
+          0.7248624312156078,
+          190
+        ],
+        [
+          1,
+          190.0
+        ]
+      ]
+    },
+    {
+      "type": "modal",
+      "frequency": 1092,
+      "partials": [
+        {
+          "ratio": 2.532,
+          "gain": 0.31,
+          "decaySeconds": 0.075
+        },
+        {
+          "ratio": 4.202,
+          "gain": 0.095,
+          "decaySeconds": 0.027
+        },
+        {
+          "ratio": 6.13,
+          "gain": 0.024,
+          "decaySeconds": 0.011
+        }
+      ],
+      "gain": 0.205,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.003,
+          0.8
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.38,
+          0.8
+        ],
+        [
+          0.78,
+          0.19
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_upper_glass_modes",
+      "startSeconds": 0,
+      "lengthSeconds": 0.26,
+      "phase": 0.24,
+      "seed": 261101603,
+      "frequencyPoints": [
+        [
+          0,
+          1092.0
+        ],
+        [
+          0.12307692307692307,
+          1092
+        ],
+        [
+          0.38461538461538464,
+          850
+        ],
+        [
+          0.6923076923076923,
+          600
+        ],
+        [
+          1,
+          440.0
+        ]
+      ]
+    },
+    {
+      "type": "noise",
+      "lowHz": 1800,
+      "highHz": 6500,
+      "spectralTiltDbOct": -2,
+      "gain": 0.021,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.05,
+          0.7
+        ],
+        [
+          0.11,
+          1
+        ],
+        [
+          0.27,
+          0.48
+        ],
+        [
+          0.62,
+          0.09
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "04_dry_contact_grain",
+      "startSeconds": 0,
+      "lengthSeconds": 0.009,
+      "seed": 261101604
+    }
+  ]
+}

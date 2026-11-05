@@ -1,0 +1,869 @@
+{
+  "schema": 1,
+  "kind": "audio_human_feedback_followup_completion_declaration",
+  "date": "2026-11-04",
+  "timezone": "America/Anchorage",
+  "preparedForOwner": "root",
+  "status": "HEADLESS_TECHNICAL_PASS_HUMAN_ACCEPTANCE_PENDING",
+  "conclusion": "Current candidate D passes the fresh four-target supported gate, exact package preservation checks, both affected native routing suites and two exact packaged distinct-client gameplay/performance reruns. The preferred 1.21.1 Fabric package is prepared and passes server-only save/shutdown. Human listening/mix/loop/HUD and recorded rights confirmation remain PENDING. Earlier six-session membership/target evidence retains its prior archive scope.",
+  "scope": "Follow-up to user listening/HUD feedback: remove duplicate accepted Infuser acknowledgement, share native/supplemental caption avoidance of occupied HUD bounds, verify ordinary-key authorized flight, and apply only the expressly approved flight gain. Earlier six-session acceptance remains archive-specific.",
+  "candidate": {
+    "result": "PASS",
+    "inputSnapshot": {
+      "path": "build/audio-human-feedback-20261104/candidate-inputs-d.json",
+      "sha256": "abc497ff8af9dac2c22420c8cc65f1566990937efd098f31e3b30f750787fe17",
+      "bytes": 405227
+    },
+    "inputCount": 2048,
+    "expectedInputFingerprint": "464d66660246562917353c3a5c50471d2408755406205e8c088ef6648dfd3ab9",
+    "unchangedAtCompletion": true,
+    "productionOwners": [
+      "art/audio-catalog.json",
+      "common/src/main/java/com/mistaboom/essence_ascendance/infuser/EssenceInfuserMenu.java",
+      "common/src/main/java/com/mistaboom/essence_ascendance/client/audio/CaptionLayout.java",
+      "common/src/main/java/com/mistaboom/essence_ascendance/client/audio/CaptionRouter.java",
+      "common/src/main/java/com/mistaboom/essence_ascendance/mixin/AudioSubtitleMixin.java",
+      "common/src/main/java/com/mistaboom/essence_ascendance/mixin/SkillEffectHudMixin.java"
+    ],
+    "scopeLimit": "New tests and the existing normal-key flight fixture accompany those owners; preserve unrelated work and validate actual final snapshot rather than assuming an exclusive git diff.",
+    "unchangedAtInterimReview": true,
+    "currentInputFingerprint": "464d66660246562917353c3a5c50471d2408755406205e8c088ef6648dfd3ab9",
+    "currentInputCount": 2048
+  },
+  "build": {
+    "result": "PASS",
+    "targets": [
+      "1211Fabric",
+      "1211NeoForge",
+      "2612Fabric",
+      "2612NeoForge"
+    ],
+    "scope": "Standalone cleanup then full four-target gate PASS, sequential under the shared guard; both affected exact packaged native sessions completed separately without Gradle overlap.",
+    "clean": {
+      "result": "PASS",
+      "exitCode": 0,
+      "guardExitCode": 0,
+      "log": {
+        "path": "build/audio-human-feedback-20261104/final-clean-d.log",
+        "sha256": "5a321b8a888f8997da71c1b5faef9d73a3a0f3899cdb399eeea3f9168b62b998",
+        "bytes": 1622
+      },
+      "guardReceipt": {
+        "path": "build/audio-human-feedback-20261104/final-clean-d.receipt.json",
+        "sha256": "11eb4eba17205535a045a2b1ef5d3dda49bab9076d36138fbc7fed90c3154d64",
+        "bytes": 2902
+      },
+      "exitSidecar": {
+        "path": "build/audio-human-feedback-20261104/final-clean-d.exit.txt",
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "bytes": 3
+      },
+      "requiredText": [
+        "BUILD SUCCESSFUL"
+      ],
+      "ownerVerified": true,
+      "ownerVerificationBasis": "Owner reported completion; independent receipt, child, exit-sidecar, log and zero-owned-process reconciliation also passed.",
+      "childReceipt": {
+        "path": "build/audio-human-feedback-20261104/final-clean-d.child.json",
+        "sha256": "d8947170eb2f7277826e3309899fc8d33ad6399d9f1375cbfaf84432236a2b7a",
+        "bytes": 408
+      },
+      "guardConfiguration": {
+        "path": "build/audio-human-feedback-20261104/final-clean-d.configuration.json",
+        "sha256": "c0c033798d7157eaed608f00b4ae10b12a863aa3d2e0ceaf86cd82d56a516a06",
+        "bytes": 1958
+      },
+      "guardSamples": {
+        "path": "build/audio-human-feedback-20261104/final-clean-d.samples.jsonl",
+        "sha256": "4109a3e332141744af1de8b2eee958811eb6976c027eceb494a83392b4c880e7",
+        "bytes": 2788
+      },
+      "startedUtc": "2026-11-05T00:27:54.768685+00:00",
+      "completedUtc": "2026-11-05T00:28:06.780426+00:00",
+      "wallSeconds": 12.010908399999607,
+      "ownedProcessesRemaining": 0,
+      "ownedProcessesTerminated": 0
+    },
+    "supported": {
+      "result": "PASS",
+      "exitCode": 0,
+      "guardExitCode": 0,
+      "log": {
+        "path": "build/audio-human-feedback-20261104/final-supported-d.log",
+        "sha256": "d1b559cb8d3ee42f9dde8bdadcadf60659a5ce8b38a8f21142a1b3b937f83c6b",
+        "bytes": 171641
+      },
+      "guardReceipt": {
+        "path": "build/audio-human-feedback-20261104/final-supported-d.receipt.json",
+        "sha256": "7186e5f5bc0635b16884162c8de477cd064bb19637a1c1e6810c6288f8eb4020",
+        "bytes": 2954
+      },
+      "exitSidecar": {
+        "path": "build/audio-human-feedback-20261104/final-supported-d.exit.txt",
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "bytes": 3
+      },
+      "requiredText": [
+        "BUILD SUCCESSFUL"
+      ],
+      "ownerVerified": true,
+      "ownerVerificationBasis": "Owner reported completion; independent receipt, child, exit-sidecar, log and zero-owned-process reconciliation also passed.",
+      "childReceipt": {
+        "path": "build/audio-human-feedback-20261104/final-supported-d.child.json",
+        "sha256": "cd5f87388e95cb0225fe3ca8e9fe1f2a917351eee27dee6d19e374ce852919b1",
+        "bytes": 429
+      },
+      "guardConfiguration": {
+        "path": "build/audio-human-feedback-20261104/final-supported-d.configuration.json",
+        "sha256": "117c733aadf8ffcec69da12ce880fe06f74c3d2932224262f2e671e127138d51",
+        "bytes": 1979
+      },
+      "guardSamples": {
+        "path": "build/audio-human-feedback-20261104/final-supported-d.samples.jsonl",
+        "sha256": "03051eca19c676b1269140a5ea2c5fd90a5a0d17acbcf4adbc16e0a1dbfd812f",
+        "bytes": 222619
+      },
+      "startedUtc": "2026-11-05T00:28:06.917594+00:00",
+      "completedUtc": "2026-11-05T00:46:21.265389+00:00",
+      "wallSeconds": 1094.347068699999,
+      "ownedProcessesRemaining": 0,
+      "ownedProcessesTerminated": 0,
+      "buildDuration": "18m 12s",
+      "actionableTasks": 282,
+      "executedTasks": 277,
+      "upToDateTasks": 5,
+      "audioAssertions": {
+        "1.21.1": {
+          "nativePreDevice": 749,
+          "runtime": 240,
+          "integration": 385,
+          "catalog": 1618,
+          "extension": 24
+        },
+        "26.1.2": {
+          "nativePreDevice": 747,
+          "runtime": 240,
+          "integration": 385,
+          "catalog": 1618,
+          "extension": 24
+        }
+      },
+      "assertionScope": "Pre-device bytecode/native-resource and recording-sink invariants; no gameplay, actual mixing or human acceptance inferred."
+    },
+    "providerManifestPath": "build/production-artifacts-all.json",
+    "verifiedManifest": {
+      "path": "build/production-artifacts-all.json",
+      "sha256": "4b6eced1be6e9823df506a86a008aa821094c0fcc2321c60ced902e2aa66e680",
+      "bytes": 2009
+    },
+    "verifiedArchiveBindings": [
+      {
+        "target": "1211Fabric",
+        "provider": {
+          "path": "fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-fabric.jar",
+          "sha256": "b91f5fd191f3fbd5a5a8d9a6f32ce165f2b7dee3183c3835e52c91635d62e1aa",
+          "bytes": 7497967
+        },
+        "pinned": {
+          "path": "build/audio-human-feedback-20261104/pinned/1211Fabric-essence_ascendance-1.0.0-beta.13+mc1.21.1-fabric.jar",
+          "sha256": "b91f5fd191f3fbd5a5a8d9a6f32ce165f2b7dee3183c3835e52c91635d62e1aa",
+          "bytes": 7497967
+        }
+      },
+      {
+        "target": "1211NeoForge",
+        "provider": {
+          "path": "neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.13+mc1.21.1-neoforge.jar",
+          "sha256": "e5c294bceac25a6508aa37cc260e59af5614bdc2e1d62a5b4627dbc1d6583e55",
+          "bytes": 7545742
+        },
+        "pinned": {
+          "path": "build/audio-human-feedback-20261104/pinned/1211NeoForge-essence_ascendance-1.0.0-beta.13+mc1.21.1-neoforge.jar",
+          "sha256": "e5c294bceac25a6508aa37cc260e59af5614bdc2e1d62a5b4627dbc1d6583e55",
+          "bytes": 7545742
+        }
+      },
+      {
+        "target": "2612Fabric",
+        "provider": {
+          "path": "fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-fabric.jar",
+          "sha256": "880039ec689e813a9c9abccd6490d6b19387c562e79f1f15b72c53e4e4fb3491",
+          "bytes": 8358250
+        },
+        "pinned": {
+          "path": "build/audio-human-feedback-20261104/pinned/2612Fabric-essence_ascendance-1.0.0-beta.13+mc26.1.2-fabric.jar",
+          "sha256": "880039ec689e813a9c9abccd6490d6b19387c562e79f1f15b72c53e4e4fb3491",
+          "bytes": 8358250
+        }
+      },
+      {
+        "target": "2612NeoForge",
+        "provider": {
+          "path": "neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.13+mc26.1.2-neoforge.jar",
+          "sha256": "2046c1ffcda144376726bfb4a3ace09b0d8c14c192f2d20df8498ca81dc9fe3e",
+          "bytes": 8363455
+        },
+        "pinned": {
+          "path": "build/audio-human-feedback-20261104/pinned/2612NeoForge-essence_ascendance-1.0.0-beta.13+mc26.1.2-neoforge.jar",
+          "sha256": "2046c1ffcda144376726bfb4a3ace09b0d8c14c192f2d20df8498ca81dc9fe3e",
+          "bytes": 8363455
+        }
+      }
+    ]
+  },
+  "packageValidation": {
+    "result": "PASS",
+    "helper": {
+      "path": "build/audio-audit-20261102/finalize_receipt.py",
+      "function": "package_checks(prior)"
+    },
+    "priorInput": "docs/audio/INTEGRATION-20261102-VALIDATION.json",
+    "evidence": {
+      "path": "build/audio-human-feedback-20261104/package-validation.json",
+      "sha256": "430ee5eccbce82ac2d5ffc8b9e70330a790d5efe095d11b57969484ee8efaa8e",
+      "bytes": 4386
+    },
+    "required": "Use the existing helper after the current gate to verify all four exact providers, processed resources,49 approved Ogg byte hashes,62 cues,45 custom definitions, captions, unity custom pitch and authoring/personal-path exclusion. This helper does not require the old catalog hash.",
+    "catalogCheck": "Separately verify all four packaged flight playback gains are1.0 and every catalog semantic field except policies.playback.flight.gain matches the preserved prior catalog. Do not silently reuse the old strict catalog-unchanged assertion.",
+    "independentSharedHelperRecheck": "PASS",
+    "targetCount": 4,
+    "approvedOggsPerTarget": 49,
+    "cuesPerTarget": 62,
+    "customDefinitionsPerTarget": 45,
+    "allPackagedFlightGains": 1.0
+  },
+  "authorizedArtException": {
+    "result": "PASS",
+    "authorization": {
+      "path": "build/audio-human-feedback-20261104/authorized-gain-change.json",
+      "sha256": "32043be9c7f0aa482a618fa766428d3df0578914b2daaccffeddeaf71f8ffc3b",
+      "bytes": 1109
+    },
+    "userApproval": "Raise thruster gain to 1.0",
+    "path": "art/audio-catalog.json",
+    "field": "policies.playback.flight.gain",
+    "before": 0.16,
+    "after": 1.0,
+    "preservedPriorCatalog": {
+      "path": "build/audio-human-feedback-20261104/audio-catalog-before-gain.json",
+      "sha256": "beb776210c47e19fe7551daf43733701f235eff9049a40e6d2bb70a94b671a01"
+    },
+    "expectedCandidateCatalogSha256": "15f5d438afc23544d59b9a75eb84a83cbcc3b3cbb792f1548ed5588d1289edb1",
+    "validationEvidence": {
+      "path": "build/audio-human-feedback-20261104/package-validation.json",
+      "sha256": "430ee5eccbce82ac2d5ffc8b9e70330a790d5efe095d11b57969484ee8efaa8e",
+      "bytes": 4386
+    },
+    "required": "Verify the sole catalog field delta is0.16 to1.0; every other art inventory entry and hash remains unchanged. Approved audio assets/designs/sources, masters, recipes, revision records and all other gains remain unchanged. Validate selected promotion/master/recipe hashes against the earlier integration receipt. Gain approval is neither audibility approval nor rights signoff.",
+    "validationDetails": {
+      "semanticComparison": "PASS: exact JSON equality after changing only policies.playback.flight.gain from0.16 to1.0",
+      "artInventoryComparison": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          {
+            "path": "art/audio-catalog.json",
+            "priorSha256": "beb776210c47e19fe7551daf43733701f235eff9049a40e6d2bb70a94b671a01",
+            "sha256": "15f5d438afc23544d59b9a75eb84a83cbcc3b3cbb792f1548ed5588d1289edb1"
+          }
+        ],
+        "unchangedCount": 344
+      },
+      "selectedPromotedRecordsVerified": 49,
+      "approvedMasterRecipeReceiptBindingsVerified": 196,
+      "selectionBinding": {
+        "path": "art/source/audio/handoffs/prompt7-20261101.json",
+        "sha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+        "bytes": 16320
+      },
+      "manifestBinding": {
+        "path": "art/audio-manifest.json",
+        "sha256": "511631ad13a567d775e8479623ed850618341dc3ce539d5a17f5248b3c8f6d9a",
+        "bytes": 932228
+      },
+      "selectedSourceBasis": {
+        "path": "docs/audio/INTEGRATION-20261102-VALIDATION.json",
+        "sha256": "24826c4ea4e4396ca3d457498ebe5d1d57e0449e3b265292569f24ab9a955b24",
+        "bytes": 65471
+      },
+      "rightsApproval": "PENDING: preservation and gain authorization do not confer rights approval."
+    }
+  },
+  "nativeRuns": [
+    {
+      "target": "1211Fabric",
+      "membership": "native",
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-packaged-acceptance/human-feedback-1211fabric-native-20261104-a/receipt.json",
+        "sha256": "24adbb3c628508df594cfe6b66d3f02c097c6287c37f504756abf2eb01ac8efe",
+        "bytes": 311846
+      },
+      "guardReceipt": {
+        "path": "build/audio-human-feedback-20261104/gameplay-1211fabric.receipt.json",
+        "sha256": "bc56b4f93875f40e1c26c3d32fb056f8667e841252354056670ad3c8f4db8ad0",
+        "bytes": 3522
+      },
+      "productionSha256": "b91f5fd191f3fbd5a5a8d9a6f32ce165f2b7dee3183c3835e52c91635d62e1aa",
+      "fixtureSha256": "d28ef1d2e228882ac734ceb9f608b14e69b4ab3a59a173fc753ca7c4f9916898",
+      "inputSnapshotSha256": "abc497ff8af9dac2c22420c8cc65f1566990937efd098f31e3b30f750787fe17",
+      "reviewEvidence": {
+        "path": "build/audio-human-feedback-20261104/native-1211fabric-independent-review.json",
+        "sha256": "b6262df42c54034b2c65761a02092a832b03be3b4c03e68745d54ad7a3b3ddfa",
+        "bytes": 43307
+      },
+      "scope": "Actual hidden exact packaged dedicated server with two distinct socket clients, true late connection and reconnect, real interfaces/C2S requests, paid Infuser and both pylon families, mixed machinery/cast/interface/flight, and six real unprofiled performance windows per server/actor/reconnected observer.",
+      "changedBehaviorRequired": [
+        "Accepted ordinary Infuser Start/Stop adds no custom acknowledgement; private denied feedback remains.",
+        "Authorized flight uses the normal key-input polling/request path, with real stamina/payment and actual native body/caption observations; no authored movement-packet substitute.",
+        "Caption/native-hook fixtures cover the updated shared placement and render ordering; human visual approval remains pending."
+      ],
+      "completionRequirements": [
+        "Native receipt PASS with four actual zero process exits",
+        "Exactly six native windows for each of the three measured processes, at least20seconds and400actual client ticks per window",
+        "Exact current production and fixture hashes match completed gate/pins",
+        "Guard PASS with actual launcherexit0, no remaining owned processes and bound resource settings",
+        "No synthetic/controller-only substitution and no Gradle/native measurement overlap"
+      ],
+      "actualProcessExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "measuredWindows": 18
+    },
+    {
+      "target": "2612NeoForge",
+      "membership": "native",
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-packaged-acceptance/human-feedback-2612neoforge-native-20261104-a/receipt.json",
+        "sha256": "4cd9c414f4196aec223fb66bbe6a1217be05f48deba8a2642280f91fb2539ea4",
+        "bytes": 395621
+      },
+      "guardReceipt": {
+        "path": "build/audio-human-feedback-20261104/gameplay-2612neoforge.receipt.json",
+        "sha256": "4083d9a35a0b65f71a28ece1130cd60716079f247892e3e5837a3c31d1099929",
+        "bytes": 3543
+      },
+      "productionSha256": "2046c1ffcda144376726bfb4a3ace09b0d8c14c192f2d20df8498ca81dc9fe3e",
+      "fixtureSha256": "f38402dd44599edd41467b816afef764f6358d507b0c76356ee9064e22c932c5",
+      "inputSnapshotSha256": "abc497ff8af9dac2c22420c8cc65f1566990937efd098f31e3b30f750787fe17",
+      "reviewEvidence": {
+        "path": "build/audio-human-feedback-20261104/native-2612neoforge-independent-review.json",
+        "sha256": "a7a33173b91c10a8f06b5a8115cf7d4afd677ec9ddc356fac6eccae4ed77a027",
+        "bytes": 42650
+      },
+      "scope": "Actual hidden exact packaged dedicated server with two distinct socket clients, true late connection and reconnect, real interfaces/C2S requests, paid Infuser and both pylon families, mixed machinery/cast/interface/flight, and six real unprofiled performance windows per server/actor/reconnected observer.",
+      "changedBehaviorRequired": [
+        "Accepted ordinary Infuser Start/Stop adds no custom acknowledgement; private denied feedback remains.",
+        "Authorized flight uses the normal key-input polling/request path, with real stamina/payment and actual native body/caption observations; no authored movement-packet substitute.",
+        "Caption/native-hook fixtures cover the updated shared placement and render ordering; human visual approval remains pending."
+      ],
+      "completionRequirements": [
+        "Native receipt PASS with four actual zero process exits",
+        "Exactly six native windows for each of the three measured processes, at least20seconds and400actual client ticks per window",
+        "Exact current production and fixture hashes match completed gate/pins",
+        "Guard PASS with actual launcherexit0, no remaining owned processes and bound resource settings",
+        "No synthetic/controller-only substitution and no Gradle/native measurement overlap"
+      ],
+      "actualProcessExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "measuredWindows": 18
+    }
+  ],
+  "nativeSummary": {
+    "result": "PASS",
+    "helpers": [
+      "build/audio-gameplay-acceptance-20261102/summarize_native.py",
+      "build/audio-gameplay-acceptance-20261102/report_native.py"
+    ],
+    "inputs": "The two completed current-candidate native receipts only",
+    "evidence": {
+      "path": "build/audio-human-feedback-20261104/final-two-native-independent-review.json",
+      "sha256": "9da3e5a82e9139d4be0d3defdbb6603f959f2c0c08368c78345baa6f2db0cd42",
+      "bytes": 58198
+    },
+    "scope": "Two current exact packaged native gameplay/performance sessions;36 actual measured process windows, separate per-window percentiles and no isolated native mixer CPU/native allocation or hearing approval claim.",
+    "sharedSummary": {
+      "path": "build/audio-gameplay-acceptance-20261102/human-feedback-final-native-summary-20261104.json",
+      "sha256": "2ba796da2981a2c2cb2eb3c71ae428c74b3c5aa9bde30f528efadc091ef1370d",
+      "bytes": 565877
+    },
+    "sharedCompact": {
+      "path": "build/audio-gameplay-acceptance-20261102/human-feedback-final-native-compact-20261104.json",
+      "sha256": "3e59c7fff53c7850a864a517f994400459dc4e640140db4e5909ccf001409fbf",
+      "bytes": 46158
+    },
+    "sharedMarkdown": {
+      "path": "build/audio-gameplay-acceptance-20261102/human-feedback-final-native-compact-20261104.md",
+      "sha256": "7c050fbe17c2726fdf18cd3676ef12fb0994a0388bc456a4609c7e327c044bc4",
+      "bytes": 8013
+    },
+    "measuredWindows": 36,
+    "actualProcessExits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "historicalAcceptance": {
+    "scope": "Six earlier sessions and prior full gate remain preserved with their original exact inputs/hashes. They are historical evidence for this follow-up, not current-candidate acceptance.",
+    "declaration": {
+      "path": "build/audio-gameplay-acceptance-20261102/completion-declaration-20261104.json",
+      "sha256": "0e1d6f07c321c928c4e91f835c53923a5e4869953b90e473bf7be51371c48cd6"
+    },
+    "maintainedReceipt": {
+      "path": "docs/audio/GAMEPLAY-20261102-VALIDATION.json",
+      "sha256": "474ce7d4820288baddbc0ea9deb8beea5ebf751f688cd21d71b7aa117c7bd8e0"
+    },
+    "sourceFingerprint": "fc30295a7f2f4c3bae562d916eeac59b093a468132eadc6a14ee69f1b8f4df0c",
+    "runs": [
+      {
+        "target": "2612Fabric",
+        "membership": "native",
+        "receipt": {
+          "path": "build/audio-packaged-acceptance/gameplay-2612fabric-native-final-20261104-c/receipt.json",
+          "sha256": "bc09623146606a3f5611146103e4263b4b5d62b7d9acdf188ebd28e53f629e11"
+        },
+        "reportedResult": "PASS",
+        "productionSha256": "cd35d23aba410ffedc47ef9f72222e0bca9fa2b3059cbd268e406a9939d37e9c",
+        "fixtureSha256": "210d6ffcbd067f6ebfce02a3c4748ffe2d0b5674d8f3928d4b982f5f7a95529c",
+        "classification": "HISTORICAL_PRIOR_CANDIDATE_ONLY",
+        "scope": "Original exact packaged gameplay/performance result only; does not certify the later interface/caption changes, ordinary-key flight fixture or authorized1.0 gain.",
+        "receiptBindingReverified": true
+      },
+      {
+        "target": "1211NeoForge",
+        "membership": "native",
+        "receipt": {
+          "path": "build/audio-packaged-acceptance/gameplay-1211neoforge-native-final-20261104-b/receipt.json",
+          "sha256": "0cc1e5a0899d7d718dfee9b2baee2e38e8f79035113f1ea21b6a70cea2987186"
+        },
+        "reportedResult": "PASS",
+        "productionSha256": "111689b225c424250ab7f48f7d5a9c1327dacd81cb47fa70319634e2b715b937",
+        "fixtureSha256": "b258c7f253c7515251b562462b72d7a5ecb8f3f86a748bfe40f4f327272db37a",
+        "classification": "HISTORICAL_PRIOR_CANDIDATE_ONLY",
+        "scope": "Original exact packaged gameplay/performance result only; does not certify the later interface/caption changes, ordinary-key flight fixture or authorized1.0 gain.",
+        "receiptBindingReverified": true
+      },
+      {
+        "target": "2612NeoForge",
+        "membership": "native",
+        "receipt": {
+          "path": "build/audio-packaged-acceptance/gameplay-2612neoforge-native-final-20261104-a/receipt.json",
+          "sha256": "489ad99f0b38645d31d15cdebe89473aa0280418aa3ab1602429963b2acc45e0"
+        },
+        "reportedResult": "PASS",
+        "productionSha256": "2d0a19d26e61039e4fe61886ffe60f54adef9b8e79ea62ac72544554f3dc322f",
+        "fixtureSha256": "23370998c8cfed465ddd1306b3e9213735e6f35a029a454943b9e3c585cedb8e",
+        "classification": "HISTORICAL_PRIOR_CANDIDATE_ONLY",
+        "scope": "Original exact packaged gameplay/performance result only; does not certify the later interface/caption changes, ordinary-key flight fixture or authorized1.0 gain.",
+        "receiptBindingReverified": true
+      },
+      {
+        "target": "1211Fabric",
+        "membership": "native",
+        "receipt": {
+          "path": "build/audio-packaged-acceptance/gameplay-1211fabric-native-final-20261104-f/receipt.json",
+          "sha256": "d6ccde8bc80f63d18b481e1877390d7a5d2aab86b00fea5bf3640ee33fc0c008"
+        },
+        "reportedResult": "PASS",
+        "productionSha256": "fbe8042bdbcfe7cd2487644e9ddc5533c5d262f4ad9a467a784390fa29dca852",
+        "fixtureSha256": "e31a3c72d38a8fcd1eb9b21aa49d15f107fa56e6c969d214c3a0500bbb19af71",
+        "classification": "HISTORICAL_PRIOR_CANDIDATE_ONLY",
+        "scope": "Original exact packaged gameplay/performance result only; does not certify the later interface/caption changes, ordinary-key flight fixture or authorized1.0 gain.",
+        "receiptBindingReverified": true
+      },
+      {
+        "target": "2612NeoForge",
+        "membership": "ftb",
+        "receipt": {
+          "path": "build/audio-packaged-acceptance/gameplay-2612neoforge-ftb-final-20261104-e/receipt.json",
+          "sha256": "095d0d2fd0887a0767f97ff6ab62e1010445d877dfb5c99933b30c6a3962aa8a"
+        },
+        "reportedResult": "PASS",
+        "productionSha256": "2d0a19d26e61039e4fe61886ffe60f54adef9b8e79ea62ac72544554f3dc322f",
+        "fixtureSha256": "23370998c8cfed465ddd1306b3e9213735e6f35a029a454943b9e3c585cedb8e",
+        "classification": "HISTORICAL_PRIOR_CANDIDATE_ONLY",
+        "scope": "Original exact packaged gameplay/performance result only; does not certify the later interface/caption changes, ordinary-key flight fixture or authorized1.0 gain.",
+        "receiptBindingReverified": true
+      },
+      {
+        "target": "1211Fabric",
+        "membership": "ftb",
+        "receipt": {
+          "path": "build/audio-packaged-acceptance/gameplay-1211fabric-ftb-final-20261104-h/receipt.json",
+          "sha256": "2c01265fac0d485373f93de1a7f620e083db0c03fd449b1da78ea7736a6494a1"
+        },
+        "reportedResult": "PASS",
+        "productionSha256": "fbe8042bdbcfe7cd2487644e9ddc5533c5d262f4ad9a467a784390fa29dca852",
+        "fixtureSha256": "e31a3c72d38a8fcd1eb9b21aa49d15f107fa56e6c969d214c3a0500bbb19af71",
+        "classification": "HISTORICAL_PRIOR_CANDIDATE_ONLY",
+        "scope": "Original exact packaged gameplay/performance result only; does not certify the later interface/caption changes, ordinary-key flight fixture or authorized1.0 gain.",
+        "receiptBindingReverified": true
+      }
+    ],
+    "originalSixReceiptBindingsReverified": true
+  },
+  "humanLauncherRecovery": {
+    "scope": "Separate verified recovery for the earlier0.16-gain human package; historical helper/manifest hashes must not be rewritten as if unchanged. A fresh candidate-D package is required for new acceptance.",
+    "recoveryReceipt": {
+      "path": "build/audio-human-feedback-20261104/human-launcher-recovery-receipt.json",
+      "sha256": "02f71b6549a029fcddf1f779d4e30fcdd3c4488a163fa99ffcad1f9fef013644"
+    },
+    "originalBindings": {
+      "path": "build/audio-human-feedback-20261104/human-launcher-recovery-before/preservation.json",
+      "sha256": "c8b85736c1645ab608165f92a7a9edf89b2a53f98c1625ca7410f485ba73bed0"
+    },
+    "preservedCopiesVerified": 6,
+    "regressionLog": {
+      "path": "build/audio-human-feedback-20261104/human-launcher-recovery-tests.log",
+      "sha256": "ae637e548473eec51580c86c0d98aedf11f67216f58f46974cb002d2c4758fc7"
+    },
+    "userSession": "build/audio-packaged-acceptance/human-1211fabric-final-v2/human-logs/20261104-152301-432693600-session.json",
+    "newCandidatePackage": {
+      "result": "PREPARED_SERVER_SMOKE_PASS_CLIENT_NOT_LAUNCHED",
+      "manifest": {
+        "path": "build/audio-packaged-acceptance/human-1211fabric-feedback/human-inputs.json",
+        "sha256": "cd73de6e7506b0b6b59bd9323e439300b9cb5c4508d5de8c6698d700977ffa85",
+        "bytes": 53845
+      },
+      "exactLaunchCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\build\\audio-packaged-acceptance\\human-1211fabric-feedback\\launch-human.ps1\"",
+      "productionSha256": "b91f5fd191f3fbd5a5a8d9a6f32ce165f2b7dee3183c3835e52c91635d62e1aa",
+      "criticalInputCount": 121,
+      "independentReview": {
+        "path": "build/audio-human-feedback-20261104/human-package-review.json",
+        "sha256": "d2ddabf4a9508ea18a05510ca7062256fdc7d2d7bb33336c927818ad77a2e1f3",
+        "bytes": 6715
+      },
+      "serverOnlySmoke": {
+        "path": "build/audio-gameplay-acceptance-20261102/human-feedback-server-smoke-20261104.json",
+        "sha256": "f43a78f86a5e0dbb8b0203c95858d6d24796180496ac54617592d906ae562817",
+        "bytes": 931
+      },
+      "serverOnlySmokeLog": {
+        "path": "build/audio-gameplay-acceptance-20261102/human-feedback-server-smoke-20261104.log",
+        "sha256": "3e282af02aac104366878dc6d5683d64a63d9b464e6ab7e5f4d7ad51ab43ffba",
+        "bytes": 15811
+      },
+      "serverOnlyGuard": {
+        "path": "build/audio-human-feedback-20261104/human-server-smoke.receipt.json",
+        "sha256": "0b362c897edff875237d76d139a7f7917cd984fa39aa2c585fcf415173c265fc",
+        "bytes": 2818
+      },
+      "fixtureFree": true,
+      "humanClientLaunchedByAgent": false,
+      "scope": "New writable copy of the accepted saved scene, default human output device, gain1.0. Preparation review preceded the later successful server-only smoke; no new listening or HUD approval."
+    }
+  },
+  "humanListening": {
+    "result": "PENDING",
+    "scope": "Recheck actual flight and direct approved profile audition with1.0 gain; listening/mix/loop acceptance remains user-owned. A caption or native playing handle does not prove audibility."
+  },
+  "humanHud": {
+    "result": "PENDING",
+    "scope": "User verifies five-plus native subtitle rows and supplemental captions avoid skill/channel cards and each other at GUI scales1/2/3; preserve native arrows. Only previous machine-panel fit at scales1/2/3 was reported acceptable."
+  },
+  "rightsReview": {
+    "result": "PENDING",
+    "scope": "Explicit user confirmation of selected-material provenance/licence/attribution and redistribution rights; no inferred approval."
+  },
+  "existingEvidence": [
+    {
+      "path": "docs/audio/HUMAN-FEEDBACK-20261104.md",
+      "scope": "Current follow-up findings, user feedback and explicit pending statuses; not a final validation receipt."
+    },
+    {
+      "path": "build/audio-human-feedback-20261104/focused-a.receipt.json",
+      "scope": "Overall failed focused invocation; retain its partial suite results without upgrading the invocation."
+    },
+    {
+      "path": "build/audio-human-feedback-20261104/focused-modern-b.receipt.json",
+      "scope": "Corrected modern annotation-reader focused check; not a current full gate or native gameplay substitute."
+    },
+    {
+      "path": "build/audio-human-feedback-20261104/final-supported-b.receipt.json",
+      "scope": "Earlier nonzero gate result without established cause; remains failed."
+    },
+    {
+      "path": "build/audio-human-feedback-20261104/final-supported-c.receipt.json",
+      "scope": "Owner-cancelled superseded input candidate; actual build exit unknown and not accepted."
+    },
+    {
+      "path": "build/audio-human-feedback-20261104/machine-scale-review.json",
+      "scope": "Deferred GUI-scale4 machine-panel clipping geometry; no resolution or broad HUD approval inferred."
+    }
+  ],
+  "remaining": {
+    "required": [
+      "User listening, mix, loop and repetition acceptance, including authorized flight gain1.0",
+      "User crowded native/supplemental caption and HUD coexistence acceptance",
+      "User recorded selected-material provenance, licence/attribution and redistribution-rights confirmation"
+    ],
+    "additionalOrSeparate": [
+      "Broader device/hardware/resource-pack/OS coverage",
+      "Other target/membership cross-product reruns beyond affected representative targets unless new code changes justify them",
+      "WAN latency/loss,long soak and isolated native OpenAL CPU/native/direct allocation profiling",
+      "Unselected historical-source limitations",
+      "Separate generic visual-reload investigation",
+      "Responsive machine-panel redesign for insufficient scaled viewport, including GUI-scale4 clipping"
+    ],
+    "specificBlocker": "Human acceptance and recorded rights confirmation only; no required headless technical follow-up remains in this repair scope."
+  },
+  "ownerFinalizationNotes": [
+    "Root independently rechecked final2048input fingerprint, allfour package invariants, both native and guard completions, prepared human critical inputs/settings and server-only save/shutdown.",
+    "Only the explicitly approved flight gain changed; all approved recordings, source selections and other gains remain preserved.",
+    "Followup reruns cover1211Fabric/native and2612NeoForge/native. The previous six native/FTB runs remain historical exact-archive evidence; no current FTB rerun is claimed.",
+    "Broader compatibility/performance coverage and deferred machine viewport work remain separately classified; subjective/rights stages stay pending."
+  ],
+  "interimReview": {
+    "reviewer": "accepted_evidence",
+    "preparedForOwner": "root",
+    "completedUtc": "2026-11-05T00:52:27.084051+00:00",
+    "derivedFrom": {
+      "path": "build/audio-human-feedback-20261104/completion-declaration-DRAFT.json",
+      "sha256": "741cde01c4ba5bce996a88c53ffacd68ea8e215dcdf3fb102dee94e536fd9767",
+      "bytes": 19526
+    },
+    "scope": "Existing evidence and shared helper reads only; no Gradle, Java, native-client or server launches. This is not final completion; owner must recheck frozen inputs and add actual native-session/new-human-package results.",
+    "priorInterimDeclaration": {
+      "path": "build/audio-human-feedback-20261104/completion-declaration-reviewed-before-first-native.json",
+      "sha256": "cf08aebad46199d05361b12df6663fb2d36a64bb3b59e035471953a085946b4d",
+      "bytes": 36846
+    },
+    "firstNativeReview": {
+      "path": "build/audio-human-feedback-20261104/native-1211fabric-independent-review.json",
+      "sha256": "b6262df42c54034b2c65761a02092a832b03be3b4c03e68745d54ad7a3b3ddfa",
+      "bytes": 43307
+    },
+    "updatedUtc": "2026-11-05T01:07:48.299569+00:00",
+    "priorInterimBeforeSecondNative": {
+      "path": "build/audio-human-feedback-20261104/completion-declaration-reviewed-before-second-native.json",
+      "sha256": "bdc6da1097c31db00aff2b7c864748e69b8ba437be4f1ca9db013f543c6f23cc",
+      "bytes": 38269
+    },
+    "secondNativeReview": {
+      "path": "build/audio-human-feedback-20261104/native-2612neoforge-independent-review.json",
+      "sha256": "a7a33173b91c10a8f06b5a8115cf7d4afd677ec9ddc356fac6eccae4ed77a027",
+      "bytes": 42650
+    },
+    "twoNativeReview": {
+      "path": "build/audio-human-feedback-20261104/final-two-native-independent-review.json",
+      "sha256": "9da3e5a82e9139d4be0d3defdbb6603f959f2c0c08368c78345baa6f2db0cd42",
+      "bytes": 58198
+    }
+  },
+  "nativeRouting": {
+    "result": "PASS",
+    "scope": "Two Fabric native server routing fixtures; no distinct socket-client, gameplay/performance, device, hearing or visual approval claim.",
+    "runs": [
+      {
+        "target": "1211Fabric",
+        "result": "PASS",
+        "actualCommandExit": 0,
+        "workerExit": 0,
+        "ownedProcessesRemaining": 0,
+        "ownedProcessesTerminated": 0,
+        "startedUtc": "2026-11-05T00:47:14.178813+00:00",
+        "completedUtc": "2026-11-05T00:47:48.209127+00:00",
+        "log": {
+          "path": "build/audio-human-feedback-20261104/native-routing-1211fabric.log",
+          "sha256": "872ab009c100fa0a52eb27b25478d2f8613c259e21d1be3b722d467904574bf8",
+          "bytes": 9888
+        },
+        "guardReceipt": {
+          "path": "build/audio-human-feedback-20261104/native-routing-1211fabric.receipt.json",
+          "sha256": "97330721351c19df051cd2bb8c3356df51a14f6fc5c73cde5b695e4e80f7117a",
+          "bytes": 3073
+        },
+        "childReceipt": {
+          "path": "build/audio-human-feedback-20261104/native-routing-1211fabric.child.json",
+          "sha256": "5d8b394ea8a7601c3cf64b274e65e07ef4f4585d85ed0549cae761af056fca66",
+          "bytes": 488
+        },
+        "guardConfiguration": {
+          "path": "build/audio-human-feedback-20261104/native-routing-1211fabric.configuration.json",
+          "sha256": "9220aa4d6a55038ce2f6b1625cdd97e172dec31ab6a49dd0c8bff2e2a9bc2dba",
+          "bytes": 2037
+        },
+        "guardSamples": {
+          "path": "build/audio-human-feedback-20261104/native-routing-1211fabric.samples.jsonl",
+          "sha256": "832808466427bd59f708175c20bde8d1e02d3081e5b9fb0047e5a410b1b740f0",
+          "bytes": 7233
+        },
+        "assertions": 149
+      },
+      {
+        "target": "2612Fabric",
+        "result": "PASS",
+        "actualCommandExit": 0,
+        "workerExit": 0,
+        "ownedProcessesRemaining": 0,
+        "ownedProcessesTerminated": 0,
+        "startedUtc": "2026-11-05T00:48:00.509232+00:00",
+        "completedUtc": "2026-11-05T00:48:30.534157+00:00",
+        "log": {
+          "path": "build/audio-human-feedback-20261104/native-routing-2612fabric.log",
+          "sha256": "70427009d8635bb854586ec351f95167bfa5ad5b77fea8ddafe0a3bc3f269335",
+          "bytes": 22068
+        },
+        "guardReceipt": {
+          "path": "build/audio-human-feedback-20261104/native-routing-2612fabric.receipt.json",
+          "sha256": "f6431ae2e88acff9778b7f56dc0649188e333c479200de86356e52d8c30eceb3",
+          "bytes": 3072
+        },
+        "childReceipt": {
+          "path": "build/audio-human-feedback-20261104/native-routing-2612fabric.child.json",
+          "sha256": "4b082e34cb672a714c9f4f00d4401f78e07c434d525c5ef4e3db8e661d4f1ac7",
+          "bytes": 488
+        },
+        "guardConfiguration": {
+          "path": "build/audio-human-feedback-20261104/native-routing-2612fabric.configuration.json",
+          "sha256": "e4a703433f1e2a55a51e6a8e18577582e1ccc7e55edcec26fc395362802fd48a",
+          "bytes": 2037
+        },
+        "guardSamples": {
+          "path": "build/audio-human-feedback-20261104/native-routing-2612fabric.samples.jsonl",
+          "sha256": "da1aea0abd59f19e12a91266d4d9c04f2576f9e62f2edc9f275147ff9133c16b",
+          "bytes": 6432
+        },
+        "assertions": 149
+      }
+    ]
+  },
+  "fixtureBuilds": {
+    "result": "PASS",
+    "scope": "Two current packaged fixtures compiled and pinned for subsequent exact native sessions; no session result inferred.",
+    "bindings": {
+      "path": "build/audio-human-feedback-20261104/fixture-bindings.json",
+      "sha256": "7032ec90455e24489ea072c0654f9d01606ac4d6f220ab14787cc3f6ace37dad",
+      "bytes": 613
+    },
+    "runs": [
+      {
+        "target": "1211Fabric",
+        "result": "PASS",
+        "actualCommandExit": 0,
+        "workerExit": 0,
+        "ownedProcessesRemaining": 0,
+        "ownedProcessesTerminated": 0,
+        "startedUtc": "2026-11-05T00:48:43.603310+00:00",
+        "completedUtc": "2026-11-05T00:48:55.625131+00:00",
+        "log": {
+          "path": "build/audio-human-feedback-20261104/fixture-1211fabric.log",
+          "sha256": "f755a09ce914b1c45894d19195339857c557a8aa0e20d04b35e8178f9265b6e9",
+          "bytes": 2775
+        },
+        "guardReceipt": {
+          "path": "build/audio-human-feedback-20261104/fixture-1211fabric.receipt.json",
+          "sha256": "32b32fbd4fc391ed21658715b9a955583b87b4161c69e68e69a47534bd29aad2",
+          "bytes": 3097
+        },
+        "childReceipt": {
+          "path": "build/audio-human-feedback-20261104/fixture-1211fabric.child.json",
+          "sha256": "e0ba7c57db0dcbb94db4919575493dc19e56ad946eea4c79ef807958dd544b34",
+          "bytes": 501
+        },
+        "guardConfiguration": {
+          "path": "build/audio-human-feedback-20261104/fixture-1211fabric.configuration.json",
+          "sha256": "83c85100d5c4b795c5980b34ae5cc380d9b73b91a12600ef48a8e51c7e0e0d29",
+          "bytes": 2051
+        },
+        "guardSamples": {
+          "path": "build/audio-human-feedback-20261104/fixture-1211fabric.samples.jsonl",
+          "sha256": "66520d22ca2b34489457fb8178b972707348fa360c7cab3d61fe119911f3f891",
+          "bytes": 2793
+        },
+        "source": {
+          "path": "fabric/versions/1.21.1/build/native-fixtures/audio-packaged-fixture.jar",
+          "sha256": "d28ef1d2e228882ac734ceb9f608b14e69b4ab3a59a173fc753ca7c4f9916898",
+          "bytes": 154129
+        },
+        "pinned": {
+          "path": "build/audio-human-feedback-20261104/pinned/1211Fabric-audio-fixture.jar",
+          "sha256": "d28ef1d2e228882ac734ceb9f608b14e69b4ab3a59a173fc753ca7c4f9916898",
+          "bytes": 154129
+        }
+      },
+      {
+        "target": "2612NeoForge",
+        "result": "PASS",
+        "actualCommandExit": 0,
+        "workerExit": 0,
+        "ownedProcessesRemaining": 0,
+        "ownedProcessesTerminated": 0,
+        "startedUtc": "2026-11-05T00:48:55.756324+00:00",
+        "completedUtc": "2026-11-05T00:49:06.019611+00:00",
+        "log": {
+          "path": "build/audio-human-feedback-20261104/fixture-2612neoforge.log",
+          "sha256": "c13762482aef36e2077f38f2fd90b9f0810af40976586d6a59f9056d99d47a24",
+          "bytes": 2515
+        },
+        "guardReceipt": {
+          "path": "build/audio-human-feedback-20261104/fixture-2612neoforge.receipt.json",
+          "sha256": "851cb91436f3b5f970388189af276b351b1070747b44fb7cb305a173d5778e1d",
+          "bytes": 3690
+        },
+        "childReceipt": {
+          "path": "build/audio-human-feedback-20261104/fixture-2612neoforge.child.json",
+          "sha256": "8a72360fe9ea0e96ae4566873c27f01b5933a294f3709a3fb9952b0963956a2d",
+          "bytes": 504
+        },
+        "guardConfiguration": {
+          "path": "build/audio-human-feedback-20261104/fixture-2612neoforge.configuration.json",
+          "sha256": "f67ca82ae5803c49521d7ea336d7efe81649845b2b9d2e430672c20834eea4f1",
+          "bytes": 2053
+        },
+        "guardSamples": {
+          "path": "build/audio-human-feedback-20261104/fixture-2612neoforge.samples.jsonl",
+          "sha256": "ae9096a102c4b126727b32dc49ad53fe2f13517cefa7dc5a2bf1a8ed67ef87ba",
+          "bytes": 2393
+        },
+        "source": {
+          "path": "neoforge/versions/26.1.2/build/native-fixtures/audio-native-fixture.jar",
+          "sha256": "f38402dd44599edd41467b816afef764f6358d507b0c76356ee9064e22c932c5",
+          "bytes": 156342
+        },
+        "pinned": {
+          "path": "build/audio-human-feedback-20261104/pinned/2612NeoForge-audio-fixture.jar",
+          "sha256": "f38402dd44599edd41467b816afef764f6358d507b0c76356ee9064e22c932c5",
+          "bytes": 156342
+        }
+      }
+    ]
+  },
+  "completedUtc": "2026-11-05T01:08:27.843298+00:00",
+  "resourceReview": {
+    "path": "build/audio-human-feedback-20261104/resource-review.json",
+    "sha256": "9264671f0416b075a2fd9879c2c2e897d4953b2022f03fd99b34e34c9a9c9711",
+    "bytes": 30132
+  },
+  "independentNativeReview": {
+    "path": "build/audio-human-feedback-20261104/final-two-native-independent-review.json",
+    "sha256": "9da3e5a82e9139d4be0d3defdbb6603f959f2c0c08368c78345baa6f2db0cd42",
+    "bytes": 58198
+  },
+  "finalizationInputs": {
+    "interimDeclaration": {
+      "path": "build/audio-human-feedback-20261104/completion-declaration-reviewed.json",
+      "sha256": "e80f3c88217a9c851933589e6fb3b9b2205fb4d261a4867c04bb7cf8b871cc31",
+      "bytes": 40951
+    },
+    "inputSnapshot": {
+      "path": "build/audio-human-feedback-20261104/candidate-inputs-d.json",
+      "sha256": "abc497ff8af9dac2c22420c8cc65f1566990937efd098f31e3b30f750787fe17",
+      "bytes": 405227
+    }
+  }
+}

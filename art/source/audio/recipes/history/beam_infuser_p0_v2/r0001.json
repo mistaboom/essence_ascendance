@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "assetId": "beam_infuser_p0_v2",
+  "seed": 110200,
+  "sampleRate": 48000,
+  "duration": 12,
+  "peakDb": -18,
+  "loop": {
+    "mode": "periodic"
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 523.25,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.9
+        },
+        {
+          "ratio": 2.756,
+          "gain": 0.105
+        },
+        {
+          "ratio": 5.404,
+          "gain": 0.026
+        },
+        {
+          "ratio": 8.933,
+          "gain": 0.004
+        }
+      ],
+      "gain": 0.054,
+      "am": {
+        "rate": 0.08333333333333333,
+        "depth": 0.12
+      },
+      "envelope": [
+        [
+          0,
+          0.88
+        ],
+        [
+          0.22,
+          1
+        ],
+        [
+          0.53,
+          0.76
+        ],
+        [
+          0.81,
+          0.96
+        ],
+        [
+          1,
+          0.88
+        ]
+      ],
+      "name": "00_foundation_chime",
+      "phase": 0.0,
+      "seed": 110100
+    }
+  ],
+  "design": {
+    "title": "Infuser beam - 0 pylons / 1 note",
+    "description": "Gentle sustained wind-chime resonance without a strike. 1 independently editable note layer(s); Brighter C-major sixth/ninth family. Upper notes breathe and periodically disappear; root remains present.",
+    "cueIds": [
+      "essence_ascendance:machine.resonance.body"
+    ],
+    "destination": "infuser",
+    "pylonCount": 0,
+    "noteCount": 1,
+    "frequenciesHz": [
+      523.25
+    ],
+    "role": "continuous_beam",
+    "loopPeriodSeconds": 12,
+    "loudnessStrategy": "Equal-power note weighting keeps chord density from multiplying overall loudness. Runtime onset/offset fades required.",
+    "runtimeHandoff": "Actual active transfer only. Replace duplicated machine/private/focus hums; destination+pylon identity; phase-coherent stem additions or crossfaded states; global density budget.",
+    "reference": "User-described wind-chime resonance. Original synthesized modal partials; no samples or copied melody."
+  }
+}

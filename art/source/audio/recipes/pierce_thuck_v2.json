@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "assetId": "pierce_thuck_v2",
+  "seed": 26110114,
+  "sampleRate": 48000,
+  "duration": 0.23,
+  "peakDb": -11,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:projectile.pierce"
+    ],
+    "role": "projectile",
+    "description": "Dense woody thuck with passing air; a contained penetration impact.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Projectile pierce"
+  },
+  "layers": [
+    {
+      "preset": "wood",
+      "name": "01_dense_thuck",
+      "frequency": 155,
+      "gain": 0.42,
+      "lengthSeconds": 0.2
+    },
+    {
+      "preset": "tap",
+      "name": "02_fibre_contact",
+      "lowHz": 450,
+      "highHz": 3500,
+      "gain": 0.16,
+      "lengthSeconds": 0.045
+    },
+    {
+      "preset": "air",
+      "name": "03_passing_air",
+      "lowHz": 450,
+      "highHz": 1900,
+      "gain": 0.09,
+      "startSeconds": 0.02,
+      "lengthSeconds": 0.19
+    }
+  ]
+}

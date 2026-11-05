@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "assetId": "nexus_transaction_v2",
+  "seed": 26110104,
+  "sampleRate": 48000,
+  "duration": 0.42,
+  "peakDb": -14,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:progression.purchase"
+    ],
+    "role": "progression",
+    "description": "Short chirpy cha-ching: tactile opening, rising chirp and a clean resolving bell.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Nexus transaction"
+  },
+  "layers": [
+    {
+      "preset": "tap",
+      "name": "01_coin_tick",
+      "gain": 0.075,
+      "lengthSeconds": 0.025
+    },
+    {
+      "preset": "soft_chirp",
+      "name": "02_chirpy_up",
+      "frequency": 780,
+      "frequencyEnd": 1200,
+      "gain": 0.13,
+      "startSeconds": 0.015,
+      "lengthSeconds": 0.11
+    },
+    {
+      "preset": "ceramic",
+      "name": "03_ching_root",
+      "frequency": 880,
+      "gain": 0.22,
+      "startSeconds": 0.085,
+      "lengthSeconds": 0.335
+    },
+    {
+      "preset": "glass",
+      "name": "04_ching_fifth",
+      "frequency": 1320,
+      "gain": 0.055,
+      "startSeconds": 0.1,
+      "lengthSeconds": 0.3
+    }
+  ]
+}

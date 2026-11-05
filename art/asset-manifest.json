@@ -3,6 +3,10 @@
   "namespace": "essence_ascendance",
   "assets": [
     {
+      "source": "audio-catalog.json",
+      "category": "audio"
+    },
+    {
       "source": "source/models/item/ascendance_glaive.bbmodel",
       "category": "layered_item",
       "textures": [

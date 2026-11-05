@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "assetId": "cast_punch_b_v4",
+  "seed": 26110412,
+  "sampleRate": 48000,
+  "duration": 0.3,
+  "peakDb": -8.5,
+  "presetLibrary": "source/audio/presets/revision-v4.json",
+  "design": {
+    "title": "Magic cast - firm tonal woop B",
+    "description": "Matched cast variation with the same smooth pitch movement, a slightly tighter rounded attack and a new pressure-contact seed.",
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "provenance": "Original deterministic harmonic, modal and filtered-noise synthesis; no third-party samples or recordings.",
+    "review": "pending user listening",
+    "role": "weapon",
+    "revisionOf": [
+      "cast_tonal_b_v3"
+    ],
+    "repetitionIntervalSeconds": 0.42,
+    "levelIntent": "More present low-mid body and attack; no amplitude or frequency modulation."
+  },
+  "layers": [
+    {
+      "name": "01_single_tonal_woop",
+      "preset": "firm_woop",
+      "frequencyPoints": [
+        [
+          0,
+          238
+        ],
+        [
+          0.2,
+          220
+        ],
+        [
+          0.62,
+          196
+        ],
+        [
+          1,
+          196
+        ]
+      ],
+      "lengthSeconds": 0.285
+    },
+    {
+      "name": "02_rounded_attack_weight",
+      "preset": "rounded_pressure",
+      "lengthSeconds": 0.14,
+      "gain": 0.185
+    },
+    {
+      "name": "03_soft_pressure_contact",
+      "preset": "soft_contact",
+      "gain": 0.069,
+      "lengthSeconds": 0.046
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "assetId": "combustion_v2",
+  "revision": "r0001",
+  "masterSha256": "92a60396509c156fb7352560557de039c38deae980cc8cd55b95f7b3500e5337",
+  "approvedSha256": "3a603a8f59760a9ad972e4e24eba2de5e1cf8ffc0a68918e0953022c2d906418",
+  "recipeSha256": "64fb65359bd2161d8d414d92a6a0ee0d7edb7435e6da1d5690420e4c86c0acb3",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.74,
+    "samplePeakDb": -8.11386157147045,
+    "rmsDb": -23.702078366630598,
+    "truePeakDb": -8.11,
+    "integratedLufs": -24.63,
+    "decodedFrames": 35520
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "5894bedec1fad34f7f7c333c1cb3bdaadcebd9cfe46e568dda038dbfb367e682",
+  "backupSha256": "5894bedec1fad34f7f7c333c1cb3bdaadcebd9cfe46e568dda038dbfb367e682",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/element/combustion_v2/r0001/combustion_v2.aup3",
+    "backup": "backups/element/combustion_v2/r0001/combustion_v2.aup3",
+    "master": "masters/element/combustion_v2/r0001/master.wav",
+    "export": "exports/element/combustion_v2/r0001/combustion_v2.ogg",
+    "recipe": "masters/element/combustion_v2/r0001/recipe.json",
+    "authoringInputs": "masters/element/combustion_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "3663cc3c40f8af0aef8a930e1a7e36f5119c211d0fc8ce7732ff14115e35c15d",
+    "stems": [
+      {
+        "path": "masters/element/combustion_v2/r0001/01_ignition_front.wav",
+        "sha256": "c6870a182763f8b932e7b44be574748d7be84374052f26f7d854b959233019be"
+      },
+      {
+        "path": "masters/element/combustion_v2/r0001/02_pressure_body.wav",
+        "sha256": "60a0cc72cce6d04f2e449c5f87fd9757f10004dd779b8aba49a4ec58ec4cf39a"
+      },
+      {
+        "path": "masters/element/combustion_v2/r0001/03_flaring_edge.wav",
+        "sha256": "bfb009ca3f5b2da294165cb9bf3ea0cf318ee45e09a62673446236723fba9dbc"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "3a603a8f59760a9ad972e4e24eba2de5e1cf8ffc0a68918e0953022c2d906418"
+  }
+}

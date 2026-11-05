@@ -1,0 +1,298 @@
+{
+  "schema": 1,
+  "kind": "vanilla_audio_settings_release",
+  "date": "2026-11-04",
+  "preparedUtc": "2026-11-05T04:58:19.713847+00:00",
+  "version": "1.0.0-beta.14",
+  "status": "BUILD_AND_WORLD_PASS_GAMEPLAY_AND_PUBLICATION_PENDING",
+  "inputs": {
+    "count": 2047,
+    "fingerprint": "411b786632e666e8b62e71fd40695ab11f13ea2d1f01fb87deb919a2e641cea6",
+    "snapshot": {
+      "path": "build/audio-vanilla-settings-release-20261104/inputs.json",
+      "sha256": "3325fc88b0694d129593b8f463f6069f944767836edcc683be46077d9bf30e24",
+      "bytes": 405023
+    },
+    "delta": {
+      "path": "build/audio-vanilla-settings-release-20261104/input-delta.json",
+      "sha256": "f50b016debee1948b3c10b2b79453bba3084a1d7a08999dcddca8f20815d1a3a",
+      "bytes": 5439
+    },
+    "unchangedAtCollection": true
+  },
+  "approvedArt": {
+    "unchangedFiles": 345,
+    "catalogSha256": "15f5d438afc23544d59b9a75eb84a83cbcc3b3cbb792f1548ed5588d1289edb1",
+    "thrusterAuthoredGain": 1.0,
+    "soundDesignsChanged": false
+  },
+  "checkoutPreservation": {
+    "path": "build/audio-vanilla-settings-release-20261104/git-byte-preservation.json",
+    "sha256": "ede3555b3dd0b055c3b3fc36cf1d54d2d7a92b491473319f3262899c909cd338",
+    "bytes": 41167
+  },
+  "gitAttributes": {
+    "path": ".gitattributes",
+    "sha256": "77cb1d2415c891b692d5032a0ffda75502c7bc30cea0eedb0da715b7a2335174",
+    "bytes": 740
+  },
+  "packages": {
+    "path": "build/audio-vanilla-settings-release-20261104/package-validation.json",
+    "sha256": "f65a4df016cd6a0fedc781c4c8d79783e3e1778327a65a4fd5463bd8c72a7f83",
+    "bytes": 3042
+  },
+  "productionManifest": {
+    "schema": 1,
+    "targets": [
+      {
+        "target": "1211Fabric",
+        "minecraft": "1.21.1",
+        "loader": "fabric",
+        "java": 21,
+        "task": ":fabric:1.21.1:remapJar",
+        "archive": "C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\fabric\\versions\\1.21.1\\build\\libs\\essence_ascendance-1.0.0-beta.14+mc1.21.1-fabric.jar",
+        "bytes": 7492025,
+        "sha256": "0d394891d49261b51a48e5aed7c0d331facf89c3c7c04811949e0003b24a1c89"
+      },
+      {
+        "target": "1211NeoForge",
+        "minecraft": "1.21.1",
+        "loader": "neoforge",
+        "java": 21,
+        "task": ":neoforge:1.21.1:remapJar",
+        "archive": "C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\neoforge\\versions\\1.21.1\\build\\libs\\essence_ascendance-1.0.0-beta.14+mc1.21.1-neoforge.jar",
+        "bytes": 7539842,
+        "sha256": "bcc6dfad8d8cc65f09ab1cf14f864e85d53e6e6be9838590d7675f049911f590"
+      },
+      {
+        "target": "2612Fabric",
+        "minecraft": "26.1.2",
+        "loader": "fabric",
+        "java": 25,
+        "task": ":fabric:26.1.2:shadowJar",
+        "archive": "C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\fabric\\versions\\26.1.2\\build\\libs\\essence_ascendance-1.0.0-beta.14+mc26.1.2-fabric.jar",
+        "bytes": 8352291,
+        "sha256": "6de9284dbf198e9001ffacc681d96988369a3c2c470b922a45e47112ba8d6128"
+      },
+      {
+        "target": "2612NeoForge",
+        "minecraft": "26.1.2",
+        "loader": "neoforge",
+        "java": 25,
+        "task": ":neoforge:26.1.2:shadowJar",
+        "archive": "C:\\Users\\rcboo\\Dev\\Minecraft\\essence_ascendance\\neoforge\\versions\\26.1.2\\build\\libs\\essence_ascendance-1.0.0-beta.14+mc26.1.2-neoforge.jar",
+        "bytes": 8357496,
+        "sha256": "50de186c9414e02d1a5531368f18f9e2b7b12fdfcb4d80602d883982c6fda9c5"
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "target": "1211fabric",
+      "source": "fabric\\versions\\1.21.1\\build\\native-fixtures\\audio-packaged-fixture.jar",
+      "pin": "build\\audio-vanilla-settings-release-20261104\\pinned\\audio-1211fabric-fixture.jar",
+      "sha256": "123e56eaee50b0c31f578a31938fa39a9cfe66b0e6feb878b809cba10f73bdae"
+    },
+    {
+      "target": "2612neoforge",
+      "source": "neoforge\\versions\\26.1.2\\build\\native-fixtures\\audio-native-fixture.jar",
+      "pin": "build\\audio-vanilla-settings-release-20261104\\pinned\\audio-2612neoforge-fixture.jar",
+      "sha256": "0a95c7045cf4ea1d2b4348f2b8b9b6bba1f50e47a99d65ac5a144758d55a23b9"
+    }
+  ],
+  "guardedChecks": {
+    "supported-targets": {
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/supported-targets.receipt.json",
+        "sha256": "d6cc28e61143e6f3a0ebdba6c5c3511d5d805280884df41fa0563f0d3665e729",
+        "bytes": 2943
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/supported-targets.log",
+        "sha256": "9a9645abb464a4f1bc1979a20da93cb847712bea3ff1469e5585329cad82c4b9",
+        "bytes": 160284
+      },
+      "wallSeconds": 1080.3401981999996,
+      "peakCommittedBytes": 4203433984,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
+    },
+    "pack-tester": {
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/pack-tester.receipt.json",
+        "sha256": "a1e8d88d9b56a4791e55f5f682d9c674b9f6355619f0e1fa3475a48ab13cc728",
+        "bytes": 2893
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/pack-tester.log",
+        "sha256": "67db3074d079a7af7970ba97dc4189522ba2e48c3558a1255149d5951ef7f42e",
+        "bytes": 1849
+      },
+      "wallSeconds": 10.012619099998119,
+      "peakCommittedBytes": 945217536,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
+    },
+    "fixture-1211fabric": {
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/fixture-1211fabric.receipt.json",
+        "sha256": "f699f0ba5f912d9f5903cf8948904673184ca9544bb8f57538448b4239499db4",
+        "bytes": 3041
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/fixture-1211fabric.log",
+        "sha256": "f755a09ce914b1c45894d19195339857c557a8aa0e20d04b35e8178f9265b6e9",
+        "bytes": 2775
+      },
+      "wallSeconds": 12.0140760999966,
+      "peakCommittedBytes": 1561776128,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
+    },
+    "fixture-2612neoforge": {
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/fixture-2612neoforge.receipt.json",
+        "sha256": "6d4fe789f65a5eb59654471c13f30a6876e058bf45b215e1da6e5162091e481f",
+        "bytes": 3627
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/fixture-2612neoforge.log",
+        "sha256": "c13762482aef36e2077f38f2fd90b9f0810af40976586d6a59f9056d99d47a24",
+        "bytes": 2515
+      },
+      "wallSeconds": 10.26157400000011,
+      "peakCommittedBytes": 960815104,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
+    },
+    "world-1211fabric": {
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/world-1211fabric.receipt.json",
+        "sha256": "e32728512eb5276a4f71462d52d03d0af884275b9e4c433dd529c0140ff0106d",
+        "bytes": 3519
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/world-1211fabric.log",
+        "sha256": "d263240ffa5fae1c1e29fe5f2d910a1e42dd916dcc35186a27b73aa5ccbb8a7d",
+        "bytes": 32340
+      },
+      "wallSeconds": 74.03466739999931,
+      "peakCommittedBytes": 1870843904,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
+    },
+    "world-2612neoforge": {
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/world-2612neoforge.receipt.json",
+        "sha256": "f7b9dc726f3844496bec563bc138631ffaec8d62e6f0fa9090ba23f01e81107f",
+        "bytes": 3537
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/world-2612neoforge.log",
+        "sha256": "01dcd9ab525c02b254f8974f0176132c66d31077c519a42b83be240d1dd792b2",
+        "bytes": 46055
+      },
+      "wallSeconds": 68.02797419999843,
+      "peakCommittedBytes": 3003781120,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
+    },
+    "gameplay-1211fabric": {
+      "result": "PENDING"
+    },
+    "gameplay-2612neoforge": {
+      "result": "PENDING"
+    }
+  },
+  "nativeRuns": [
+    {
+      "target": "1211fabric",
+      "kind": "world",
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-packaged-acceptance/vanilla-settings-1211fabric-world-20261104/receipt.json",
+        "sha256": "f91697fe8145e9715842aeed2b3a43c70e15b0a92b0910fc700e6e1f13981e09",
+        "bytes": 32865
+      },
+      "productionSha256": "0d394891d49261b51a48e5aed7c0d331facf89c3c7c04811949e0003b24a1c89",
+      "processExit": 0,
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ],
+      "matrixCases": 36,
+      "assertions": 171
+    },
+    {
+      "target": "1211fabric",
+      "kind": "native",
+      "result": "PENDING"
+    },
+    {
+      "target": "2612neoforge",
+      "kind": "world",
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-packaged-acceptance/vanilla-settings-2612neoforge-world-20261104/receipt.json",
+        "sha256": "6ba1d04e4d32f4ba0ff65782deccaa11111a96e72dde66c34cf0a3173034e728",
+        "bytes": 46779
+      },
+      "productionSha256": "50de186c9414e02d1a5531368f18f9e2b7b12fdfcb4d80602d883982c6fda9c5",
+      "processExit": 0,
+      "limitations": [
+        "Controlled fixture snapshots are not paid transfer gameplay",
+        "No human listening or HUD layout approval"
+      ],
+      "matrixCases": 36,
+      "assertions": 171
+    },
+    {
+      "target": "2612neoforge",
+      "kind": "native",
+      "result": "PENDING"
+    }
+  ],
+  "additionalChecks": {
+    "releaseTests": {
+      "passed": 25,
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/release-tests.log",
+        "sha256": "ab945f406a38091b639df3d1e3bbf895ee3fb7f6a34a7d1a2ba15c931aab007d",
+        "bytes": 241
+      }
+    },
+    "launcherTests": {
+      "passed": 17,
+      "skipped": 1,
+      "skipReason": "Windows directory-symlink privilege unavailable",
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/launcher-tests.log",
+        "sha256": "b299ae41852f6cbe0e1c3bf1811dee0b29cb7634274efb3359776229f4e47eee",
+        "bytes": 134
+      }
+    }
+  },
+  "publication": {
+    "result": "PENDING",
+    "authorized": true
+  },
+  "human": {
+    "priorFeedback": "User accepted thruster gain 1.0, Infuser click, Pylon Focus changes and later reported everything works now on candidate G.",
+    "newVanillaControls": "PENDING",
+    "unreportedLongLoopMix": "PENDING",
+    "recordedProvenanceRightsConfirmation": "PENDING",
+    "publicationAuthorizationIsNotRightsAttestation": true
+  },
+  "coverageLimits": [
+    "World matrix uses controlled snapshots; native gameplay sessions are separately recorded.",
+    "Hidden same-host loopback is not foreground human HUD/listening, remote latency/loss or broader hardware/OS/pack coverage.",
+    "Prior native/FTB receipts retain their original exact archive scope.",
+    "Isolated native OpenAL CPU/allocations, GUI-scale-4 clipping, unselected historical source limitations and generic visual reload investigation remain outside this pass."
+  ]
+}

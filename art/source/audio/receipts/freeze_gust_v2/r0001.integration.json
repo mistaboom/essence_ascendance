@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "assetId": "freeze_gust_v2",
+  "revision": "r0001",
+  "masterSha256": "5e96598b72d25d9ead0ef4afcd3c118b0e5be94446f2dc49a7edacdad162f8f0",
+  "approvedSha256": "961cca100925145eb2fb3aca5327c8c5f83b2a9e21bb57559958f9c8b0a75e49",
+  "recipeSha256": "7b9bc7af2e03d6041da628c6491a78af9a2a46c9e4136d6598c094985d494052",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.6973333333333334,
+    "samplePeakDb": -12.197624269222171,
+    "rmsDb": -28.603326724822512,
+    "truePeakDb": -12.2,
+    "integratedLufs": -24.93,
+    "decodedFrames": 33472
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "c8d193401877968589b3d040791622e90df7879a0ed34f27599eccc4fbcb677a",
+  "backupSha256": "c8d193401877968589b3d040791622e90df7879a0ed34f27599eccc4fbcb677a",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/element/freeze_gust_v2/r0001/freeze_gust_v2.aup3",
+    "backup": "backups/element/freeze_gust_v2/r0001/freeze_gust_v2.aup3",
+    "master": "masters/element/freeze_gust_v2/r0001/master.wav",
+    "export": "exports/element/freeze_gust_v2/r0001/freeze_gust_v2.ogg",
+    "recipe": "masters/element/freeze_gust_v2/r0001/recipe.json",
+    "authoringInputs": "masters/element/freeze_gust_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "005b2e8f024da71b8bc545b5580021e3396a9d45c532da890039735ee7899be7",
+    "stems": [
+      {
+        "path": "masters/element/freeze_gust_v2/r0001/01_cold_gust.wav",
+        "sha256": "779c82c442dbb5da3f7f749eed7da8d3729890a77abac270eb4b742383e27723"
+      },
+      {
+        "path": "masters/element/freeze_gust_v2/r0001/02_wind_body.wav",
+        "sha256": "9f47ee36891f8c161a4a2b4aedf782b076c8015602bf77aaeed64f62cf964e7d"
+      },
+      {
+        "path": "masters/element/freeze_gust_v2/r0001/03_ice_setting.wav",
+        "sha256": "c14420b35ff3531ab852742d28ce4a653542c62bf545c33a54663d8920453a37"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "961cca100925145eb2fb3aca5327c8c5f83b2a9e21bb57559958f9c8b0a75e49"
+  }
+}

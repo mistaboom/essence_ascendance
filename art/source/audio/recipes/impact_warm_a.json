@@ -1,0 +1,11 @@
+{
+  "schema":1,"assetId":"impact_warm_a","seed":291021,"sampleRate":48000,"duration":0.74,"peakDb":-8,
+  "presetLibrary":"source/audio/presets/essence-v1.json",
+  "design":{"cueIds":["essence_ascendance:combat.explosion"],"role":"confirmed aggregate combat impact","priority":"P0 / 1c proof, P1 / 3a content","description":"Rounded descending force body, mineral fracture and band-limited pressure; one burst per impact.","levelIntent":"impact with restrained top end","repetitionIntervalSeconds":0.8},
+  "layers":[
+    {"preset":"low_pulse","name":"01_force_body","frequency":140,"frequencyEnd":54,"gain":0.25,"lengthSeconds":0.5},
+    {"preset":"soft_air","name":"02_pressure","lowHz":80,"highHz":1800,"gain":0.17,"lengthSeconds":0.65},
+    {"preset":"soft_air","name":"03_fracture","lowHz":1100,"highHz":4600,"gain":0.09,"lengthSeconds":0.12},
+    {"preset":"mineral","name":"04_mineral_tail","frequency":192,"gain":0.04,"startSeconds":0.02,"lengthSeconds":0.72}
+  ]
+}

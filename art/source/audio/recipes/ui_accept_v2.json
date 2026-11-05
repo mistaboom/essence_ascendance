@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "assetId": "ui_accept_v2",
+  "seed": 26110102,
+  "sampleRate": 48000,
+  "duration": 0.31,
+  "peakDb": -17,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:interface.acknowledge"
+    ],
+    "role": "interface",
+    "description": "Friendly rising two-part electronic chirrup with a rounded, restrained voice.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Action accepted"
+  },
+  "layers": [
+    {
+      "preset": "soft_chirp",
+      "name": "01_chirrup_low",
+      "frequency": 600,
+      "frequencyPoints": [
+        [
+          0,
+          510
+        ],
+        [
+          0.34,
+          730
+        ],
+        [
+          0.65,
+          650
+        ],
+        [
+          1,
+          700
+        ]
+      ],
+      "gain": 0.18,
+      "lengthSeconds": 0.12
+    },
+    {
+      "preset": "soft_chirp",
+      "name": "02_chirrup_reply",
+      "frequency": 960,
+      "frequencyPoints": [
+        [
+          0,
+          870
+        ],
+        [
+          0.25,
+          1100
+        ],
+        [
+          0.68,
+          1040
+        ],
+        [
+          1,
+          960
+        ]
+      ],
+      "gain": 0.14,
+      "startSeconds": 0.115,
+      "lengthSeconds": 0.18
+    },
+    {
+      "preset": "tap",
+      "name": "03_soft_tactile",
+      "highHz": 2800,
+      "gain": 0.025,
+      "lengthSeconds": 0.023
+    }
+  ]
+}

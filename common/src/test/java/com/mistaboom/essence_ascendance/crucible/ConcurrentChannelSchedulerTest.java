@@ -127,6 +127,7 @@ public final class ConcurrentChannelSchedulerTest {
         check(feedback.allocated() > 0 && feedback.transferred() == 0, "Rejected allocation is not presented as actual transfer");
         exclusivePlayerSource();
         receiverBudgetLifecycle();
+        completedTransferProjection();
         // Independent conservation/limit oracle over random demands; catches arithmetic and redistribution errors.
         Random random = new Random(6);
         for (int test = 0; test < 1000; test++) {
@@ -206,6 +207,66 @@ public final class ConcurrentChannelSchedulerTest {
         scheduler.removeSource("a", scheduler); scheduler.tick(125);
         check(((Map<?, ?>) budgetsField.get(scheduler)).isEmpty(),
                 "Removing a source releases its last receiver's budget");
+    }
+    private static void completedTransferProjection() {
+        class ObservedReceiver implements ConcurrentChannelScheduler.Consumer {
+            int validations, demands, rates, deliveries;
+            boolean valid=true, blocked, reject;
+            public boolean valid() { validations++; return valid; }
+            public long demand() { demands++; return blocked?0:Long.MAX_VALUE; }
+            public long ratePerSecond() { rates++; return -1; }
+            public long deliver(long grant) { deliveries++; return reject?0:grant; }
+            void resetReads() { validations=demands=rates=deliveries=0; }
+            int calls() { return validations+demands+rates+deliveries; }
+        }
+        var scheduler=scheduler(3200);
+        var receivers=new ArrayList<ObservedReceiver>();
+        var sessions=new ArrayList<ConcurrentChannelScheduler.Session<String,String>>();
+        for(int i=0;i<32;i++) {
+            var receiver=new ObservedReceiver(); receivers.add(receiver);
+            var session=scheduler.register("a","receiver"+i,receiver,0,receiver); sessions.add(session);
+            check(scheduler.transferred(session)==0 && scheduler.transferred("a","receiver"+i,receiver)==0,
+                    "Registration alone never invents paid observer work");
+        }
+        run(scheduler,1,4); receivers.forEach(ObservedReceiver::resetReads);
+        for(int sample=0;sample<100;sample++) for(int i=0;i<32;i++) {
+            check(scheduler.transferred(sessions.get(i))==20 && scheduler.transferred("a","receiver"+i,receivers.get(i))==20,
+                    "Repeated many-source observer reads retain the exact committed batch");
+        }
+        check(receivers.stream().allMatch(receiver->receiver.calls()==0),
+                "Observer transfer projection cannot re-evaluate unrelated or own consumer validation, demand, rates or payment");
+        var receiver=receivers.getFirst(); receiver.blocked=true;
+        check(!scheduler.feedback(sessions.getFirst()).consuming(),"Live menu feedback still reflects immediate admission changes");
+        int calls=receiver.calls();
+        check(scheduler.transferred(sessions.getFirst())==20 && receiver.calls()==calls,
+                "Committed observer work is distinct from live eligibility and never invokes it");
+        run(scheduler,5,4);
+        check(scheduler.transferred(sessions.getFirst())==0,"A completed waiting batch clears old paid throughput");
+        receiver.blocked=false; receiver.reject=true; run(scheduler,9,4);
+        check(scheduler.feedback(sessions.getFirst()).allocated()>0 && scheduler.transferred(sessions.getFirst())==0,
+                "An allocated but rejected grant never becomes successful observer transfer");
+        receiver.reject=false;
+        var old=sessions.getFirst(); var restarted=scheduler.register("a","receiver0",receiver,1,receiver);
+        check(scheduler.transferred(old)==0 && scheduler.transferred(restarted)==0,"Restart does not inherit a prior generation's transfer");
+        run(scheduler,13,4);
+        check(scheduler.transferred(restarted)==20 && scheduler.transferred("a","receiver0",new Object())==0,
+                "Direct observer lookup requires the actual receiver incarnation");
+        var replacement=new ObservedReceiver();
+        var current=scheduler.register("a","receiver0",replacement,2,replacement);
+        check(scheduler.transferred(restarted)==0 && scheduler.transferred("a","receiver0",receiver)==0 && scheduler.transferred(current)==0,
+                "A stale receiver cannot read replacement work by reusing its address");
+        run(scheduler,17,4); replacement.valid=false; scheduler.tick(21);
+        check(scheduler.transferred(current)==0,"Native invalidation removes completed transfer ownership");
+        scheduler.removeSource("a",scheduler);
+        check(scheduler.transferred(sessions.get(1))==0 && scheduler.transferred("a","receiver1",receivers.get(1))==0,
+                "Source removal clears both observer access paths");
+        scheduler=scheduler(120); var live=add(scheduler,"a","age"); var session=scheduler.sessions().getFirst();
+        run(scheduler,1,4); scheduler.tick(11);
+        check(scheduler.transferred(session)==24,"Observer transfer uses the established completed-batch lifetime");
+        scheduler.tick(13);
+        check(scheduler.transferred(session)==0 && scheduler.feedback(session).transferred()==0,
+                "Observer and live feedback share one expiry rule even across skipped accounting ticks");
+        scheduler.clear(); check(scheduler.transferred("a","age",live)==0,"Cleared server state cannot retain observer work");
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); checks++; }
 }

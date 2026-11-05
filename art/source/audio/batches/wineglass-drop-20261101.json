@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "wineglass-drop-20261101",
+  "title": "Essence Ascendance - falling wineglass cast",
+  "description": "The final 0.8-second wineglass cast is approved for integration: the original strike followed by a descending ring. Exact files and integration commands are recorded in docs/audio/PROMPT7-HANDOFF.md. In-game mix validation remains pending.",
+  "items": [
+    {
+      "asset": "cast_wineglass",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Wineglass tink with audible pitch fall"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "id": "cast",
+      "title": "Wineglass pitch fall",
+      "assets": [
+        "cast_wineglass"
+      ]
+    },
+    {
+      "id": "comparisons",
+      "title": "Compare and repeat"
+    }
+  ],
+  "listening": [
+    {
+      "id": "original-then-falling",
+      "title": "Original, then falling ring",
+      "description": "Original first, new pitch fall second; repeated three times at unchanged levels.",
+      "group": "comparisons",
+      "path": "previews/wineglass-drop-20261101/original-then-falling.wav",
+      "sha256": "c1819c1742b883ddb0cab3046f6b12cf15ba10583db22c692a0e360f741268be"
+    },
+    {
+      "id": "overlapping-taps",
+      "title": "Eight falling taps at 400 ms intervals",
+      "description": "Complete tails overlap at their original levels. An offline listening demonstration.",
+      "group": "comparisons",
+      "path": "previews/wineglass-drop-20261101/overlapping-taps.wav",
+      "sha256": "0f50d2e2d76447d4f87f5da387ad8d2186c922e41555dbf07ad17f40a2b0310a"
+    }
+  ]
+}

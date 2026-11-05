@@ -1,6 +1,6 @@
 // Applied by each common version node. Inputs come from its exact sibling projects.
 def targetInputTasks = [
-        'ascendanceShieldInvariants', 'fullscreenCompositionInvariants', 'inventoryItemEmissionInvariants',
+        'audioNativeInvariants', 'ascendanceShieldInvariants', 'fullscreenCompositionInvariants', 'inventoryItemEmissionInvariants',
         'latentOreHostInvariants', 'latentOreResourceInvariants', 'jeiSearchRefreshInvariants', 'recoveryNativeHookShapeInvariants',
         'sustenanceNativeHookShapeInvariants', 'postureNativeHookShapeInvariants',
         'statusNativeHookShapeInvariants', 'guardNativeHookShapeInvariants',
@@ -22,13 +22,44 @@ def exactNativeJar = { nativeProject ->
 // Use the target's exact path; never pick an arbitrary warm cache entry.
 def exactClientResourcesJar = new File(gradle.gradleUserHomeDir,
         "caches/fabric-loom/${project.targetMinecraft}/minecraft-client.jar").canonicalFile
+
+// Vanilla sound definitions are content-addressed assets, not entries in the client JAR.
+// Resolve just the small manifest from this exact target's metadata; do not download the sound library.
+def audioNativeEvents = layout.buildDirectory.file('audio-native-inputs/sounds.json')
+def nativeVersionMetadata = new File(gradle.gradleUserHomeDir,
+        "caches/fabric-loom/${project.targetMinecraft}/mojang_minecraft_info.json")
+def prepareAudioNativeResources = tasks.register('prepareAudioNativeResources') {
+    inputs.file(nativeVersionMetadata)
+    outputs.file(audioNativeEvents)
+    doLast {
+        def json = new groovy.json.JsonSlurper()
+        def metadata = json.parse(nativeVersionMetadata)
+        def sha1 = { bytes -> java.security.MessageDigest.getInstance('SHA-1').digest(bytes).encodeHex().toString() }
+        def readExact = { File cached, String url, String hash ->
+            byte[] bytes = cached.isFile() ? cached.bytes : null
+            if (bytes == null || sha1(bytes) != hash) bytes = new URI(url).toURL().bytes
+            if (sha1(bytes) != hash) throw new GradleException("Audio native resource hash mismatch: ${url}")
+            bytes
+        }
+        def index = metadata.assetIndex
+        def assetRoot = new File(gradle.gradleUserHomeDir, 'caches/fabric-loom/assets')
+        def indexBytes = readExact(new File(assetRoot,"indexes/${project.targetMinecraft}-${index.id}.json"),index.url,index.sha1)
+        def sound = json.parseText(new String(indexBytes,java.nio.charset.StandardCharsets.UTF_8)).objects['minecraft/sounds.json']
+        if (sound == null) throw new GradleException('Exact native asset index has no Minecraft sound definitions')
+        def relative = "${sound.hash.substring(0,2)}/${sound.hash}"
+        def bytes = readExact(new File(assetRoot,"objects/${relative}"),"https://resources.download.minecraft.net/${relative}",sound.hash)
+        def output = audioNativeEvents.get().asFile
+        output.parentFile.mkdirs(); output.bytes = bytes
+    }
+}
 targetInputTasks.each { taskName ->
     tasks.named(taskName, JavaExec) {
+        if (taskName == 'audioNativeInvariants') dependsOn prepareAudioNativeResources
         siblings.each { loader, nativeProject ->
             dependsOn nativeProject.tasks.named('compileJava')
             inputs.files(nativeProject.configurations.named('minecraftNamedCompile')).withPropertyName("${loader}Native")
             inputs.dir(nativeProject.tasks.named('compileJava').flatMap { it.destinationDirectory }).withPropertyName("${loader}Classes")
-            if (taskName in ['inventoryItemEmissionInvariants', 'ascendanceShieldInvariants']) {
+            if (taskName in ['inventoryItemEmissionInvariants', 'ascendanceShieldInvariants', 'audioNativeInvariants']) {
                 dependsOn nativeProject.tasks.named('processResources')
                 inputs.dir(nativeProject.tasks.named('processResources').map { it.destinationDir }).withPropertyName("${loader}ProcessedResources")
             }
@@ -47,6 +78,7 @@ targetInputTasks.each { taskName ->
                 systemProperty "essence.native.${loader}.jar", exactNativeJar(nativeProject).path
                 systemProperty "essence.classes.${loader}", nativeProject.tasks.named('compileJava').get().destinationDirectory.get().asFile.canonicalPath
             }
+            if (taskName == 'audioNativeInvariants') systemProperty 'essence.native.minecraft.sounds.json', audioNativeEvents.get().asFile.canonicalPath
             if (taskName == 'latentOreResourceInvariants') {
                 if (!exactClientResourcesJar.isFile())
                     throw new GradleException("Missing exact ${project.targetMinecraft} Minecraft client resources: ${exactClientResourcesJar}")

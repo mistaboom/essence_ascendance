@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "assetId": "intercept_tok_b_v2",
+  "seed": 26111115,
+  "sampleRate": 48000,
+  "duration": 0.2,
+  "peakDb": -12,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:projectile.intercept"
+    ],
+    "role": "projectile",
+    "description": "Dry wood-on-wood practice-sword tok; no metallic ring. Matched small variation for repeated use.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Projectile interception - variation B",
+    "variationFamily": "intercept_tok_v2",
+    "variationCents": 33
+  },
+  "layers": [
+    {
+      "type": "modal",
+      "frequency": 351.6393106153015,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.028
+        },
+        {
+          "ratio": 2.17,
+          "gain": 0.35,
+          "decaySeconds": 0.017
+        },
+        {
+          "ratio": 3.93,
+          "gain": 0.13,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.35,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_wood_contact",
+      "lengthSeconds": 0.18
+    },
+    {
+      "type": "modal",
+      "frequency": 479.04485793968615,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.028
+        },
+        {
+          "ratio": 2.17,
+          "gain": 0.35,
+          "decaySeconds": 0.017
+        },
+        {
+          "ratio": 3.93,
+          "gain": 0.13,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.14,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_second_surface",
+      "startSeconds": 0.003,
+      "lengthSeconds": 0.16
+    },
+    {
+      "type": "noise",
+      "lowHz": 600,
+      "highHz": 3000,
+      "spectralTiltDbOct": -2,
+      "gain": 0.09,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          1
+        ],
+        [
+          0.22,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_dry_edge",
+      "lengthSeconds": 0.025
+    }
+  ]
+}

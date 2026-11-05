@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "assetId": "ward_break_v2",
+  "revision": "r0001",
+  "masterSha256": "f27eb8ebbee8e0cd86f45146fb332049186f1250dd5428d0f9f643f5c8e20cf3",
+  "approvedSha256": "3ee71341daa10c393cefab404624fc87e96998a918e61dfd337e8d8a6dcad975",
+  "recipeSha256": "8b83b597a3e078828103f25b1dd61f239d1776813c336e509f020a3ecffde3f2",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.6173333333333333,
+    "samplePeakDb": -9.966535316540037,
+    "rmsDb": -24.49930023612666,
+    "truePeakDb": -9.96,
+    "integratedLufs": -26.44,
+    "decodedFrames": 29632
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "4916830ad7df59cf87783f8d597be245096063d5987f661133de8d32f5a0ed1b",
+  "backupSha256": "4916830ad7df59cf87783f8d597be245096063d5987f661133de8d32f5a0ed1b",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/guard/ward_break_v2/r0001/ward_break_v2.aup3",
+    "backup": "backups/guard/ward_break_v2/r0001/ward_break_v2.aup3",
+    "master": "masters/guard/ward_break_v2/r0001/master.wav",
+    "export": "exports/guard/ward_break_v2/r0001/ward_break_v2.ogg",
+    "recipe": "masters/guard/ward_break_v2/r0001/recipe.json",
+    "authoringInputs": "masters/guard/ward_break_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "43e61c368412114e6110e2b2b5fd3e1a9681cfc870ba5270c121d0172191bf3f",
+    "stems": [
+      {
+        "path": "masters/guard/ward_break_v2/r0001/01_hollow_fracture.wav",
+        "sha256": "43a41271a340fdebe2cb3a08de56b604e40fe71ae554575cd1eef3a86b5b1c54"
+      },
+      {
+        "path": "masters/guard/ward_break_v2/r0001/02_shell_crack.wav",
+        "sha256": "e16688b6d98cc6cb48f597fad2ca740bd6e09e811452a80d30d0a7a6ae7fd506"
+      },
+      {
+        "path": "masters/guard/ward_break_v2/r0001/03_pressure_release.wav",
+        "sha256": "6388e68b9d4dd068e22fd4d8f9c5be9765b8015760a0c76389535ae127650fa8"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "3ee71341daa10c393cefab404624fc87e96998a918e61dfd337e8d8a6dcad975"
+  }
+}

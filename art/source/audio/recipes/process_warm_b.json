@@ -1,0 +1,11 @@
+{
+  "schema":1,"assetId":"process_warm_b","seed":291002,"sampleRate":48000,"duration":0.56,"peakDb":-13,
+  "presetLibrary":"source/audio/presets/essence-v1.json",
+  "design":{"cueIds":["essence_ascendance:process.complete"],"role":"routine result","priority":"P1 / 3b","description":"Same warm closure with a little more upper mineral detail.","levelIntent":"subtle","comparison":"completion B: more shimmer; alternative, not automatic variant","repetitionIntervalSeconds":0.65},
+  "layers":[
+    {"preset":"mineral","name":"01_mineral_body","frequency":384,"gain":0.12,"lengthSeconds":0.5},
+    {"preset":"mineral","name":"02_fifth_resolve","frequency":576,"gain":0.059,"startSeconds":0.045,"lengthSeconds":0.515},
+    {"preset":"mineral","name":"03_upper_glint","frequency":1152,"gain":0.018,"lengthSeconds":0.23},
+    {"preset":"soft_air","name":"04_soft_energy","gain":0.014,"lengthSeconds":0.22}
+  ]
+}

@@ -66,10 +66,18 @@ public final class AssetPipeline {
             throw new IllegalArgumentException("Unsupported asset manifest version or namespace");
         Files.createDirectories(work);
         Set<Path> sources = new LinkedHashSet<>();
+        boolean audio = false;
         for (var value : manifest.getAsJsonArray("assets")) {
             JsonObject asset = value.getAsJsonObject();
             Path source = contained(art, asset.get("source").getAsString());
             requirePhysicalPath(source);
+            if ("audio".equals(asset.get("category").getAsString())) {
+                if (audio || !source.equals(art.resolve("audio-catalog.json")))
+                    throw new IllegalArgumentException("Audio catalog must have one canonical owner");
+                audio = true;
+                AudioAssets.generate(art, source, authoredResources, this::add);
+                continue;
+            }
             if (!source.startsWith(art.resolve("source/models")) || !source.toString().endsWith(".bbmodel")
                     || !sources.add(source)) throw new IllegalArgumentException("Invalid or duplicate asset source: " + source);
             // Explicitly staged authoring projects have no runtime assets yet.
@@ -99,6 +107,8 @@ public final class AssetPipeline {
                 throw new IOException("Asset generation failed for " + source + ": " + failure.getMessage(), failure);
             }
         }
+        if (Files.exists(art.resolve("audio-catalog.json")) && !audio)
+            throw new IllegalArgumentException("Audio catalog must be referenced once in asset-manifest.json");
         try (var files = Files.walk(art.resolve("source/models"))) {
             Set<Path> actual = new LinkedHashSet<>(files.filter(p -> p.toString().endsWith(".bbmodel")).toList());
             if (!actual.equals(sources)) {

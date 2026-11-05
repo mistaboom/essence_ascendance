@@ -106,7 +106,10 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
         if (!player.level().isClientSide && (!ServerMenuAccess.isCurrent(player, this) || serverPylon != null && !serverPylon.canPlayerConfigure(player))) {
             return;
         }
+        ItemStack before = pylonContainer.getItem(FOCUS_SLOT).copy();
         super.clicked(slotId, button, clickType, player);
+        if (serverPylon != null)
+            com.mistaboom.essence_ascendance.network.MicroVisualFeedback.focusInstalled(serverPylon, before, pylonContainer.getItem(FOCUS_SLOT));
     }
 
     @Override

@@ -5,8 +5,6 @@ import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -102,8 +100,8 @@ public final class ProjectileControlService {
             if (factor < 0.999 && projectile.level() instanceof net.minecraft.server.level.ServerLevel level
                     && (entered || Math.floorMod(now + projectile.getId(), 8) == 0))
                 com.mistaboom.essence_ascendance.network.CombatVisualFeedback.projectileDrag(level, projectile, factor);
-            if (entered) projectile.level().playSound(null, projectile.blockPosition(), SoundEvents.HONEY_BLOCK_SLIDE,
-                    SoundSource.PLAYERS, 0.35F, 0.8F);
+            if (entered && projectile.level() instanceof net.minecraft.server.level.ServerLevel level)
+                com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(level, "projectile.drag.enter", projectile.position());
             if (claims != null) for (var field : claims.values()) {
                 var player = field.owner().get();
                 if (player != null && factor < 1) com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.PROJECTILE_DRAG_FIELD, "slowed", (1 - factor) * 100);

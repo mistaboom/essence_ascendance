@@ -155,9 +155,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         int status = displayStatusCode();
         boolean active = status == STATUS_PROCESSING;
         ItemStack input = getItem(INPUT_SLOT);
-        var feedback = EssenceCrucibleChannelService.feedback(this);
+        long transferred = EssenceCrucibleChannelService.transferred(this);
         long rate = lastGrantTick >= 0 && level != null && level.getGameTime() - lastGrantTick <= 4
-                ? com.mistaboom.essence_ascendance.crucible.ConcurrentChannelScheduler.sampledPerSecond(feedback.actual()).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValue() : 0;
+                ? com.mistaboom.essence_ascendance.crucible.ConcurrentChannelScheduler.sampledPerSecond(transferred).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValue() : 0;
         return new MachineVisualState.Infuser(linkedCruciblePos, processingEnabled,
                 status, processingTicks, requiredProcessingTicks(), rate,
                 input.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(input.getItem()), lastTransferMask,
@@ -867,6 +867,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             }
             items.set(INPUT_SLOT, ItemStack.EMPTY); items.set(OUTPUT_SLOT, repaired); paidJob = null;
         })) return;
+        com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0; processingEnabled = false; invalidateChannel(); syncBlockEntity();
     }
 
@@ -922,6 +923,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             items.set(INPUT_SLOT, ItemStack.EMPTY);
             items.set(OUTPUT_SLOT, completed);
         })) return;
+        com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingVisualActive = false;
         processingTicks = 0;
         processingEnabled = false;
@@ -1080,6 +1082,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             ItemStack output = getItem(OUTPUT_SLOT);
             if (output.isEmpty()) items.set(OUTPUT_SLOT, result); else output.grow(1);
         })) return;
+        com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0;
         processingEnabled = false;
         syncBlockEntity();
@@ -1130,6 +1133,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
         })) return;
 
+        com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0;
         invalidateChannel(); // The next carrier is a new demand even if no monetary revision changes.
         syncBlockEntity();
@@ -1246,6 +1250,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         installed.setCount(1);
         items.set(FOCUS_SLOT, installed);
         disarmProcessingState();
+        com.mistaboom.essence_ascendance.network.MicroVisualFeedback.focusInstalled(this, existing, getItem(FOCUS_SLOT));
 
         if (!player.getAbilities().instabuild) {
             held.shrink(1);
@@ -1417,6 +1422,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             }
             //? }
             clientVisualState = MachineVisualState.Infuser.read(visual);
+            com.mistaboom.essence_ascendance.audio.AudioSourceBridge.changed(this);
             return;
         }
         //? if >=26.1.2

@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "assetId": "fire_catch_v2",
+  "seed": 26110107,
+  "sampleRate": 48000,
+  "duration": 0.48,
+  "peakDb": -14,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.fire.apply"
+    ],
+    "role": "element",
+    "description": "Dry flame catch with a brief irregular crackle; no continuing target loop.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Ignition - catch and crackle"
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 150,
+      "highHz": 2200,
+      "spectralTiltDbOct": -3,
+      "gain": 0.17,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_flame_catch",
+      "lengthSeconds": 0.39
+    },
+    {
+      "type": "noise",
+      "lowHz": 700,
+      "highHz": 4600,
+      "spectralTiltDbOct": -2,
+      "gain": 0.14,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.01,
+          0.8
+        ],
+        [
+          0.025,
+          0.1
+        ],
+        [
+          0.09,
+          0.15
+        ],
+        [
+          0.095,
+          0.7
+        ],
+        [
+          0.11,
+          0.1
+        ],
+        [
+          0.32,
+          0.12
+        ],
+        [
+          0.33,
+          1
+        ],
+        [
+          0.35,
+          0.05
+        ],
+        [
+          0.7,
+          0.02
+        ],
+        [
+          0.71,
+          0.6
+        ],
+        [
+          0.73,
+          0.04
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_crackle_near",
+      "lengthSeconds": 0.37
+    },
+    {
+      "type": "noise",
+      "lowHz": 900,
+      "highHz": 3200,
+      "spectralTiltDbOct": -2,
+      "gain": 0.055,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.05,
+          0.7
+        ],
+        [
+          0.1,
+          0.05
+        ],
+        [
+          0.3,
+          0
+        ],
+        [
+          0.32,
+          0.9
+        ],
+        [
+          0.37,
+          0
+        ],
+        [
+          0.6,
+          0.02
+        ],
+        [
+          0.65,
+          0.4
+        ],
+        [
+          0.7,
+          0
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_crackle_tail",
+      "startSeconds": 0.16,
+      "lengthSeconds": 0.32
+    }
+  ]
+}

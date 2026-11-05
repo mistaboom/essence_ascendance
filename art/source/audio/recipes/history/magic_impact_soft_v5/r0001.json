@@ -1,0 +1,240 @@
+{
+  "schema": 1,
+  "assetId": "magic_impact_soft_v5",
+  "seed": 26110431,
+  "sampleRate": 48000,
+  "duration": 0.3,
+  "peakDb": -12.15,
+  "design": {
+    "title": "Magic projectile impact - soft pressure splat A",
+    "description": "The same atonal energy impact, with a rounded contact, gentler crack and grit, and a soft dispersing pressure tail.",
+    "cueIds": [
+      "essence_ascendance:weapon.bolt.impact"
+    ],
+    "provenance": "Original deterministic synthesis. Direct parameter revision of magic_impact_v4 with its original seed, source layer identities and timings retained; no third-party samples.",
+    "review": "pending user listening",
+    "role": "weapon",
+    "revisionOf": [
+      "magic_impact_v4"
+    ],
+    "replacesNativeEvents": [
+      "minecraft:entity.arrow.hit",
+      "minecraft:entity.arrow.hit_player"
+    ],
+    "repetitionIntervalSeconds": 0.4,
+    "gameplayTrigger": "One existing impact cue for confirmed damaging entity hits and accepted terrain collision; variations do not add surface routing.",
+    "levelIntent": "Approximately 3 dB softer than v4, with reduced upper-mid crack energy and a rounder onset; no musical tail."
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 130,
+      "highHz": 3000,
+      "highHzEnd": 1250,
+      "spectralTiltDbOct": -2.5,
+      "gain": 0.68,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.045,
+          0.72
+        ],
+        [
+          0.085,
+          1
+        ],
+        [
+          0.22,
+          0.76
+        ],
+        [
+          0.5,
+          0.36
+        ],
+        [
+          0.78,
+          0.11
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_pressure_splat",
+      "lengthSeconds": 0.195
+    },
+    {
+      "type": "noise",
+      "lowHz": 600,
+      "highHz": 3200,
+      "spectralTiltDbOct": -2,
+      "gain": 0.14,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.16,
+          0.85
+        ],
+        [
+          0.26,
+          1
+        ],
+        [
+          0.5,
+          0.55
+        ],
+        [
+          0.8,
+          0.16
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_soft_crack",
+      "lengthSeconds": 0.032
+    },
+    {
+      "type": "modal",
+      "frequency": 160,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 0.24,
+          "decaySeconds": 0.023,
+          "phase": 0.4
+        },
+        {
+          "ratio": 1.39,
+          "gain": 0.5,
+          "decaySeconds": 0.019,
+          "phase": 2.3
+        },
+        {
+          "ratio": 2.27,
+          "gain": 0.7,
+          "decaySeconds": 0.016,
+          "phase": 1.1
+        },
+        {
+          "ratio": 3.73,
+          "gain": 0.64,
+          "decaySeconds": 0.014,
+          "phase": 4.7
+        },
+        {
+          "ratio": 5.89,
+          "gain": 0.24,
+          "decaySeconds": 0.011,
+          "phase": 3.5
+        },
+        {
+          "ratio": 8.37,
+          "gain": 0.08,
+          "decaySeconds": 0.008,
+          "phase": 0.8
+        }
+      ],
+      "gain": 0.085,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          0.82
+        ],
+        [
+          0.12,
+          1
+        ],
+        [
+          0.3,
+          0.53
+        ],
+        [
+          0.67,
+          0.13
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_inharmonic_contact_grit",
+      "lengthSeconds": 0.09
+    },
+    {
+      "type": "noise",
+      "lowHz": 70,
+      "highHz": 540,
+      "spectralTiltDbOct": -1,
+      "gain": 0.33,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.065,
+          0.75
+        ],
+        [
+          0.14,
+          1
+        ],
+        [
+          0.4,
+          0.55
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "04_low_pressure_thud",
+      "lengthSeconds": 0.115
+    },
+    {
+      "type": "noise",
+      "lowHz": 220,
+      "highHz": 1700,
+      "highHzEnd": 650,
+      "spectralTiltDbOct": -2.5,
+      "gain": 0.12,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.7
+        ],
+        [
+          0.26,
+          1
+        ],
+        [
+          0.66,
+          0.33
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "05_dispersing_wake",
+      "startSeconds": 0.032,
+      "lengthSeconds": 0.25
+    }
+  ]
+}

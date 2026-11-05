@@ -96,6 +96,27 @@ public final class EssenceCrucibleChannelService {
         return scheduler.sessions().stream().anyMatch(s -> s.key().source().equals(address(source))
                 && s.key().receiver().machine() != null && scheduler.demand(s) > 0);
     }
+    /** Public work fact from the scheduler's completed batch, distinct from outstanding demand. */
+    public static boolean transferringToInfuser(EssenceCrucibleBlockEntity source) {
+        if (!(source.getLevel() instanceof ServerLevel level)) return false;
+        var scheduler=SERVERS.get(level.getServer());
+        return scheduler!=null && scheduler.sourceCurrent(address(source),source)
+                && scheduler.sessions().stream().anyMatch(session->session.key().source().equals(address(source))
+                && session.key().receiver().machine()!=null && scheduler.transferred(session)>0);
+    }
+    /** Public completed-work projection; menu diagnostics keep the separate live feedback query. */
+    public static long transferred(EssenceInfuserBlockEntity infuser) {
+        if (!(infuser.getLevel() instanceof ServerLevel level) || infuser.linkedSource() == null) return 0;
+        var scheduler = SERVERS.get(level.getServer());
+        return scheduler == null ? 0 : scheduler.transferred(infuser.linkedSource(), new Receiver(null, address(infuser)), infuser);
+    }
+    public static long transferred(EssenceCrucibleBlockEntity source, UUID player) {
+        if (!(source.getLevel() instanceof ServerLevel level)) return 0;
+        var scheduler = SERVERS.get(level.getServer());
+        if (scheduler == null || !scheduler.sourceCurrent(address(source), source)) return 0;
+        var recipient = level.getServer().getPlayerList().getPlayer(player);
+        return recipient == null ? 0 : scheduler.transferred(address(source), new Receiver(player, null), recipient);
+    }
     public static boolean isChanneling(EssenceCrucibleBlockEntity source, UUID player) { return players(source).contains(player); }
     public record ChannelFeedback(int registered, int consuming, long allocated, long actual, ChannelReason reason) {}
     public static ChannelFeedback feedback(EssenceCrucibleBlockEntity source, UUID player) {
@@ -121,7 +142,7 @@ public final class EssenceCrucibleChannelService {
         } else reason = consuming > 1 ? ChannelReason.SHARING_BANDWIDTH : ChannelReason.RECEIVING;
         return new ChannelFeedback(sessions.size(), consuming, f.allocated(), f.transferred(), reason);
     }
-    public record PlayerLink(MachineLink.Source source, ChannelFeedback feedback) {}
+    public record PlayerLink(MachineLink.Source source, long generation, ChannelFeedback feedback) {}
     public static ChannelFeedback feedback(EssenceInfuserBlockEntity infuser) {
         if (!(infuser.getLevel() instanceof ServerLevel level) || infuser.linkedSource() == null)
             return new ChannelFeedback(0, 0, 0, 0, ChannelReason.SOURCE_UNAVAILABLE);
@@ -155,7 +176,7 @@ public final class EssenceCrucibleChannelService {
             var level = player.server.getLevel(net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.DIMENSION, address.dimension()));
             if (level != null && level.hasChunkAt(address.pos()) && level.getBlockEntity(address.pos()) instanceof EssenceCrucibleBlockEntity source
-                    && source.validPlayerChannel(player)) result.add(new PlayerLink(address, feedback(source, player.getUUID())));
+                    && source.validPlayerChannel(player)) result.add(new PlayerLink(address, session.generation(), feedback(source, player.getUUID())));
         }
         return List.copyOf(result);
     }

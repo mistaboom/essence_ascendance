@@ -194,6 +194,7 @@ public final class AscendanceNexusScreen
 
     @Override
     public void removed() {
+        AscendanceNexusTransactionClientState.forget(this);
         rememberCategoryNavigation();
         Map<ResourceLocation, Double> scrollX = new LinkedHashMap<>(), scrollY = new LinkedHashMap<>();
         skillViewports.forEach((id, viewport) -> { scrollX.put(id, viewport.x()); scrollY.put(id, viewport.y()); });
@@ -426,6 +427,7 @@ public final class AscendanceNexusScreen
                 if (button != 0) return false;
                 if (navigation.mode() == NexusMode.ASCENDANCE) {
                     var action = attunementView.click(x, y);
+                    if (action != NexusAttunementView.Click.NONE) com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"attunement");
                     if (action == NexusAttunementView.Click.ASCEND) requestAscension();
                     return action != NexusAttunementView.Click.NONE;
                 }
@@ -435,7 +437,7 @@ public final class AscendanceNexusScreen
                 var layout = contentLayout();
                 if (navigation.mode() == NexusMode.SKILLS) {
                     SkillDefinition clicked = skillAt(category, x, y, layout);
-                    if (clicked != null) { handleSkillClick(clicked, category); return true; }
+                    if (clicked != null) { com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this, "skill/"+clicked.id()); handleSkillClick(clicked, category); return true; }
                     var viewport = activeSkillViewport();
                     if (viewport != null && viewport.bounds().contains(x, y)) { viewport.beginPan(x, y); return true; }
                     return false;
@@ -485,6 +487,7 @@ public final class AscendanceNexusScreen
             @Override public boolean key(int key, int scan, int modifiers) {
                 if (navigation.mode() == NexusMode.ASCENDANCE) {
                     var action = attunementView.key(key, (modifiers & 1) != 0);
+                    if (action != NexusAttunementView.Click.NONE) com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"attunement");
                     if (action == NexusAttunementView.Click.ASCEND) requestAscension();
                     return action != NexusAttunementView.Click.NONE;
                 }
@@ -3807,6 +3810,7 @@ public final class AscendanceNexusScreen
             if (!hudControlVisible(node.definition()) || !com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.hit(
                     mouseX, mouseY, bounds.right(), bounds.bottom())) continue;
             if (button == 0) {
+                com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"hud/"+node.definition().id());
                 var receipt = ClientEssenceState.snapshot().ownedSkills().get(node.definition().id());
                 dev.architectury.networking.NetworkManager.sendToServer(
                         new com.mistaboom.essence_ascendance.network.SkillHudPreferencePayload(
@@ -4210,6 +4214,7 @@ public final class AscendanceNexusScreen
                 : draft.baseRevision();
 
         pendingRequestId = requestId;
+        AscendanceNexusTransactionClientState.expect(this,menu.containerId,requestId);
         acceptedAscension = false;
         ascensionHandoff.begin(snapshot.tierId().toString());
         pendingCompletion = completion;

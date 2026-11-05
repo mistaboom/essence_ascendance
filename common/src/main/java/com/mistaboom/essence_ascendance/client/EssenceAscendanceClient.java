@@ -9,8 +9,18 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 public final class EssenceAscendanceClient {
 
     private static boolean initialized = false;
+    private static boolean entityRenderersRegistered;
 
     private EssenceAscendanceClient() {
+    }
+
+    /** NeoForge must queue suppliers before its renderer-registration event, which can precede client setup. */
+    public static void registerEntityRenderers() {
+        if (entityRenderersRegistered) return;
+        dev.architectury.registry.client.level.entity.EntityRendererRegistry.register(
+                com.mistaboom.essence_ascendance.projectile.ProjectileContent.MAGIC_BOLT,
+                MagicBoltRenderer::new);
+        entityRenderersRegistered = true;
     }
 
     public static void init(
@@ -24,10 +34,10 @@ public final class EssenceAscendanceClient {
             return;
         }
 
-        dev.architectury.registry.client.level.entity.EntityRendererRegistry.register(
-                com.mistaboom.essence_ascendance.projectile.ProjectileContent.MAGIC_BOLT,
-                MagicBoltRenderer::new);
+        registerEntityRenderers();
         ClientPacketDispatch.init();
+        com.mistaboom.essence_ascendance.client.audio.AudioRuntime.init();
+        FeedbackPresentation.init();
         RodForceClient.init();
         dev.architectury.networking.NetworkManager.registerReceiver(dev.architectury.networking.NetworkManager.Side.S2C,
                 com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.TYPE,

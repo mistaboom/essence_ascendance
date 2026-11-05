@@ -1,0 +1,144 @@
+{
+  "schema": 1,
+  "assetId": "root_bind_v2",
+  "seed": 26110112,
+  "sampleRate": 48000,
+  "duration": 0.36,
+  "peakDb": -12,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:element.root"
+    ],
+    "role": "element",
+    "description": "Descending binding zip into a woody tightening grip; not a second electric snap.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Rooting zap"
+  },
+  "layers": [
+    {
+      "type": "tone",
+      "frequency": 950,
+      "harmonics": [
+        1,
+        0.15,
+        0.03
+      ],
+      "gain": 0.16,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.07,
+          0.7
+        ],
+        [
+          0.16,
+          1
+        ],
+        [
+          0.62,
+          0.6
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_binding_zip",
+      "frequencyPoints": [
+        [
+          0,
+          1250
+        ],
+        [
+          0.25,
+          840
+        ],
+        [
+          1,
+          230
+        ]
+      ],
+      "lengthSeconds": 0.16
+    },
+    {
+      "type": "modal",
+      "frequency": 190,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.028
+        },
+        {
+          "ratio": 2.17,
+          "gain": 0.35,
+          "decaySeconds": 0.017
+        },
+        {
+          "ratio": 3.93,
+          "gain": 0.13,
+          "decaySeconds": 0.01
+        }
+      ],
+      "gain": 0.28,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_root_grip",
+      "startSeconds": 0.11,
+      "lengthSeconds": 0.18
+    },
+    {
+      "type": "noise",
+      "lowHz": 450,
+      "highHz": 2200,
+      "spectralTiltDbOct": -3,
+      "gain": 0.11,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_fibrous_tighten",
+      "startSeconds": 0.08,
+      "lengthSeconds": 0.28
+    }
+  ]
+}

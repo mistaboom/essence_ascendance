@@ -508,7 +508,14 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                             serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT).copy(),
                             serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT).copy());
                     com.mistaboom.essence_ascendance.network.InfuserSoulbindNetworkService.prompt(serverPlayer, containerId, pendingSoulbind.receipt());
-                } else serverInfuser.setProcessingEnabled(player, !serverInfuser.processingEnabled());
+                } else {
+                    boolean requested=!serverInfuser.processingEnabled();
+                    serverInfuser.setProcessingEnabled(player,requested);
+                    // The native Start/Stop button already owns its activation click.
+                    if(serverInfuser.processingEnabled()!=requested
+                            && player instanceof net.minecraft.server.level.ServerPlayer actor)
+                        com.mistaboom.essence_ascendance.network.FeedbackDispatch.player(actor,"interface.denied");
+                }
             }
             default -> {
                 return false;
@@ -568,6 +575,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         }
         ItemStack inputAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT);
         ItemStack focusAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
+        com.mistaboom.essence_ascendance.network.MicroVisualFeedback.focusInstalled(serverInfuser, focusBefore, focusAfter);
         ItemStack componentAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT);
 
         /*

@@ -499,7 +499,8 @@ public final class ProjectileNativeInterceptionTest {
         @Override public net.minecraft.world.level.material.FluidState getFluidState(BlockPos position) {
             return getBlockState(position).getFluidState();
         }
-        @Override public boolean addFreshEntity(Entity entity) { entities.add(entity); return true; }
+        boolean rejectEntitySpawns;
+        @Override public boolean addFreshEntity(Entity entity) { if(rejectEntitySpawns) return false; entities.add(entity); return true; }
         @Override public boolean isInWorldBounds(BlockPos position) { return true; }
         //? if >=26.1.2
         /*@Override public boolean mayInteract(Entity player, BlockPos position) { return true; }*/

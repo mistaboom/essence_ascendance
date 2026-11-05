@@ -57,15 +57,15 @@ public final class MultiplayerInterfaceTest {
         var management = new TeamInterfacePayload(17, UUID.randomUUID(), 3, 0, 1, List.of(TeamInterfacePayload.Text.of("your_team", "Workshop")), List.of(), 63, 0);
         buffer = buffer();
         try { TeamInterfacePayload.CODEC.encode(buffer, management); check(TeamInterfacePayload.CODEC.decode(buffer).equals(management), "Management popup view round-trips through the real codec"); } finally { buffer.release(); }
-        var hud = new ChannelSessionsPayload(7, ResourceLocation.parse("minecraft:overworld"), 257, 0,
-                Collections.nCopies(16, new ChannelSessionsPayload.Link(0, "NO_SELECTION", 0, 0)));
+        var hud = new ChannelSessionsPayload(7, ResourceLocation.parse("minecraft:overworld"), 257, 0, 100,
+                Collections.nCopies(16, new ChannelSessionsPayload.Link(0, 1, "NO_SELECTION", 0, 0)));
         buffer = buffer();
         try { ChannelSessionsPayload.CODEC.encode(buffer, hud); check(ChannelSessionsPayload.CODEC.decode(buffer).equals(hud), "HUD bounded projection retains complete registration count"); } finally { buffer.release(); }
-        rejects(() -> new ChannelSessionsPayload(7, hud.dimension(), 17, 0, Collections.nCopies(17, hud.links().getFirst())));
+        rejects(() -> new ChannelSessionsPayload(7, hud.dimension(), 17, 0, 100, Collections.nCopies(17, hud.links().getFirst())));
         buffer = buffer();
-        try { buffer.writeVarInt(7); buffer.writeResourceLocation(hud.dimension()); buffer.writeVarInt(17); buffer.writeVarInt(0); buffer.writeVarInt(17);
+        try { buffer.writeVarInt(7); buffer.writeResourceLocation(hud.dimension()); buffer.writeVarInt(17); buffer.writeVarInt(0); buffer.writeLong(100); buffer.writeVarInt(17);
             var hostile = buffer; rejects(() -> ChannelSessionsPayload.CODEC.decode(hostile)); } finally { buffer.release(); }
-        var stream = new MachineVisualState.Crucible(false, List.of(new MachineVisualState.PlayerStream(UUID.randomUUID(), 32, 30), new MachineVisualState.PlayerStream(UUID.randomUUID(), 1, 30)), 120, 2, 5000, List.of(), List.of(), true);
+        var stream = new MachineVisualState.Crucible(false, List.of(new MachineVisualState.PlayerStream(UUID.randomUUID(), 32, 30), new MachineVisualState.PlayerStream(UUID.randomUUID(), 1, 30)), 120, 2, 5000, List.of(), List.of(), true, true);
         check(MachineVisualState.Crucible.read(stream.save()).equals(stream), "Multiple observer endpoints retain their actual transferred types and rates");
         System.out.println("MultiplayerInterfaceTest: " + checks + " assertions passed");
     }

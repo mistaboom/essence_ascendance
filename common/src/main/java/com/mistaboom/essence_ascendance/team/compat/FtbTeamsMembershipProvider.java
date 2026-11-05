@@ -6,6 +6,7 @@ import dev.ftb.mods.ftbteams.api.*;
 import dev.ftb.mods.ftbteams.api.event.*;
 import net.minecraft.server.MinecraftServer;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /** Only this conditionally constructed class links an audited FTB Teams public API. */
@@ -77,17 +78,37 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
         TeamRank rank = team.getRankForPlayer(member);
         return rank.isMemberOrBetter() && settled.allows(member, PoolCapability.MANAGE) == rank.isOfficerOrBetter();
     }
+    /** Loader event adapters share the same party-membership boundary as captureManager. */
+    public static BiConsumer<Team, Team> teamInvalidation(Consumer<MinecraftServer> invalidate) {
+        return teamInvalidation(() -> {
+            FTBTeamsAPI.API api = FTBTeamsAPI.api();
+            if (api != null && api.isManagerLoaded()) invalidate.accept(api.getManager().getServer());
+        });
+    }
+    static BiConsumer<Team, Team> teamInvalidation(Runnable invalidate) {
+        return (team, previous) -> {
+            // First login creates a default player team and changes null -> player, neither of
+            // which changes a captured party roster. Leaving a party must inspect the old team.
+            if (serverParty(team) || serverParty(previous)) invalidate.run();
+        };
+    }
+    private static boolean serverParty(Team team) {
+        // Deleted parties can already be invalid; their removal must still settle fail-closed.
+        return team != null && team.isPartyTeam() && !team.isClientTeam();
+    }
+    //? if >=26.1.2 {
+    /*public static Consumer<TeamManagerEvent.Data> managerInvalidation(Consumer<MinecraftServer> invalidate) {
+        return event -> {
+            // Persisting existing data (including first-login personal teams) does not change membership.
+            if (event.action() != TeamManagerEvent.Action.SAVED) invalidate.accept(event.manager().getServer());
+        };
+    }
+    *///? }
     @Override public void installInvalidation(Consumer<MinecraftServer> invalidate) {
         //? if >=26.1.2
         /*FtbTeamsEventBridge.install(invalidate);*/
         //? if <26.1.2
-        Consumer<TeamEvent> changed = ignored -> {
-            //? if <26.1.2
-            FTBTeamsAPI.API api = FTBTeamsAPI.api();
-            //? if <26.1.2
-            if (api != null && api.isManagerLoaded()) invalidate.accept(api.getManager().getServer());
-        //? if <26.1.2
-        };
+        var changed = teamInvalidation(invalidate);
         //? if <26.1.2
         TeamManagerEvent.CREATED.register(e -> invalidate.accept(e.getManager().getServer()));
         //? if <26.1.2
@@ -95,18 +116,18 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
         //? if <26.1.2
         TeamManagerEvent.DESTROYED.register(e -> invalidate.accept(e.getManager().getServer()));
         //? if <26.1.2
-        TeamEvent.CREATED.register(changed::accept);
+        TeamEvent.CREATED.register(e -> changed.accept(e.getTeam(), null));
         //? if <26.1.2
-        TeamEvent.DELETED.register(changed);
+        TeamEvent.DELETED.register(e -> changed.accept(e.getTeam(), null));
         //? if <26.1.2
-        TeamEvent.PLAYER_CHANGED.register(changed::accept);
+        TeamEvent.PLAYER_CHANGED.register(e -> changed.accept(e.getTeam(), e.getPreviousTeam().orElse(null)));
         //? if <26.1.2
-        TeamEvent.PLAYER_JOINED_PARTY.register(changed::accept);
+        TeamEvent.PLAYER_JOINED_PARTY.register(e -> changed.accept(e.getTeam(), e.getPreviousTeam()));
         //? if <26.1.2
-        TeamEvent.PLAYER_LEFT_PARTY.register(changed::accept);
+        TeamEvent.PLAYER_LEFT_PARTY.register(e -> changed.accept(e.getTeam(), e.getPlayerTeam()));
         //? if <26.1.2
-        TeamEvent.OWNERSHIP_TRANSFERRED.register(changed::accept);
+        TeamEvent.OWNERSHIP_TRANSFERRED.register(e -> changed.accept(e.getTeam(), null));
         //? if <26.1.2
-        TeamEvent.PROPERTIES_CHANGED.register(changed::accept);
+        TeamEvent.PROPERTIES_CHANGED.register(e -> changed.accept(e.getTeam(), null));
     }
 }

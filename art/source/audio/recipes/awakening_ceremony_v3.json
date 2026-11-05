@@ -1,0 +1,356 @@
+{
+  "schema": 1,
+  "assetId": "awakening_ceremony_v3",
+  "seed": 261101302,
+  "sampleRate": 48000,
+  "duration": 3.8,
+  "peakDb": -5.5,
+  "presetLibrary": "source/audio/presets/ceremony-v3.json",
+  "design": {
+    "title": "Awakening ceremony - 3.8-second arrangement",
+    "description": "A compact, separately composed version of the same ceremonial family for the shorter natural Awakening animation. Horn ascent and timpani resolve into the crown at 2.204 seconds, with the chime tail ending at 3.8 seconds.",
+    "cueIds": [
+      "essence_ascendance:progression.ascend"
+    ],
+    "role": "ceremony",
+    "reference": "Original composition and oscillator/noise synthesis. No third-party samples or borrowed melody.",
+    "animationTiming": {
+      "source": "AscendanceTierFeedback.play:76ticks; shared normalized visual phases",
+      "durationTicks": 76,
+      "durationSeconds": 3.8,
+      "gatherEndSeconds": 0.836,
+      "buildStartSeconds": 0.684,
+      "captionStartSeconds": 1.976,
+      "releaseStartSeconds": 2.204,
+      "settleStartSeconds": 2.888,
+      "visualEndSeconds": 3.8,
+      "cameraEaseEndSeconds": 4.6
+    },
+    "runtimeHandoff": "Play once in sync with actual admitted ceremony start, not the earlier deferred Nexus receipt. Full ascendance160ticks selects8s; natural Awakening76ticks selects separately composed3.8s take. No speed/pitch retiming. The camera-only800ms ease-out is not extra visual ceremony duration.",
+    "revisionRequest": "Replace2.6s decorative accent with accomplishment-scale triumph for complete animation.",
+    "repetitionIntervalSeconds": 4.8
+  },
+  "layers": [
+    {
+      "name": "01_foundation",
+      "preset": "fundamental",
+      "events": [
+        {
+          "startSeconds": 0,
+          "lengthSeconds": 0.9,
+          "frequency": 146.832,
+          "gain": 0.11
+        },
+        {
+          "startSeconds": 0.75,
+          "lengthSeconds": 0.75,
+          "frequency": 97.999,
+          "gain": 0.13
+        },
+        {
+          "startSeconds": 1.45,
+          "lengthSeconds": 0.75,
+          "frequency": 110,
+          "gain": 0.15
+        },
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "frequency": 146.832,
+          "gain": 0.2
+        }
+      ]
+    },
+    {
+      "name": "02_fanfare_lead",
+      "preset": "ceremonial_horn",
+      "events": [
+        {
+          "startSeconds": 0.06,
+          "lengthSeconds": 0.4,
+          "frequency": 293.665,
+          "gain": 0.1
+        },
+        {
+          "startSeconds": 0.48,
+          "lengthSeconds": 0.38,
+          "frequency": 369.994,
+          "gain": 0.12
+        },
+        {
+          "startSeconds": 0.9,
+          "lengthSeconds": 0.48,
+          "frequency": 440,
+          "gain": 0.14
+        },
+        {
+          "startSeconds": 1.42,
+          "lengthSeconds": 0.36,
+          "frequency": 329.628,
+          "gain": 0.13
+        },
+        {
+          "startSeconds": 1.81,
+          "lengthSeconds": 0.36,
+          "frequency": 554.365,
+          "gain": 0.16
+        },
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "frequency": 587.33,
+          "gain": 0.2
+        }
+      ],
+      "phase": 0.24
+    },
+    {
+      "name": "03_horn_harmony",
+      "preset": "ceremonial_horn",
+      "events": [
+        {
+          "startSeconds": 0.48,
+          "lengthSeconds": 0.88,
+          "frequency": 293.665,
+          "gain": 0.06
+        },
+        {
+          "startSeconds": 1.42,
+          "lengthSeconds": 0.75,
+          "frequency": 277.183,
+          "gain": 0.09
+        },
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "frequency": 369.994,
+          "gain": 0.12
+        }
+      ],
+      "phase": 1.7
+    },
+    {
+      "name": "04_horn_fifth",
+      "preset": "ceremonial_horn",
+      "events": [
+        {
+          "startSeconds": 0.48,
+          "lengthSeconds": 0.88,
+          "frequency": 220,
+          "gain": 0.05
+        },
+        {
+          "startSeconds": 1.42,
+          "lengthSeconds": 0.75,
+          "frequency": 329.628,
+          "gain": 0.08
+        },
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "frequency": 440,
+          "gain": 0.11
+        }
+      ],
+      "phase": 3.2
+    },
+    {
+      "name": "05_string_body",
+      "preset": "silk_ensemble",
+      "events": [
+        {
+          "startSeconds": 0,
+          "lengthSeconds": 1.4,
+          "frequency": 369.994,
+          "gain": 0.04
+        },
+        {
+          "startSeconds": 1.15,
+          "lengthSeconds": 1.1,
+          "frequency": 329.628,
+          "gain": 0.065
+        },
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "frequency": 739.989,
+          "gain": 0.08
+        }
+      ],
+      "phase": 0.7
+    },
+    {
+      "name": "06_string_light",
+      "preset": "silk_ensemble",
+      "events": [
+        {
+          "startSeconds": 0.12,
+          "lengthSeconds": 1.35,
+          "frequency": 440,
+          "gain": 0.035
+        },
+        {
+          "startSeconds": 1.15,
+          "lengthSeconds": 1.1,
+          "frequency": 440,
+          "gain": 0.05
+        },
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "frequency": 880,
+          "gain": 0.06
+        }
+      ],
+      "phase": 2.4
+    },
+    {
+      "name": "07_timpani",
+      "preset": "kettle",
+      "events": [
+        {
+          "startSeconds": 0,
+          "lengthSeconds": 0.5,
+          "frequency": 73,
+          "gain": 0.13,
+          "frequencyEnd": 54
+        },
+        {
+          "startSeconds": 0.9,
+          "lengthSeconds": 0.45,
+          "frequency": 66,
+          "gain": 0.16,
+          "frequencyEnd": 49
+        },
+        {
+          "startSeconds": 1.42,
+          "lengthSeconds": 0.3,
+          "frequency": 66,
+          "gain": 0.17,
+          "frequencyEnd": 49
+        },
+        {
+          "startSeconds": 1.81,
+          "lengthSeconds": 0.22,
+          "frequency": 66,
+          "gain": 0.18,
+          "frequencyEnd": 49
+        },
+        {
+          "startSeconds": 2.03,
+          "lengthSeconds": 0.17,
+          "frequency": 66,
+          "gain": 0.19,
+          "frequencyEnd": 49
+        },
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 0.7,
+          "frequency": 73,
+          "gain": 0.3,
+          "frequencyEnd": 54
+        }
+      ]
+    },
+    {
+      "name": "08_gather_chimes",
+      "preset": "silvery_bell",
+      "events": [
+        {
+          "startSeconds": 0.04,
+          "lengthSeconds": 0.7,
+          "frequency": 587.33,
+          "gain": 0.06
+        },
+        {
+          "startSeconds": 0.52,
+          "lengthSeconds": 0.8,
+          "frequency": 880,
+          "gain": 0.035
+        },
+        {
+          "startSeconds": 0.99,
+          "lengthSeconds": 0.8,
+          "frequency": 1174.659,
+          "gain": 0.04
+        },
+        {
+          "startSeconds": 1.51,
+          "lengthSeconds": 0.65,
+          "frequency": 1318.51,
+          "gain": 0.04
+        },
+        {
+          "startSeconds": 1.87,
+          "lengthSeconds": 0.6,
+          "frequency": 880,
+          "gain": 0.05
+        }
+      ]
+    },
+    {
+      "name": "09_gather_roll",
+      "preset": "air_roll",
+      "events": [
+        {
+          "startSeconds": 1.45,
+          "lengthSeconds": 0.754,
+          "gain": 0.09
+        }
+      ]
+    },
+    {
+      "name": "10_crown_release",
+      "preset": "crown_bell",
+      "events": [
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "frequency": 293.665,
+          "gain": 0.18
+        }
+      ]
+    },
+    {
+      "name": "11_release_cymbal",
+      "preset": "release_air",
+      "events": [
+        {
+          "startSeconds": 2.204,
+          "lengthSeconds": 1.596,
+          "gain": 0.17
+        }
+      ]
+    },
+    {
+      "name": "12_resolution_twinkles",
+      "preset": "silvery_bell",
+      "events": [
+        {
+          "startSeconds": 2.31,
+          "lengthSeconds": 0.95,
+          "frequency": 1174.659,
+          "gain": 0.06
+        },
+        {
+          "startSeconds": 2.61,
+          "lengthSeconds": 0.9,
+          "frequency": 1479.978,
+          "gain": 0.045
+        },
+        {
+          "startSeconds": 2.91,
+          "lengthSeconds": 0.89,
+          "frequency": 1760,
+          "gain": 0.035
+        },
+        {
+          "startSeconds": 3.29,
+          "lengthSeconds": 0.51,
+          "frequency": 1174.659,
+          "gain": 0.025
+        }
+      ]
+    }
+  ]
+}

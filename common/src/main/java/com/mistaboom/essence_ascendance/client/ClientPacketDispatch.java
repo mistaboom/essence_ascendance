@@ -26,6 +26,7 @@ public final class ClientPacketDispatch {
 
     private static void clearPresentation() {
         presentationEpoch++;
+        com.mistaboom.essence_ascendance.client.audio.AudioRuntime.clear();
         com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState.clearSession();
         com.mistaboom.essence_ascendance.client.archive.ArchiveNavigationState.clearSession();
         com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.clearClient();
@@ -94,5 +95,18 @@ public final class ClientPacketDispatch {
                 update.run();
             }
         });
+    }
+
+    /** Transient world feedback also belongs to the receiving player/world incarnation, not just its connection. */
+    public static void queueWorld(NetworkManager.PacketContext context,Runnable update) {
+        var recipient=context.getPlayer();
+        var world=recipient==null?null:recipient.level();
+        queue(context,()->{
+            var mc=Minecraft.getInstance();
+            if(matchesWorldScope(recipient,world,mc.player,mc.level)) update.run();
+        });
+    }
+    public static boolean matchesWorldScope(Object recipient,Object world,Object currentPlayer,Object currentWorld) {
+        return recipient!=null && world!=null && recipient==currentPlayer && world==currentWorld;
     }
 }

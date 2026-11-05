@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "assetId": "focus_install_v2",
+  "revision": "r0001",
+  "masterSha256": "99a35e1d807948b589be145b29123df2001a2f0a1b3f2c20453794e1099708a6",
+  "approvedSha256": "6eb3342a44f0f64e19a47d9446ae78701ad0490a20512352d900ab525a979b6d",
+  "recipeSha256": "aa50c667ec2c9e097dc866fef6bb3e63b67ff31c92182f85ec31ade42d06b69e",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.9473333333333334,
+    "samplePeakDb": -12.93698231052053,
+    "rmsDb": -28.519413788877046,
+    "truePeakDb": -12.94,
+    "integratedLufs": -29.92,
+    "decodedFrames": 45472
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "74e7fbe8023615f57d8dbd1cba80ce3c7ecca2b4a21bc5b246982a1a88d1742f",
+  "backupSha256": "74e7fbe8023615f57d8dbd1cba80ce3c7ecca2b4a21bc5b246982a1a88d1742f",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/machine/focus_install_v2/r0001/focus_install_v2.aup3",
+    "backup": "backups/machine/focus_install_v2/r0001/focus_install_v2.aup3",
+    "master": "masters/machine/focus_install_v2/r0001/master.wav",
+    "export": "exports/machine/focus_install_v2/r0001/focus_install_v2.ogg",
+    "recipe": "masters/machine/focus_install_v2/r0001/recipe.json",
+    "authoringInputs": "masters/machine/focus_install_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "0c48991d60aabb5dae1d4e2d3549288867c98e47e6e364d53eddee65cdea97d7",
+    "stems": [
+      {
+        "path": "masters/machine/focus_install_v2/r0001/01_hollow_seat.wav",
+        "sha256": "4898a69594eada2799ad5aecd85f7bac2931954e21f31e9eadac70717df91fd8"
+      },
+      {
+        "path": "masters/machine/focus_install_v2/r0001/02_soft_insertion.wav",
+        "sha256": "cd6f46a38df9a117e00ee85c626b1976bd151237ff6886997e6d54836f61e77e"
+      },
+      {
+        "path": "masters/machine/focus_install_v2/r0001/03_settling_ring.wav",
+        "sha256": "df73e4dd2b6a69079ff51cb856045d1ada4050411d162fc3643cb3aa1ceceabc"
+      },
+      {
+        "path": "masters/machine/focus_install_v2/r0001/04_settling_glint.wav",
+        "sha256": "f069116cbab764d977aa8ba6e2817dc67c35dd6d12ab927eefd34d42fb8abf72"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "6eb3342a44f0f64e19a47d9446ae78701ad0490a20512352d900ab525a979b6d"
+  }
+}

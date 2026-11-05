@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "id": "wineglass-cast-20261101",
+  "title": "Essence Ascendance - wineglass cast",
+  "description": "A new cast direction: one light fork-tine tap on the bowl of a wineglass. A tiny contact and a clear tapering glass ring. The approved sounds are unchanged; this new candidate awaits review.",
+  "items": [
+    {
+      "asset": "cast_wineglass",
+      "family": "weapon",
+      "scope": "world",
+      "title": "Wineglass tink"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "id": "cast",
+      "title": "A single wineglass tink",
+      "assets": [
+        "cast_wineglass"
+      ]
+    },
+    {
+      "id": "repeat",
+      "title": "Repeated taps with overlapping rings"
+    }
+  ],
+  "listening": [
+    {
+      "id": "overlapping-taps",
+      "title": "Eight taps at 400 ms intervals",
+      "description": "Complete glass tails overlap at their original levels. A listening demonstration, not an in-game test.",
+      "group": "repeat",
+      "path": "previews/wineglass-cast-20261101/overlapping-taps.wav",
+      "sha256": "eadffd4b744cfd07308788d9083aeb5f9f6ea99fe84e2040955418717fe1d22e"
+    }
+  ]
+}

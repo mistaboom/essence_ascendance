@@ -67,6 +67,7 @@ public final class EssenceAscendanceNeoForgeClient {
     public EssenceAscendanceNeoForgeClient(
             IEventBus modBus
     ) {
+        EssenceAscendanceClient.registerEntityRenderers();
         //? if >=26.1.2
         /*modBus.addListener(this::registerItemModelProperties);*/
         //? if >=26.1.2

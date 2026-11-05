@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "assetId": "mobility_rush_v2",
+  "seed": 26110121,
+  "sampleRate": 48000,
+  "duration": 0.52,
+  "peakDb": -12,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:mobility.boost"
+    ],
+    "role": "mobility",
+    "description": "Longer forward rush of air; same material family as enhanced jumps.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Rush"
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 250,
+      "highHz": 4400,
+      "spectralTiltDbOct": -3,
+      "gain": 0.3,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_forward_air",
+      "lowHzEnd": 120,
+      "highHzEnd": 1900,
+      "lengthSeconds": 0.5
+    },
+    {
+      "type": "tone",
+      "frequency": 110,
+      "harmonics": [
+        1,
+        0.3,
+        0.07
+      ],
+      "gain": 0.1,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.4,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_forward_pressure",
+      "frequencyEnd": 55,
+      "lengthSeconds": 0.25
+    },
+    {
+      "type": "noise",
+      "lowHz": 800,
+      "highHz": 2600,
+      "spectralTiltDbOct": -3,
+      "gain": 0.055,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_trailing_air",
+      "startSeconds": 0.12,
+      "lengthSeconds": 0.4
+    }
+  ]
+}

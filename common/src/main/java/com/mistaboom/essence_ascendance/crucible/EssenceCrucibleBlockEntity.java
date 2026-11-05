@@ -156,12 +156,12 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
         return new MachineVisualState.Crucible(processingVisualActive, transferringPlayers().stream().limit(32).map(id -> {
                     var data = EssenceSavedData.get(((ServerLevel) level).getServer()).getPlayerData(id);
-                    var f = EssenceCrucibleChannelService.feedback(this, id);
+                    long transferred = EssenceCrucibleChannelService.transferred(this, id);
                     return new MachineVisualState.PlayerStream(id, recentTransferTypes.getOrDefault(id, 0) & data.crucibleChannelSelection(),
-                            ConcurrentChannelScheduler.sampledPerSecond(f.actual()).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValue());
+                            ConcurrentChannelScheduler.sampledPerSecond(transferred).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValue());
                 }).filter(s -> s.essenceMask() != 0 && s.rate() > 0).toList(),
                 structure.stats().transferRatePerSecond(), predominant, fill, pylons, inputs,
-                supplyingInfuserVisual());
+                supplyingInfuserVisual(), EssenceCrucibleChannelService.transferringToInfuser(this));
     }
 
     /** Observer-only aggregation of registered, currently usable Infuser demand. */
@@ -358,8 +358,17 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         recentTransfers.remove(player); recentTransferTypes.remove(player); setChanged();
     }
     public void setChannelingRequested(ServerPlayer player, boolean active) {
-        if (!canPlayerUse(player) || ownerId == null) return;
-        if (active) startChanneling(player); else stopChanneling(player.getUUID());
+        if (!canPlayerUse(player) || ownerId == null) {
+            com.mistaboom.essence_ascendance.network.FeedbackDispatch.player(player, "interface.denied"); return;
+        }
+        boolean previous=EssenceCrucibleChannelService.isChanneling(this,player.getUUID());
+        if(active) {
+            if(!startChanneling(player)) com.mistaboom.essence_ascendance.network.FeedbackDispatch.player(player, "interface.denied");
+            else if(!previous) com.mistaboom.essence_ascendance.network.FeedbackDispatch.player(player, "channel.start");
+        } else if(previous) {
+            stopChanneling(player.getUUID());
+            com.mistaboom.essence_ascendance.network.FeedbackDispatch.player(player, "channel.stop");
+        }
     }
 
     @Override public void bindingChanged() {
@@ -544,6 +553,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             processingVisualActive = false;
             return;
         }
+        com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0;
         resetSmartRoundRobinWait();
         dissolutionSlotCursor = activeSlots <= 1
@@ -1048,6 +1058,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 ? tag.getCompound(MachineVisualState.TAG) : null;
         if (visual != null) {
             clientVisualState = MachineVisualState.Crucible.read(visual);
+            com.mistaboom.essence_ascendance.audio.AudioSourceBridge.changed(this);
             return;
         }
         //? if >=26.1.2

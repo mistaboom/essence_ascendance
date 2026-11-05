@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "assetId": "intercept_tok_b_v2",
+  "seed": 26111115,
+  "sampleRate": 48000,
+  "duration": 0.2,
+  "peakDb": -12,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:projectile.intercept"
+    ],
+    "role": "projectile",
+    "description": "Dry wood-on-wood practice-sword tok; no metallic ring. Matched small variation for repeated use.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Projectile interception - variation B",
+    "variationFamily": "intercept_tok_v2",
+    "variationCents": 33
+  },
+  "layers": [
+    {
+      "preset": "wood",
+      "name": "01_wood_contact",
+      "frequency": 351.6393106153015,
+      "gain": 0.35,
+      "lengthSeconds": 0.18
+    },
+    {
+      "preset": "wood",
+      "name": "02_second_surface",
+      "frequency": 479.04485793968615,
+      "gain": 0.14,
+      "startSeconds": 0.003,
+      "lengthSeconds": 0.16
+    },
+    {
+      "preset": "tap",
+      "name": "03_dry_edge",
+      "lowHz": 600,
+      "highHz": 3000,
+      "gain": 0.09,
+      "lengthSeconds": 0.025
+    }
+  ]
+}

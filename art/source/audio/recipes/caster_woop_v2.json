@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "assetId": "caster_woop_v2",
+  "seed": 26110106,
+  "sampleRate": 48000,
+  "duration": 0.28,
+  "peakDb": -10,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "role": "weapon",
+    "description": "Quick low rounded engine woop, with midrange body for small speakers.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Magic cast - low woop"
+  },
+  "layers": [
+    {
+      "preset": "body",
+      "name": "01_engine_woop",
+      "frequency": 105,
+      "frequencyPoints": [
+        [
+          0,
+          155
+        ],
+        [
+          0.12,
+          115
+        ],
+        [
+          0.55,
+          73
+        ],
+        [
+          0.85,
+          102
+        ],
+        [
+          1,
+          88
+        ]
+      ],
+      "harmonics": [
+        1,
+        0.45,
+        0.18,
+        0.06
+      ],
+      "fm": {
+        "rate": 23,
+        "depth": 0.22
+      },
+      "gain": 0.27,
+      "lengthSeconds": 0.24
+    },
+    {
+      "preset": "air",
+      "name": "02_air_push",
+      "lowHz": 300,
+      "highHz": 2300,
+      "highHzEnd": 900,
+      "gain": 0.13,
+      "lengthSeconds": 0.21
+    },
+    {
+      "preset": "ceramic",
+      "name": "03_mid_body",
+      "frequency": 240,
+      "gain": 0.065,
+      "lengthSeconds": 0.12
+    }
+  ]
+}

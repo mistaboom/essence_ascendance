@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "assetId": "cast_tonal_b_v3",
+  "seed": 26110212,
+  "sampleRate": 48000,
+  "duration": 0.34,
+  "peakDb": -15,
+  "presetLibrary": "source/audio/presets/revision-v3.json",
+  "design": {
+    "title": "Magic cast - singing woop B",
+    "description": "Matched pitched cast with a slightly quicker crest and nine-cent tuning variation; same short musical identity.",
+    "cueIds": [
+      "essence_ascendance:weapon.cast.release"
+    ],
+    "provenance": "Original deterministic modal, harmonic and filtered-noise synthesis; no third-party samples.",
+    "review": "pending user listening",
+    "role": "weapon",
+    "variationFamily": "cast_tonal_v3",
+    "revisionOf": [
+      "caster_woop_b_v2"
+    ],
+    "repetitionIntervalSeconds": 0.42
+  },
+  "layers": [
+    {
+      "name": "01_singing_woop",
+      "preset": "rounded_tonal",
+      "frequency": 196,
+      "frequencyPoints": [
+        [
+          0,
+          165.66901280023566
+        ],
+        [
+          0.14,
+          197.0215794481293
+        ],
+        [
+          0.39,
+          248.22708586184208
+        ],
+        [
+          0.68,
+          197.0215794481293
+        ],
+        [
+          1,
+          197.0215794481293
+        ]
+      ],
+      "gain": 0.28,
+      "lengthSeconds": 0.32
+    },
+    {
+      "name": "02_octave_presence",
+      "preset": "rounded_tonal",
+      "frequency": 392,
+      "frequencyPoints": [
+        [
+          0,
+          331.3380256004713
+        ],
+        [
+          0.14,
+          394.0431588962586
+        ],
+        [
+          0.39,
+          496.45417172368417
+        ],
+        [
+          0.68,
+          394.0431588962586
+        ],
+        [
+          1,
+          394.0431588962586
+        ]
+      ],
+      "harmonics": [
+        1,
+        0.12,
+        0.025
+      ],
+      "gain": 0.07,
+      "lengthSeconds": 0.3,
+      "phase": 0.4
+    },
+    {
+      "name": "03_pitched_resonance",
+      "preset": "resonant_energy",
+      "frequency": 394.0431588962586,
+      "gain": 0.032,
+      "startSeconds": 0.03,
+      "lengthSeconds": 0.26,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.08,
+          0.9
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "04_small_air_release",
+      "type": "noise",
+      "lowHz": 500,
+      "highHz": 1800,
+      "spectralTiltDbOct": -5,
+      "gain": 0.007,
+      "lengthSeconds": 0.16,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.08,
+          0.7
+        ],
+        [
+          0.2,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    }
+  ]
+}

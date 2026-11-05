@@ -15,7 +15,7 @@ import java.util.UUID;
 public final class MachineVisualState {
     public static final String TAG = "machine_visual";
     public static final Crucible IDLE_CRUCIBLE = new Crucible(false, List.of(), 0L, -1, 0,
-            List.of(), List.of(), false);
+            List.of(), List.of(), false, false);
     public static final Pylon IDLE_PYLON = new Pylon(null,
             new Focus(Host.PYLON, false, null, false, 0L));
     public static final Infuser IDLE_INFUSER = new Infuser(null, false, 11, 0, 1, 0L,
@@ -34,7 +34,7 @@ public final class MachineVisualState {
     public record Crucible(boolean dissolving, List<PlayerStream> playerStreams,
                            long transferRatePerSecond, int predominantEssenceIndex,
                            int reservoirFillBasisPoints, List<BlockPos> activePylons,
-                           List<ResourceLocation> inputItems, boolean supplyingInfuser) {
+                           List<ResourceLocation> inputItems, boolean supplyingInfuser, boolean transferringToInfuser) {
         public Crucible {
             playerStreams = List.copyOf(playerStreams);
             if (playerStreams.size() > 32) throw new IllegalArgumentException("Too many observer streams");
@@ -51,6 +51,7 @@ public final class MachineVisualState {
             CompoundTag tag = new CompoundTag();
             tag.putBoolean("dissolving", dissolving);
             tag.putBoolean("supplying_infuser", supplyingInfuser);
+            tag.putBoolean("infuser_transfer", transferringToInfuser);
             net.minecraft.nbt.ListTag players = new net.minecraft.nbt.ListTag();
             for (var stream : playerStreams) {
                 var entry = new CompoundTag(); com.mistaboom.essence_ascendance.data.NbtVersionCompat.putUUID(entry, "player", stream.player()); entry.putInt("types", stream.essenceMask()); entry.putLong("rate", stream.rate()); players.add(entry);
@@ -82,7 +83,7 @@ public final class MachineVisualState {
             }
             return new Crucible(tag.getBoolean("dissolving"), players,
                     tag.getLong("rate"), tag.getInt("predominant"), tag.getInt("fill"),
-                    pylons, inputs, tag.getBoolean("supplying_infuser"));
+                    pylons, inputs, tag.getBoolean("supplying_infuser"), tag.getBoolean("infuser_transfer"));
         }
     }
 

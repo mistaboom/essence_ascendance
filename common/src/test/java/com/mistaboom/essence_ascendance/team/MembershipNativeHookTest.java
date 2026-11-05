@@ -63,7 +63,7 @@ public final class MembershipNativeHookTest {
                 new com.mistaboom.essence_ascendance.network.TeamInterfacePayload(73, receipt, 0, 0, 1,
                         java.util.List.of(), java.util.List.of(), 0, 0),
                 new com.mistaboom.essence_ascendance.network.ChannelSessionsPayload(1,
-                        net.minecraft.resources.ResourceLocation.parse("minecraft:overworld"), 0, 0, java.util.List.of()),
+                        net.minecraft.resources.ResourceLocation.parse("minecraft:overworld"), 0, 0, 0, java.util.List.of()),
                 new com.mistaboom.essence_ascendance.network.InfuserSoulbindPromptPayload(73, receipt));
         for (var request : c2s) for (var response : s2c)
             if (request.type().id().equals(response.type().id()))

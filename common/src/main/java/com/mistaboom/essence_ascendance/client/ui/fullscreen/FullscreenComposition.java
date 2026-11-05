@@ -311,7 +311,7 @@ public final class FullscreenComposition {
         }
         Control control = activeControls().stream().filter(c -> c.id().equals(focusedId())).findFirst().orElse(null);
         if (control != null && (key == 257 || key == 335 || key == 32)) {
-            if (control.enabled()) control.action().run();
+            if (control.enabled()) activate(control);
             return true;
         }
         if (focusScope != null) { overlay(focusScope).input().key(key, scan, modifiers); return true; }
@@ -335,13 +335,17 @@ public final class FullscreenComposition {
                 control.bounds().contains(x, y), activeControls().contains(control) && keyboardFocused(control.id()),
                 control.style(), control.accent());
     }
+    private void activate(Control control) {
+        com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this, control.id());
+        control.action().run();
+    }
     private boolean clickControls(List<Control> controls, double x, double y, int button) {
         for (int index = controls.size() - 1; index >= 0; index--) {
             Control control = controls.get(index);
             if (!control.bounds().contains(x, y)) continue;
             if (control.enabled()) {
                 setFocus(control.id());
-                if (button == 0) control.action().run();
+                if (button == 0) activate(control);
             }
             return true;
         }

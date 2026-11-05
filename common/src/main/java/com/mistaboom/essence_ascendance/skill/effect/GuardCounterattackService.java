@@ -7,8 +7,6 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -50,8 +48,6 @@ public final class GuardCounterattackService {
             if (state.ledger.grant(event, context.now(), 1, 1, duration, true)) {
                 com.mistaboom.essence_ascendance.network.CombatVisualFeedback.guardResponse(
                         player.serverLevel(), player, duration);
-                player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.NOTE_BLOCK_CHIME.value(),
-                        SoundSource.PLAYERS, .35F, 1.5F);
             }
         }
     }

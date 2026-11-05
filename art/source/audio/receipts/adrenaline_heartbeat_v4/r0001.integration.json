@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "assetId": "adrenaline_heartbeat_v4",
+  "revision": "r0001",
+  "masterSha256": "d746572f477f312f9d4e8d32e9bbe10131aada7a7074f5b9f5fe90cad518675c",
+  "approvedSha256": "6363f137803116d99a30859f51b0727e4cfa6e61880a1d8b53caebd932185529",
+  "recipeSha256": "1a468add92bd632973108c8791acc9096911572d10c7ac35e5c788279653da81",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.4023333333333333,
+    "samplePeakDb": -7.29000786092055,
+    "rmsDb": -21.489660504030013,
+    "truePeakDb": -7.29,
+    "integratedLufs": -22.85,
+    "decodedFrames": 19312
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "5fb99492e8a6b1ee28250cff09be8a46541944172e12aef503fa7dd4e3878d25",
+  "backupSha256": "5fb99492e8a6b1ee28250cff09be8a46541944172e12aef503fa7dd4e3878d25",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/vitality/adrenaline_heartbeat_v4/r0001/adrenaline_heartbeat_v4.aup3",
+    "backup": "backups/vitality/adrenaline_heartbeat_v4/r0001/adrenaline_heartbeat_v4.aup3",
+    "master": "masters/vitality/adrenaline_heartbeat_v4/r0001/master.wav",
+    "export": "exports/vitality/adrenaline_heartbeat_v4/r0001/adrenaline_heartbeat_v4.ogg",
+    "recipe": "masters/vitality/adrenaline_heartbeat_v4/r0001/recipe.json",
+    "authoringInputs": "masters/vitality/adrenaline_heartbeat_v4/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "4ed5328df2e94204ac0d7180562aae45aae75aa6a4196f47dc06cc9a29f87808",
+    "stems": [
+      {
+        "path": "masters/vitality/adrenaline_heartbeat_v4/r0001/01_lub_valve_body.wav",
+        "sha256": "7f36b80890dc8ec8c4f67c198c73e1084870ed1e06d99c4b918b3d4131d6dbec"
+      },
+      {
+        "path": "masters/vitality/adrenaline_heartbeat_v4/r0001/02_lub_chest_texture.wav",
+        "sha256": "b09a3634f30517e4e971529a80bd34021f1b828671dc0ff9e82a5f515d55f412"
+      },
+      {
+        "path": "masters/vitality/adrenaline_heartbeat_v4/r0001/03_lub_low_weight.wav",
+        "sha256": "c1fd534d434aae2bb1ac1fc24967a1a2e4625976c6a806e12d1ec1d9b23d7148"
+      },
+      {
+        "path": "masters/vitality/adrenaline_heartbeat_v4/r0001/04_dub_valve_body.wav",
+        "sha256": "2a8333a068fe928b078636680c04b0d04f285a30e84949c7dac4beae5110ea0d"
+      },
+      {
+        "path": "masters/vitality/adrenaline_heartbeat_v4/r0001/05_dub_chest_texture.wav",
+        "sha256": "17d96736b224a7ccd45011603179efe1352d88d527b960585ab9b6e130525c98"
+      },
+      {
+        "path": "masters/vitality/adrenaline_heartbeat_v4/r0001/06_dub_low_weight.wav",
+        "sha256": "d898c84b92f1e87cf9ff1ac9fca79a445f9f073566e99df92462d722030031d7"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "the others are great."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "6363f137803116d99a30859f51b0727e4cfa6e61880a1d8b53caebd932185529"
+  }
+}

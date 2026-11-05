@@ -14,6 +14,7 @@ def fixture = gradle.ext.essenceNativeFixture
 def modern = rootProject.targetCatalog.versions[target.minecraft].resourceFormat == '26.1'
 def expectedRun
 switch (fixture) {
+    case 'audio': expectedRun = selected.endsWith(':runClient') ? 'runClient' : 'runServer'; break
     case 'projectile': expectedRun = target.loader == 'neoforge' && !modern ? 'runClient' : 'runServer'; break
     case 'membership': expectedRun = 'runServer'; break
     case 'guard-movement':

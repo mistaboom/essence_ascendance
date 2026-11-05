@@ -1,0 +1,518 @@
+{
+  "schema": 1,
+  "id": "prompt7-20261101",
+  "date": "2026-11-01 America/Anchorage",
+  "description": "Exact user-approved sound selection for development integration. This freezes take identity, purpose and expected Ogg bytes; art/audio-manifest.json remains the sole approval/source owner. It is not a runtime catalog or promotion receipt.",
+  "items": [
+    {
+      "asset": "beam_player_build_v2",
+      "revision": "r0001",
+      "purpose": "demonstration",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "c232c82b900708afbe7f691e4c37070baa1d457adec12bf50225ce55c98cecfa"
+    },
+    {
+      "asset": "beam_infuser_build_v2",
+      "revision": "r0001",
+      "purpose": "demonstration",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "d89b3120b2feee033cf0a97a646b78f5c227f71299839b699bfa4b7707352822"
+    },
+    {
+      "asset": "beam_player_p0_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "d6f4f20b3e25e5e3f57b42b5a470bc2394a07ba2c117e3f18d85afc1a9a00663"
+    },
+    {
+      "asset": "beam_player_p1_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "657c85ea2705a3973663b391a8cbe1470513242601c04ffbcf693522d652ddef"
+    },
+    {
+      "asset": "beam_player_p2_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "fd0914c802c08e0d9527d229b08d9896f03b4b9b9ab8b8198c33f0dd52dab2b9"
+    },
+    {
+      "asset": "beam_player_p3_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "d297a1a89f0c4b2045778873d61fbf027e448de030f5572f6b75009753aed785"
+    },
+    {
+      "asset": "beam_player_p4_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "91de69b77f8fa00047a8a50c008ac471fc5916439e6417b4e891b81e7a3bc2d3"
+    },
+    {
+      "asset": "beam_player_p5_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "5d2273cb6f70f97557bfcc5530a5323c1bd3f19569b4b4d1505f967154156ac0"
+    },
+    {
+      "asset": "beam_player_p6_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "4e81403b6ba17be74021a22b00a2e5a0b079e29a6afa7dbb0c83ca4fbf7ad427"
+    },
+    {
+      "asset": "beam_player_p7_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "7af7e3ad0c7e3a8acfab6d1108b77a7e0b72ee161ee3714ae885e92712dcdf16"
+    },
+    {
+      "asset": "beam_player_p8_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:channel.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "72636a1d260fd6fd56007b71486e7e9183e01a667cc59f291b68826c0d4c343e"
+    },
+    {
+      "asset": "beam_infuser_p0_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "51fb9b1cc239a52c847b8a5037668c61148fdeeaa377bbedb10d183c8a8e89da"
+    },
+    {
+      "asset": "beam_infuser_p1_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "e5c7679fc218c03c8aa31936380704bb0680e089a0ca53862c92a1126d796ea5"
+    },
+    {
+      "asset": "beam_infuser_p2_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "e61d0467828a32a8018ee408773c92177d97acf8f1c9d9fe69837f60b0e2b042"
+    },
+    {
+      "asset": "beam_infuser_p3_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "201ab18288297ec11e558dc1c69c167046292a9fdf78f56532c1bfa9f78a9453"
+    },
+    {
+      "asset": "beam_infuser_p4_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "58cabe98242b47a822e71f4d2f14a3edd65c1faa5e57b1b2a8ba73483212a5f4"
+    },
+    {
+      "asset": "beam_infuser_p5_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "1bee7ded69e7ce9306ed9c7e2cfb32f59dacfa7237720e00907bc80fdd8bbe86"
+    },
+    {
+      "asset": "beam_infuser_p6_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "d0f51062397447fa772c1313f7ed0b685d91e90e08d128107f9a6c97499483a9"
+    },
+    {
+      "asset": "beam_infuser_p7_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "3a55f853c4b8ffabd091001a7bea26be81dc7074a2328317439ca3d066bfb9fa"
+    },
+    {
+      "asset": "beam_infuser_p8_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:machine.resonance.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "c1bbfb93c4cd6204cd15913f29109d1a62227b2d2ac577fa99b7857a79853e2d"
+    },
+    {
+      "asset": "ui_accept_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:interface.acknowledge"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "7021cfbe3189589da659cdd7640004bef315bb95a4128b8813973f9390ccb3f7"
+    },
+    {
+      "asset": "ui_deny_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:interface.denied"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "9c29fb9a1a5c27481d14bb14bb1e545cb7793ecde2dee733bad7fda1b159448f"
+    },
+    {
+      "asset": "nexus_transaction_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:progression.purchase"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "efc9ca31201b9d9b49c8b660c29ac7e0bc46db8b827d5b397a0167b540a67f70"
+    },
+    {
+      "asset": "focus_install_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [],
+      "proposedCueIds": [
+        "essence_ascendance:machine.focus.install"
+      ],
+      "sourceExportSha256": "6eb3342a44f0f64e19a47d9446ae78701ad0490a20512352d900ab525a979b6d"
+    },
+    {
+      "asset": "fire_catch_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:element.fire.apply"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "e97c985d6027cc4e2710be1327642385a96dbad6a15d8bd8635fe91ead576edb"
+    },
+    {
+      "asset": "combustion_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:element.fire.burst"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "3a603a8f59760a9ad972e4e24eba2de5e1cf8ffc0a68918e0953022c2d906418"
+    },
+    {
+      "asset": "freeze_gust_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:element.ice.freeze"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "961cca100925145eb2fb3aca5327c8c5f83b2a9e21bb57559958f9c8b0a75e49"
+    },
+    {
+      "asset": "ice_shatter_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:element.ice.shatter"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "a3b891837bc70be797506256b80e18f468023a1a3ae5bfc3b79b6985b5b94221"
+    },
+    {
+      "asset": "static_snap_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:element.arc"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "accde3aeeecb42d14705083af61b384932af05d6e730e4fae6f4b19c15c9d751"
+    },
+    {
+      "asset": "root_bind_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:element.root"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "d9ee796175fc1671d1396fc90f7ef83d76de264a278e14a8d72bad915042f46d"
+    },
+    {
+      "asset": "redirect_clang_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:projectile.redirect"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "81c9c44a25dd36317875b070ac3d82d25ed6a0fbdf4050f1416810ca74e0cd13"
+    },
+    {
+      "asset": "pierce_thuck_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:projectile.pierce"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "2e2d0cd46518c8d5d90aa7e1ebf5002a160d4769981cae6349a1ec4ff82f388e"
+    },
+    {
+      "asset": "intercept_tok_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:projectile.intercept"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "44dbc86113e19ee793e903b936a2f4cc4f89a51fabe3c09ab14897fe8d3f14be"
+    },
+    {
+      "asset": "riposte_ready_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:combat.guard.ready"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "1df74887abe933a33064679a471f64c0accd53ed18e37efac8098b68af78eac1"
+    },
+    {
+      "asset": "counter_release_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:combat.guard.release"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "8b379ad6c3d4693de56bd14b7e97b2cd4995a6f24762d99f226e49043e9d1bcb"
+    },
+    {
+      "asset": "ward_break_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:ward.break"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "3ee71341daa10c393cefab404624fc87e96998a918e61dfd337e8d8a6dcad975"
+    },
+    {
+      "asset": "mobility_jump_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:mobility.launch"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "0a45a1849be22c222d1a35b049cda98a889a231736d7468367e3d031c2663959"
+    },
+    {
+      "asset": "mobility_rush_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:mobility.boost"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "b0ad2a26116f8b3faa957ddf744e228cb1d2d1a3da64442ed86a62d69582244f"
+    },
+    {
+      "asset": "flight_wind_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:mobility.thrust.body"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "12b13310c1bd124edef7a26009d926fbdb0d39d0820ed9e2b257d414607cca7a"
+    },
+    {
+      "asset": "companion_recall_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:utility.recall"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "c36e1150cea41e5edef6cf02067200899bfdcc361b33cdba3d2f56e8123569a2"
+    },
+    {
+      "asset": "fire_catch_b_v2",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:element.fire.apply"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "162f11b4d12cdb841cb381a5bdb508a5d3d3a64ac9c7b36c05836d9c6a903cba"
+    },
+    {
+      "asset": "intercept_tok_b_v2",
+      "revision": "r0002",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:projectile.intercept"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "c2f163e60ca8da7531f0f766eab1ba7b52a0a8d06e09793c9e9166816e13c7d3"
+    },
+    {
+      "asset": "ui_key_clack_v3",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:ui.press"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "c4842dc03114c9699672c93bbc2f3a09d95689cb24e512e5677cea4066628e31"
+    },
+    {
+      "asset": "ui_key_clack_b_v3",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:ui.press"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "e66f875638785e726c98b51e35009a35fded65a95a05787639435cf75938563a"
+    },
+    {
+      "asset": "ascendance_chimes_v4",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:progression.ascend"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "8795ebf8e4954408a91a1a8721a4bdbfc7046121c4de521443ddf2156d87cde6"
+    },
+    {
+      "asset": "awakening_chimes_v4",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:progression.ascend"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "1c36200ec8f4c144c637734da1cce3a7918039439211d0079b3385c92b6ee8ca"
+    },
+    {
+      "asset": "adrenaline_heartbeat_v4",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:vitality.surge"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "6363f137803116d99a30859f51b0727e4cfa6e61880a1d8b53caebd932185529"
+    },
+    {
+      "asset": "death_defiance_v4",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:vitality.rescue"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "b278b5ce9138a1d895c18aaec8c826767f796a571d25b7df08942bab56410df2"
+    },
+    {
+      "asset": "magic_impact_soft_v5",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:weapon.bolt.impact"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "6ceaabdc9dc0d5d58fea6eeb1096aae349560dda327ebe66de530bd2cd834fe0"
+    },
+    {
+      "asset": "magic_impact_soft_b_v5",
+      "revision": "r0001",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:weapon.bolt.impact"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "96a6b764615c8909632e14a62b1f785bebf69185a17f96437ca48a4db1b8d674"
+    },
+    {
+      "asset": "cast_wineglass",
+      "revision": "r0002",
+      "purpose": "runtime",
+      "cueIds": [
+        "essence_ascendance:weapon.cast.release"
+      ],
+      "proposedCueIds": [],
+      "sourceExportSha256": "8810c7d7fa3b078f585bd9ac2a0a00486bb812c066a6bcccf317bfbbe879d097"
+    }
+  ]
+}

@@ -29,6 +29,9 @@ public final class EssenceText {
     private EssenceText() {
     }
 
+    /** Catalog keys are build-validated against the single language owner. */
+    public static MutableComponent audioSubtitle(String key) { return Component.translatable(key); }
+
     public static MutableComponent gui(String path, Object... args) {
         return Component.translatable("gui." + MOD_ID + "." + path, args);
     }

@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "assetId": "fire_catch_v2",
+  "revision": "r0001",
+  "masterSha256": "f994510afb4d6b6cfe99ad1979d4ea2e85077edfd186ef5eb5a89cf684ab1f93",
+  "approvedSha256": "e97c985d6027cc4e2710be1327642385a96dbad6a15d8bd8635fe91ead576edb",
+  "recipeSha256": "0db653eb8b71759a7adf62005f49bdd013e9373f7b811e7021d41e8bed16b028",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.47733333333333333,
+    "samplePeakDb": -17.407931452453667,
+    "rmsDb": -32.15471496082399,
+    "truePeakDb": -17.41,
+    "integratedLufs": -31.25,
+    "decodedFrames": 22912
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "a9f1b8fd1d4fa4182a4be9fed5e4f00e4898558b414a18b5aee63302085f502f",
+  "backupSha256": "a9f1b8fd1d4fa4182a4be9fed5e4f00e4898558b414a18b5aee63302085f502f",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/element/fire_catch_v2/r0001/fire_catch_v2.aup3",
+    "backup": "backups/element/fire_catch_v2/r0001/fire_catch_v2.aup3",
+    "master": "masters/element/fire_catch_v2/r0001/master.wav",
+    "export": "exports/element/fire_catch_v2/r0001/fire_catch_v2.ogg",
+    "recipe": "masters/element/fire_catch_v2/r0001/recipe.json",
+    "authoringInputs": "masters/element/fire_catch_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "3a2a4e203afbca02587538427d963286bd063b8f9e4646ee74150bddc1d5409f",
+    "stems": [
+      {
+        "path": "masters/element/fire_catch_v2/r0001/01_flame_catch.wav",
+        "sha256": "9253dad621374ca1963248c837394cc7ae11898ef5540573973445b41cbaea75"
+      },
+      {
+        "path": "masters/element/fire_catch_v2/r0001/02_crackle_near.wav",
+        "sha256": "476d71cfb9f536c5f4b81fa043285eebe8b5aa38be26875e70d786a68ecca4fe"
+      },
+      {
+        "path": "masters/element/fire_catch_v2/r0001/03_crackle_tail.wav",
+        "sha256": "1dff1b850d6bf1884bc93367f2bcef18f472268a71421f82a4a78e8407f92c1a"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "e97c985d6027cc4e2710be1327642385a96dbad6a15d8bd8635fe91ead576edb"
+  }
+}

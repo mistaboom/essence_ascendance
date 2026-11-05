@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "assetId": "ward_break_v2",
+  "seed": 26110118,
+  "sampleRate": 48000,
+  "duration": 0.62,
+  "peakDb": -10,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:ward.break"
+    ],
+    "role": "guard",
+    "description": "Hollow defensive fracture and released pressure, darker than ice shatter.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Shattering Ward"
+  },
+  "layers": [
+    {
+      "preset": "ceramic",
+      "name": "01_hollow_fracture",
+      "frequency": 275,
+      "gain": 0.29,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.15
+        },
+        {
+          "ratio": 1.38,
+          "gain": 0.4,
+          "decaySeconds": 0.1
+        },
+        {
+          "ratio": 2.7,
+          "gain": 0.16,
+          "decaySeconds": 0.05
+        }
+      ],
+      "lengthSeconds": 0.51
+    },
+    {
+      "preset": "tap",
+      "name": "02_shell_crack",
+      "lowHz": 500,
+      "highHz": 4300,
+      "gain": 0.19,
+      "lengthSeconds": 0.055
+    },
+    {
+      "preset": "air",
+      "name": "03_pressure_release",
+      "lowHz": 130,
+      "highHz": 1600,
+      "gain": 0.22,
+      "startSeconds": 0.025,
+      "lengthSeconds": 0.59
+    }
+  ]
+}

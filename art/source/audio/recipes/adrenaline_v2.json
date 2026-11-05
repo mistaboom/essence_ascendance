@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "assetId": "adrenaline_v2",
+  "seed": 26110119,
+  "sampleRate": 48000,
+  "duration": 0.63,
+  "peakDb": -12,
+  "presetLibrary": "source/audio/presets/playful-v2.json",
+  "design": {
+    "cueIds": [
+      "essence_ascendance:vitality.surge"
+    ],
+    "role": "vitality",
+    "description": "One rounded double pulse with a slight breath; no persistent heartbeat loop.",
+    "levelIntent": "important private activation",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Adrenaline pulse"
+  },
+  "layers": [
+    {
+      "preset": "body",
+      "name": "01_heart_lub",
+      "frequency": 76,
+      "frequencyPoints": [
+        [
+          0,
+          92
+        ],
+        [
+          0.22,
+          68
+        ],
+        [
+          1,
+          58
+        ]
+      ],
+      "gain": 0.24,
+      "lengthSeconds": 0.19
+    },
+    {
+      "preset": "body",
+      "name": "02_heart_dub",
+      "frequency": 90,
+      "frequencyEnd": 62,
+      "gain": 0.18,
+      "startSeconds": 0.23,
+      "lengthSeconds": 0.16
+    },
+    {
+      "preset": "air",
+      "name": "03_short_breath",
+      "lowHz": 180,
+      "highHz": 1400,
+      "gain": 0.065,
+      "startSeconds": 0.15,
+      "lengthSeconds": 0.48
+    },
+    {
+      "preset": "wood",
+      "name": "04_body_presence",
+      "frequency": 150,
+      "gain": 0.06,
+      "lengthSeconds": 0.12
+    }
+  ]
+}

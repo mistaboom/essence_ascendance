@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "assetId": "companion_recall_v2",
+  "seed": 26110123,
+  "sampleRate": 48000,
+  "duration": 0.49,
+  "peakDb": -14,
+  "design": {
+    "cueIds": [
+      "essence_ascendance:utility.recall"
+    ],
+    "role": "utility",
+    "description": "Rounded air-fold fwip and tiny friendly settling note.",
+    "levelIntent": "everyday",
+    "provenance": "Original parameterized synthesis; game references inform broad gesture only; no samples or melodies copied.",
+    "review": "pending user listening",
+    "title": "Companion recall"
+  },
+  "layers": [
+    {
+      "type": "noise",
+      "lowHz": 200,
+      "highHz": 2700,
+      "spectralTiltDbOct": -3,
+      "gain": 0.19,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.12,
+          0.65
+        ],
+        [
+          0.28,
+          1
+        ],
+        [
+          0.65,
+          0.45
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "01_air_fold",
+      "lowHzEnd": 150,
+      "highHzEnd": 900,
+      "lengthSeconds": 0.26
+    },
+    {
+      "type": "tone",
+      "frequency": 180,
+      "harmonics": [
+        1,
+        0.3,
+        0.07
+      ],
+      "gain": 0.13,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.1,
+          1
+        ],
+        [
+          0.4,
+          0.65
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "02_fold_body",
+      "frequencyPoints": [
+        [
+          0,
+          150
+        ],
+        [
+          0.45,
+          330
+        ],
+        [
+          1,
+          105
+        ]
+      ],
+      "lengthSeconds": 0.22
+    },
+    {
+      "type": "modal",
+      "frequency": 660,
+      "partials": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "decaySeconds": 0.13
+        },
+        {
+          "ratio": 2.43,
+          "gain": 0.19,
+          "decaySeconds": 0.065
+        },
+        {
+          "ratio": 3.91,
+          "gain": 0.07,
+          "decaySeconds": 0.04
+        }
+      ],
+      "gain": 0.1,
+      "envelope": [
+        [
+          0,
+          0
+        ],
+        [
+          0.007,
+          1
+        ],
+        [
+          0.8,
+          0.5
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "name": "03_friendly_settle",
+      "startSeconds": 0.19,
+      "lengthSeconds": 0.3
+    }
+  ]
+}

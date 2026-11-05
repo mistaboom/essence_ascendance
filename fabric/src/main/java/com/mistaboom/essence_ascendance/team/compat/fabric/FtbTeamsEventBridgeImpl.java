@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.team.compat.fabric;
 
 //? if >=26.1.2
-/*import dev.ftb.mods.ftbteams.api.FTBTeamsAPI;*/
+/*import com.mistaboom.essence_ascendance.team.compat.FtbTeamsMembershipProvider;*/
 //? if >=26.1.2
 /*import dev.ftb.mods.ftbteams.api.fabric.FTBTeamsEvents;*/
 //? if >=26.1.2
@@ -14,25 +14,27 @@ package com.mistaboom.essence_ascendance.team.compat.fabric;
 //? if >=26.1.2
 /*    private FtbTeamsEventBridgeImpl() { }*/
 //? if >=26.1.2
-/*    private static void invalidateCurrent(Consumer<MinecraftServer> invalidate) { var api = FTBTeamsAPI.api(); if (api != null && api.isManagerLoaded()) invalidate.accept(api.getManager().getServer()); }*/
-//? if >=26.1.2
 /*    public static void install(Consumer<MinecraftServer> invalidate) {*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_MANAGER.register(data -> invalidate.accept(data.manager().getServer()));*/
+/*        var changed = FtbTeamsMembershipProvider.teamInvalidation(invalidate);*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_CREATED.register(data -> invalidateCurrent(invalidate));*/
+/*        var managerChanged = FtbTeamsMembershipProvider.managerInvalidation(invalidate);*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_DELETED.register(data -> invalidateCurrent(invalidate));*/
+/*        FTBTeamsEvents.TEAM_MANAGER.register(managerChanged::accept);*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_CHANGED_TEAM.register(data -> invalidateCurrent(invalidate));*/
+/*        FTBTeamsEvents.TEAM_CREATED.register(data -> changed.accept(data.team(), null));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_JOINED_PARTY_TEAM.register(data -> invalidateCurrent(invalidate));*/
+/*        FTBTeamsEvents.TEAM_DELETED.register(data -> changed.accept(data.team(), null));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_LEFT_PARTY_TEAM.register(data -> invalidateCurrent(invalidate));*/
+/*        FTBTeamsEvents.PLAYER_CHANGED_TEAM.register(data -> changed.accept(data.team(), data.previousTeam()));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_TRANSFERRED_OWNERSHIP.register(data -> invalidateCurrent(invalidate));*/
+/*        FTBTeamsEvents.PLAYER_JOINED_PARTY_TEAM.register(data -> changed.accept(data.team(), data.previousTeam()));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_PROPERTIES_CHANGED.register(data -> invalidateCurrent(invalidate));*/
+/*        FTBTeamsEvents.PLAYER_LEFT_PARTY_TEAM.register(data -> changed.accept(data.team(), data.playerTeam()));*/
+//? if >=26.1.2
+/*        FTBTeamsEvents.PLAYER_TRANSFERRED_OWNERSHIP.register(data -> changed.accept(data.team(), null));*/
+//? if >=26.1.2
+/*        FTBTeamsEvents.TEAM_PROPERTIES_CHANGED.register(data -> changed.accept(data.team(), null));*/
 //? if >=26.1.2
 /*    }*/
 //? if >=26.1.2

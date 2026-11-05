@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "assetId": "beam_player_p6_v2",
+  "revision": "r0001",
+  "masterSha256": "fbe7d1930453c0aa35cce5d8a36fe68403bd0ef549d2769e364b76565c1025a6",
+  "approvedSha256": "4e81403b6ba17be74021a22b00a2e5a0b079e29a6afa7dbb0c83ca4fbf7ad427",
+  "recipeSha256": "90a380bf156ff55caa7b216f964594f0e1c109f8ab788e4284e3b50cbcd9624a",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 12.0,
+    "samplePeakDb": -21.392720093476587,
+    "rmsDb": -31.854102081645777,
+    "truePeakDb": -21.39,
+    "integratedLufs": -32.36,
+    "decodedFrames": 576000,
+    "seamDelta": 0.0034218523651361465
+  },
+  "loop": true,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "124ee2df41c7d3e1eaed0bcb103ca82cdea6357ce974207b023ebbe4ec72ebfe",
+  "backupSha256": "124ee2df41c7d3e1eaed0bcb103ca82cdea6357ce974207b023ebbe4ec72ebfe",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/channel/beam_player_p6_v2/r0001/beam_player_p6_v2.aup3",
+    "backup": "backups/channel/beam_player_p6_v2/r0001/beam_player_p6_v2.aup3",
+    "master": "masters/channel/beam_player_p6_v2/r0001/master.wav",
+    "export": "exports/channel/beam_player_p6_v2/r0001/beam_player_p6_v2.ogg",
+    "recipe": "masters/channel/beam_player_p6_v2/r0001/recipe.json",
+    "authoringInputs": "masters/channel/beam_player_p6_v2/r0001/authoring-inputs.json",
+    "authoringInputsSha256": "75523ede68a07ff35a5bcbd07d6d4df9495afddb89084bdc23784c39bf2e8c02",
+    "stems": [
+      {
+        "path": "masters/channel/beam_player_p6_v2/r0001/00_foundation_chime.wav",
+        "sha256": "68ffdafc938d06e2106d8fb71b4f25fa71df2ecc1cf3de14db03b4acfa5526d6"
+      },
+      {
+        "path": "masters/channel/beam_player_p6_v2/r0001/01_pylon_01_chime.wav",
+        "sha256": "dd5289d5ba5164d19cc88118fae338aba601bd54d765aad1264cf6d3f3b52d32"
+      },
+      {
+        "path": "masters/channel/beam_player_p6_v2/r0001/02_pylon_02_chime.wav",
+        "sha256": "410e9bc8a4a5ff67ed40db756fec7a4411352b21c25471b75a618619801823db"
+      },
+      {
+        "path": "masters/channel/beam_player_p6_v2/r0001/03_pylon_03_chime.wav",
+        "sha256": "56cd7e09b84f377307279db35c7ab2b60c3af38dd8c2131e6bb42dcb54b2a6dc"
+      },
+      {
+        "path": "masters/channel/beam_player_p6_v2/r0001/04_pylon_04_chime.wav",
+        "sha256": "67322238801a47658c116f05d6e4249d74e54b85799a9997960ba14e2b0bf323"
+      },
+      {
+        "path": "masters/channel/beam_player_p6_v2/r0001/05_pylon_05_chime.wav",
+        "sha256": "bb9c300af09df60fada3838a9bf4e4d994a7afc208aba0b5f55ffe7efee8014d"
+      },
+      {
+        "path": "masters/channel/beam_player_p6_v2/r0001/06_pylon_06_chime.wav",
+        "sha256": "ebcd16c5dfba361937e884d90dcdfca8395296a406dc67af081c30d082755113"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "4e81403b6ba17be74021a22b00a2e5a0b079e29a6afa7dbb0c83ca4fbf7ad427"
+  }
+}

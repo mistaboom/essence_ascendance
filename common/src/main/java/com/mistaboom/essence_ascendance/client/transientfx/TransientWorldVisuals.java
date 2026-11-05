@@ -30,9 +30,6 @@ public final class TransientWorldVisuals {
 
     public static void init() {
         if (initialized) return;
-        NetworkManager.registerReceiver(NetworkManager.Side.S2C,
-                WorldVisualEventPayload.TYPE, WorldVisualEventPayload.CODEC,
-                (payload, context) -> ClientPacketDispatch.queue(context, () -> accept(payload.event())));
         initialized = true;
     }
 
@@ -60,7 +57,9 @@ public final class TransientWorldVisuals {
     }
 
     /** Local entry point is useful for client-predicted acknowledgements and visual test harnesses. */
-    public static void emit(WorldVisualEvent event) { accept(event); }
+    public static void emit(WorldVisualEvent event) { if (!AscensionAnimation.defer(event)) accept(event); }
+    /** The shared presentation boundary has already resolved ceremony deferral. */
+    public static void emitReady(WorldVisualEvent event) { accept(event); }
 
     private static void accept(WorldVisualEvent event) {
         Minecraft minecraft = Minecraft.getInstance();
@@ -68,7 +67,6 @@ public final class TransientWorldVisuals {
         if (level == null || !level.dimension().location().equals(event.dimension())
                 || WorldVisualRecipes.get(event.recipeId()) == null) return;
         tick();
-        if (AscensionAnimation.defer(event)) return;
         if (AscensionAnimation.ceremony(event)) {
             // A new confirmed transition replaces this player's previous presentation.
             ACTIVE.removeIf(active -> active.level() == level

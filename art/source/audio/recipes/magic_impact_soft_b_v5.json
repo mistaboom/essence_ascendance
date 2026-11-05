@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "assetId": "magic_impact_soft_b_v5",
+  "seed": 26110432,
+  "sampleRate": 48000,
+  "duration": 0.3,
+  "peakDb": -11.9,
+  "presetLibrary": "source/audio/presets/impact-soft-v5.json",
+  "design": {
+    "title": "Magic projectile impact - soft pressure splat B",
+    "description": "The same atonal energy impact, with a rounded contact, gentler crack and grit, and a soft dispersing pressure tail. A slightly tighter, darker variation.",
+    "cueIds": [
+      "essence_ascendance:weapon.bolt.impact"
+    ],
+    "provenance": "Original deterministic synthesis. Direct parameter revision of magic_impact_b_v4 with its original seed, source layer identities and timings retained; no third-party samples.",
+    "review": "pending user listening",
+    "role": "weapon",
+    "revisionOf": [
+      "magic_impact_b_v4"
+    ],
+    "replacesNativeEvents": [
+      "minecraft:entity.arrow.hit",
+      "minecraft:entity.arrow.hit_player"
+    ],
+    "repetitionIntervalSeconds": 0.4,
+    "gameplayTrigger": "One existing impact cue for confirmed damaging entity hits and accepted terrain collision; variations do not add surface routing.",
+    "levelIntent": "Approximately 3 dB softer than v4, with reduced upper-mid crack energy and a rounder onset; no musical tail."
+  },
+  "layers": [
+    {
+      "name": "01_pressure_splat",
+      "preset": "energy_splat",
+      "lengthSeconds": 0.185,
+      "highHz": 2750
+    },
+    {
+      "name": "02_soft_crack",
+      "preset": "soft_contact",
+      "lengthSeconds": 0.032,
+      "gain": 0.132
+    },
+    {
+      "name": "03_inharmonic_contact_grit",
+      "preset": "damped_grit",
+      "lengthSeconds": 0.09,
+      "frequency": 171
+    },
+    {
+      "name": "04_low_pressure_thud",
+      "preset": "soft_pressure_thud",
+      "lengthSeconds": 0.115
+    },
+    {
+      "name": "05_dispersing_wake",
+      "preset": "pressure_wake",
+      "startSeconds": 0.032,
+      "lengthSeconds": 0.25,
+      "highHz": 1600
+    }
+  ]
+}

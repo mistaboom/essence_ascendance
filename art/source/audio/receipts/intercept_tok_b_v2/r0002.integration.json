@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "assetId": "intercept_tok_b_v2",
+  "revision": "r0002",
+  "masterSha256": "885a4ce85d4cbc4e0c1c9716864e0b0aeac541d2bfbe4bdbf9ab65738c3bb345",
+  "approvedSha256": "c2f163e60ca8da7531f0f766eab1ba7b52a0a8d06e09793c9e9166816e13c7d3",
+  "recipeSha256": "8985606b5106af5a2a83d65efed5b39fd8df1728de0519f0fff830783aadda5e",
+  "encoder": {
+    "version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers",
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "options": [
+      "-map_metadata",
+      "-1",
+      "-c:a",
+      "libvorbis",
+      "-q:a",
+      "5",
+      "-ar",
+      "48000",
+      "-ac",
+      "1",
+      "-fflags",
+      "+bitexact",
+      "-flags:a",
+      "+bitexact"
+    ]
+  },
+  "measurements": {
+    "codec": "vorbis",
+    "sampleRate": 48000,
+    "channels": 1,
+    "duration": 0.19733333333333333,
+    "samplePeakDb": -11.957052747829351,
+    "rmsDb": -29.327260366807767,
+    "truePeakDb": -11.95,
+    "integratedLufs": -33.15,
+    "decodedFrames": 9472,
+    "loudnessMethod": "zero_padded_to_400ms"
+  },
+  "loop": false,
+  "review": {
+    "status": "pending"
+  },
+  "sourceMethod": "synthesis",
+  "projectSha256": "427e64e2d8f74fff7f633ef162238875681385c163ab15cdb698e259f8fb6525",
+  "backupSha256": "427e64e2d8f74fff7f633ef162238875681385c163ab15cdb698e259f8fb6525",
+  "sourceLinks": {
+    "root": "auxiliary_audio",
+    "project": "projects/projectile/intercept_tok_b_v2/r0002/intercept_tok_b_v2.aup3",
+    "backup": "backups/projectile/intercept_tok_b_v2/r0002/intercept_tok_b_v2.aup3",
+    "master": "masters/projectile/intercept_tok_b_v2/r0002/master.wav",
+    "export": "exports/projectile/intercept_tok_b_v2/r0002/intercept_tok_b_v2.ogg",
+    "recipe": "masters/projectile/intercept_tok_b_v2/r0002/recipe.json",
+    "authoringInputs": "masters/projectile/intercept_tok_b_v2/r0002/authoring-inputs.json",
+    "authoringInputsSha256": "fd5266f2ce481dc277c2ebc834e561bc9a4ebaa0cad25b00d9b6b1e0ff4ce8c9",
+    "stems": [
+      {
+        "path": "masters/projectile/intercept_tok_b_v2/r0002/01_wood_contact.wav",
+        "sha256": "cc497e09c8da35af84e857c123cb961ea63d1848f64ea989b21b6b2ce82115fe"
+      },
+      {
+        "path": "masters/projectile/intercept_tok_b_v2/r0002/02_second_surface.wav",
+        "sha256": "6deab22ca293baafa892003d8ae3427962f7eda82c9af5721d430ea7cd9a630e"
+      },
+      {
+        "path": "masters/projectile/intercept_tok_b_v2/r0002/03_dry_edge.wav",
+        "sha256": "ff2b39d51f4133326b1a8909ef5a44dcf972c1ce5744d29e29fdae5c8775dd9e"
+      }
+    ]
+  },
+  "creativeReview": {
+    "status": "accepted",
+    "reviewer": "User",
+    "at": "2026-11-01 America/Anchorage",
+    "notes": "User: \"the rest are great.\" Creative approval of the presented sound; this does not assert in-game mix or rights review."
+  },
+  "integrationPromotion": {
+    "status": "authorized",
+    "authority": "User",
+    "notes": "Integrate approved audio assets into Essence Ascendance. Use the shared promotion workflow for approved candidates. Preserve source revisions and unapproved candidates.",
+    "selection": "source/audio/handoffs/prompt7-20261101.json",
+    "selectionSha256": "9be40448ed3da7c0de46568c88795542bda488043dca5b232b028d0449706c87",
+    "purpose": "runtime",
+    "sourceExportSha256": "c2f163e60ca8da7531f0f766eab1ba7b52a0a8d06e09793c9e9166816e13c7d3"
+  }
+}

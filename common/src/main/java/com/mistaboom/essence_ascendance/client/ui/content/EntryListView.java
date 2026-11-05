@@ -109,6 +109,7 @@ public final class EntryListView<T> implements FullscreenComposition.Input {
         int row = scroll.offset() + (int) ((y - bounds.y() - 1) / ROW_HEIGHT);
         if (row >= 0 && row < entries.size()) {
             Entry<T> entry = entries.get(row);
+            com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"entry/"+entry.key());
             select(entry, true);
             if (activate != null) activate.accept(entry.value());
         }
@@ -135,7 +136,10 @@ public final class EntryListView<T> implements FullscreenComposition.Input {
     @Override public boolean key(int key, int scan, int modifiers) {
         if (key == 257 || key == 335 || key == 32) {
             entries.stream().filter(entry -> entry.key().equals(selectedKey)).findFirst()
-                    .ifPresent(entry -> (activate == null ? choose : activate).accept(entry.value()));
+                    .ifPresent(entry -> {
+                        com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"entry/"+entry.key());
+                        (activate == null ? choose : activate).accept(entry.value());
+                    });
             return true;
         }
         if (key == 264 || key == 265) {
@@ -144,6 +148,8 @@ public final class EntryListView<T> implements FullscreenComposition.Input {
             for (int index = 0; index < entries.size(); index++) if (entries.get(index).key().equals(selectedKey)) selected = index;
             selected = Math.max(0, Math.min(entries.size() - 1, selected + (key == 264 ? 1 : -1)));
             scroll.ensureVisible(selected, 1);
+            if(!Objects.equals(selectedKey,entries.get(selected).key()))
+                com.mistaboom.essence_ascendance.client.audio.AudioUi.press(this,"entry/"+entries.get(selected).key());
             select(entries.get(selected), true);
             return true;
         }

@@ -1,0 +1,10 @@
+{
+  "schema":1,"assetId":"machine_warm_a","seed":291051,"sampleRate":48000,"duration":4,"peakDb":-21,
+  "presetLibrary":"source/audio/presets/essence-v1.json","loop":{"mode":"periodic"},
+  "design":{"cueIds":["essence_ascendance:machine.resonance.body"],"role":"decorative continuous activity bed","priority":"P0 / 2a, P1 / 3b","description":"Quiet 128 Hz mineral bed with slow energy flow; body only, no implied completion or idle hum.","levelIntent":"below results and combat","repetitionIntervalSeconds":4},
+  "layers":[
+    {"preset":"rounded_body","name":"01_mineral_motor","frequency":128,"gain":0.065},
+    {"preset":"rounded_body","name":"02_upper_resonance","frequency":192,"gain":0.014,"am":{"rate":0.75,"depth":0.2}},
+    {"preset":"flow","name":"03_energy_flow","gain":0.008}
+  ]
+}
