@@ -9,6 +9,7 @@ art/history/** -text -whitespace
 # Preserve their original bytes on both Windows and Unix checkouts.
 art/source/audio/** -text whitespace=cr-at-eol
 art/audio-*.json -text whitespace=cr-at-eol
+tools/audio/fixtures/** -text whitespace=cr-at-eol
 docs/audio/*.json -text whitespace=cr-at-eol
 
 # The valuation regression compares the canonical snapshot byte-for-byte.
