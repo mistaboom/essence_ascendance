@@ -2,8 +2,9 @@
 
 ## Current vanilla-settings follow-up — 2026-11-04
 
-**Four-target build, exact packages and native-world checks PASS; distinct-client
-gameplay and publication PENDING.** [The beta.14 follow-up](VANILLA-SETTINGS-20261104.md) records the removal
+**Headless technical verification, post-merge CI, release uploads and wiki
+publication PASS. Human review and external store status remain outstanding.**
+[The beta.14 follow-up](VANILLA-SETTINGS-20261104.md) records the removal
 of the separate EA preferences/menu: Minecraft's sliders own volume and Show
 Subtitles owns captions. Approved art and authored gains remain unchanged. Its
 2,047-input fingerprint is
@@ -12,25 +13,49 @@ The full gate passes in **17m 59s**, **282 tasks** (260 executed, 22 up-to-date)
 actual exit 0; four exact provider/pin packages pass with 49 approved samples,
 62 registered events and 45 custom definitions each. Release tests pass 25;
 launcher checks pass 17 with one Windows symlink-privilege skip. The separate Git
-byte-preservation repair passes 313 actual checked-out files under each of two
-line-ending modes, preserving the 49 hash-bound recipes. Two exact packaged
+byte-preservation repair passes 319 actual checked-out files under each of two
+line-ending modes at the cf884d0 checkpoint, preserving the 49 selected recipes
+and hash-bound test recipe. The current publication ledger has since changed;
+its separate final working-versus-staged Git-blob byte check also passes. Two exact packaged
 native-world checks pass **72 matrix cases / 342 assertions** total using native
 OpenAL; their controlled snapshots do not establish paid-transfer gameplay.
-Pack Tester installation passes in 10.0126 seconds. The 1.21.1 Fabric
-distinct-client session is active; 26.1.2 NeoForge remains pending. The
-[maintained receipt](VANILLA-SETTINGS-20261104-VALIDATION.json) records build/world
-PASS and gameplay/publication PENDING; no completed multiplayer or release result
-is claimed.
+Pack Tester installation passes in 10.0126 seconds. Both exact distinct-client
+sessions now PASS on 1.21.1 Fabric and 26.1.2 NeoForge: **57 phase paths each,
+36 native windows / eight zero exits**, with 423 / 391 server assertions. Each
+actor executes five actual ChatScreen Enter paths; observers do not run that
+preflight. Dense actual discovery is 41 loaded objects with 32 sources / 12 owned
+voices / 12 playing; idle/stopped state is 0 / 0 / 0. The
+[maintained receipt](VANILLA-SETTINGS-20261104-VALIDATION.json) records
+`PUBLISHED_HEADLESS_TECHNICAL_PASS_HUMAN_REVIEW_PENDING`. The follow-up binds its
+final SHA/Git-blob verification and links full measurements with their
+OS-guard/Java-allocation limits.
 
 Use the follow-up's verified IntelliJ **Essence Ascendance — Pack Tester** steps
-for the preferred 1.21.1 Fabric target after acceptance. Earlier prepared-world
+for the preferred 1.21.1 Fabric target. Earlier prepared-world
 launchers and EA settings-menu instructions below are historical. The user's
 “everything works now” records prior-G functional feedback; unreported long-loop
-mix and separate provenance/rights confirmation remain pending. Commit/push and
-publication to GitHub, CurseForge and Modrinth are explicitly authorized, with
-actual remote results still pending.
-The authorized wiki follow-up covers only five pack-maker command/version/footer
-pages; no broad player audio guide is included.
+mix and separate provenance/rights confirmation remain pending. Implementation is
+pushed to main at `cf884d0975b54ae9d6f3fc554de08bc87d0fe237`; remote CI run
+41971359962 passes. The four-target CI artifact comparison passes with explicitly
+different archive hashes: only the generated Architectury adapter package and
+JSON/TOML line endings differ; all other entry bytes match. Native acceptance
+remains bound to the local pinned JARs. Release workflow 41974285162 succeeds:
+fresh 26m 49s build, all 282 tasks executed, 25 release tests PASS. The
+[GitHub beta.14 release](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.14)
+has four JARs plus SHA256SUMS; actual downloads match the release artifact bytes.
+The release/local comparison passes with the same scoped differences above.
+All eight CurseForge/Modrinth upload jobs succeed first attempt. All four Modrinth
+CDN byte/metadata checks PASS and versions are listed; the project is still
+processing with approval requested, an external public-approval blocker.
+CurseForge accepted all four uploads, but public-list HTTP 403 leaves availability
+unverified, not rejected. No repeat upload was made. The five-page pack-maker wiki is
+published at `5762bdfbfc46c0c0fd7658a1bc32e359a9fff01a`, with source and live HTTP
+verification PASS and no broad player audio guide. The follow-up includes public
+links and receipts. PR #3's three workflow pin updates are reviewed and merged at
+`160af0ab558ddcbd1444d9576a98bbce1e0d889c` on main. Fresh post-merge CI 41976334977
+passes at 2026-11-05 06:08:54 UTC: 19m 27s, all 282 tasks executed, 25 release
+tests. No technical release or wiki-publishing blocker remains; the external store
+limits and outstanding human review retain their explicit scope above.
 
 ## Retained HUD/command checkpoint — 2026-11-04
 

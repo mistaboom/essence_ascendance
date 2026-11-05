@@ -1,6 +1,6 @@
 # Wiki publication verification
 
-Latest publication: beta.5 on 2026-10-13, recorded below. Earlier sections are historical receipts.
+Latest publication: the beta.14 command reference on 2026-11-04 (2026-11-05 UTC), recorded below. Earlier sections are historical receipts.
 
 Live wiki: https://github.com/mistaboom/essence_ascendance/wiki
 
@@ -92,3 +92,19 @@ The user authorized including all current implementation, authored art, Archive 
 Beta.9 adds the accepted glaive and Archive lesson/navigation work and publishes the pack-maker wiki refresh. It introduces no additional stored-format break over beta.8; the existing fresh-world/fresh-configuration requirement remains scoped to beta.7 and earlier upgrades. No real world, account identity, installed instance or generated balance was changed by this publication.
 
 At the publication check, the authenticated Modrinth project metadata reported `processing`, with requested status `approved`. A successful upload does not bypass project/file moderation. Consult the linked release jobs and platform records for upload/availability outcomes; do not create duplicate uploads merely because public listings lag. Final local upload/artifact verification receipts are retained under ignored `build/beta9-publication/`.
+
+## Beta.14 pack-testing command reference — 2026-11-04
+
+The user authorized publishing the completed audio work and explicitly kept the wiki aimed at modpack makers. The update changes only `Commands.md`, `Diagnostics-and-Testing.md`, `Player-Commands.md`, `Version-and-Maintenance.md`, and `_Footer.md`. It documents the useful local preview and operator server-routing commands, permissions, audience limits, and current four-target version scope. It adds no player audio guide; the in-game Ascendance Archive remains the gameplay guide.
+
+The canonical pages were committed in `cd3129a`; the publisher ran from `160af0ab558ddcbd1444d9576a98bbce1e0d889c`, where those pages are unchanged. The ordinary selective push advanced wiki `master` from `8fbdd3f20133d5586e8c2533f52884caf8cf40a6` to **`5762bdfbfc46c0c0fd7658a1bc32e359a9fff01a`**, changing five pages. The publisher verified the remote commit and removed its temporary checkout. Other wiki pages and history were preserved.
+
+Source review checked command registrations and handlers, identifier completion, preview lifetime and replacement, native/private routing, vanilla sound/subtitle ownership, and examples against the catalog. Canonical documentation checks pass for 22 pages, 160 internal links/anchors, sidebar coverage of all 20 content pages, five parsed TOML examples, fences, and whitespace. The reviewed preview and publication logs are retained under `build/audio-vanilla-settings-release-20261104/`.
+
+Live served-content verification and the completed release outcome are recorded in the [current audio handoff](../audio/VANILLA-SETTINGS-20261104.md) and its [validation receipt](../audio/VANILLA-SETTINGS-20261104-VALIDATION.json). This wiki publication establishes documentation synchronization, not additional native execution or human listening/HUD approval. Recorded provenance/rights confirmation remains separate.
+
+Fresh HTTP checks pass for all five raw pages, matching canonical Git-normalized LF bytes, and the four served content pages, including command tables, expected anchors and the current footer. No graphical render inspection is claimed. The source and live check receipts are `wiki-source-verification.json` and `wiki-live-verification.json` under the same evidence directory.
+
+The [beta.14 release](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.14) remains pinned to `cf884d0975b54ae9d6f3fc554de08bc87d0fe237`. [Release workflow 41974285162](https://github.com/mistaboom/essence_ascendance/actions/runs/41974285162) passed its full four-target build and all nine publishing jobs on the first attempt. Actual GitHub and Modrinth downloads match the release artifact bytes. Modrinth's project remains `processing` with requested status `approved`; CurseForge accepted all four uploads, but its public list returned HTTP 403. Public moderation/visibility is not inferred from upload success. The later workflow-only [PR #3](https://github.com/mistaboom/essence_ascendance/pull/3) does not change the release tag, artifacts or published wiki pages.
+
+PR #3 was independently reviewed and merged at `160af0ab558ddcbd1444d9576a98bbce1e0d889c`; the live project was fast-forwarded to that `main` commit. [Post-merge CI 41976334977](https://github.com/mistaboom/essence_ascendance/actions/runs/41976334977) passed the current full four-target gate in 19m 27s (282 executed tasks) and 25 release tests. The final documentation-only follow-up records these outcomes without changing production inputs or republishing artifacts.

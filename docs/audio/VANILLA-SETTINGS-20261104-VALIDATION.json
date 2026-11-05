@@ -2,9 +2,9 @@
   "schema": 1,
   "kind": "vanilla_audio_settings_release",
   "date": "2026-11-04",
-  "preparedUtc": "2026-11-05T04:58:19.713847+00:00",
+  "preparedUtc": "2026-11-05T06:09:18.786458+00:00",
   "version": "1.0.0-beta.14",
-  "status": "BUILD_AND_WORLD_PASS_GAMEPLAY_AND_PUBLICATION_PENDING",
+  "status": "PUBLISHED_HEADLESS_TECHNICAL_PASS_HUMAN_REVIEW_PENDING",
   "inputs": {
     "count": 2047,
     "fingerprint": "411b786632e666e8b62e71fd40695ab11f13ea2d1f01fb87deb919a2e641cea6",
@@ -28,13 +28,13 @@
   },
   "checkoutPreservation": {
     "path": "build/audio-vanilla-settings-release-20261104/git-byte-preservation.json",
-    "sha256": "ede3555b3dd0b055c3b3fc36cf1d54d2d7a92b491473319f3262899c909cd338",
-    "bytes": 41167
+    "sha256": "cc2f7299ed3db3a0effd035e15ca77f4186bb744d0ec7a19a023c338c855947e",
+    "bytes": 41838
   },
   "gitAttributes": {
     "path": ".gitattributes",
-    "sha256": "77cb1d2415c891b692d5032a0ffda75502c7bc30cea0eedb0da715b7a2335174",
-    "bytes": 740
+    "sha256": "b8ea333b3010ae82c0783d8fdbf48192ac4ff0aea79985d2982dafbb39935a35",
+    "bytes": 791
   },
   "packages": {
     "path": "build/audio-vanilla-settings-release-20261104/package-validation.json",
@@ -204,10 +204,38 @@
       "remainingOwnedProcesses": 0
     },
     "gameplay-1211fabric": {
-      "result": "PENDING"
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/gameplay-1211fabric.receipt.json",
+        "sha256": "ca992bb87732b3b15ff39aad048d719aab18ef3a11657151d1b09018077afcf7",
+        "bytes": 3541
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/gameplay-1211fabric.log",
+        "sha256": "a8fc9eaa8223d6fddada08ca018255c3ddcb980dea42fe3dff6b9df4c99265d5",
+        "bytes": 234040
+      },
+      "wallSeconds": 430.13410229999863,
+      "peakCommittedBytes": 3980046336,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
     },
     "gameplay-2612neoforge": {
-      "result": "PENDING"
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/gameplay-2612neoforge.receipt.json",
+        "sha256": "f1866e0d118f082d7fddbbcbcc3097abd69550a1761b0509998cf43e70e9721a",
+        "bytes": 3557
+      },
+      "log": {
+        "path": "build/audio-vanilla-settings-release-20261104/gameplay-2612neoforge.log",
+        "sha256": "7d2a24751ba368908ac4b15520461a17712d8f4e8d0f38aa793f0b38307423ec",
+        "bytes": 308266
+      },
+      "wallSeconds": 428.14952260000064,
+      "peakCommittedBytes": 5757038592,
+      "exit": 0,
+      "remainingOwnedProcesses": 0
     }
   },
   "nativeRuns": [
@@ -232,7 +260,29 @@
     {
       "target": "1211fabric",
       "kind": "native",
-      "result": "PENDING"
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-packaged-acceptance/vanilla-settings-1211fabric-native-20261104/receipt.json",
+        "sha256": "58e087ce357b8a9e4c1f673cfd50f7ef25e064b032e1a5cf7b147ee7f135b15c",
+        "bytes": 308950
+      },
+      "productionSha256": "0d394891d49261b51a48e5aed7c0d331facf89c3c7c04811949e0003b24a1c89",
+      "processExit": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "limitations": [
+        "No human listening, perceived seam/mix or visual HUD approval",
+        "Same host loopback transport; no latency/loss/long-soak or broader hardware coverage"
+      ],
+      "membership": "native",
+      "scenario": "native-gameplay",
+      "clientPreflightPasses": {
+        "EA_A": 1,
+        "EA_B": 0
+      }
     },
     {
       "target": "2612neoforge",
@@ -255,7 +305,29 @@
     {
       "target": "2612neoforge",
       "kind": "native",
-      "result": "PENDING"
+      "result": "PASS",
+      "receipt": {
+        "path": "build/audio-packaged-acceptance/vanilla-settings-2612neoforge-native-20261104/receipt.json",
+        "sha256": "04aedcbc8f8dac6b65f5d7f0bc8e8790d069577ea439a3f9c29608912fee2af9",
+        "bytes": 393488
+      },
+      "productionSha256": "50de186c9414e02d1a5531368f18f9e2b7b12fdfcb4d80602d883982c6fda9c5",
+      "processExit": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "limitations": [
+        "No human listening, perceived seam/mix or visual HUD approval",
+        "Same host loopback transport; no latency/loss/long-soak or broader hardware coverage"
+      ],
+      "membership": "native",
+      "scenario": "native-gameplay",
+      "clientPreflightPasses": {
+        "EA_A": 1,
+        "EA_B": 0
+      }
     }
   ],
   "additionalChecks": {
@@ -279,8 +351,284 @@
     }
   },
   "publication": {
-    "result": "PENDING",
-    "authorized": true
+    "result": "PASS",
+    "authorized": true,
+    "checkedUtc": "2026-11-05T06:09:16.675915+00:00",
+    "scope": "Authorized uploads completed on all four targets. Platform moderation/public availability and human acceptance are separate fields.",
+    "releaseSource": "cf884d0975b54ae9d6f3fc554de08bc87d0fe237",
+    "releaseTag": "v1.0.0-beta.14",
+    "releaseUrl": "https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.14",
+    "ci": {
+      "run": 41971359962,
+      "result": "PASS",
+      "url": "https://github.com/mistaboom/essence_ascendance/actions/runs/41971359962",
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/ci-run.json",
+        "sha256": "1ceebe7b5e856ee736fffca9e64f9c9b79dd1c3d72a4106117264dc9115f8fff",
+        "bytes": 3009
+      }
+    },
+    "releaseWorkflow": {
+      "run": 41974285162,
+      "result": "PASS",
+      "url": "https://github.com/mistaboom/essence_ascendance/actions/runs/41974285162",
+      "attempts": 1,
+      "receipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/release-run.json",
+        "sha256": "b3e8cbd780d6b7163ba1b61eafffb88cd9bffb0978c65888c3cbe2b901e3cf77",
+        "bytes": 14725
+      },
+      "jobsReceipt": {
+        "path": "build/audio-vanilla-settings-release-20261104/release-jobs.json",
+        "sha256": "e9da0e4e631267d73a0c9e73a7804889230b7440c22a658f6929f62bef8b0004",
+        "bytes": 13098
+      },
+      "jobs": [
+        {
+          "id": 127069448371,
+          "name": "build / build",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512724,
+          "name": "Attach GitHub downloads",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512861,
+          "name": "modrinth / 1.21.1 / fabric",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512872,
+          "name": "modrinth / 26.1.2 / fabric",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512881,
+          "name": "curseforge / 26.1.2 / neoforge",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512903,
+          "name": "modrinth / 26.1.2 / neoforge",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512922,
+          "name": "curseforge / 1.21.1 / neoforge",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512932,
+          "name": "curseforge / 26.1.2 / fabric",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512942,
+          "name": "curseforge / 1.21.1 / fabric",
+          "result": "PASS"
+        },
+        {
+          "id": 127078512968,
+          "name": "modrinth / 1.21.1 / neoforge",
+          "result": "PASS"
+        }
+      ]
+    },
+    "distributedArtifacts": {
+      "comparison": {
+        "path": "build/audio-vanilla-settings-release-20261104/release-artifact-comparison.json",
+        "sha256": "6d08ce44c3e7c8bb87b59effe467f65455a07455514871a4c31e35b6f12c7727",
+        "bytes": 7070
+      },
+      "bundle": {
+        "path": "build/audio-vanilla-settings-release-20261104/release-artifact-metadata.json",
+        "sha256": "e864d05bf661899f423fc5c91df9a0ffadc30878ec3f651be019953eeb96655b",
+        "bytes": 848
+      },
+      "githubDownloadCheck": {
+        "path": "build/audio-vanilla-settings-release-20261104/github-download-verification.json",
+        "sha256": "528cf3b8d5a33ed220302757b0bf096526506c5d7b294061fc1c086671d84b4a",
+        "bytes": 2127
+      },
+      "variants": [
+        {
+          "target": "1211Fabric",
+          "minecraft": "1.21.1",
+          "loader": "fabric",
+          "java": 21,
+          "file": "essence_ascendance-1.0.0-beta.14+mc1.21.1-fabric.jar",
+          "sha256": "2bfd8e31392123dbd8debea43d4c1e2f81f36d67b8ed000f559486200d85c638",
+          "modrinthDependencies": "architectury-api(required){modrinth:lhGA9TYQ}\nfabric-api(required){modrinth:P7dR8mSH}\njei(optional){modrinth:u6dRKJwZ}",
+          "curseforgeDependencies": "architectury-api(required){curseforge:419699}\nfabric-api(required){curseforge:306612}\njei(optional){curseforge:238222}\nftb-teams(optional){curseforge:438497}"
+        },
+        {
+          "target": "1211NeoForge",
+          "minecraft": "1.21.1",
+          "loader": "neoforge",
+          "java": 21,
+          "file": "essence_ascendance-1.0.0-beta.14+mc1.21.1-neoforge.jar",
+          "sha256": "4657352fceb2b1d69563ef1d6400943f555539fda83afe6190110e44dcbb07b2",
+          "modrinthDependencies": "architectury-api(required){modrinth:lhGA9TYQ}\njei(optional){modrinth:u6dRKJwZ}",
+          "curseforgeDependencies": "architectury-api(required){curseforge:419699}\njei(optional){curseforge:238222}\nftb-teams(optional){curseforge:404468}"
+        },
+        {
+          "target": "2612Fabric",
+          "minecraft": "26.1.2",
+          "loader": "fabric",
+          "java": 25,
+          "file": "essence_ascendance-1.0.0-beta.14+mc26.1.2-fabric.jar",
+          "sha256": "96d28fe45183d5b1afe05e583d1fbbb7f9ee3e3b45153550d89b37017b11fc5e",
+          "modrinthDependencies": "architectury-api(required){modrinth:lhGA9TYQ}\nfabric-api(required){modrinth:P7dR8mSH}\njei(optional){modrinth:u6dRKJwZ}",
+          "curseforgeDependencies": "architectury-api(required){curseforge:419699}\nfabric-api(required){curseforge:306612}\njei(optional){curseforge:238222}\nftb-teams(optional){curseforge:438497}"
+        },
+        {
+          "target": "2612NeoForge",
+          "minecraft": "26.1.2",
+          "loader": "neoforge",
+          "java": 25,
+          "file": "essence_ascendance-1.0.0-beta.14+mc26.1.2-neoforge.jar",
+          "sha256": "d0698ff996283700a18ddae644ed6726f1a9a55944701fb77de537bb3da36587",
+          "modrinthDependencies": "architectury-api(required){modrinth:lhGA9TYQ}\njei(optional){modrinth:u6dRKJwZ}",
+          "curseforgeDependencies": "architectury-api(required){curseforge:419699}\njei(optional){curseforge:238222}\nftb-teams(optional){curseforge:404468}"
+        }
+      ],
+      "scope": "Actual GitHub and Modrinth downloads equal the release artifact. Local native acceptance remains bound to its own exact pins; only a generated Architectury adapter package and JSON/TOML CRLF/LF differ in full entry comparison. No remote-archive native execution inferred."
+    },
+    "modSites": {
+      "uploads": {
+        "path": "build/audio-vanilla-settings-release-20261104/site-upload-proof.json",
+        "sha256": "7ce2b2c4b339f723beee0c25903bd9d6d6283e4196209fc83ba0bba686ce6f16",
+        "bytes": 2554
+      },
+      "readOnlyVerification": {
+        "path": "build/audio-vanilla-settings-release-20261104/modsite-publication-verification.json",
+        "sha256": "2368289336bb438a596f137a90c0c30ce6104ebe73900af4d3f66da81f7a2768",
+        "bytes": 3954
+      },
+      "modrinth": [
+        {
+          "target": "1211Fabric",
+          "id": "Y12pWvIA",
+          "version_number": "1.0.0-beta.14+mc1.21.1-fabric",
+          "status": "listed",
+          "url": "https://modrinth.com/mod/essence-ascendance/version/Y12pWvIA",
+          "filename": "essence_ascendance-1.0.0-beta.14+mc1.21.1-fabric.jar",
+          "sha256": "2bfd8e31392123dbd8debea43d4c1e2f81f36d67b8ed000f559486200d85c638",
+          "sha512": "31da1c43e444fc38c7ae5948e406f55048c4345cbe1148dd489979205bc5d3093c5d5fb3ca1484267243c7a9f2c3980df0bb505499cb1e5555ca3341e6ee3421",
+          "actual_cdn_bytes_match": true,
+          "metadata_dependencies_changelog_match": true
+        },
+        {
+          "target": "1211NeoForge",
+          "id": "9mqqBBO6",
+          "version_number": "1.0.0-beta.14+mc1.21.1-neoforge",
+          "status": "listed",
+          "url": "https://modrinth.com/mod/essence-ascendance/version/9mqqBBO6",
+          "filename": "essence_ascendance-1.0.0-beta.14+mc1.21.1-neoforge.jar",
+          "sha256": "4657352fceb2b1d69563ef1d6400943f555539fda83afe6190110e44dcbb07b2",
+          "sha512": "db7d38386023595b50c390858ad969cab4d0d85ccbffa071abf302654454a7eb226711ff3629779966e514f7a462d014168b501be258fbded62c36da31d421df",
+          "actual_cdn_bytes_match": true,
+          "metadata_dependencies_changelog_match": true
+        },
+        {
+          "target": "2612Fabric",
+          "id": "nKbIzRic",
+          "version_number": "1.0.0-beta.14+mc26.1.2-fabric",
+          "status": "listed",
+          "url": "https://modrinth.com/mod/essence-ascendance/version/nKbIzRic",
+          "filename": "essence_ascendance-1.0.0-beta.14+mc26.1.2-fabric.jar",
+          "sha256": "96d28fe45183d5b1afe05e583d1fbbb7f9ee3e3b45153550d89b37017b11fc5e",
+          "sha512": "d1f16ec462ae66c474651c18522501c30e428176868a7c7724be69ddff21abbfc2e19b13b45f6e608e5be849211aa535e66197b29d75ea14cbf6340b44e30c4c",
+          "actual_cdn_bytes_match": true,
+          "metadata_dependencies_changelog_match": true
+        },
+        {
+          "target": "2612NeoForge",
+          "id": "2PneqtUx",
+          "version_number": "1.0.0-beta.14+mc26.1.2-neoforge",
+          "status": "listed",
+          "url": "https://modrinth.com/mod/essence-ascendance/version/2PneqtUx",
+          "filename": "essence_ascendance-1.0.0-beta.14+mc26.1.2-neoforge.jar",
+          "sha256": "d0698ff996283700a18ddae644ed6726f1a9a55944701fb77de537bb3da36587",
+          "sha512": "05d95eabd6c230dde0ca31ef1a97ef9daf1e4f9833083c501cac6dc7a265cad544b40da6045835f966c5196a8260131deff756788a6f896b1772a06012753df6",
+          "actual_cdn_bytes_match": true,
+          "metadata_dependencies_changelog_match": true
+        }
+      ],
+      "modrinthProject": {
+        "id": "zIJXnoE8",
+        "slug": "essence-ascendance",
+        "status": "processing",
+        "requested_status": "approved"
+      },
+      "curseforgePublic": {
+        "url": "https://www.curseforge.com/minecraft/mc-mods/essence-ascendance/files/all?page=1&pageSize=50",
+        "status": "PENDING_PUBLIC_CONFIRMATION",
+        "http_status": 403,
+        "note": "Public page could not be read; successful publication does not establish public availability."
+      }
+    },
+    "wiki": {
+      "result": "PASS",
+      "url": "https://github.com/mistaboom/essence_ascendance/wiki",
+      "commit": "5762bdfbfc46c0c0fd7658a1bc32e359a9fff01a",
+      "branch": "master",
+      "canonicalSource": "160af0ab558ddcbd1444d9576a98bbce1e0d889c",
+      "pages": [
+        "Commands.md",
+        "Diagnostics-and-Testing.md",
+        "Player-Commands.md",
+        "Version-and-Maintenance.md",
+        "_Footer.md"
+      ],
+      "scope": "Pack-maker command reference only; no broad player audio guide.",
+      "preview": {
+        "path": "build/audio-vanilla-settings-release-20261104/wiki-preview.log",
+        "sha256": "d7e95e91a732f724207d0ef14c56f259e91398c615a382f1ac3a5e100be0f721",
+        "bytes": 15207
+      },
+      "publicationLog": {
+        "path": "build/audio-vanilla-settings-release-20261104/wiki-publish.log",
+        "sha256": "1f76ce9ce36666490bf1220b3c4a2351c1661347f5e9de26e674c7631031d378",
+        "bytes": 15405
+      },
+      "sourceCheck": {
+        "path": "build/audio-vanilla-settings-release-20261104/wiki-source-verification.json",
+        "sha256": "780f38798320c9ab5fb3cc795e370c4f0976f782618aefd91673310c432903e6",
+        "bytes": 8235
+      },
+      "liveCheck": {
+        "path": "build/audio-vanilla-settings-release-20261104/wiki-live-verification.json",
+        "sha256": "12218897706d99611bc56c23d9716547b5b070cec3ab405b966e52e242ff7baa",
+        "bytes": 5468
+      }
+    },
+    "pullRequest": {
+      "number": 3,
+      "url": "https://github.com/mistaboom/essence_ascendance/pull/3",
+      "result": "MERGED_PASS",
+      "mergeCommit": "160af0ab558ddcbd1444d9576a98bbce1e0d889c",
+      "review": {
+        "path": "build/audio-vanilla-settings-release-20261104/pr-review.json",
+        "sha256": "0aa572aa28ef57ba2838971d3a7010f73696f644e7f618de2985cbe83dbb98f5",
+        "bytes": 2547
+      },
+      "currentMainCi": {
+        "run": 41976334977,
+        "result": "PASS",
+        "url": "https://github.com/mistaboom/essence_ascendance/actions/runs/41976334977",
+        "receipt": {
+          "path": "build/audio-vanilla-settings-release-20261104/post-merge-ci.json",
+          "sha256": "f1ec04a88bb3e18b34f377a2ff99bf3318dd7a008a3d278947c18102e3c8b5fc",
+          "bytes": 14935
+        }
+      },
+      "scope": "Three workflow dependency pins only; released source/tag/artifacts unchanged."
+    },
+    "humanAcceptance": "PENDING: new vanilla controls/HUD, unreported long-loop mix and recorded provenance/rights confirmation. Publishing authorization is not attestation.",
+    "shutdown": "User requested normal computer shutdown after final documentation push and verification; actual request is recorded separately at completion."
   },
   "human": {
     "priorFeedback": "User accepted thruster gain 1.0, Infuser click, Pylon Focus changes and later reported everything works now on candidate G.",
@@ -294,5 +642,10 @@
     "Hidden same-host loopback is not foreground human HUD/listening, remote latency/loss or broader hardware/OS/pack coverage.",
     "Prior native/FTB receipts retain their original exact archive scope.",
     "Isolated native OpenAL CPU/allocations, GUI-scale-4 clipping, unselected historical source limitations and generic visual reload investigation remain outside this pass."
-  ]
+  ],
+  "independentReview": {
+    "path": "build/audio-vanilla-settings-release-20261104/independent-review.json",
+    "sha256": "3186457d1cfdd94e328f3b4bc3f543797c1d21d0febed36680518549311f3363",
+    "bytes": 19734
+  }
 }
