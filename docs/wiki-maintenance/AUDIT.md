@@ -41,6 +41,15 @@ changes to the publisher or a new copy of the website. The selected publication
 scope is `Config-Presets.md`, `Preset-FTB-Evolution-2-1-5-1-r1.md`, `Home.md`,
 `_Sidebar.md` and `_Footer.md`; pending integration documentation is separate.
 
+That selection was published on 2026-11-07 as wiki commit
+`67e8ac1d7f76556f3ab27ee40dfc678057d8eb79`, from main-repository source commit
+`3dd97afd1836698fdab46c1f140ff152f94b432d`. The live catalog, detail page, Home,
+sidebar and footer were checked. An anonymous download of the 54,420-byte ZIP
+matched its recorded SHA-256, and all individual file checksums passed. The preset
+packaging suite, generated-output check and disposable wiki publisher checks
+passed locally; the Configuration presets GitHub Actions run also passed on Linux.
+These are publication and packaging checks, not a new gameplay balance audit.
+
 The last recorded audio wiki publication is commit
 `5762bdfbfc46c0c0fd7658a1bc32e359a9fff01a` on the separate wiki repository, from the
 beta.14 acceptance record. This is historical evidence, not a fresh remote check.
