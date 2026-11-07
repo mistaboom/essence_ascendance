@@ -60,21 +60,23 @@ local branches are gone.
 The auxiliary folder now contains `Audio`, `Sources`, `Reference`, `Tools` and
 one index (2,069 files / 1,893,772,384 logical bytes after consolidation).
 Retained authoring assets were verified by SHA-256, including the four
-originals rescued from old build folders. Historical generated auxiliary folders
-were sent to the Recycle Bin, but a later audit found only 11 of 14 retired roots
-still present; full recovery of that generated history is not guaranteed.
+originals rescued from old build folders. The user subsequently confirmed
+emptying the Recycle Bin; retired generated auxiliary history is not recoverable
+there. Retained authoring sources remain in the organized auxiliary folder.
 
-The remaining workspace cleanup covers 2,426 explicit generated targets,
-89,634 files and 50,002,353,408 logical bytes. Automatic approval review rejected
-execution twice, including after the user's explicit permanent-removal approval;
-none of those targets was removed. The frozen plan is
-`build/beta15-workspace-cleanup.json` (SHA-256
-`043fd8727dfc86ad83ecc51cf6a8f30f8a1c650dd569b461b10545d7ecfdba21`).
-Do not describe this remaining cleanup as completed or bypass the execution block.
-The auxiliary `Tools/Maintenance/Invoke-WorkspaceBuildCleanup.ps1` and adjacent
-README provide a manual cleanup package. Its default preview passed for all
-2,426 targets and four protected authoring backups. Only the user's explicit
-manual `-Apply` execution performs permanent removal; Apply was not run here.
+Workspace cleanup completed on 2026-11-07: the user manually ran the verified
+PowerShell 7 cleanup script after automatic approval review blocked agent-side
+removal. A read-only follow-up confirmed all 2,426 planned targets absent
+(89,634 files / 50,002,353,408 logical bytes in the frozen plan). The nine IntelliJ
+launch configurations, four normal run roots and their existing worlds,
+`.idea/`, current production manifest and FTB Evolution 2 instance remain.
+All four rescued authoring originals passed SHA-256 verification after cleanup.
+
+The frozen plan and manual script are retained under auxiliary
+`Tools/Maintenance`; plan SHA-256 is
+`043fd8727dfc86ad83ecc51cf6a8f30f8a1c650dd569b461b10545d7ecfdba21`.
+This cleanup is complete; do not treat that historical plan as pending work or
+extend it to newly generated output.
 
 ## Current release
 
