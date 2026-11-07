@@ -107,7 +107,8 @@ Modrinth CDN downloads match the workflow's SHA-256, SHA-512 and size.
 Modrinth's project remains `processing`, with `requested_status=approved` and no
 approval date; its anonymous project/version APIs return 404. Successful uploads
 and accessible CDN bytes do not mean the project is publicly approved. CurseForge
-accepted all four uploads, but the observed public file list still showed beta.14
+accepted all four uploads, and the user confirmed its author view says
+**processing** on 2026-11-07. The observed public file list still showed beta.14
 and the author file-list API returned 403. Exact CurseForge file IDs, public
 visibility and independent CDN comparisons remain unverified; do not re-upload
 merely because the public list has not updated. Local detailed receipts are
