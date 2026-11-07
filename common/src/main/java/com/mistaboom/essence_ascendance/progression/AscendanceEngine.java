@@ -53,6 +53,13 @@ public final class AscendanceEngine {
         values.forEach((id,value) -> { if(id == null || value == null || value < 0) throw new IllegalArgumentException("Invalid projected investment"); });
     }
     public static AscendanceAttemptResult ascend(ServerPlayer player) {
+        return ascend(player, true);
+    }
+    /** Explicit admin mutation; caller baselines state observers before refreshing gameplay. */
+    public static AscendanceAttemptResult ascendForAdmin(ServerPlayer player) {
+        return ascend(player, false);
+    }
+    private static AscendanceAttemptResult ascend(ServerPlayer player, boolean observe) {
         var evaluation = evaluate(player);
         if(evaluation.status()==AscendanceEvaluationResult.Status.MAX_TIER)
             return new AscendanceAttemptResult(AscendanceAttemptResult.Status.MAX_TIER,evaluation);
@@ -62,9 +69,15 @@ public final class AscendanceEngine {
         EssenceSavedData saved = EssenceSavedData.get(player.server);
         if(!saved.getTier(player.getUUID()).id().equals(evaluation.currentTier().id()))
             return new AscendanceAttemptResult(AscendanceAttemptResult.Status.NOT_READY,evaluate(player));
+        var data = saved.getPlayerData(player.getUUID());
+        boolean observable = observe && AttunementGameplay.eligible(player);
+        String action = observable ? AttunementGameplay.action("ascension") : "";
+        var facts = observable ? com.mistaboom.essence_ascendance.gameplay.ProgressionFacts.beforeAscension(player, data) : null;
         saved.setTier(player.getUUID(),evaluation.nextTier());
         AttunementGameplay.forget(player);
-        PlayerRuntimeLifecycleService.refreshProgressionState(player);
+        if (observe) PlayerRuntimeLifecycleService.refreshProgressionState(player);
+        if (observable) com.mistaboom.essence_ascendance.gameplay.ProgressionFacts.ascended(player, action,
+                evaluation.currentTier(), evaluation.nextTier(), evaluation.currentTier().grantsPower(), facts);
         return new AscendanceAttemptResult(AscendanceAttemptResult.Status.SUCCESS,evaluation);
     }
 }

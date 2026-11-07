@@ -21,7 +21,13 @@ public final class ProjectileImpactEffects {
         void impact(Impact impact, CompoundTag launchData);
     }
     public record Impact(Projectile projectile, ServerPlayer owner, HitResult hit,
-                         LivingEntity victim, double confirmedDamage, boolean continuing) { }
+                         LivingEntity victim, double confirmedDamage, boolean continuing,
+                         com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combatCause) {
+        public Impact(Projectile projectile, ServerPlayer owner, HitResult hit,
+                      LivingEntity victim, double confirmedDamage, boolean continuing) {
+            this(projectile, owner, hit, victim, confirmedDamage, continuing, null);
+        }
+    }
     public record Snapshot(ResourceLocation id, CompoundTag data) {
         public Snapshot {
             data = data.copy();
@@ -62,7 +68,11 @@ public final class ProjectileImpactEffects {
                 || !ProjectileRuntime.validOwnership(impact.projectile(), state)
                 || !state.claimPayloadImpact(impact.victim().getUUID(), impact.confirmedDamage())) return;
         Payload payload = PAYLOADS.get(state.payload.id());
+        var cause = state.combatCause;
+        if (state.redirected || cause != null && !cause.actor().equals(impact.owner().getUUID())) cause = null;
+        Impact accepted = new Impact(impact.projectile(), impact.owner(), impact.hit(), impact.victim(),
+                impact.confirmedDamage(), impact.continuing(), cause);
         if (payload != null) EquipmentDamageService.withSecondarySkillDamage(
-                () -> payload.impact(impact, state.payload.data().copy()));
+                () -> payload.impact(accepted, state.payload.data().copy()));
     }
 }

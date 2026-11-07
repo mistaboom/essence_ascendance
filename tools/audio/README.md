@@ -1,6 +1,6 @@
 # Audio tools
 
-For the integrated approved sound set, start with [the current integration handoff](../../docs/audio/INTEGRATION-20261102.md). `audit.py --selection <selection.json> --auxiliary <root> --output <report.json>` pins exact revisions and checks existing audio/source material without generating, changing or promoting it. The derived report does not own approval. Demonstration takes cannot be relabeled as runtime selections.
+For the integrated approved sound set, start with [the current integration handoff](../../docs/audio/PASSDOWN.md). `audit.py --selection <selection.json> --auxiliary <root> --output <report.json>` pins exact revisions and checks existing audio/source material without generating, changing or promoting it. The derived report does not own approval. Demonstration takes cannot be relabeled as runtime selections.
 
 Use [the authoring guide](../../docs/audio/AUTHORING.md) for setup, commands and ownership. Run `audio.py --help` for the shared CLI. New sounds supply JSON recipes; do not add per-sound generation or export scripts.
 
@@ -23,7 +23,7 @@ without altering the approved audio bytes. Never manufacture review flags to sat
 a build. Production archives contain only selected Oggs and runtime descriptors;
 authoring receipts, masters, projects and tools remain outside those archives.
 
-Production batches are JSON under `art/source/audio/batches/`; `batch.py` offers `prepare`, `author`, `finalize` and `report`. `recipes.py` freezes reusable layer presets, `quality.py` creates decoded-loop/repetition checks, and `player.py` creates grouped offline playback buttons. See [the current playful/chime batch](../../docs/audio/BATCH-20261101.md) for the approved direction and runtime handoff. The warm-arcane batch is rejected history. Human review remains owned by the manifest; neither a batch report nor a passing test approves audio.
+Production batches are JSON under `art/source/audio/batches/`; `batch.py` offers `prepare`, `author`, `finalize` and `report`. `recipes.py` freezes reusable layer presets, `quality.py` creates decoded-loop/repetition checks, and `player.py` creates grouped offline playback buttons. See [the current playful/chime batch](../../docs/audio/INVENTORY.md) for the approved direction and runtime handoff. The warm-arcane batch is rejected history. Human review remains owned by the manifest; neither a batch report nor a passing test approves audio.
 
 Keep the Audacity window count bounded. Run from the repository root:
 

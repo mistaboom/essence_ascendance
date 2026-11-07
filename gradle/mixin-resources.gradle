@@ -19,6 +19,8 @@ tasks.named('processResources') {
             if (project.targetResourceFormat == '26.1') {
                 switch (configFile.name) {
                     case 'essence_ascendance.mixins.json':
+                        // Native 26 wraps complete advancement titles; only 1.21 truncates them.
+                        config.client.remove('AchievementTitleMixin')
                         appendAfter(config.client, 'GlaivePlayerModelMixin',
                                 ['GlaivePlayerDrawPoseMixin', 'GlaiveBodyRenderMixin'])
                         // Native 26 item components choose the model; the old bakery hook is 1.21-only.

@@ -41,6 +41,12 @@ public final class TargetConditionState implements SkillEffectState {
     }
     public void apply(LivingEntity target, long now, int durationTicks,
                       double magnitude, int pulseIntervalTicks, Lineage lineage) {
+        apply(target, now, durationTicks, magnitude, pulseIntervalTicks, lineage, null);
+    }
+
+    public void apply(LivingEntity target, long now, int durationTicks,
+                      double magnitude, int pulseIntervalTicks, Lineage lineage,
+                      com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combatCause) {
         if (!target.isAlive() || target.isRemoved()) return;
         if (!Double.isFinite(magnitude) || magnitude < 0.0 || pulseIntervalTicks < 0) {
             throw new IllegalArgumentException("Invalid condition pulse metadata");
@@ -61,6 +67,7 @@ public final class TargetConditionState implements SkillEffectState {
         entry.expiresAt = SkillEffectMath.expiresAt(now, durationTicks);
         entry.magnitude = magnitude;
         entry.lineage = lineage;
+        entry.combatCause = combatCause;
         if (pulseIntervalTicks > 0) {
             if (!wasActive || entry.pulseIntervalTicks != pulseIntervalTicks || entry.nextPulseAt <= 0L) {
                 entry.nextPulseAt = pulseAt(now, pulseIntervalTicks);
@@ -75,6 +82,12 @@ public final class TargetConditionState implements SkillEffectState {
     public boolean active(LivingEntity target, long now) {
         Entry entry = targets.get(target.getUUID());
         return entry != null && entry.target.get() == target && now < entry.expiresAt;
+    }
+
+    /** Immutable provenance must be sampled before a death handler consumes its timed condition. */
+    public com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combatCause(LivingEntity target, long now) {
+        Entry entry = targets.get(target.getUUID());
+        return entry != null && entry.target.get() == target && now < entry.expiresAt ? entry.combatCause : null;
     }
 
     public long remaining(LivingEntity target, long now) {
@@ -146,7 +159,7 @@ public final class TargetConditionState implements SkillEffectState {
             LivingEntity target = entry.target.get();
             if (target != null && now < entry.expiresAt && entry.pulseIntervalTicks > 0
                     && entry.nextPulseAt > 0L && now >= entry.nextPulseAt) {
-                pulses.add(new Pulse(target, entry.magnitude, entry.lineage));
+                pulses.add(new Pulse(target, entry.magnitude, entry.lineage, entry.combatCause));
                 entry.nextPulseAt = pulseAt(now, entry.pulseIntervalTicks);
             }
         }
@@ -175,9 +188,13 @@ public final class TargetConditionState implements SkillEffectState {
     }
 
     public record Lineage(PropagationBudget root, int generation, net.minecraft.resources.ResourceLocation sourceSkill) { }
-    public record Pulse(LivingEntity target, double magnitude, Lineage lineage) { }
+    public record Pulse(LivingEntity target, double magnitude, Lineage lineage,
+                        com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combatCause) {
+        public Pulse(LivingEntity target, double magnitude, Lineage lineage) { this(target, magnitude, lineage, null); }
+    }
 
     private static final class Entry {
+        com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combatCause;
         WeakReference<LivingEntity> target;
         long expiresAt;
         double magnitude;

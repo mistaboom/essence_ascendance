@@ -78,7 +78,10 @@ public final class TwoHandedEquipmentService {
         if (!(player instanceof ServerPlayer server)) return;
         var s = STATES.get(server);
         if (s == null || s.depth == 0) return;
-        if (--s.depth == 0) reconcile(server);
+        if (--s.depth == 0) {
+            reconcile(server);
+            if (COMBAT.get() == 0) com.mistaboom.essence_ascendance.gameplay.EquipmentObservations.observe(server);
+        }
     }
     public static void refresh(ServerPlayer player) {
         STATES.computeIfAbsent(player, p -> new State()).refresh = true;

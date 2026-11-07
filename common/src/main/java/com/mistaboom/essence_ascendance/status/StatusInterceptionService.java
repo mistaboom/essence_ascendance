@@ -115,6 +115,7 @@ public final class StatusInterceptionService {
                 || restoration != null && restoration.player == target && restoration.instance == incoming) return nativeApply.getAsBoolean();
         if (SkillStatusImmunityService.blocks(defender, incoming.getEffect())) return false;
         var context = SkillEffectRuntime.context(defender);
+        boolean eligibleOrigin = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(defender);
         ResourceLocation selected = selected(context);
         if (selected == null) return nativeApply.getAsBoolean();
         State state = state(context, selected);
@@ -184,6 +185,8 @@ public final class StatusInterceptionService {
                     targetResult = capture(current.target.getEffect(incoming.getEffect())).values;
                     transfer = targetAccepted[0] ? "native_accepted" : targetResult.equals(targetBefore.values)
                             ? "native_rejected_unchanged" : "native_false_hidden_chain_changed";
+                    if (eligibleOrigin && !targetResult.equals(targetBefore.values))
+                        reflected(defender, responsible.target, current.target, harmful, true);
                 } else transfer = "source_invalidated_after_interception";
                 reason = "confirmed_interception_cooldown_committed";
                 feedback(context, false, selected, responsible.target);
@@ -217,6 +220,7 @@ public final class StatusInterceptionService {
             nativeApply.run(); return;
         }
         var context = SkillEffectRuntime.context(defender);
+        boolean eligibleOrigin = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(defender);
         ResourceLocation selected = selected(context);
         if (selected == null || effect.getCategory() != MobEffectCategory.HARMFUL) { runInstant(effect, target, nativeApply); return; }
         Holder<MobEffect> holder = BuiltInRegistries.MOB_EFFECT.wrapAsHolder(effect);
@@ -250,6 +254,9 @@ public final class StatusInterceptionService {
                 if (source.target instanceof ServerPlayer other && lastOutcome(other)
                         .filter(outcome -> outcome.eventId() > event && outcome.prevented()).isPresent())
                     transfer = "target_status_prevention";
+                if (eligibleOrigin && source.target != null && (source.target.getHealth() < targetHealthBefore
+                        || source.target.getAbsorptionAmount() < targetAbsorptionBefore))
+                    reflected(defender, source.target, source.target, true, true);
             }
             feedback(context, secondary, selected, source.target);
         } else runInstant(effect, target, nativeApply);
@@ -264,6 +271,13 @@ public final class StatusInterceptionService {
                         healthBefore, defender.getHealth(), absorptionBefore, defender.getAbsorptionAmount(),
                         targetHealthBefore, source.target == null ? 0 : source.target.getHealth(), targetAbsorptionBefore,
                         source.target == null ? 0 : source.target.getAbsorptionAmount()));
+    }
+    /** Causality is scoped to this one native application stack and expires on return; no past witch lookup or queue. */
+    private static void reflected(ServerPlayer defender, LivingEntity source, LivingEntity target, boolean harmful, boolean applied) {
+        com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.publish(defender,
+                new com.mistaboom.essence_ascendance.gameplay.SurvivalOutcome.MirroredEffect(
+                        com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.context(defender, "status_reflection"),
+                        source.getUUID(), target.getUUID(), source instanceof net.minecraft.world.entity.monster.Witch, harmful, applied));
     }
     private static void runInstant(MobEffect effect, LivingEntity target, Runnable action) {
         InstantDispatch prior = INSTANT_NATIVE.get(); INSTANT_NATIVE.set(new InstantDispatch(effect, target));

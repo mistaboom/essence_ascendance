@@ -193,6 +193,7 @@ public final class UtilityMaintenanceEffects {
             MetabolicState state = context.state(id(), MetabolicState::new);
             double budget = foodValue * tuning.repairPointsPerFoodPoint() + Math.max(0, state.repairCarryPoints);
             int repaired = 0;
+            int actualRepaired = 0;
             String lastTarget = "";
 
             for (ItemStack target : EquipmentMaintenanceService.prioritizedDamagedItems(context.player())) {
@@ -202,6 +203,7 @@ public final class UtilityMaintenanceEffects {
                 int generated = (int) Math.min(missing, Math.floor(budget + EPSILON));
                 if (generated <= 0) continue;
                 target.setDamageValue(missing - generated);
+                actualRepaired += Math.max(0, missing - target.getDamageValue());
                 budget = Math.max(0, budget - generated);
                 repaired += generated;
                 lastTarget = target.getHoverName().getString();
@@ -213,6 +215,11 @@ public final class UtilityMaintenanceEffects {
             state.lastRepaired = repaired;
             state.lastTarget = lastTarget;
             state.lastAt = context.now();
+            if (actualRepaired > 0 && com.mistaboom.essence_ascendance.vitality.ConsumableRecoveryService.completedFood(context.player()))
+                com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.publish(context.player(),
+                    new com.mistaboom.essence_ascendance.gameplay.SurvivalOutcome.Repair(
+                            com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.context(context.player(), "metabolic_repair"),
+                            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(source.getItem()).toString(), actualRepaired, context.player().getY()));
             if (repaired > 0) MicroVisualFeedback.utility(context.player().serverLevel(),
                     context.player().position().add(0, 1.0, 0),
                     context.player().getUUID().getLeastSignificantBits() ^ context.now());

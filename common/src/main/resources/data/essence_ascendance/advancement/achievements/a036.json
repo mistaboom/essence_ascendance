@@ -1,0 +1,29 @@
+{
+  "parent": "essence_ascendance:achievements/a035",
+  "display": {
+    "icon": {
+      "id": "essence_ascendance:ascendance_archive"
+    },
+    "title": {
+      "translate": "advancement.essence_ascendance.a036"
+    },
+    "description": {
+      "translate": "advancement.essence_ascendance.a036.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "achieved": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "achieved"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

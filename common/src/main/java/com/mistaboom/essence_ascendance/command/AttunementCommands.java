@@ -110,8 +110,9 @@ final class AttunementCommands {
         saved.setDirty();
         AttunementGameplay.forget(target);
         boolean automatic = AttunementService.shouldPromoteAutomatically(data, chapter);
-        boolean promoted = automatic && AscendanceEngine.ascend(target).success();
-        if (!promoted) PlayerRuntimeLifecycleService.refreshProgressionState(target);
+        boolean promoted = automatic && AscendanceEngine.ascendForAdmin(target).success();
+        com.mistaboom.essence_ascendance.achievement.AchievementService.baseline(target);
+        PlayerRuntimeLifecycleService.refreshProgressionState(target);
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(text("admin_title")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.player"), target.getDisplayName()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(text("chapter"),

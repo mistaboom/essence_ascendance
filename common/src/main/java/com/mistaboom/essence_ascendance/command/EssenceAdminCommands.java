@@ -499,6 +499,7 @@ final class EssenceAdminCommands {
         ServerPlayer player = source.getPlayerOrException();
         AscendanceTierDefinition tier = EssenceCommandUtil.resolveTier(tierName);
         EssenceSavedData.get(source.getServer()).setTier(player.getUUID(), tier);
+        com.mistaboom.essence_ascendance.achievement.AchievementService.baseline(player);
         AttunementGameplay.forget(player);
         PlayerRuntimeLifecycleService.refreshProgressionState(player);
 
@@ -542,6 +543,7 @@ final class EssenceAdminCommands {
                 );
             }
 
+            com.mistaboom.essence_ascendance.achievement.AchievementService.baseline(player);
             PlayerRuntimeLifecycleService.refreshProgressionState(player);
             EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                     held.getHoverName().getString() + " item tier set to " + requested.displayName() + "."

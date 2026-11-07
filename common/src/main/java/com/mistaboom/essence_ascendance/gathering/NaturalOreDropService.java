@@ -55,16 +55,23 @@ public final class NaturalOreDropService {
     }
 
     public static boolean dropRandomOre(ServerPlayer player, BlockPos pos, BlockState source, ItemStack tool) {
+        return dropRandomOreReceipt(player, pos, source, tool) != null;
+    }
+
+    public record OreReward(String ore, int deliveredItems) { }
+
+    /** Native loot and committed spawn are separate: disabled tile drops/canceled spawns return no reward. */
+    public static OreReward dropRandomOreReceipt(ServerPlayer player, BlockPos pos, BlockState source, ItemStack tool) {
         ServerLevel level = player.serverLevel();
-        if (!eligibleSource(level, source)) return false;
+        if (!eligibleSource(level, source)) return null;
         var primary = PrimarySubstrateDiscovery.selection(level);
         List<Candidate> candidates = candidates(player, level.dimension()).stream()
                 .filter(candidate -> !(candidate.block() instanceof LatentOreBlock)
                         || primary.hosts().containsKey(source.getBlock()))
                 .toList();
-        if (candidates.isEmpty()) return false;
+        if (candidates.isEmpty()) return null;
         Candidate selected = weighted(candidates, player.getRandom().nextDouble());
-        if (selected == null) return false;
+        if (selected == null) return null;
         BlockState oreState = selected.block().defaultBlockState();
         BlockEntity lootEntity = null;
         if (selected.block() instanceof LatentOreBlock) {
@@ -75,13 +82,14 @@ public final class NaturalOreDropService {
         }
         List<ItemStack> drops = Block.getDrops(oreState, level,
                 pos, lootEntity, player, tool == null ? ItemStack.EMPTY : tool);
-        boolean produced = false;
-        for (ItemStack drop : drops) {
-            if (drop.isEmpty()) continue;
-            Block.popResource(level, pos, drop);
-            produced = true;
+        try (var receipt = com.mistaboom.essence_ascendance.gameplay.CommittedItemDrops.beginBlockDrops(level)) {
+            for (ItemStack drop : drops) {
+                if (drop.isEmpty()) continue;
+                receipt.expectBlockDrop();
+                Block.popResource(level, pos, drop);
+            }
+            return receipt.items() > 0 ? new OreReward(BuiltInRegistries.BLOCK.getKey(selected.block()).toString(), receipt.items()) : null;
         }
-        return produced;
     }
 
     public static int candidateCount(ServerPlayer player) { return candidates(player, player.serverLevel().dimension()).size(); }
@@ -115,6 +123,19 @@ public final class NaturalOreDropService {
 
     public static boolean isNaturalOre(ServerPlayer player, BlockState state) {
         return state != null && !state.isAir() && oreValues(player).containsKey(state.getBlock());
+    }
+
+    /** Identity classifier only. Positive worldgen evidence must independently establish a particular block's origin. */
+    public static boolean isOreType(BlockState state) {
+        if (state == null || state.isAir()) return false;
+        if (state.getBlock() instanceof LatentOreBlock || state.is(ORES) || state.is(STONE_ORES)
+                || state.is(DEEPSLATE_ORES) || state.is(NETHERRACK_ORES) || state.is(END_STONE_ORES)) return true;
+        var block=state.getBlock();
+        return block==Blocks.COAL_ORE || block==Blocks.DEEPSLATE_COAL_ORE || block==Blocks.IRON_ORE || block==Blocks.DEEPSLATE_IRON_ORE
+                || block==Blocks.COPPER_ORE || block==Blocks.DEEPSLATE_COPPER_ORE || block==Blocks.GOLD_ORE || block==Blocks.DEEPSLATE_GOLD_ORE
+                || block==Blocks.REDSTONE_ORE || block==Blocks.DEEPSLATE_REDSTONE_ORE || block==Blocks.LAPIS_ORE || block==Blocks.DEEPSLATE_LAPIS_ORE
+                || block==Blocks.DIAMOND_ORE || block==Blocks.DEEPSLATE_DIAMOND_ORE || block==Blocks.EMERALD_ORE || block==Blocks.DEEPSLATE_EMERALD_ORE
+                || block==Blocks.NETHER_QUARTZ_ORE || block==Blocks.NETHER_GOLD_ORE || block==Blocks.ANCIENT_DEBRIS;
     }
 
     private static List<Candidate> candidates(ServerPlayer player, ResourceKey<Level> dimension) {

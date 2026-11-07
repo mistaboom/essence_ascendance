@@ -28,6 +28,8 @@ public final class ProjectileState {
     public boolean chargeDischarged, ended, redirected;
     public final Set<UUID> payloadVictims = new LinkedHashSet<>();
     public ProjectileImpactEffects.Snapshot payload;
+    /** Session-only observation provenance; old/restored shots never acquire the current held weapon. */
+    public com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combatCause;
 
     public ProjectileState(ProjectileSource source, ProjectilePath path, UUID owner, UUID ownerLife,
                            ResourceLocation dimension, long launchedAt,

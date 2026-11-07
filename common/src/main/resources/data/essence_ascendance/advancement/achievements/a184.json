@@ -1,0 +1,29 @@
+{
+  "parent": "essence_ascendance:achievements/a114",
+  "display": {
+    "icon": {
+      "id": "minecraft:nether_star"
+    },
+    "title": {
+      "translate": "advancement.essence_ascendance.a184"
+    },
+    "description": {
+      "translate": "advancement.essence_ascendance.a184.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "achieved": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "achieved"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

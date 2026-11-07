@@ -24,6 +24,13 @@ import static com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudCards.
 public final class MobilityFlightEffects {
     private MobilityFlightEffects() { }
 
+    /** Read-only ownership fact: native Elytra flight alone is not an Essence Wings session. */
+    public static boolean ownedWings(SkillEffectRuntime.Context context) {
+        FlightAbilityState state = context.existingState(SkillIds.ESSENCE_WINGS);
+        return context.isEffective(SkillIds.ESSENCE_WINGS) && state != null && state.wingsActive()
+                && context.player().isFallFlying() && FlightAbilityRules.wingsAllowed(context.player());
+    }
+
     public static List<SkillEffectHandler> handlers() {
         return List.of(new Wings(), new FreeFlight(SkillIds.FATIGUE_FLIGHT),
                 new VectorBoost(), new FreeFlight(SkillIds.UNTETHERED_FLIGHT));
@@ -108,6 +115,7 @@ public final class MobilityFlightEffects {
                     && player.getDeltaMovement().y <= 0) {
                 player.startFallFlying();
                 state.startWings(context.now());
+                com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.beginGlide(player);
             }
         }
 
@@ -249,7 +257,10 @@ public final class MobilityFlightEffects {
             if (pressTick == Long.MIN_VALUE || state.boostCharge() < 1 || wings == null || !wings.wingsActive()
                     || wings.wingsStartedTick() >= pressTick || !context.player().isFallFlying()
                     || !FlightAbilityRules.wingsAllowed(context.player())) return;
-            if (boost(context, tuning.rocketSpeedBonus())) state.spendBoost();
+            if (boost(context, tuning.rocketSpeedBonus())) {
+                state.spendBoost();
+                com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.boost(context.player());
+            }
         }
 
         private static boolean boost(SkillEffectRuntime.Context context, double rocketSpeedBonus) {

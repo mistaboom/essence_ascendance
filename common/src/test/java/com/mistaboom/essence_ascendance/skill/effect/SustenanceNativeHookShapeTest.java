@@ -22,6 +22,7 @@ public final class SustenanceNativeHookShapeTest {
         try (var input = source.read("net/minecraft/" + name)) { var node = new ClassNode(); new ClassReader(input).accept(node, 0); return node; }
     }
     private static void inspect(Source source, boolean neo) throws Exception {
+        boolean modern = "26.1.2".equals(System.getProperty("essence.minecraft"));
         var living = read(source,"world/entity/LivingEntity");
         var start = method(living,"startUsingItem",null);
         check(count(start,"getUseDuration") == 1, "one native duration read at start");
@@ -32,19 +33,36 @@ public final class SustenanceNativeHookShapeTest {
         if (neo) check(count(update,"onItemUseTick") == 1, "NeoForge use tick adjustment retained");
         var complete = method(living,"completeUsingItem",null);
         check(count(complete,"finishUsingItem") == 1 && count(complete,"setItemInHand") == 1
-                && count(complete,"stopUsingItem") == 1 && count(complete,"triggerItemUseEffects") == 1,
-                "single native completion retains hand replacement, stop and sound/particles");
+                && count(complete,"stopUsingItem") == 1 && count(complete,"triggerItemUseEffects") == (modern ? 0 : 1),
+                "single native completion retains hand replacement and stop; target owns completion feedback");
         if (neo) check(count(complete,"onItemUseFinish") == 1, "NeoForge finish event retained");
         if (neo) check(count(method(read(source,"server/level/ServerPlayerGameMode"),"useItem",null),"onItemRightClick") == 1,
                 "NeoForge native game-mode use retains right-click cancellation before item use");
         check(count(method(living,"releaseUsingItem",null),"releaseUsing") == 1, "ordinary release cancellation retained");
         var player = read(source,"world/entity/player/Player");
-        var eat = method(player,"eat",null);
-        check(count(eat,"usingConvertsTo") == 1 && count(eat,"add") == 1 && count(eat,"trigger") == 1,
-                "one component-container insertion and native consume criterion");
-        check(count(eat,"drop") == (neo ? 1 : 0),
-                "NeoForge already drops rejected component containers; only Fabric needs the fallback");
-        check(count(method(player,"jumpFromGround",null),"causeFoodExhaustion") == 2
+        if (modern) {
+            // Native 26.1 moved food, feedback and remainders from Player.eat into item components.
+            var consume = method(read(source,"world/item/component/Consumable"),"onConsume",null);
+            check(count(consume,"emitParticlesAndSounds") == 1 && count(consume,"trigger") == 1
+                    && count(consume,"consume") == 1 && count(consume,"getAllOfType") == 1,
+                    "one native component completion emits feedback, criterion, consumption and listeners");
+            check(count(method(read(source,"world/food/FoodProperties"),"onConsume",null),"eat") == 1,
+                    "native food component applies nutrition once");
+            var stack = read(source,"world/item/ItemStack");
+            check(count(method(stack,"finishUsingItem",null),"applyAfterUseComponentSideEffects") == 1
+                    && count(method(stack,"applyAfterUseComponentSideEffects",null),"convertIntoRemainder") == 1,
+                    "one native finished-use remainder conversion");
+            var remainder = method(read(source,"server/level/ServerPlayer"),"handleExtraItemsCreatedOnUse",null);
+            check(count(remainder,"add") == 1 && count(remainder,"drop") == 1,
+                    "both native loaders insert or drop rejected extra component containers");
+        } else {
+            var eat = method(player,"eat",null);
+            check(count(eat,"usingConvertsTo") == 1 && count(eat,"add") == 1 && count(eat,"trigger") == 1,
+                    "one component-container insertion and native consume criterion");
+            check(count(eat,"drop") == (neo ? 1 : 0),
+                    "NeoForge already drops rejected component containers; only Fabric needs the fallback");
+        }
+        check(count(method(modern ? read(source,"server/level/ServerPlayer") : player,"jumpFromGround",null),"causeFoodExhaustion") == 2
                 && count(method(player,"attack",null),"causeFoodExhaustion") == 1, "jump and attack exertion only");
         check(count(method(player,"actuallyHurt",null),"causeFoodExhaustion") == 1,
                 "accepted damage exhaustion remains explicit and outside suppression");
@@ -62,7 +80,7 @@ public final class SustenanceNativeHookShapeTest {
                 "phantom initial and retained target share native targeting conditions");
         check(method(read(source,"world/entity/ai/targeting/TargetingConditions"),"test",null) != null,
                 "targeting conditions accept attacker and target for owner-local protection");
-        check(method(read(source,"world/entity/monster/Phantom"),"aiStep",null) != null,
+        check(method(read(source,"world/entity/monster/Phantom"),modern ? "tick" : "aiStep",null) != null,
                 "phantom pre-AI hook clears already-swooping targets before inherited AI executes");
     }
     private static MethodNode method(ClassNode type, String name, String desc) {

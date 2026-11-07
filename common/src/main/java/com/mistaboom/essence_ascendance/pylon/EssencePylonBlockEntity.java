@@ -17,6 +17,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -166,10 +167,16 @@ public final class EssencePylonBlockEntity extends BlockEntity
     public boolean setLink(Player player, MachineLink.Mode mode, MachineLink.Source source) {
         if (!ServerMenuAccess.canReach(player, this) || !authorize(player, MachineAction.LINK)
                 || !(level instanceof ServerLevel serverLevel)) return false;
+        UUID functioningBefore = functioningSourceIdentity();
         BlockPos previous = linkedCruciblePos;
+        MachineLink.Mode previousMode = link.mode();
+        MachineLink.Source previousTarget = link.target();
         if (!link.configure(serverLevel, worldPosition, EssenceConfigManager.get().pylonRadius(), binding, mode, source)) return false;
         linkedCruciblePos = link.target() == null ? null : link.target().pos();
-        linkChanged(previous); refreshLink(); return true;
+        linkChanged(previous); refreshLink();
+        if (previousMode != link.mode() || !java.util.Objects.equals(previousTarget, link.target()))
+            observeActivation(player, functioningBefore);
+        return true;
     }
     public void refreshLink() {
         if (!(level instanceof ServerLevel serverLevel)) return;
@@ -252,6 +259,8 @@ public final class EssencePylonBlockEntity extends BlockEntity
             return InteractionResult.CONSUME;
         }
 
+        UUID functioningBefore = functioningSourceIdentity();
+
         ItemStack installed = held.copy();
         installed.setCount(1);
         setItem(FOCUS_SLOT, installed);
@@ -269,7 +278,41 @@ public final class EssencePylonBlockEntity extends BlockEntity
             }
         }
 
+        observeActivation(player, functioningBefore);
+
         return InteractionResult.CONSUME;
+    }
+
+    /** The authenticated menu supplies its operation-local before-image after native mutation succeeds. */
+    void observeMenuFocus(Player player, ItemStack before, UUID functioningBefore) {
+        ItemStack after = getItem(FOCUS_SLOT);
+        if (!ItemStack.isSameItemSameComponents(before, after) || before.getCount() != after.getCount())
+            observeActivation(player, functioningBefore);
+    }
+
+    /** Current physical link relation before/after an explicit action, never a historical placed-block claim. */
+    public UUID functioningSourceIdentity() {
+        if (!hasInstalledFocus() || !(level instanceof ServerLevel serverLevel) || !isCurrentLinkValid()
+                || linkedCruciblePos == null
+                || !(serverLevel.getBlockEntity(linkedCruciblePos) instanceof EssenceCrucibleBlockEntity crucible)) return null;
+        return EssenceCrucibleStructureService.evaluateSnapshot(serverLevel, linkedCruciblePos).containsPylon(worldPosition)
+                ? crucible.physicalMachineId() : null;
+    }
+
+    private void observeActivation(Player player, UUID functioningBefore) {
+        if (!(player instanceof ServerPlayer operator)
+                || !com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(operator)
+                || !canPlayerConfigure(player) || !hasInstalledFocus()
+                || !(level instanceof ServerLevel serverLevel)) return;
+        refreshLink();
+        if (!isCurrentLinkValid() || linkedCruciblePos == null
+                || !(serverLevel.getBlockEntity(linkedCruciblePos) instanceof EssenceCrucibleBlockEntity crucible)) return;
+        // Range, loaded state, shared-pool authorization and current configured active-slot selection all matter.
+        var current = EssenceCrucibleStructureService.evaluateSnapshot(serverLevel, linkedCruciblePos);
+        if (!current.containsPylon(worldPosition)) return;
+        // Active Focus swaps preserve the same functioning relation. A new physical source is a new activation.
+        boolean activated = !java.util.Objects.equals(functioningBefore, crucible.physicalMachineId());
+        crucible.observeInfrastructure(operator, activated);
     }
 
     @Override

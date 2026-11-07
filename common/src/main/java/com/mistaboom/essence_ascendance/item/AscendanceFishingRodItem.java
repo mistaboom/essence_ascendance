@@ -71,7 +71,10 @@ public final class AscendanceFishingRodItem extends FishingRodItem implements Eq
     @Override public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int remaining) {
         if (entity instanceof ServerPlayer player && player.fishing instanceof RodHookAccess hook
                 && hook.essenceAscendance$rodHand() != 0 && hook.essenceAscendance$rodState().castStack == stack
-                && hook.essenceAscendance$rodState().release()) player.fishing.discard();
+                && hook.essenceAscendance$rodState().release()) {
+            com.mistaboom.essence_ascendance.gameplay.RodOutcomes.released(player,player.fishing);
+            player.fishing.discard();
+        }
         //? if >=26.1.2
         /*return false;*/
     }

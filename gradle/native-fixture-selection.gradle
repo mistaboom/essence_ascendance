@@ -17,7 +17,9 @@ switch (fixture) {
     case 'audio': expectedRun = selected.endsWith(':runClient') ? 'runClient' : 'runServer'; break
     case 'projectile': expectedRun = target.loader == 'neoforge' && !modern ? 'runClient' : 'runServer'; break
     case 'membership': expectedRun = 'runServer'; break
+    case 'achievements': expectedRun = 'runServer'; break
     case 'guard-movement':
+    case 'achievement-presentation':
     case 'glaive': expectedRun = 'runClient'; break
     default: throw new GradleException("Unknown native fixture selection contract: ${fixture}")
 }

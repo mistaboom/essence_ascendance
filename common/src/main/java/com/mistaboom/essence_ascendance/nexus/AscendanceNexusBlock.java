@@ -9,6 +9,8 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -69,6 +71,13 @@ public final class AscendanceNexusBlock extends HorizontalMachineBlock implement
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new AscendanceNexusBlockEntity(pos, state);
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide && level.getBlockEntity(pos) instanceof AscendanceNexusBlockEntity nexus)
+            nexus.recordPlacement(placer instanceof ServerPlayer player ? player : null);
     }
 
     @Nullable
@@ -140,7 +149,18 @@ public final class AscendanceNexusBlock extends HorizontalMachineBlock implement
                         TITLE
                 );
 
-        serverPlayer.openMenu(provider);
+        var opened = serverPlayer.openMenu(provider);
+        if (opened.isPresent()
+                && serverPlayer.containerMenu instanceof AscendanceNexusMenu menu
+                && menu.isAt(level, pos) && menu.stillValid(serverPlayer)
+                && com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(serverPlayer)
+                && level.getBlockEntity(pos) instanceof AscendanceNexusBlockEntity nexus) {
+            com.mistaboom.essence_ascendance.gameplay.ProgressionOutcomes.publish(serverPlayer.server,
+                    new com.mistaboom.essence_ascendance.gameplay.ProgressionOutcome.NexusUsed(
+                            com.mistaboom.essence_ascendance.attunement.AttunementGameplay.action("nexus_use"),
+                            serverPlayer.getUUID(), serverPlayer.server.overworld().getGameTime(),
+                            level.dimension().location(), pos.asLong(), nexus.survivalBuilder()));
+        }
 
         /*
          * The screen reads the same authoritative player snapshot used by the

@@ -57,11 +57,14 @@ public final class PostureService {
         String motion = "no_server_movement", pendingMotion = "no_server_movement", forceReason = "none";
         ThreatFacingResolver.Result threat = ThreatFacingResolver.Result.none("inactive");
         Incoming incoming = Incoming.empty();
+        final Map<Long, Origin> survivalOrigins = new HashMap<>();
+        boolean survivalAdaptation;
         State(ServerPlayer player) {
             dimension = player.level().dimension().location().toString(); lastPosition = player.position();
             yaw = player.getYRot(); pitch = player.getXRot();
         }
     }
+    private record Origin(long tick, boolean eligible) { }
     public static ResourceLocation selected(SkillEffectRuntime.Context context) {
         ResourceLocation found = null;
         for (ResourceLocation id : List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD))
@@ -189,6 +192,11 @@ public final class PostureService {
     }
     public static Incoming prepare(ServerPlayer player, DamageSource source, float amount, long event, boolean secondary) {
         var context = SkillEffectRuntime.context(player); State state = state(context); long now = context.now();
+        if (state != null) {
+            state.survivalOrigins.values().removeIf(origin -> now < origin.tick() || now - origin.tick() > 1);
+            if (state.survivalOrigins.size() < 64)
+                state.survivalOrigins.put(event, new Origin(now, AttunementGameplay.eligible(player)));
+        }
         boolean eligible = state != null && eligible(player, source, amount, secondary);
         var responsible = ProjectileOwnership.damageSource(source, player);
         double resistance = 0, chance = 0; String reason = eligible ? "eligible_primary_native_hit" : "invalid_secondary_or_unavoidable";
@@ -237,7 +245,21 @@ public final class PostureService {
         var context = SkillEffectRuntime.context(player); State state = state(context); if (state == null) return;
         if (!Objects.equals(state.selected,event.posture()) || state.lifecycle!=event.lifecycle()) return;
         boolean actual = event.dodged() || accepted;
+        Origin survivalOrigin = state.survivalOrigins.remove(event.event());
+        boolean survivalEligible = survivalOrigin != null && survivalOrigin.eligible() && AttunementGameplay.eligible(player);
+        int previousStacks = state.meter.damageType().equals(event.damageType()) ? state.meter.stacks() : 0;
         boolean changed = state.meter.hit(event.event(),context.now(),event.damageType(),event.eligible(),accepted && loss > 0,event.dodged(),context.settings().posture());
+        if (changed && state.meter.choice() == PostureMeter.Choice.ADAPTIVE) {
+            state.survivalAdaptation = previousStacks == 0 ? survivalEligible : state.survivalAdaptation && survivalEligible;
+            var tuning = context.settings().posture().adaptive();
+            double maximum = Math.max(0, tuning.maximumStacks() - tuning.minimumHits() + 1) * tuning.resistancePerStack();
+            double previous = Math.max(0, previousStacks - tuning.minimumHits() + 1) * tuning.resistancePerStack();
+            double amount = Math.max(0, state.meter.stacks() - tuning.minimumHits() + 1) * tuning.resistancePerStack();
+            if (state.survivalAdaptation) com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.publish(player,
+                    new com.mistaboom.essence_ascendance.gameplay.SurvivalOutcome.Adaptation(
+                            com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.context(player, "adaptation"),
+                            event.damageType(), previous, amount, maximum));
+        }
         state.incoming = new Incoming(event.event(),event.tick(),event.lifecycle(),event.damageType(),event.posture(),event.source(),event.eligible(),event.chance(),event.roll(),event.dodged(),
                 event.resistance(),event.requestedPrevention(),actual || nativeBlock ? Math.max(0,confirmed) : 0,accepted,event.knockback(),
                 event.dodged() ? "confirmed_dodge" : !accepted && !nativeBlock ? "native_rejected" : event.decision());

@@ -31,6 +31,7 @@ public final class AttunementService {
         if (chapter == null) return event.outcomes().stream().map(o -> new AttunementContribution(event.rootActionId(), o.activityId(), "", o.sourceSignature(), 0, 1, 1, 1, 0, isMaximumTier(data) ? "maximum_tier" : "unavailable")).toList();
         data.attunement().chapter(chapter.id());
         int before = completed(data.attunement(), chapter);
+        int earnedBefore = com.mistaboom.essence_ascendance.gameplay.ProgressionFacts.earnedSeals(data, chapter);
         List<AttunementContribution> result = new ArrayList<>();
         for (AttunementEvent.Outcome outcome : event.outcomes()) {
             AttunementActivity activity = AttunementActivityRegistry.get(outcome.activityId());
@@ -39,6 +40,20 @@ public final class AttunementService {
         }
         saved.setDirty();
         int after = completed(data.attunement(), chapter);
+        if (AttunementGameplay.eligible(player)) {
+            long now = player.server.overworld().getGameTime();
+            for (AttunementContribution contribution : result) if (contribution.credited())
+                com.mistaboom.essence_ascendance.gameplay.ProgressionOutcomes.publish(player.server,
+                        new com.mistaboom.essence_ascendance.gameplay.ProgressionOutcome.ActivityContributed(
+                                com.mistaboom.essence_ascendance.gameplay.ProgressionFacts.receipt(event.rootActionId(), "activity:" + contribution.activityId()),
+                                player.getUUID(), now, chapter.id(), contribution.categoryId(), contribution.activityId(), contribution.finalContribution()));
+            int earnedAfter = com.mistaboom.essence_ascendance.gameplay.ProgressionFacts.earnedSeals(data, chapter);
+            if (earnedBefore < 6 && earnedAfter == 6 && data.getTier().grantsPower())
+                com.mistaboom.essence_ascendance.gameplay.ProgressionOutcomes.publish(player.server,
+                        new com.mistaboom.essence_ascendance.gameplay.ProgressionOutcome.SealsCompleted(
+                                com.mistaboom.essence_ascendance.gameplay.ProgressionFacts.receipt(event.rootActionId(), "seals"),
+                                player.getUUID(), now, chapter.id(), data.getTier().order(), earnedAfter));
+        }
         if (shouldPromoteAutomatically(data, chapter)) {
             AscendanceAttemptResult promotion = AscendanceEngine.ascend(player);
             if (promotion.status() == AscendanceAttemptResult.Status.SUCCESS) {

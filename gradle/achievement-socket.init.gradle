@@ -1,0 +1,79 @@
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'achievement-socket'
+allprojects { p ->
+    p.afterEvaluate {
+        def requested = gradle.startParameter.taskNames.collect { it.startsWith(':') ? it : ":${it}" }
+        if (requested.size() != 1) throw new GradleException('Select one exact achievementSocketFixtureJar task')
+        def target = p.rootProject.targetCatalog.targets.find { it.implemented && requested.first() == ":${it.loader}:${it.minecraft}:achievementSocketFixtureJar" }
+        if (target == null) throw new GradleException('Select an implemented target achievementSocketFixtureJar task')
+        if (p.path != ":${target.loader}:${target.minecraft}") return
+        def common = p.targetCommon
+        def neo = target.loader == 'neoforge'
+        def modern = p.targetResourceFormat == '26.1'
+        def toast = modern ? 'AchievementToast2612Mixin' : 'AchievementToast1211Mixin'
+        def compile = p.tasks.register('compileAchievementSocketFixture', JavaCompile) {
+            dependsOn common.tasks.named('classes'), common.tasks.named('testClasses')
+            source p.rootProject.file('gradle/native-fixtures/AchievementSocketFixture.java')
+            source p.rootProject.file("gradle/native-fixtures/${toast}.java")
+            if (neo) source p.rootProject.file('gradle/native-fixtures/AchievementSocketMod.java')
+            classpath = p.sourceSets.main.compileClasspath + common.sourceSets.main.output
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/achievement-socket-classes')
+            options.release = p.targetJava
+            javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+        }
+        def metadata = p.file('build/native-fixtures/achievement-socket-metadata')
+        def fixture = p.tasks.register('achievementSocketNativeJar', Jar) {
+            dependsOn compile, common.tasks.named('testClasses')
+            archiveFileName = 'achievement-socket-native-fixture.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            from(compile.flatMap { it.destinationDirectory })
+            from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/audiofixture/mixin/AudioHiddenWindowMixin.class' }
+            from(metadata)
+            doFirst {
+                metadata.mkdirs()
+                new File(metadata, 'achievement-socket.mixins.json').text = groovy.json.JsonOutput.toJson([
+                        required:true, minVersion:'0.8', compatibilityLevel:"JAVA_${p.targetJava}",
+                        package:'com.mistaboom.essence_ascendance.achievementfixture.mixin', client:[toast], injectors:[defaultRequire:1]])
+                new File(metadata, 'achievement-hidden.mixins.json').text = groovy.json.JsonOutput.toJson([
+                        required:true, minVersion:'0.8', compatibilityLevel:"JAVA_${p.targetJava}",
+                        package:'com.mistaboom.essence_ascendance.audiofixture.mixin', client:['AudioHiddenWindowMixin'], injectors:[defaultRequire:1]])
+                if (!neo) new File(metadata, 'fabric.mod.json').text = groovy.json.JsonOutput.toJson([
+                        schemaVersion:1, id:'essence_achievement_socket_test', version:'1', environment:'*',
+                        entrypoints:[client:['com.mistaboom.essence_ascendance.achievementfixture.AchievementSocketFixture::client'],
+                                     server:['com.mistaboom.essence_ascendance.achievementfixture.AchievementSocketFixture::server']],
+                        mixins:['achievement-socket.mixins.json','achievement-hidden.mixins.json'], depends:[essence_ascendance:'*']])
+                else {
+                    new File(metadata, 'META-INF').mkdirs()
+                    new File(metadata, 'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_achievement_socket_test"
+version="1"
+displayName="Achievement socket fixture"
+[[mixins]]
+config="achievement-socket.mixins.json"
+[[mixins]]
+config="achievement-hidden.mixins.json"
+[[dependencies.essence_achievement_socket_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1.0.0-beta.1,)"
+ordering="AFTER"
+side="BOTH"
+'''
+                }
+            }
+        }
+        if (!neo && !modern) {
+            def remapType = p.tasks.named('remapJar').get().class.superclass
+            p.tasks.register('achievementSocketFixtureJar', remapType) {
+                dependsOn fixture
+                inputFile.set(fixture.flatMap { it.archiveFile })
+                archiveFileName = 'achievement-socket-fixture.jar'
+                destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+                sourceNamespace.set('named'); targetNamespace.set('intermediary'); addNestedDependencies.set(false)
+            }
+        } else p.tasks.register('achievementSocketFixtureJar') { dependsOn fixture }
+    }
+}

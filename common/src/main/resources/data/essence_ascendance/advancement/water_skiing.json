@@ -1,20 +1,4 @@
 {
-  "parent": "minecraft:adventure/root",
-  "display": {
-    "icon": {
-      "id": "essence_ascendance:ascendance_fishing_rod"
-    },
-    "title": {
-      "translate": "advancement.essence_ascendance.water_skiing"
-    },
-    "description": {
-      "translate": "advancement.essence_ascendance.water_skiing.description"
-    },
-    "frame": "task",
-    "show_toast": true,
-    "announce_to_chat": true,
-    "hidden": false
-  },
   "criteria": {
     "travel": {
       "trigger": "minecraft:impossible"

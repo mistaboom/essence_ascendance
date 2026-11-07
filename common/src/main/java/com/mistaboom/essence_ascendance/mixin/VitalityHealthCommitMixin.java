@@ -24,6 +24,8 @@ public abstract class VitalityHealthCommitMixin {
                 ? VitalityDeathDefianceService.interceptHealthWrite(server, source, healthBefore, health) : health;
         original.call(player, resolved);
         if (player instanceof ServerPlayer server)
+            VitalityDeathDefianceService.confirmHealthWrite(server);
+        if (player instanceof ServerPlayer server)
             VitalityDamageService.commitHealthDamage(server, source, healthBefore, maximumBefore);
     }
 }

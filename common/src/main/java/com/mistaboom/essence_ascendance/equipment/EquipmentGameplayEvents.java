@@ -78,6 +78,7 @@ public final class EquipmentGameplayEvents {
                 GatheringSurveySyncService.syncIfNeeded(serverPlayer);
                 UtilitySenseSyncService.syncIfNeeded(serverPlayer);
                 SkillEffectHudSyncService.syncIfNeeded(serverPlayer);
+                com.mistaboom.essence_ascendance.gameplay.EquipmentObservations.observe(serverPlayer);
             }
         });
 

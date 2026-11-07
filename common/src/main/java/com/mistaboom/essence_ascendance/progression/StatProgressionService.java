@@ -254,6 +254,12 @@ public final class StatProgressionService {
          */
 
         final boolean committed;
+        boolean observable = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player);
+        String action = observable ? com.mistaboom.essence_ascendance.attunement.AttunementGameplay.action("bonus_purchase") : "";
+        double purchasedIncrease = observable ? com.mistaboom.essence_ascendance.gameplay.ProgressionFacts
+                .purchasedBonusIncrease(playerData, stat, requestedTotal) : 0;
+        if (observable) com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService.sync(player);
+        double maximumHealthBefore = player.getMaxHealth();
 
         try {
 
@@ -322,6 +328,15 @@ public final class StatProgressionService {
                         playerData,
                         stat
                 );
+
+        if (observable) {
+            com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService.sync(player);
+            com.mistaboom.essence_ascendance.gameplay.ProgressionOutcomes.publish(player.server,
+                    new com.mistaboom.essence_ascendance.gameplay.ProgressionOutcome.BonusPurchased(action,
+                            player.getUUID(), player.server.overworld().getGameTime(), stat.id(),
+                            limit.storedInvestment(), updatedLimit.storedInvestment(), maximumHealthBefore,
+                            player.getMaxHealth(), purchasedIncrease));
+        }
 
 
         return new StatInvestmentResult(

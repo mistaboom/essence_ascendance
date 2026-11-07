@@ -32,10 +32,32 @@ public final class GatheringMiningEffects {
     private static GatheringBalanceSettings settings(SkillEffectRuntime.Context context) { return context.settings().gathering(); }
     private static Text text(String key, String... args) { return Text.translated("hud.essence_ascendance.gathering." + key, args); }
 
-    /** Called only after vanilla has confirmed a successful destroyBlock and the scoped tool swap is restored. */
+    /** Called only after positive native block removal, with the scoped tool swap restored. */
     public static void successfulHarvest(ServerPlayer player, BlockPos pos, BlockState state, ItemStack resolvedTool) {
+        successfulHarvest(player, pos, state, resolvedTool, HarvestEvidence.UNKNOWN);
+    }
+
+    /** Captured before native removal; absence of positive evidence never means natural generation. */
+    public record HarvestEvidence(boolean generatedOrigin, boolean correctTool, boolean underwater, boolean aquaticBody) {
+        public static final HarvestEvidence UNKNOWN = new HarvestEvidence(false, false, false, false);
+    }
+    public static HarvestEvidence captureHarvest(ServerPlayer player, BlockPos pos, BlockState state) {
+        boolean generated = player.serverLevel().getBlockEntity(pos) instanceof com.mistaboom.essence_ascendance.ore.LatentOreBlockEntity ore
+                && ore.hasGeneratedOrigin(player.level().dimension().location().toString(), pos)
+                && NaturalOreDropService.isOreType(state);
+        generated |= com.mistaboom.essence_ascendance.gathering.GeneratedOreObservations.matches(player.server,
+                player.level().dimension().location().toString(),pos,state);
+        return new HarvestEvidence(generated, player.hasCorrectToolForDrops(state), player.isUnderWater(),
+                SkillEffectRuntime.context(player).isEffective(SkillIds.AQUATIC_BODY));
+    }
+
+    public static void successfulHarvest(ServerPlayer player, BlockPos pos, BlockState state, ItemStack resolvedTool, HarvestEvidence evidence) {
         if (player == null || state == null || state.isAir()) return;
         SkillEffectRuntime.Context context = SkillEffectRuntime.context(player);
+        com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.publish(player,
+                new com.mistaboom.essence_ascendance.gameplay.GatheringOutcome.Harvest(
+                        com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.context(player, "harvest_success"),
+                        BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(), evidence.generatedOrigin(), evidence.correctTool(), evidence.underwater(), evidence.aquaticBody()));
         if (context.isEffective(SkillIds.TOOL_INSTINCT) && GatheringToolResolver.isMiningTool(resolvedTool))
             SkillHudEvents.record(player, SkillIds.TOOL_INSTINCT, Text.translated("hud.essence_ascendance.event.tool"), List.of(Text.literal(resolvedTool.getHoverName().getString())));
         if (context.isEffective(SkillIds.MINING_MOMENTUM)) recordMomentum(context, state);
@@ -43,7 +65,11 @@ public final class GatheringMiningEffects {
             double chance = settings(context).naturesBoon().dropChance();
             if (chance > 0 && NaturalOreDropService.eligibleSource(player.serverLevel(), state)
                     && player.getRandom().nextDouble() < chance) {
-                if (NaturalOreDropService.dropRandomOre(player, pos, state, resolvedTool)) {
+                var reward = NaturalOreDropService.dropRandomOreReceipt(player, pos, state, resolvedTool);
+                if (reward != null) {
+                    com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.publish(player,
+                            new com.mistaboom.essence_ascendance.gameplay.GatheringOutcome.BonusOre(
+                                    com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.context(player, "ore_bonus"), reward.ore(), reward.deliveredItems()));
                     SkillHudEvents.record(player, SkillIds.NATURES_BOON, "loot", 1);
                     MicroVisualFeedback.gathering(player.serverLevel(), net.minecraft.world.phys.Vec3.atCenterOf(pos),
                             pos.asLong() ^ context.now());
@@ -61,15 +87,23 @@ public final class GatheringMiningEffects {
         MomentumState state = context.state(SkillIds.MINING_MOMENTUM, MomentumState::new);
         GatheringBalanceSettings.MiningMomentum tuning = settings(context).miningMomentum();
         ResourceLocation material = BuiltInRegistries.BLOCK.getKey(block.getBlock());
-        if (state.lastBreakAt != Long.MIN_VALUE && context.now() - state.lastBreakAt > tuning.chainTimeoutTicks()) state.reset();
+        if (state.lastBreakAt != Long.MIN_VALUE && context.now() - state.lastBreakAt > tuning.chainTimeoutTicks()) {
+            state.reset(); com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.reset(context.player());
+        }
         boolean same = material.equals(state.lastMaterial);
+        double before = state.amount;
         double increment = 1.0 / tuning.buildBreaks();
         if (state.lastMaterial != null && !same) increment *= tuning.crossMaterialBuildFraction();
         state.amount = Math.clamp(state.amount + increment, 0, 1);
         state.lastMaterial = material;
         state.lastBreakAt = context.now();
         state.sameMaterial = same;
+        state.eligibleOrigin &= com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(context.player());
         applyMomentum(context, state.amount);
+        com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.publish(context.player(),
+                new com.mistaboom.essence_ascendance.gameplay.GatheringOutcome.Momentum(
+                        com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.context(context.player(), "mining_rhythm"),
+                        state.rhythm, before, state.amount, tuning.maximumSpeedBonus(), state.eligibleOrigin));
     }
 
     private static void applyMomentum(SkillEffectRuntime.Context context, double amount) {
@@ -83,7 +117,9 @@ public final class GatheringMiningEffects {
         long lastBreakAt = Long.MIN_VALUE;
         ResourceLocation lastMaterial;
         boolean sameMaterial;
-        void reset() { amount = 0; lastBreakAt = Long.MIN_VALUE; lastMaterial = null; sameMaterial = false; }
+        String rhythm = java.util.UUID.randomUUID().toString();
+        boolean eligibleOrigin = true;
+        void reset() { amount = 0; lastBreakAt = Long.MIN_VALUE; lastMaterial = null; sameMaterial = false; rhythm = java.util.UUID.randomUUID().toString(); eligibleOrigin = true; }
         @Override public void clear() { reset(); }
     }
 
@@ -102,11 +138,14 @@ public final class GatheringMiningEffects {
             MomentumState state = context.existingState(id());
             if (state == null) { applyMomentum(context, 0); return; }
             if (state.lastBreakAt == Long.MIN_VALUE
-                    || context.now() - state.lastBreakAt > settings(context).miningMomentum().chainTimeoutTicks()) state.reset();
+                    || context.now() - state.lastBreakAt > settings(context).miningMomentum().chainTimeoutTicks()) {
+                state.reset(); com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.reset(context.player());
+            }
             applyMomentum(context, state.amount);
         }
         @Override public void tick(SkillEffectRuntime.Context context) { reconcile(context); }
         @Override public void deactivate(SkillEffectRuntime.Context context) {
+            com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.reset(context.player());
             context.discardState(id());
             SkillEffectAttributes.apply(context.player(), Attributes.BLOCK_BREAK_SPEED, id(), 0,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);

@@ -573,6 +573,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         if (serverInfuser == null) {
             return;
         }
+        serverInfuser.observeMenuInput(player, inputBefore);
         ItemStack inputAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT);
         ItemStack focusAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
         com.mistaboom.essence_ascendance.network.MicroVisualFeedback.focusInstalled(serverInfuser, focusBefore, focusAfter);
@@ -668,6 +669,8 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
         ItemStack source = slot.getItem();
         ItemStack copy = source.copy();
+        ItemStack inputBefore = serverInfuser == null ? ItemStack.EMPTY
+                : serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).copy();
         if (index < MACHINE_SLOT_COUNT) {
             if (!moveItemStackTo(source, PLAYER_INVENTORY_START, PLAYER_INVENTORY_END, true)) {
                 return ItemStack.EMPTY;
@@ -732,6 +735,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
             return ItemStack.EMPTY;
         }
         slot.onTake(player, source);
+        if (serverInfuser != null) serverInfuser.observeMenuInput(player, inputBefore);
         return copy;
     }
 

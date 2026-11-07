@@ -71,6 +71,8 @@ public abstract class AscendanceFishingHookMixin extends Projectile implements R
     }
     @Override public void essenceAscendance$initializeRod(InteractionHand hand, ItemStack stack, EquipmentFishingRodService.Context context) {
         essenceAscendance$rod.cast(hand, stack, context);
+        if (((FishingHook)(Object)this).getPlayerOwner() instanceof ServerPlayer player)
+            essenceAscendance$rod.survivalCast = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player);
         //? if >=26.1.2 {
         /*EntityPresentationBridge2612.set(this, EntityPresentationBridge2612.get(this)
                 .withRod(hand == InteractionHand.MAIN_HAND ? 1 : 2, context.itemTier().ordinal()));
@@ -82,6 +84,8 @@ public abstract class AscendanceFishingHookMixin extends Projectile implements R
         setNoGravity(false);
     }
     @Override public void essenceAscendance$attachBlock(BlockHitResult hit) {
+        if (((FishingHook)(Object)this).getPlayerOwner() instanceof ServerPlayer player)
+            essenceAscendance$rod.survivalAttachment = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player);
         essenceAscendance$rod.anchorBlock = hit.getBlockPos().immutable();
         essenceAscendance$rod.anchorGeometry = level().getBlockState(hit.getBlockPos());
         //? if >=26.1.2
@@ -100,6 +104,11 @@ public abstract class AscendanceFishingHookMixin extends Projectile implements R
         setPos(essenceAscendance$rod.anchor); setDeltaMovement(Vec3.ZERO);
     }
     @Override public void essenceAscendance$attachEntity(Entity entity) {
+        if (((FishingHook)(Object)this).getPlayerOwner() instanceof ServerPlayer player) {
+            essenceAscendance$rod.survivalAttachment = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player);
+            essenceAscendance$rod.attachedTarget = entity.getUUID();
+            essenceAscendance$rod.attachedRange = Math.sqrt(entity.getBoundingBox().distanceToSqr(player.getEyePosition()));
+        }
         setHookedEntity(entity);
         //? if >=26.1.2 {
         /*EntityPresentationBridge2612.set(this, EntityPresentationBridge2612.get(this)

@@ -54,6 +54,7 @@ public abstract class AttunementMovementMixin {
             original.call(packet);
             AttunementGameplay.moved(player, before, dimension);
             PostureService.moved(player, before, dimension, yaw, pitch);
+            com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.moved(player, before, dimension);
         } finally { AttunementGameplay.endExertion(scope); }
     }
 }

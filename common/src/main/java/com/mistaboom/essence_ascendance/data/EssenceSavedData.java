@@ -38,6 +38,10 @@ public final class EssenceSavedData extends SavedData {
             new HashMap<>();
 
     private final ReservoirService reservoirs = new ReservoirService(this);
+    /** Rare world-wide lifecycle transitions must also reach already loaded offline player records. */
+    public void visitPlayerData(java.util.function.Consumer<PlayerEssenceData> visitor) {
+        reservoirs.checkThread(); players.values().forEach(visitor); setDirty();
+    }
     public ReservoirService reservoirs() { reservoirs.checkThread(); return reservoirs; }
     PlayerEssenceData existingPlayerData(UUID player) { return players.get(player); }
 

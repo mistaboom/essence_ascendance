@@ -20,7 +20,9 @@ abstract class GuardMovementEntityMixin {
         StaggerController.tick(entity);
         var initial = GuardMobilityController.beginMove(entity, type);
         Vec3 postureBefore = entity.position();
+        var movementObservation = com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.beginMove(entity, type);
         original.call(type, requested);
+        com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.completedMove(entity, movementObservation);
         com.mistaboom.essence_ascendance.posture.PostureService.externalMove(entity, type, postureBefore);
         StaggerController.moved(entity);
         GuardMobilityController.completedMove(entity, initial);
@@ -37,5 +39,13 @@ abstract class GuardMovementEntityMixin {
     private void essenceAscendance$posturePush(double x, double y, double z, CallbackInfo ci) {
         if ((Object)this instanceof net.minecraft.server.level.ServerPlayer player && (x != 0 || y != 0 || z != 0))
             com.mistaboom.essence_ascendance.posture.PostureService.forced(player,"native_entity_push");
+    }
+    @WrapMethod(method = "push(DDD)V")
+    private void essenceAscendance$rodCompetingPush(double x,double y,double z,Operation<Void> original) {
+        Entity entity=(Entity)(Object)this;
+        Vec3 before=entity.getDeltaMovement();
+        original.call(x,y,z);
+        if (entity.getDeltaMovement().subtract(before).lengthSqr()>0)
+            com.mistaboom.essence_ascendance.gameplay.RodOutcomes.competingImpulse(entity);
     }
 }

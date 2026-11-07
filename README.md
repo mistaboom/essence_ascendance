@@ -48,6 +48,12 @@ Weapons, armor, and tools have their own progression. Use infusion to develop co
 
 Your character and equipment progress together through two connected systems: earn your player tier through gameplay, and invest Essence and materials into your equipment.
 
+## Take on achievement challenges
+
+Explore **69 achievements** in the **Essence Ascendance** advancement tab, from your first Crucible operation to playful fishing-rod challenges and Transcendent milestones. Every challenge is visible from the start. Follow any branch in any order; the connecting lines organize the display and do not add unlock requirements.
+
+Achievements celebrate your actions with Minecraft's usual toasts. They give no gameplay rewards and do not gate Ascension. See the [achievement guide](https://github.com/mistaboom/essence_ascendance/blob/main/docs/achievements/PLAYER-GUIDE.md) for challenge conditions and progress rules.
+
 ## Find your first step
 
 1. Find **Latent ore** and smelt it into Latent Ingots.

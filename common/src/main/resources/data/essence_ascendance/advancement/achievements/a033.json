@@ -1,0 +1,36 @@
+{
+  "parent": "essence_ascendance:achievements/a032",
+  "display": {
+    "icon": {
+      "id": "essence_ascendance:essence_focus",
+      "components": {
+        "minecraft:custom_data": {
+          "essence_ascendance_focus": {
+            "tier": "resonant"
+          }
+        }
+      }
+    },
+    "title": {
+      "translate": "advancement.essence_ascendance.a033"
+    },
+    "description": {
+      "translate": "advancement.essence_ascendance.a033.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "achieved": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "achieved"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

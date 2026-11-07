@@ -27,6 +27,6 @@ public abstract class VerdantFarmlandMixin {
             "Lnet/minecraft/world/level/block/FarmBlock;turnToDirt(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;)V"))
     private void essenceAscendance$protectFarmland(Entity entity, BlockState state, Level level, BlockPos pos,
                                                     Operation<Void> original) {
-        if (!GatheringRuralService.protectsFragileGround(entity)) original.call(entity, state, level, pos);
+        if (!GatheringRuralService.preventFarmlandTrample(entity, state, level, pos)) original.call(entity, state, level, pos);
     }
 }

@@ -10,7 +10,11 @@ import org.spongepowered.asm.mixin.Mixin;
 public abstract class GuardKnockbackMixin {
     @WrapMethod(method = "knockback")
     private void essenceAscendance$guardKnockback(double strength, double x, double z, Operation<Void> original) {
+        var entity=(LivingEntity)(Object)this;
+        var before=entity.getDeltaMovement();
         EquipmentDamageService.observeGuardKnockback((LivingEntity)(Object)this, strength, x, z,
                 () -> original.call(strength, x, z));
+        if (entity.getDeltaMovement().subtract(before).lengthSqr()>0)
+            com.mistaboom.essence_ascendance.gameplay.RodOutcomes.competingImpulse(entity);
     }
 }

@@ -18,6 +18,12 @@ import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
+import com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService;
+import com.mistaboom.essence_ascendance.gameplay.ProgressionFacts;
+import com.mistaboom.essence_ascendance.gameplay.ProgressionOutcome;
+import com.mistaboom.essence_ascendance.gameplay.ProgressionOutcomes;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -427,6 +433,21 @@ public final class AscendanceNexusTransactionService {
             );
         }
 
+        boolean observable = AttunementGameplay.eligible(player);
+        String commitAction = observable ? AttunementGameplay.action("nexus_commit") : "";
+        var previousTier = playerData.getTier();
+        var previousSkills = Map.copyOf(playerData.getSkillRanks());
+        var previousInvestments = Map.copyOf(playerData.getAllInvested());
+        Map<ResourceLocation, Double> purchasedIncreases = new LinkedHashMap<>();
+        if (observable) for (var target : targetInvestments.entrySet()) {
+            var stat = EssenceStatRegistry.get(target.getKey()).orElse(null);
+            if (stat != null && target.getValue() > previousInvestments.getOrDefault(target.getKey(), 0L))
+                purchasedIncreases.put(target.getKey(), ProgressionFacts.purchasedBonusIncrease(playerData, stat, target.getValue()));
+        }
+        var ascensionFacts = observable && ascend ? ProgressionFacts.beforeAscension(player, playerData) : null;
+        if (observable) EquipmentAttributeService.sync(player);
+        double previousMaximumHealth = player.getMaxHealth();
+
         try {
             boolean committed = savedData.applyNexusTransaction(
                     player.getUUID(),
@@ -455,6 +476,25 @@ public final class AscendanceNexusTransactionService {
             );
         }
 
+        if (observable) {
+            EquipmentAttributeService.sync(player);
+            long now = player.server.overworld().getGameTime();
+            for (var request : requestedPurchases.entrySet()) {
+                int oldRank = previousSkills.getOrDefault(request.getKey(), 0);
+                if (request.getValue() <= oldRank) continue;
+                SkillDefinition skill = SkillRegistry.get(request.getKey()).orElseThrow();
+                ProgressionOutcomes.publish(player.server, new ProgressionOutcome.SkillPurchased(
+                        ProgressionFacts.receipt(commitAction, "skill:" + skill.id()), player.getUUID(), now,
+                        skill.id(), skill.essenceId(), oldRank, request.getValue()));
+            }
+            for (var increase : purchasedIncreases.entrySet()) ProgressionOutcomes.publish(player.server,
+                    new ProgressionOutcome.BonusPurchased(ProgressionFacts.receipt(commitAction, "bonus:" + increase.getKey()),
+                            player.getUUID(), now, increase.getKey(), previousInvestments.getOrDefault(increase.getKey(), 0L),
+                            playerData.getAllInvested().get(increase.getKey()), previousMaximumHealth,
+                            player.getMaxHealth(), increase.getValue()));
+            if (ascend) ProgressionFacts.ascended(player, ProgressionFacts.receipt(commitAction, "ascension"),
+                    previousTier, playerData.getTier(), previousTier.grantsPower(), ascensionFacts);
+        }
         if (ascend) com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         return Result.success(
                 playerData.nexusRevision(),

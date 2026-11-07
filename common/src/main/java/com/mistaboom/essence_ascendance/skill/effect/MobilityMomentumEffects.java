@@ -20,6 +20,17 @@ import static com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudCards.
 /** One normalized movement reservoir; branches change obstacle handling or temporarily retain that reservoir. */
 public final class MobilityMomentumEffects {
     private MobilityMomentumEffects() { }
+    public record Observation(double amount, double maximum, boolean rushProtected) { }
+    /** Effective configured speed, rather than a hardcoded generated rank endpoint. */
+    public static Observation observation(SkillEffectRuntime.Context context) {
+        double maximum = context.isEffective(SkillIds.RUNNING_MOMENTUM)
+                ? settings(context).runningMomentum().maximumSpeedBonus() : 0;
+        TimedStackState timer = context.existingState(SkillIds.RUSH);
+        boolean protection = context.isEffective(SkillIds.RUSH) && timer != null
+                && timer.count() > 0 && context.now() < timer.nextExpiry();
+        return new Observation(Math.max(0, amount(context) * maximum), maximum, protection);
+    }
+    public static boolean vaultAvailable(SkillEffectRuntime.Context context) { return vaultReady(context); }
     public static List<SkillEffectHandler> handlers() { return List.of(new Running(), new Vault(), new Rush()); }
     private static MobilityBalanceSettings settings(SkillEffectRuntime.Context context) { return context.settings().mobility(); }
     private static Text text(String key, String... args) { return Text.translated("hud.essence_ascendance.mobility." + key, args); }
@@ -150,9 +161,11 @@ public final class MobilityMomentumEffects {
             if (!context.isEffective(SkillIds.RUNNING_MOMENTUM) || !landMode(player)
                     || death.attributedPlayer() != player || victim == player || victim.level() != player.level()
                     || player.isAlliedTo(victim) || victim.isAlliedTo(player)) return;
+            boolean filledFromBelow=amount(context)<1;
             context.state(SkillIds.RUNNING_MOMENTUM, State::new).momentum.fill();
             context.state(id(), TimedStackState::shared).grant(context.now(), 1, settings(context).rush().durationTicks(), true);
             apply(context);
+            com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.rush(context, context.now() + settings(context).rush().durationTicks(),filledFromBelow);
             ProgressionVisualFeedback.momentumSurge(player);
         }
         @Override public void reconcile(SkillEffectRuntime.Context context) {

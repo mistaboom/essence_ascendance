@@ -97,6 +97,7 @@ public final class AscendanceFishingService {
         // ordinary directional input, collisions and native drag continue to control the player.
         if (Double.isFinite(force.lengthSqr()) && force.lengthSqr() > 0) {
             moved.setDeltaMovement(before.add(force));
+            com.mistaboom.essence_ascendance.gameplay.RodOutcomes.forced(player, hook, state, moved, block, force);
             //? if >=26.1.2
             /*moved.hurtMarked = true;*/
             //? if <26.1.2
@@ -166,13 +167,18 @@ public final class AscendanceFishingService {
         if (Double.isFinite(entityViewScale)) state.entityViewScale = Math.clamp(entityViewScale, .25, 12.5);
         if (held && player.isUsingItem() && player.getUseItem() == state.castStack && player.getUsedItemHand() == state.hand)
             state.lastHeldInputTick = player.level().getGameTime();
-        else if (!held && state.release()) player.fishing.discard();
+        else if (!held && state.release()) {
+            com.mistaboom.essence_ascendance.gameplay.RodOutcomes.released(player,player.fishing);
+            player.fishing.discard();
+        }
     }
     public static void forget(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.gameplay.RodOutcomes.forget(player);
         if (player.fishing instanceof RodHookAccess access && access.essenceAscendance$rodHand() != 0) player.fishing.discard();
     }
     public static void tickOwner(ServerPlayer player) {
         if(player.fishing instanceof RodHookAccess access && access.essenceAscendance$rodHand()!=0
                 && (!valid(player,player.fishing) || !player.level().hasChunkAt(player.fishing.blockPosition())))player.fishing.discard();
+        com.mistaboom.essence_ascendance.gameplay.RodOutcomes.tick(player);
     }
 }

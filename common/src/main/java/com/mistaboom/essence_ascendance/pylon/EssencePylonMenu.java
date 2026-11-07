@@ -19,6 +19,7 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
     private final Container pylonContainer;
     private final EssencePylonBlockEntity serverPylon;
     private final long bindingRevision;
+    private int nativeClickDepth;
 
     public EssencePylonMenu(
             int containerId,
@@ -107,9 +108,17 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
             return;
         }
         ItemStack before = pylonContainer.getItem(FOCUS_SLOT).copy();
-        super.clicked(slotId, button, clickType, player);
-        if (serverPylon != null)
+        java.util.UUID functioningBefore = serverPylon == null ? null : serverPylon.functioningSourceIdentity();
+        nativeClickDepth++;
+        try {
+            super.clicked(slotId, button, clickType, player);
+        } finally {
+            nativeClickDepth--;
+        }
+        if (serverPylon != null && nativeClickDepth == 0) {
             com.mistaboom.essence_ascendance.network.MicroVisualFeedback.focusInstalled(serverPylon, before, pylonContainer.getItem(FOCUS_SLOT));
+            serverPylon.observeMenuFocus(player, before, functioningBefore);
+        }
     }
 
     @Override
@@ -126,6 +135,8 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
 
         ItemStack source = slot.getItem();
         ItemStack copy = source.copy();
+        ItemStack focusBefore = pylonContainer.getItem(FOCUS_SLOT).copy();
+        java.util.UUID functioningBefore = serverPylon == null ? null : serverPylon.functioningSourceIdentity();
 
         if (index == FOCUS_SLOT) {
             if (!moveItemStackTo(
@@ -154,6 +165,7 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
         }
 
         slot.onTake(player, source);
+        if (serverPylon != null && nativeClickDepth == 0) serverPylon.observeMenuFocus(player, focusBefore, functioningBefore);
         return copy;
     }
 

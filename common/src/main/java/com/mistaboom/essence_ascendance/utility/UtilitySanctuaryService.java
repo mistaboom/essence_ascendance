@@ -21,9 +21,64 @@ import java.util.UUID;
 
 /** Natural-spawn suppression and persistent post-disengagement pacification for Sanctuary. */
 public final class UtilitySanctuaryService {
+    // Observation cannot create/reconcile skill runtime: acquisition may precede activation.
+    // Only world/player IDs and bounded scalar encounter evidence are retained.
+    private static final Map<net.minecraft.server.MinecraftServer, Map<UUID, SanctuaryEncounterTracker>> ENCOUNTERS =
+            new java.util.WeakHashMap<>();
     private UtilitySanctuaryService() { }
 
     public record Snapshot(int nearbyHostiles, int pacifiedHostiles, long nextDisengageAt) { }
+
+    /** Observes the actual post-setter target, never the cancelable request. */
+    public static void targetChanged(Mob mob, LivingEntity previous, LivingEntity current) {
+        if (previous == current || mob.getType() != net.minecraft.world.entity.EntityType.PILLAGER
+                || !(mob.level() instanceof ServerLevel)) return;
+        if (previous instanceof ServerPlayer player) {
+            SanctuaryEncounterTracker tracker = observations(player, false);
+            if (tracker != null) tracker.ended(mob.getUUID(), player.level().getGameTime());
+        }
+        if (current instanceof ServerPlayer player && mob.level() == player.level()) {
+            observations(player, true).started(mob.getUUID(),
+                    player.level().dimension().location().toString(), player.level().getGameTime());
+        }
+    }
+
+    /** Accepted loss from this actor, including attributed periodic and reflected damage. */
+    public static void acceptedDamage(ServerPlayer player, LivingEntity target) {
+        if (player == null || target == null || target.getType() != net.minecraft.world.entity.EntityType.PILLAGER
+                || target.level() != player.level()) return;
+        observations(player, true).damaged(target.getUUID(),
+                player.level().dimension().location().toString(), player.level().getGameTime());
+    }
+
+    public static void targetRemoved(net.minecraft.world.entity.Entity target) {
+        if (!(target.level() instanceof ServerLevel level)) return;
+        Map<UUID, SanctuaryEncounterTracker> actors = ENCOUNTERS.get(level.getServer());
+        if (actors != null) actors.values().forEach(tracker -> tracker.remove(target.getUUID()));
+        if (target instanceof ServerPlayer player) forget(player);
+    }
+
+    private static boolean undamagedEncounter(SkillEffectRuntime.Context context, Mob mob) {
+        SanctuaryEncounterTracker tracker = observations(context.player(), false);
+        return tracker != null && tracker.undamaged(mob.getUUID(),
+                context.player().level().dimension().location().toString(), context.now());
+    }
+
+    private static SanctuaryEncounterTracker observations(ServerPlayer player, boolean create) {
+        Map<UUID, SanctuaryEncounterTracker> actors = create
+                ? ENCOUNTERS.computeIfAbsent(player.server, ignored -> new HashMap<>()) : ENCOUNTERS.get(player.server);
+        return actors == null ? null : create
+                ? actors.computeIfAbsent(player.getUUID(), ignored -> new SanctuaryEncounterTracker()) : actors.get(player.getUUID());
+    }
+
+    public static void forget(ServerPlayer player) {
+        Map<UUID, SanctuaryEncounterTracker> actors = ENCOUNTERS.get(player.server);
+        if (actors == null) return;
+        actors.remove(player.getUUID());
+        if (actors.isEmpty()) ENCOUNTERS.remove(player.server);
+    }
+
+    public static void clearObservations() { ENCOUNTERS.clear(); }
 
     public static boolean suppressesNaturalMonsterSpawn(ServerLevel level, BlockPos position) {
         if (level == null || position == null) return false;
@@ -96,7 +151,12 @@ public final class UtilitySanctuaryService {
                     if (aggressionRemaining <= 0) {
                         pacifiedHostiles++;
                         targetingSince.remove(id);
-                        if (targeting) clearTarget(mob, player);
+                        if (targeting) {
+                            boolean undamaged = undamagedEncounter(context, mob);
+                            clearTarget(mob, player);
+                            if (mob.getTarget() == null)
+                                com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.pacified(player, mob, true, undamaged);
+                        }
                     } else if (targeting) {
                         nearbyHostiles++;
                         rememberNext(now + aggressionRemaining);
@@ -112,10 +172,13 @@ public final class UtilitySanctuaryService {
                 long since = targetingSince.computeIfAbsent(id, ignored -> now);
                 long eligibleAt = Math.max(since + disengageDelayTicks, now + aggressionRemaining);
                 if (aggressionRemaining <= 0 && now >= since + disengageDelayTicks) {
+                    boolean undamaged = undamagedEncounter(context, mob);
                     pacified.add(id);
                     pacifiedHostiles++;
                     targetingSince.remove(id);
                     clearTarget(mob, player);
+                    if (mob.getTarget() == null)
+                        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.pacified(player, mob, targeting, undamaged);
                     if (visualEvents++ < 6) ProgressionVisualFeedback.sanctuaryRelease(player, mob);
                 } else {
                     nearbyHostiles++;

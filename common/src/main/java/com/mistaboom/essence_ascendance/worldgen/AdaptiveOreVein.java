@@ -74,7 +74,11 @@ final class AdaptiveOreVein extends OreFeature {
                         var host = level.getBlockState(pos);
                         for (var target : config.targetStates) {
                             if (!canPlaceOre(host, level::getBlockState, random, config, target, pos)) continue;
-                            placed |= LatentOreHost.place(level, pos.immutable(), host, Block.UPDATE_CLIENTS);
+                            boolean committed = LatentOreHost.place(level, pos.immutable(), host, Block.UPDATE_CLIENTS);
+                            if (committed && level instanceof net.minecraft.server.level.WorldGenRegion
+                                    && level.getBlockEntity(pos) instanceof com.mistaboom.essence_ascendance.ore.LatentOreBlockEntity ore)
+                                ore.initializeGeneratedOrigin(level.getLevel().dimension().location().toString());
+                            placed |= committed;
                             break;
                         }
                     }

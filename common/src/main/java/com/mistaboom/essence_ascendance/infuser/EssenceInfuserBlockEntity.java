@@ -16,6 +16,11 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
+import com.mistaboom.essence_ascendance.gameplay.MachineOutcome;
+import com.mistaboom.essence_ascendance.gameplay.MachineOutcomes;
+import com.mistaboom.essence_ascendance.data.NbtVersionCompat;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.visual.MachineVisualState;
@@ -100,6 +105,11 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             NonNullList.withSize(SLOT_COUNT, ItemStack.EMPTY);
 
     private final MachineBinding binding = new MachineBinding();
+    private final MachineInstanceIdentity physicalIdentity = new MachineInstanceIdentity();
+    private InfuserJobCredit streamedCredit;
+    private boolean paidCreditSuppressed;
+    /** Eligibility of the current explicit operator survives mode changes until another valid human operation. */
+    private boolean operatorCreditSuppressed;
     private UUID ownerId;
     private String ownerName = "";
     private final MachineLink link = new MachineLink();
@@ -128,6 +138,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             BlockState state,
             EssenceInfuserBlockEntity infuser
     ) {
+        infuser.physicalMachineId();
         infuser.processingVisualActive = false;
         var saved = EssenceSavedData.get(level.getServer());
         if (infuser.binding.refresh(saved)) infuser.bindingChanged();
@@ -168,6 +179,14 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public UUID ownerId() {
         return ownerId;
     }
+    public UUID physicalMachineId() {
+        UUID identity = physicalIdentity.get(this);
+        if (physicalIdentity.consumeInvalidation()) invalidateCopiedCredit();
+        return identity;
+    }
+    private void invalidateCopiedCredit() {
+        binding.clearOperator(); streamedCredit = null; paidCreditSuppressed = true; operatorCreditSuppressed = true;
+    }
 
     public String ownerDisplayName() {
         if (level instanceof ServerLevel serverLevel)
@@ -180,6 +199,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public boolean bindOnPlacement(Player player) {
         if (!(level instanceof ServerLevel serverLevel)) return false;
         if (!binding.place(com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverLevel.getServer()), player.getUUID())) return false;
+        physicalIdentity.placed(this);
+        streamedCredit = null;
+        paidCreditSuppressed = true;
+        operatorCreditSuppressed = true;
         ownerId = player.getUUID(); ownerName = player.getGameProfile().getName();
         link.configure(MachineLink.Mode.AUTOMATIC, null); linkedCruciblePos = null;
         bindingChanged(); refreshLink(); return true;
@@ -357,6 +380,31 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return processingEnabled;
     }
 
+    /** Successful native menu insertion selects future automatic work, never an already paid job's actor. */
+    public void observeMenuInput(Player player, ItemStack before) {
+        ItemStack after = getItem(INPUT_SLOT);
+        boolean same = ItemStack.isSameItemSameComponents(before, after);
+        if (!(level instanceof ServerLevel server) || same && after.getCount() == before.getCount()) return;
+        boolean inserted = !after.isEmpty() && (!same || after.getCount() > before.getCount());
+        UUID previous = binding.operator();
+        if (!eligibleOperationActor(player)) {
+            binding.clearOperator();
+            operatorCreditSuppressed = true;
+            if (streamedCredit != null) streamedCredit = streamedCredit.withoutActor();
+            if (paidJob != null) paidCreditSuppressed = true;
+        } else if (inserted) {
+            UUID bound = SoulboundEquipmentData.read(after).map(SoulboundEquipmentData.Binding::ownerId).orElse(null);
+            if (!canPlayerUse(player) || !binding.start(EssenceSavedData.get(server.getServer()), player.getUUID(), bound, bound)) {
+                binding.clearOperator();
+                operatorCreditSuppressed = true;
+                if (streamedCredit != null) streamedCredit = streamedCredit.withoutActor();
+                if (paidJob != null) paidCreditSuppressed = true;
+            } else operatorCreditSuppressed = false;
+        }
+        if (!java.util.Objects.equals(previous, binding.operator())) invalidateChannel();
+        setChanged();
+    }
+
     public void setProcessingEnabled(Player player, boolean enabled) {
         setProcessingEnabled(player, enabled, false);
     }
@@ -391,6 +439,16 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             ItemStack claimed = getItem(INPUT_SLOT).copy();
             SoulboundEquipmentData.bind(claimed, recipient, player.getUUID().equals(recipient) ? player.getGameProfile().getName() : "");
             items.set(INPUT_SLOT, claimed);
+        }
+        if (enabled) {
+            operatorCreditSuppressed = !eligibleOperationActor(player);
+            if (operatorCreditSuppressed) {
+                if (streamedCredit != null) streamedCredit = streamedCredit.withoutActor();
+                if (paidJob != null) paidCreditSuppressed = true;
+            } else if (recipe != null && recipe.progressModel() == EssenceInfuserProgressModel.STREAMED_PERSISTENT && streamedCredit == null) {
+                // The final committed upgrade may legitimately finish work contributed elsewhere.
+                streamedCredit = streamedJobCredit(player.getUUID(), getItem(INPUT_SLOT));
+            }
         }
         if (enabled) setChanged();
         if (processingEnabled == enabled) {
@@ -633,6 +691,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public boolean isCurrentLinkValid() { return linkState() == MachineLink.State.VALID; }
     private boolean isCurrentLinkValid(ServerLevel ignored) { return isCurrentLinkValid(); }
     @Override public void bindingChanged() {
+        streamedCredit = null;
+        operatorCreditSuppressed = true;
+        if (paidJob != null) paidCreditSuppressed = true;
         disarmProcessingForContextChange();
         linkChanged(linkedCruciblePos); setChanged();
     }
@@ -838,11 +899,12 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 if (recipe.requiresEquipmentRecipient()) SoulboundEquipmentData.bind(preparedInput, equipmentRecipient(), "");
                 var preparedContext = new EssenceInfuserRecipeContext(preparedInput, sourceEssence(), targetEssence(), focusTier(), profile());
                 var job = paidJob == null ? InfusionJobProgress.begin(recipe, preparedContext,
-                        recipe.requiresEquipmentRecipient() ? equipmentRecipient() : null) : paidJob;
+                        recipe.requiresEquipmentRecipient() ? equipmentRecipient() : null).withCredit(newJobCredit()) : paidJob;
                 var costs = InfusionPayments.plan(job.required(), type -> job.paid().getOrDefault(type, 0L),
                         type -> reservoirAmount(EssenceRegistry.get(type).orElseThrow()), grant);
                 var next = job.add(costs, binding.pool());
                 moved = !costs.isEmpty() && payWithInventory(EssenceSavedData.get(serverLevel.getServer()), costs, () -> {
+                    if (paidJob == null) paidCreditSuppressed = false;
                     items.set(INPUT_SLOT, preparedInput); paidJob = next;
                 })
                         ? InfusionPayments.total(costs) : 0;
@@ -860,6 +922,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         ItemStack repaired = expectedRecipe.createOutput(recipeContext());
         try { SoulboundEquipmentData.bind(repaired, equipmentRecipient(), ""); } catch (RuntimeException failure) { return; }
         if (!canAcceptOutput(repaired)) return;
+        InfuserJobCredit receipt = paidCreditSuppressed ? null : paidJob.credit();
         if (!payWithInventory(EssenceSavedData.get(serverLevel.getServer()), Map.of(), () -> {
             if (expectedRecipe.latentIngotCount() > 0) {
                 ItemStack component = getItem(COMPONENT_SLOT); component.shrink(expectedRecipe.latentIngotCount());
@@ -867,6 +930,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             }
             items.set(INPUT_SLOT, ItemStack.EMPTY); items.set(OUTPUT_SLOT, repaired); paidJob = null;
         })) return;
+        publishCompletion(serverLevel, receipt, MachineOutcome.Result.OTHER, repaired);
         com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0; processingEnabled = false; invalidateChannel(); syncBlockEntity();
     }
@@ -917,12 +981,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (!canAcceptOutput(completed)) {
             return;
         }
+        InfuserJobCredit receipt = streamedCredit;
         if (!(level instanceof ServerLevel serverLevel) || !payWithInventory(EssenceSavedData.get(serverLevel.getServer()), Map.of(), () -> {
             component.shrink(recipe.matrixCount());
             if (component.isEmpty()) items.set(COMPONENT_SLOT, ItemStack.EMPTY);
             items.set(INPUT_SLOT, ItemStack.EMPTY);
             items.set(OUTPUT_SLOT, completed);
         })) return;
+        streamedCredit = null;
+        publishCompletion(serverLevel, receipt, upgradeResult(completed), completed);
         com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingVisualActive = false;
         processingTicks = 0;
@@ -1076,12 +1143,14 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (!canAcceptOutput(result)) {
             return;
         }
-
+        InfuserJobCredit receipt = streamedCredit;
         if (!(level instanceof ServerLevel serverLevel) || !payWithInventory(EssenceSavedData.get(serverLevel.getServer()), Map.of(), () -> {
             items.set(INPUT_SLOT, ItemStack.EMPTY);
             ItemStack output = getItem(OUTPUT_SLOT);
             if (output.isEmpty()) items.set(OUTPUT_SLOT, result); else output.grow(1);
         })) return;
+        streamedCredit = null;
+        publishCompletion(serverLevel, receipt, MachineOutcome.Result.OTHER, result);
         com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0;
         processingEnabled = false;
@@ -1117,6 +1186,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         int consumed = Math.max(1, current.inputCount());
         if (input.getCount() < consumed) return;
         if (!paidJob.matches(current, context)) return;
+        InfuserJobCredit receipt = paidCreditSuppressed ? null : paidJob.credit();
         if (!payWithInventory(saved, Map.of(), () -> {
             paidJob = null;
             input.shrink(consumed);
@@ -1132,7 +1202,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             }
 
         })) return;
-
+        publishCompletion(serverLevel, receipt, current instanceof EssentiumInfusionRecipe
+                ? MachineOutcome.Result.FILLED_ESSENTIUM : MachineOutcome.Result.OTHER, result);
         com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0;
         invalidateChannel(); // The next carrier is a new demand even if no monetary revision changes.
@@ -1180,6 +1251,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (amount > grantRemaining) return false;
         UUID actor = binding.operator();
         InfusionJobProgress originalJob = paidJob;
+        InfuserJobCredit originalCredit = streamedCredit;
+        boolean originalCreditSuppressed = paidCreditSuppressed;
         List<ItemStack> original = items.stream().map(ItemStack::copy).toList();
         int originalTicks = processingTicks;
         boolean originalEnabled = processingEnabled;
@@ -1195,6 +1268,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 public void rollback() {
                     for (int i = 0; i < original.size(); i++) items.set(i, original.get(i));
                     paidJob = originalJob;
+                    streamedCredit = originalCredit;
+                    paidCreditSuppressed = originalCreditSuppressed;
                     processingTicks = originalTicks;
                     processingEnabled = originalEnabled;
                     processingVisualActive = originalVisual;
@@ -1203,6 +1278,17 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             if (committed) {
                 grantRemaining -= amount; demandMoneyRevision = -1;
                 if (amount > 0) {
+                    UUID supply = currentSupplyIdentity();
+                    if (paidJob != null) {
+                        if (paidJob.credit() != null) paidJob = paidJob.withCredit(paidJob.credit().suppliedBy(supply));
+                    } else {
+                        if (streamedCredit == null) {
+                            InfuserJobCredit fresh = newJobCredit();
+                            streamedCredit = streamedJobCredit(fresh.actor(), original.get(INPUT_SLOT));
+                        }
+                        streamedCredit = streamedCredit.suppliedBy(supply);
+                    }
+                    observeCommittedSupply();
                     if (lastGrantTick != level.getGameTime()) lastTransferMask = 0;
                     for (int i = 0; i < EssenceCrucibleEssences.ORDERED.size(); i++)
                         if (costs.getOrDefault(EssenceCrucibleEssences.ORDERED.get(i).id(), 0L) > 0) lastTransferMask |= 1 << i;
@@ -1213,6 +1299,77 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             EssenceAscendance.LOGGER.error("Infuser payment rejected; inventory and reservoir preserved", failure);
             return false;
         }
+    }
+
+    private static boolean eligibleOperationActor(Player player) {
+        return player instanceof ServerPlayer serverPlayer
+                && com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(serverPlayer);
+    }
+
+    private InfuserJobCredit newJobCredit() {
+        if (operatorCreditSuppressed || !(level instanceof ServerLevel server)) return InfuserJobCredit.begin(null);
+        UUID actor = binding.operator();
+        ServerPlayer player = actor == null ? null : server.getServer().getPlayerList().getPlayer(actor);
+        return InfuserJobCredit.begin(player == null || eligibleOperationActor(player) ? actor : null);
+    }
+
+    private static InfuserJobCredit streamedJobCredit(UUID actor, ItemStack originalWorkpiece) {
+        InfuserJobCredit credit = InfuserJobCredit.begin(actor);
+        // Portable/legacy contributions establish paid progress, but cannot establish its physical source here.
+        return EquipmentInfusionData.totalContributed(originalWorkpiece) > 0
+                || FocusInfusionData.totalContributed(originalWorkpiece) > 0 ? credit.suppliedBy(null) : credit;
+    }
+
+    private UUID currentSupplyIdentity() {
+        if (!(level instanceof ServerLevel server) || linkedCruciblePos == null || !isCurrentLinkValid()) return null;
+        return server.getBlockEntity(linkedCruciblePos) instanceof EssenceCrucibleBlockEntity crucible
+                ? crucible.physicalMachineId() : null;
+    }
+
+    private void observeCommittedSupply() {
+        if (!(level instanceof ServerLevel server) || linkedCruciblePos == null) return;
+        InfuserJobCredit receipt = paidJob == null ? streamedCredit : paidCreditSuppressed ? null : paidJob.credit();
+        if (receipt == null || receipt.actor() == null) return;
+        ServerPlayer player = server.getServer().getPlayerList().getPlayer(receipt.actor());
+        if (player == null || !eligibleOperationActor(player)
+                || !binding.allows(EssenceSavedData.get(server.getServer()), receipt.actor(), MachineAction.SPEND)) return;
+        if (server.getBlockEntity(linkedCruciblePos) instanceof EssenceCrucibleBlockEntity crucible) {
+            try { crucible.observeSuccessfulSupply(player); }
+            catch (RuntimeException failure) {
+                EssenceAscendance.LOGGER.error("Committed Infuser supply observation failed", failure);
+            }
+        }
+    }
+
+    private static MachineOutcome.Result upgradeResult(ItemStack output) {
+        if (!(output.getItem() instanceof EquipmentProfileItem item)) return MachineOutcome.Result.OTHER;
+        var profile = item.equipmentProfileId();
+        if (profile.equals(EquipmentProfiles.FISHING_ROD.id())) return MachineOutcome.Result.ROD_UPGRADE;
+        if (profile.equals(EquipmentProfiles.SWORD.id()) || profile.equals(EquipmentProfiles.GLAIVE.id())
+                || profile.equals(EquipmentProfiles.RANGED_WEAPON.id()) || profile.equals(EquipmentProfiles.MAGIC_CASTER.id()))
+            return MachineOutcome.Result.WEAPON_UPGRADE;
+        return MachineOutcome.Result.OTHER;
+    }
+
+    private void publishCompletion(ServerLevel server, InfuserJobCredit receipt,
+                                   MachineOutcome.Result result, ItemStack output) {
+        if (receipt == null || receipt.actor() == null || output.isEmpty()) return;
+        ServerPlayer player = server.getServer().getPlayerList().getPlayer(receipt.actor());
+        var saved = EssenceSavedData.get(server.getServer());
+        if (player == null || !eligibleOperationActor(player) || !binding.allows(saved, receipt.actor(), MachineAction.SPEND)
+                || !binding.operational(saved)) return;
+        int mask = 0;
+        var carrier = EssentiumCarrierData.readValidated(output).orElse(null);
+        if (carrier != null && carrier.amount() > 0) {
+            for (int i = 0; i < EssenceCrucibleEssences.ORDERED.size(); i++)
+                if (EssenceCrucibleEssences.ORDERED.get(i).id().equals(carrier.essence().id())) mask |= 1 << i;
+        }
+        MachineOutcomes.publish(server.getServer(), new MachineOutcome.Infusion(receipt.actionId(), receipt.actor(),
+                server.dimension().location().toString(), worldPosition.asLong(), physicalMachineId(),
+                receipt.mixedSupply() ? null : receipt.source(), result,
+                BuiltInRegistries.ITEM.getKey(output.getItem()).toString(), output.getCount(), mask,
+                EquipmentTierData.isAscendanceEquipment(output) ? EquipmentTierData.tier(output).ordinal() : 0,
+                server.getServer().overworld().getGameTime()));
     }
 
     private boolean canAcceptOutput(ItemStack result) {
@@ -1369,7 +1526,17 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         /*ContainerHelper.saveAllItems(tag, items);*/
         //? if <26.1.2
         ContainerHelper.saveAllItems(tag, items, registries);
+        physicalMachineId();
         binding.save(tag);
+        physicalIdentity.save(tag);
+        tag.putBoolean("paid_operation_credit_suppressed", paidCreditSuppressed);
+        tag.putBoolean("operator_operation_credit_suppressed", operatorCreditSuppressed);
+        if (streamedCredit != null) {
+            //? if >=26.1.2
+            /*tag.store("streamed_operation_credit", CompoundTag.CODEC, streamedCredit.save());*/
+            //? if <26.1.2
+            tag.put("streamed_operation_credit", streamedCredit.save());
+        }
         link.save(tag);
         if (ownerId != null) {
             //? if >=26.1.2
@@ -1435,6 +1602,14 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         //? if <26.1.2
         ContainerHelper.loadAllItems(tag, items, registries);
         binding.load(tag);
+        physicalIdentity.load(tag, this);
+        paidCreditSuppressed = tag.getBoolean("paid_operation_credit_suppressed");
+        operatorCreditSuppressed = tag.getBoolean("operator_operation_credit_suppressed");
+        //? if >=26.1.2
+        /*streamedCredit = tag.read("streamed_operation_credit", CompoundTag.CODEC).map(InfuserJobCredit::load).orElse(null);*/
+        //? if <26.1.2
+        streamedCredit = InfuserJobCredit.load(NbtVersionCompat.getCompound(tag, "streamed_operation_credit"));
+        if (physicalIdentity.consumeInvalidation()) invalidateCopiedCredit();
         link.load(tag);
         //? if >=26.1.2
         /*ownerId = tag.read(OWNER_TAG, UUIDUtil.CODEC).orElse(null);*/
@@ -1504,6 +1679,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (slot == INPUT_SLOT && hasPaidRepairJob()) return removeItemNoUpdate(slot);
         ItemStack removed = ContainerHelper.removeItem(items, slot, amount);
         if (!removed.isEmpty()) {
+            if (slot == INPUT_SLOT) streamedCredit = null;
             if (slot == INPUT_SLOT && EquipmentTierData.isAscendanceEquipment(removed)) disarmProcessingState();
             else if (slot == INPUT_SLOT || slot == FOCUS_SLOT) resetProcessing();
             syncBlockEntity();
@@ -1523,6 +1699,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             removed = paidJob.carry(level.registryAccess(), processingTicks);
             paidJob = null; items.set(slot, ItemStack.EMPTY); processingEnabled = false;
         } else removed = ContainerHelper.takeItem(items, slot);
+        if (!removed.isEmpty() && slot == INPUT_SLOT) streamedCredit = null;
         if (!removed.isEmpty() && slot == INPUT_SLOT && EquipmentTierData.isAscendanceEquipment(removed)) disarmProcessingState();
         else if (!removed.isEmpty() && (slot == INPUT_SLOT || slot == FOCUS_SLOT)) resetProcessing();
         if (!removed.isEmpty()) {
@@ -1553,6 +1730,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             normalized = InfusionJobProgress.withoutCarried(normalized);
             if (!ItemStack.matches(normalized, restored.workpiece())) throw new IllegalArgumentException("Paid repair workpiece mismatch");
             paidJob = restored;
+            // A carried paid workpiece retains financial provenance, but physical transfer resets operation attribution.
+            paidCreditSuppressed = true;
             processingTicks = Math.max(0, carried.getInt("processing_ticks"));
             processingEnabled = false;
         }
@@ -1568,6 +1747,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         boolean changedType = !ItemStack.isSameItemSameComponents(previous, normalized);
         items.set(slot, normalized);
         if (changedType && slot == INPUT_SLOT) {
+            streamedCredit = null;
             prepareInputRecipient();
             if (EquipmentTierData.isAscendanceEquipment(previous) || EquipmentTierData.isAscendanceEquipment(normalized)) disarmProcessingState();
         }
@@ -1598,6 +1778,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
     public void finishItemTransfer(boolean contextChanged, boolean inputChanged) {
         if (contextChanged) {
+            if (inputChanged) streamedCredit = null;
             prepareInputRecipient();
             if (inputChanged && EquipmentTierData.isAscendanceEquipment(getItem(INPUT_SLOT))) disarmProcessingState();
             else resetProcessing();
@@ -1623,7 +1804,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
     /** Trusted physical-custody move, called only after the complete pickup snapshot exists. */
     public void releasePickupContents() {
-        invalidateChannel(); items.clear(); paidJob = null; processingEnabled = false;
+        invalidateChannel(); items.clear(); paidJob = null; streamedCredit = null; processingEnabled = false;
     }
 
     @Override

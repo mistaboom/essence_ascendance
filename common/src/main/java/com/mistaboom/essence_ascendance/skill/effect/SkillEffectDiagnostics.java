@@ -455,6 +455,15 @@ final class SkillEffectDiagnostics {
         expected.put("crucibleChannelSelection", "int");
         expected.put("crucibleChannelSelectionRevision", "long");
         expected.put("fractionalResourceCostCarry", "java.util.Map<" + id + ", java.lang.Double>");
+        // Reviewed achievement_progress v1: bounded chapter/lifetime collections and
+        // scalar reconciliation checkpoints, never completion or live gameplay state.
+        // ProgressionAchievementTest exercises the codec caps, defensive copies and
+        // local rejection/opaque retention of unknown or malformed save versions.
+        expected.put("achievementProgress", "com.mistaboom.essence_ascendance.achievement.AchievementProgress");
+        // Preserve an existing non-compound outer payload byte-for-byte without
+        // interpreting it or treating it as a fresh awardable progress record.
+        // This exact named field is the sole opaque fallback, not a general Tag allowance.
+        expected.put("opaqueAchievementProgress", "net.minecraft.nbt.Tag");
         Map<String, String> actual = new HashMap<>();
         for (var field : PlayerEssenceData.class.getDeclaredFields()) {
             if (!Modifier.isStatic(field.getModifiers()) && !field.isSynthetic()) {
@@ -465,6 +474,22 @@ final class SkillEffectDiagnostics {
                 "Persistent player data gained an unchecked parent class.");
         check(failures, actual.equals(expected),
                 "Persistent player data fields/types changed; review for runtime stack, target, timer or cooldown state: " + actual);
+        // Keep the newly reviewed owner narrow too: its NBT payload is the codec
+        // boundary; rejected entry IDs and writability are derived load validation.
+        // A later live stack/target/timer added inside that owner must fail review.
+        var progressType = com.mistaboom.essence_ascendance.achievement.AchievementProgress.class;
+        Map<String, String> expectedProgress = Map.of(
+                "root", "net.minecraft.nbt.CompoundTag",
+                "rejected", "java.util.Set<java.lang.String>",
+                "writable", "boolean");
+        Map<String, String> actualProgress = new HashMap<>();
+        for (var field : progressType.getDeclaredFields()) {
+            if (!Modifier.isStatic(field.getModifiers()) && !field.isSynthetic()) {
+                actualProgress.put(field.getName(), field.getGenericType().getTypeName());
+            }
+        }
+        check(failures, progressType.getSuperclass() == Object.class && actualProgress.equals(expectedProgress),
+                "Achievement partial owner fields/types changed; review bounded codec and runtime-state isolation: " + actualProgress);
         var receipt = SkillPurchase.class.getRecordComponents();
         check(failures, receipt != null && receipt.length == 2
                         && receipt[0].getName().equals("essenceId") && receipt[0].getType() == ResourceLocation.class

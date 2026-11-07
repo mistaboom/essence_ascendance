@@ -1,0 +1,95 @@
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'achievement-presentation'
+// Real native item models, advancement widgets and toasts in a hidden disposable client. No world is opened.
+allprojects { p ->
+    p.afterEvaluate {
+        if (!p.rootProject.ext.has('nativeFixtureSelection'))
+            p.rootProject.apply from: p.rootProject.file('gradle/native-fixture-selection.gradle')
+        if (p.path != p.rootProject.nativeFixtureSelection.projectPath) return
+        def common = p.targetCommon
+        def fabric = p.parent.name == 'fabric'
+        def metadata = p.file('build/native-fixtures/achievement-presentation-metadata')
+        def patterns = ['com/mistaboom/essence_ascendance/achievement/AchievementPresentationNativeFixture*.class',
+                        'com/mistaboom/essence_ascendance/audiofixture/mixin/AudioHiddenWindowMixin.class',
+                        'com/mistaboom/essence_ascendance/verification/NativeTestBootstrap2612*.class']
+        def commonFixture = null
+        if (!fabric) {
+            p.apply from: p.rootProject.file('gradle/native-fixture-support.gradle')
+            commonFixture = p.useNativeFixtureCommon('achievementPresentation', patterns)
+        }
+        def compile = null
+        if (!fabric) compile = p.tasks.register('compileAchievementPresentationFixture', JavaCompile) {
+            dependsOn(common.tasks.named('testClasses'))
+            source(p.rootProject.file('gradle/native-fixtures/AchievementPresentationMod.java'))
+            classpath = p.sourceSets.main.compileClasspath + common.sourceSets.test.output
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/achievement-presentation-classes')
+            options.release = p.targetJava
+            javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+        }
+        def fixture = p.tasks.register('achievementPresentationFixtureJar', Jar) {
+            dependsOn(common.tasks.named('testClasses'))
+            archiveFileName = 'achievement-presentation-fixture.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            if (fabric) from(common.sourceSets.test.output) { patterns.each { include it } }
+            else { dependsOn(compile); from(compile.flatMap { it.destinationDirectory }) }
+            from(metadata)
+            doFirst {
+                metadata.mkdirs()
+                new File(metadata, 'achievement-presentation.mixins.json').text = groovy.json.JsonOutput.toJson([
+                        required: true, minVersion: '0.8', compatibilityLevel: 'JAVA_21',
+                        package: 'com.mistaboom.essence_ascendance.audiofixture.mixin',
+                        client: ['AudioHiddenWindowMixin'], injectors: [defaultRequire: 1]])
+                if (fabric) new File(metadata, 'fabric.mod.json').text = groovy.json.JsonOutput.toJson([
+                        schemaVersion: 1, id: 'essence_achievement_presentation_test', version: '1', environment: 'client',
+                        entrypoints: [client: ['com.mistaboom.essence_ascendance.achievement.AchievementPresentationNativeFixture::init']],
+                        mixins: ['achievement-presentation.mixins.json'], depends: [essence_ascendance: '*']])
+                else {
+                    new File(metadata, 'META-INF').mkdirs()
+                    new File(metadata, 'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_achievement_presentation_test"
+version="1"
+displayName="Achievement presentation fixture"
+[[mixins]]
+config="achievement-presentation.mixins.json"
+[[dependencies.essence_achievement_presentation_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1.0.0-beta.1,)"
+ordering="AFTER"
+side="CLIENT"
+'''
+                }
+            }
+        }
+        p.tasks.named('runClient').configure { t ->
+            def run = p.file('build/native-fixtures/achievement-presentation-run').canonicalFile
+            t.internalRunDir.set(run)
+            t.dependsOn(fixture)
+            t.args('--width', '1280', '--height', '800')
+            t.jvmArgs('-Dessence.achievement.presentation=true', '-Dessence.audio.hiddenWindow=true',
+                    '-Dfml.earlyWindowControl=false',
+                    '-Dessence.achievement.presentationNativeData=' + (!fabric && p.targetResourceFormat == '26.1'),
+                    '-Dessence.achievement.presentationResources=' + common.sourceSets.main.output.resourcesDir.canonicalPath,
+                    '-Dessence.achievement.presentationOutput=' + p.file('build/native-fixtures/achievement-presentation-captures').canonicalPath)
+            if (fabric) t.jvmArgs('-Dfabric.addMods=' + fixture.get().archiveFile.get().asFile.canonicalPath)
+            if (!fabric && p.targetResourceFormat == '26.1') {
+                t.dependsOn(commonFixture)
+                def original = common.tasks.named('jar').get().archiveFile.get().asFile.canonicalFile
+                t.classpath = p.files(t.classpath.files.findAll { it.canonicalFile != original }, commonFixture.flatMap { it.archiveFile })
+            }
+            t.doFirst {
+                if (t.internalRunDir.asFile.get().canonicalFile != run) throw new GradleException('Unexpected presentation fixture directory')
+                run.mkdirs()
+                new File(run, 'options.txt').text = 'onboardAccessibility:false\nguiScale:2\nmaxFps:60\npauseOnLostFocus:false\nsoundCategory_master:0.0\n'
+                if (!fabric) {
+                    new File(run, 'config').mkdirs()
+                    new File(run, 'config/fml.toml').text = 'earlyWindowControl = false\n'
+                    p.copy { from(fixture.get().archiveFile); into(new File(run, 'mods')) }
+                }
+            }
+        }
+    }
+}

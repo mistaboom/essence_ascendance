@@ -104,11 +104,13 @@ public final class FishingLootService {
 
             if (!remainder.isEmpty()) {
                 int dropCount = remainder.getCount();
-                ItemEntity dropped = player.drop(remainder.copy(), false);
-                if (dropped != null) {
-                    dropped.setNoPickUpDelay();
-                    dropped.setTarget(player.getUUID());
-                    totalDelivered += dropCount;
+                try (var receipt = com.mistaboom.essence_ascendance.gameplay.CommittedItemDrops.begin(player.serverLevel())) {
+                    ItemEntity dropped = player.drop(remainder.copy(), false);
+                    if (dropped != null && receipt.contains(dropped.getUUID())) {
+                        dropped.setNoPickUpDelay();
+                        dropped.setTarget(player.getUUID());
+                        totalDelivered += Math.min(dropCount, dropped.getItem().getCount());
+                    }
                 }
             }
         }

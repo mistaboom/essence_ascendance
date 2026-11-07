@@ -1,5 +1,10 @@
 # Art assets
 
+Achievement presentation reuses existing ItemStack assets only. The complete
+[69-icon provenance inventory](../docs/achievements/PRESENTATION.md) records source
+models and tier components. No additional achievement bitmap or decorative item is
+generated; both native formats use the established pipeline below.
+
 Audio uses the same generated-resource owner as model art. See [audio authoring](../docs/audio/AUTHORING.md) for reusable synthesis, Audacity project storage, immutable revisions, listening review and promotion. `audio-catalog.json` owns runtime identities and selected bytes; `audio-manifest.json` owns source provenance, reviews and explicit integration permission. An `audio` manifest category invokes the shared Java importer. Unselected takes produce no runtime sample. Explicitly authorized integration can select exact creatively approved bytes while final native mix/listening and rights review remain pending; its immutable receipt records that distinction. Builds validate repository bytes without authoring dependencies or auxiliary-folder access, and archives exclude projects, masters, recipes, backups and authoring metadata.
 
 The procedural project logo lives in [branding/](branding/README.md). Run `./gradlew.bat generateLogo` to regenerate its SVG and square PNG exports from `tools/LogoGenerator.java` and the canonical palettes. Branding exports are kept here for external use; the runtime asset rules below apply to the Blockbench pipeline.

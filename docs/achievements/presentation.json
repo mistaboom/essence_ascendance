@@ -1,0 +1,1368 @@
+{
+  "schemaVersion": 1,
+  "root": "essence_ascendance:achievements/a022",
+  "background": "minecraft:textures/block/deepslate_tiles.png",
+  "visibility": "All shipped selected displays are visible before completion. Parent edges are layout only. Datapack hidden/missing display overrides are respected.",
+  "frames": {
+    "task": "One successful action or activation.",
+    "goal": "A collection, sustained action, equipment set or intermediate milestone.",
+    "challenge": "A demanding sequence, conjunction or final milestone."
+  },
+  "entries": [
+    {
+      "id": 1,
+      "resourceId": "essence_ascendance:achievements/a001",
+      "lane": "Fishing rod",
+      "parent": "essence_ascendance:achievements/a005",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_fishing_rod"
+      },
+      "description": "Use one anchored fishing-rod pull to cross at least 20 horizontal blocks of exposed water.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_rod.bbmodel"
+      }
+    },
+    {
+      "id": 2,
+      "resourceId": "essence_ascendance:achievements/a002",
+      "lane": "Fishing rod",
+      "parent": "essence_ascendance:achievements/a003",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_fishing_rod"
+      },
+      "description": "Yeet a hostile mob with your fishing rod and have the resulting fall kill it.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_rod.bbmodel"
+      }
+    },
+    {
+      "id": 3,
+      "resourceId": "essence_ascendance:achievements/a003",
+      "lane": "Fishing rod",
+      "parent": "essence_ascendance:achievements/a001",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_fishing_rod"
+      },
+      "description": "Launch a hostile mob at least 20 horizontal blocks with your fishing rod.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_rod.bbmodel"
+      }
+    },
+    {
+      "id": 4,
+      "resourceId": "essence_ascendance:achievements/a004",
+      "lane": "Fishing rod",
+      "parent": "essence_ascendance:achievements/a007",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_fishing_rod"
+      },
+      "description": "Reel a hostile mob from at least eight blocks away into melee range.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_rod.bbmodel"
+      }
+    },
+    {
+      "id": 5,
+      "resourceId": "essence_ascendance:achievements/a005",
+      "lane": "Fishing rod",
+      "parent": "essence_ascendance:achievements/a004",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_fishing_rod"
+      },
+      "description": "Grapple onto a roof or ledge at least ten blocks above your starting position.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_rod.bbmodel"
+      }
+    },
+    {
+      "id": 7,
+      "resourceId": "essence_ascendance:achievements/a007",
+      "lane": "Fishing rod",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_fishing_rod"
+      },
+      "description": "Hook a dropped item at least eight blocks away and pull it into pickup range.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_rod.bbmodel"
+      }
+    },
+    {
+      "id": 19,
+      "resourceId": "essence_ascendance:achievements/a019",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_nexus"
+      },
+      "description": "Build and use your first Ascendance Nexus.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/nexus.bbmodel"
+      }
+    },
+    {
+      "id": 22,
+      "resourceId": "essence_ascendance:achievements/a022",
+      "lane": "Entry",
+      "parent": null,
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_crucible"
+      },
+      "description": "Dissolve your first supported item in an Essence Crucible.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/crucible.bbmodel"
+      }
+    },
+    {
+      "id": 24,
+      "resourceId": "essence_ascendance:achievements/a024",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_crucible"
+      },
+      "description": "Successfully channel Essence from a Crucible into your personal supply for the first time.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/crucible.bbmodel"
+      }
+    },
+    {
+      "id": 26,
+      "resourceId": "essence_ascendance:achievements/a026",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_archive"
+      },
+      "description": "Purchase your first Skill.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_archive.bbmodel"
+      }
+    },
+    {
+      "id": 28,
+      "resourceId": "essence_ascendance:achievements/a028",
+      "lane": "Equipment",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_matrix"
+      },
+      "description": "Craft your first Ascendance Matrix.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_matrix.bbmodel"
+      }
+    },
+    {
+      "id": 30,
+      "resourceId": "essence_ascendance:achievements/a030",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a019",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_archive"
+      },
+      "description": "Earn Attunement from three different activity types within one category during the same chapter.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_archive.bbmodel"
+      }
+    },
+    {
+      "id": 31,
+      "resourceId": "essence_ascendance:achievements/a031",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a030",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_focus",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_focus": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Ascend from Latent to Dormant.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/focus.bbmodel"
+      }
+    },
+    {
+      "id": 32,
+      "resourceId": "essence_ascendance:achievements/a032",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a031",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_focus",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_focus": {
+              "tier": "awakened"
+            }
+          }
+        }
+      },
+      "description": "Reach the Awakened player tier.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/focus.bbmodel"
+      }
+    },
+    {
+      "id": 33,
+      "resourceId": "essence_ascendance:achievements/a033",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a032",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_focus",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_focus": {
+              "tier": "resonant"
+            }
+          }
+        }
+      },
+      "description": "Reach the Resonant player tier.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/focus.bbmodel"
+      }
+    },
+    {
+      "id": 34,
+      "resourceId": "essence_ascendance:achievements/a034",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a033",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_focus",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_focus": {
+              "tier": "ascendant"
+            }
+          }
+        }
+      },
+      "description": "Reach the Ascendant player tier.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/focus.bbmodel"
+      }
+    },
+    {
+      "id": 35,
+      "resourceId": "essence_ascendance:achievements/a035",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a034",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": true,
+      "icon": {
+        "id": "essence_ascendance:essence_focus",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_focus": {
+              "tier": "transcendent"
+            }
+          }
+        }
+      },
+      "description": "Reach the Transcendent player tier.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/focus.bbmodel"
+      }
+    },
+    {
+      "id": 36,
+      "resourceId": "essence_ascendance:achievements/a036",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a035",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_archive"
+      },
+      "description": "Complete all six category seals in the same post-Latent chapter before taking its manual Ascension.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_archive.bbmodel"
+      }
+    },
+    {
+      "id": 46,
+      "resourceId": "essence_ascendance:achievements/a046",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a024",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_pylon"
+      },
+      "description": "Activate a Pylon with an installed Focus and a valid Crucible link.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/pylon.bbmodel"
+      }
+    },
+    {
+      "id": 49,
+      "resourceId": "essence_ascendance:achievements/a049",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a046",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_infuser"
+      },
+      "description": "Complete your first Infuser operation.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/infuser.bbmodel"
+      }
+    },
+    {
+      "id": 51,
+      "resourceId": "essence_ascendance:achievements/a051",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a049",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essentium_ingot"
+      },
+      "description": "Produce filled Essentium in all six Essence categories.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/essence_ingot.bbmodel"
+      }
+    },
+    {
+      "id": 56,
+      "resourceId": "essence_ascendance:achievements/a056",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a051",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_infuser"
+      },
+      "description": "Have three Infusers complete work using the same Crucible’s Essence supply.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/infuser.bbmodel"
+      }
+    },
+    {
+      "id": 57,
+      "resourceId": "essence_ascendance:achievements/a057",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a056",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_pylon"
+      },
+      "description": "Run a Crucible with every available active Pylon slot occupied by a functioning Pylon.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/pylon.bbmodel"
+      }
+    },
+    {
+      "id": 61,
+      "resourceId": "essence_ascendance:achievements/a061",
+      "lane": "Equipment",
+      "parent": "essence_ascendance:achievements/a028",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_chestplate",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "latent"
+            }
+          }
+        }
+      },
+      "description": "Equip a complete set of Ascendance armor.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_chestplate.bbmodel"
+      }
+    },
+    {
+      "id": 63,
+      "resourceId": "essence_ascendance:achievements/a063",
+      "lane": "Equipment",
+      "parent": "essence_ascendance:achievements/a166",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_sword",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "transcendent"
+            }
+          }
+        }
+      },
+      "description": "Complete an Infuser upgrade that raises an Ascendance weapon to Transcendent tier.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_sword.bbmodel"
+      }
+    },
+    {
+      "id": 72,
+      "resourceId": "essence_ascendance:achievements/a072",
+      "lane": "Equipment",
+      "parent": "essence_ascendance:achievements/a063",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": true,
+      "icon": {
+        "id": "essence_ascendance:ascendance_helmet",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "transcendent"
+            }
+          }
+        }
+      },
+      "description": "Equip all four functional Transcendent Ascendance armor pieces and hold a functional Transcendent Ascendance weapon at the same time.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_helmet.bbmodel"
+      }
+    },
+    {
+      "id": 73,
+      "resourceId": "essence_ascendance:achievements/a073",
+      "lane": "Equipment",
+      "parent": "essence_ascendance:achievements/a072",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_fishing_rod",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "transcendent"
+            }
+          }
+        }
+      },
+      "description": "Upgrade an Ascendance fishing rod to Transcendent tier.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_rod.bbmodel"
+      }
+    },
+    {
+      "id": 76,
+      "resourceId": "essence_ascendance:achievements/a076",
+      "lane": "Glaive",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_glaive"
+      },
+      "description": "Defeat your first hostile mob using the Glaive’s stab attack.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_glaive.bbmodel"
+      }
+    },
+    {
+      "id": 77,
+      "resourceId": "essence_ascendance:achievements/a077",
+      "lane": "Glaive",
+      "parent": "essence_ascendance:achievements/a138",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_glaive"
+      },
+      "description": "Defeat three hostile mobs with one Glaive swipe.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_glaive.bbmodel"
+      }
+    },
+    {
+      "id": 85,
+      "resourceId": "essence_ascendance:achievements/a085",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a209",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:ice"
+      },
+      "description": "Fully freeze a hostile mob with Frostbite.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 95,
+      "resourceId": "essence_ascendance:achievements/a095",
+      "lane": "Movement",
+      "parent": "essence_ascendance:achievements/a216",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:firework_rocket"
+      },
+      "description": "Use Vector Boost three times during one uninterrupted Essence Wings glide.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 99,
+      "resourceId": "essence_ascendance:achievements/a099",
+      "lane": "Movement",
+      "parent": "essence_ascendance:achievements/a095",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:elytra"
+      },
+      "description": "Travel 1,000 blocks in one Essence Wings glide, using Vector Boost along the way.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 100,
+      "resourceId": "essence_ascendance:achievements/a100",
+      "lane": "Movement",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_boots",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Reach maximum Running Momentum.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_boots.bbmodel"
+      }
+    },
+    {
+      "id": 101,
+      "resourceId": "essence_ascendance:achievements/a101",
+      "lane": "Movement",
+      "parent": "essence_ascendance:achievements/a201",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_boots",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Clear five obstacles with Momentum Vault during one uninterrupted sprint.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_boots.bbmodel"
+      }
+    },
+    {
+      "id": 102,
+      "resourceId": "essence_ascendance:achievements/a102",
+      "lane": "Movement",
+      "parent": "essence_ascendance:achievements/a101",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:water_bucket"
+      },
+      "description": "Sprint across at least 32 horizontal blocks of exposed water while Surface Tension keeps you on the surface.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 107,
+      "resourceId": "essence_ascendance:achievements/a107",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a177",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:ghast_tear"
+      },
+      "description": "Trigger Spirit Walk and successfully reform alive.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 110,
+      "resourceId": "essence_ascendance:achievements/a110",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a107",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:cooked_beef"
+      },
+      "description": "Have Feast Reflex automatically consume two meals during one fight.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 114,
+      "resourceId": "essence_ascendance:achievements/a114",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a200",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:fermented_spider_eye"
+      },
+      "description": "Use Status Mirror to send a witch’s harmful status effect back to that witch.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 118,
+      "resourceId": "essence_ascendance:achievements/a118",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a208",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:bone"
+      },
+      "description": "Have a creature empowered by Bonded Companion defeat a hostile mob.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 119,
+      "resourceId": "essence_ascendance:achievements/a119",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a118",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:cod"
+      },
+      "description": "Defeat five hostile mobs near your tamed cat. Keep the same cat unharmed during and between fights.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 120,
+      "resourceId": "essence_ascendance:achievements/a120",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a215",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_sword",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "latent"
+            }
+          }
+        }
+      },
+      "description": "Defeat ten hostile mobs with Ascendance weapons while you and the mobs are below Y=0 in the Overworld. Wear no boots.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_sword.bbmodel"
+      }
+    },
+    {
+      "id": 122,
+      "resourceId": "essence_ascendance:achievements/a122",
+      "lane": "Gathering and farming",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_pickaxe",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Reach maximum Mining Momentum, then mine another 20 blocks without breaking the rhythm.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_pickaxe.bbmodel"
+      }
+    },
+    {
+      "id": 126,
+      "resourceId": "essence_ascendance:achievements/a126",
+      "lane": "Gathering and farming",
+      "parent": "essence_ascendance:achievements/a122",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_pickaxe",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Mine a naturally generated ore block underwater while Aquatic Body is active.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_pickaxe.bbmodel"
+      }
+    },
+    {
+      "id": 128,
+      "resourceId": "essence_ascendance:achievements/a128",
+      "lane": "Gathering and farming",
+      "parent": "essence_ascendance:achievements/a126",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_hoe",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Have Verdant Stride successfully advance five different eligible crop types.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_hoe.bbmodel"
+      }
+    },
+    {
+      "id": 131,
+      "resourceId": "essence_ascendance:achievements/a131",
+      "lane": "Gathering and farming",
+      "parent": "essence_ascendance:achievements/a204",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:tropical_fish"
+      },
+      "description": "Receive a Pocket Nets reward while swimming.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 136,
+      "resourceId": "essence_ascendance:achievements/a136",
+      "lane": "Glaive",
+      "parent": "essence_ascendance:achievements/a076",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_glaive",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Land a damaging glaive hit from more than four blocks away using a Dormant-or-higher glaive.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_glaive.bbmodel"
+      }
+    },
+    {
+      "id": 138,
+      "resourceId": "essence_ascendance:achievements/a138",
+      "lane": "Glaive",
+      "parent": "essence_ascendance:achievements/a206",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_glaive",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "transcendent"
+            }
+          }
+        }
+      },
+      "description": "Damage a hostile mob with your glaive from more than nine blocks away.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_glaive.bbmodel"
+      }
+    },
+    {
+      "id": 139,
+      "resourceId": "essence_ascendance:achievements/a139",
+      "lane": "Equipment",
+      "parent": "essence_ascendance:achievements/a073",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_glaive",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "transcendent"
+            }
+          }
+        }
+      },
+      "description": "Reach Transcendent player tier and wield a Transcendent glaive.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_glaive.bbmodel"
+      }
+    },
+    {
+      "id": 145,
+      "resourceId": "essence_ascendance:achievements/a145",
+      "lane": "Glaive",
+      "parent": "essence_ascendance:achievements/a077",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_glaive",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "ascendant"
+            }
+          }
+        }
+      },
+      "description": "Begin an Essence Wings glide and land a glaive hit before touching the ground again.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_glaive.bbmodel"
+      }
+    },
+    {
+      "id": 166,
+      "resourceId": "essence_ascendance:achievements/a166",
+      "lane": "Equipment",
+      "parent": "essence_ascendance:achievements/a061",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_shield",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "latent"
+            }
+          }
+        }
+      },
+      "description": "Equip an Ascendance Sword and Ascendance Shield together for the first time.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_shield.bbmodel"
+      }
+    },
+    {
+      "id": 169,
+      "resourceId": "essence_ascendance:achievements/a169",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a022",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:golden_apple"
+      },
+      "description": "Increase maximum health through a Vitality Bonus purchase for the first time.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 176,
+      "resourceId": "essence_ascendance:achievements/a176",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a169",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:totem_of_undying"
+      },
+      "description": "Trigger Second Wind for the first time.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 177,
+      "resourceId": "essence_ascendance:achievements/a177",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a176",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:totem_of_undying"
+      },
+      "description": "Trigger Second Wind twice during one life, respecting its normal cooldown.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 182,
+      "resourceId": "essence_ascendance:achievements/a182",
+      "lane": "Gathering and farming",
+      "parent": "essence_ascendance:achievements/a131",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:diamond_ore"
+      },
+      "description": "Receive a Nature's Boon bonus ore in each of the Overworld, Nether, and End.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 184,
+      "resourceId": "essence_ascendance:achievements/a184",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a114",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": true,
+      "icon": {
+        "id": "minecraft:nether_star"
+      },
+      "description": "While Desperation is active and your health is below 10%, deliver the final blow to the Wither.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 190,
+      "resourceId": "essence_ascendance:achievements/a190",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a057",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_crucible"
+      },
+      "description": "Dissolve items that collectively yield all six Essence categories in one Crucible during one Minecraft day.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/crucible.bbmodel"
+      }
+    },
+    {
+      "id": 193,
+      "resourceId": "essence_ascendance:achievements/a193",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a110",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_chestplate",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "After Damage Ceiling reduces your maximum-health capacity, fully recover that lost capacity without dying.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_chestplate.bbmodel"
+      }
+    },
+    {
+      "id": 197,
+      "resourceId": "essence_ascendance:achievements/a197",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a190",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:essence_infuser"
+      },
+      "description": "Successfully complete an Essence Infuser operation in both the Overworld and the Nether.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/block/infuser.bbmodel"
+      }
+    },
+    {
+      "id": 199,
+      "resourceId": "essence_ascendance:achievements/a199",
+      "lane": "Machines and Essence",
+      "parent": "essence_ascendance:achievements/a197",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:book"
+      },
+      "description": "Successfully dissolve 42 distinct supported item types.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 200,
+      "resourceId": "essence_ascendance:achievements/a200",
+      "lane": "Survival",
+      "parent": "essence_ascendance:achievements/a193",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_shield",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Reach maximum Adaptive Guard adaptation against one damage type.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_shield.bbmodel"
+      }
+    },
+    {
+      "id": 201,
+      "resourceId": "essence_ascendance:achievements/a201",
+      "lane": "Movement",
+      "parent": "essence_ascendance:achievements/a100",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_boots",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Trigger Rush after a kill and sprint while its momentum protection remains active.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_boots.bbmodel"
+      }
+    },
+    {
+      "id": 204,
+      "resourceId": "essence_ascendance:achievements/a204",
+      "lane": "Gathering and farming",
+      "parent": "essence_ascendance:achievements/a128",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:wheat"
+      },
+      "description": "Have Verdant Stride prevent a farmland-trample attempt beneath a mature crop, leaving both the farmland and crop intact.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 205,
+      "resourceId": "essence_ascendance:achievements/a205",
+      "lane": "Ascension",
+      "parent": "essence_ascendance:achievements/a036",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_chestplate",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "awakened"
+            }
+          }
+        }
+      },
+      "description": "Complete a player Ascension at night while wearing a full Ascendance armor set.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_chestplate.bbmodel"
+      }
+    },
+    {
+      "id": 206,
+      "resourceId": "essence_ascendance:achievements/a206",
+      "lane": "Glaive",
+      "parent": "essence_ascendance:achievements/a136",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_glaive",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "ascendant"
+            }
+          }
+        }
+      },
+      "description": "Land a glaive hit at least eight blocks away.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_glaive.bbmodel"
+      }
+    },
+    {
+      "id": 207,
+      "resourceId": "essence_ascendance:achievements/a207",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a119",
+      "frame": "task",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:white_banner"
+      },
+      "description": "Have Sanctuary pacify a pillager that was targeting you, without damaging that pillager.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 208,
+      "resourceId": "essence_ascendance:achievements/a208",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a026",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_archive"
+      },
+      "description": "Purchase five different Utility Skills over your adventure.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_archive.bbmodel"
+      }
+    },
+    {
+      "id": 209,
+      "resourceId": "essence_ascendance:achievements/a209",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a120",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:mushroom_stew"
+      },
+      "description": "Repair equipment with Metabolic Mending using five different food types while below Y=0.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 215,
+      "resourceId": "essence_ascendance:achievements/a215",
+      "lane": "Skills and companions",
+      "parent": "essence_ascendance:achievements/a207",
+      "frame": "goal",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "minecraft:spyglass"
+      },
+      "description": "Defeat five hostile mobs whose health and armor information is being tracked by Hunter's Ledger.",
+      "provenance": {
+        "kind": "vanilla",
+        "source": "Minecraft built-in item and texture resources"
+      }
+    },
+    {
+      "id": 216,
+      "resourceId": "essence_ascendance:achievements/a216",
+      "lane": "Movement",
+      "parent": "essence_ascendance:achievements/a102",
+      "frame": "challenge",
+      "showToast": true,
+      "announceToChat": false,
+      "icon": {
+        "id": "essence_ascendance:ascendance_boots",
+        "components": {
+          "minecraft:custom_data": {
+            "essence_ascendance_equipment": {
+              "tier": "dormant"
+            }
+          }
+        }
+      },
+      "description": "Sprint 500 blocks with Running Momentum without stopping, teleporting, or losing the momentum buff.",
+      "provenance": {
+        "kind": "asset-manifest",
+        "source": "art/source/models/item/ascendance_boots.bbmodel"
+      }
+    }
+  ]
+}

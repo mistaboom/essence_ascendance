@@ -203,9 +203,14 @@ public final class VitalitySustenanceEffects {
         if (!suitable(stack) || food == null || !player.canEat(food.canAlwaysEat())
                 || onCooldown(player, stack) || stack.getUseDuration(player) <= 0)
             return false;
+        int beforeCount = stack.getCount();
+        var beforeItem = stack.getItem();
+        boolean eligibleOrigin = AttunementGameplay.eligible(player);
         ItemStack result = stack.finishUsingItem(player.level(), player);
         player.getInventory().setItem(slot, result);
         player.inventoryMenu.broadcastChanges();
+        if (eligibleOrigin && (stack.getCount() < beforeCount || result.getCount() < beforeCount || result.getItem() != beforeItem))
+            com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.automaticMeal(player);
         return true;
     }
 

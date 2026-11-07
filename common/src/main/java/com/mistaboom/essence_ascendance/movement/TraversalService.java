@@ -154,6 +154,30 @@ public final class TraversalService {
         var surface = fluidSurface(entity.level().getBlockState(pos), entity.level(), pos);
         return !surface.isEmpty() && CollisionContext.of(entity).isAbove(surface, pos, true);
     }
+    /** Actual water-surface route at feet height. Merely being somewhere above a fluid is insufficient.
+     * The caller additionally requires effective Surface Tension, sprinting and native collision support. */
+    public static boolean exposedWaterRoute(net.minecraft.server.level.ServerPlayer player,
+                                            net.minecraft.world.phys.Vec3 before, net.minecraft.world.phys.Vec3 after) {
+        if (!Double.isFinite(before.lengthSqr()) || !Double.isFinite(after.lengthSqr())) return false;
+        double length = before.distanceTo(after);
+        double maximum = com.mistaboom.essence_ascendance.config.EssenceConfigManager.skillEffects().posture().movement().maximumDisplacement();
+        if (length > maximum || !MovementAbilityRules.supported(player)) return false;
+        int samples = Math.max(1, (int) Math.ceil(length / 0.25));
+        // Live configured movement limits bound this work; unreasonable definitions fail closed.
+        if (samples > 1024) return false;
+        for (int i=0;i<=samples;i++) {
+            var point = before.lerp(after, i/(double)samples);
+            BlockPos pos = BlockPos.containing(point.x,point.y-0.02,point.z);
+            var block = player.level().getBlockState(pos);
+            var fluid = block.getFluidState();
+            if (!(block.getBlock() instanceof LiquidBlock) || !fluid.is(FluidTags.WATER)
+                    || !player.level().getFluidState(pos.above()).isEmpty()
+                    || !player.level().getBlockState(pos.above()).isAir()) return false;
+            double surfaceY = pos.getY()+fluid.getHeight(player.level(),pos);
+            if (!Double.isFinite(surfaceY) || Math.abs(point.y-surfaceY)>0.08) return false;
+        }
+        return true;
+    }
     public static boolean clearWaterVision(Entity entity) { return TraversalCapabilities.has(entity, WATER_VISION); }
     public static boolean clearLavaVision(Entity entity) { return TraversalCapabilities.has(entity, LAVA_VISION); }
     public static boolean protectedLavaImmersion(Entity entity) {

@@ -20,7 +20,7 @@ public final class MachineBindingTest {
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); EssenceTypes.init(); AscendanceTiers.init();
         for (MembershipAuthority authority : MembershipAuthority.values()) {
-            bindingContract(authority); dissolution(authority); pendingPlacement(authority); capacity(authority);
+            bindingContract(authority); operatorCreditContract(authority); dissolution(authority); pendingPlacement(authority); capacity(authority);
         }
         links(); pylonPacket();
         System.out.println("MachineBindingTest: " + checks + " assertions passed");
@@ -70,6 +70,48 @@ public final class MachineBindingTest {
         check(restored.pool().equals(infuser.pool()) && restored.operator().equals(B) && restored.revision() == revision, "Binding and distinct roles persist");
         check(!restored.operatorValid(saved), "Unloaded machine revalidates saved operator grants");
     }
+    private static void operatorCreditContract(MembershipAuthority authority) {
+        var saved = new EssenceSavedData(); saved.establishMembershipAuthority(authority);
+        var team = roster(authority, 30, List.of(A, B), Set.of(A), A); publish(saved, team);
+        var machine = new MachineBinding(); machine.place(saved, A);
+        check(machine.operator() == null && !machine.operatorValid(saved),
+                "Working placed infrastructure has no inferred human operator");
+        check(machine.operational(saved) && machine.fundingActor(saved).equals(A),
+                "Automatic reservoir funding can exist independently of operation credit");
+        check(machine.start(saved, B, A) && machine.operator().equals(B) && machine.operatorValid(saved),
+                "Authorized member explicitly becomes operator independently of owner and recipient");
+        check(machine.fundingActor(saved).equals(A) && machine.recipient().equals(A) && machine.placer().equals(A),
+                "Operation credit does not rewrite funding, item recipient, or placement provenance");
+        long revision = machine.revision(); var pool = machine.pool(); boolean paused = machine.paused();
+        check(!machine.start(saved, C, null) && machine.operator().equals(B),
+                "A rejected outsider request cannot steal attribution from the real operator");
+        CompoundTag snapshot = new CompoundTag(); machine.save(snapshot);
+        var restored = new MachineBinding(); restored.load(snapshot);
+        check(restored.operator().equals(B) && restored.operatorValid(saved),
+                "An explicit operator survives the existing machine-binding save contract");
+        CompoundTag oldWorld = snapshot.copy(); oldWorld.getCompound("machine_binding").remove("operator");
+        var withoutOperator = new MachineBinding(); withoutOperator.load(oldWorld);
+        check(withoutOperator.operator() == null && !withoutOperator.operatorValid(saved)
+                        && withoutOperator.fundingActor(saved).equals(A),
+                "Old-world absence of an operator remains unattributed rather than borrowing the funding actor");
+        machine.clearOperator();
+        check(machine.operator() == null && !machine.operatorValid(saved),
+                "Ineligible manual work can clear operation credit immediately");
+        check(machine.pool().equals(pool) && machine.recipient().equals(A) && machine.revision() == revision
+                        && machine.paused() == paused && machine.operational(saved),
+                "Clearing operation credit leaves infrastructure, workpiece, revision, and processing availability intact");
+        CompoundTag cleared = new CompoundTag(); machine.save(cleared); restored.load(cleared);
+        check(restored.operator() == null && !restored.operatorValid(saved),
+                "Cleared operation attribution cannot return after save/reload");
+        check(machine.start(saved, B, null), "Fresh authorized operation re-establishes credit after clearing");
+        publish(saved, roster(authority, 30, List.of(A), Set.of(A), A));
+        check(!machine.operatorValid(saved) && machine.fundingActor(saved).equals(A),
+                "A departed operator cannot use another current member's funding authority to retain credit");
+        machine.place(saved, A);
+        check(machine.operator() == null && machine.recipient() == null,
+                "Fresh physical placement clears every previous operation claim");
+    }
+
     private static void dissolution(MembershipAuthority authority) {
         var saved = new EssenceSavedData(); saved.establishMembershipAuthority(authority);
         var team = roster(authority, 8, List.of(A, B), Set.of(A, B), B); publish(saved, team);

@@ -39,6 +39,14 @@ public final class SkillEffectRuntime {
 
     public static boolean resolvingDeath(LivingEntity target) { return DEATH_SCOPES.contains(target); }
 
+    /** Read the effective committed effect at the native blow, before healing or death handlers run. */
+    public static boolean desperationActive(ServerPlayer player) {
+        Context context = observationContext(player);
+        return context != null && context.isEffective(com.mistaboom.essence_ascendance.skill.SkillIds.DESPERATION)
+                && SkillEffectMath.desperationMultiplier(player.getHealth(), player.getMaxHealth(),
+                        context.settings().desperation().maxDamageBonusPercent()) > 1.000001;
+    }
+
     private SkillEffectRuntime() { }
 
     /** Common extension point for registered effects reporting measured, completed native outcomes.
@@ -68,6 +76,7 @@ public final class SkillEffectRuntime {
             for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
                 if (context.isEffective(handler.id())) handler.tick(context);
             }
+            com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.tick(context);
             com.mistaboom.essence_ascendance.visual.FlightVisualState.synchronize(context);
         }
     }
@@ -81,6 +90,9 @@ public final class SkillEffectRuntime {
     }
 
     public static void reset(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.reset(player);
+        com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.reset(player);
+        com.mistaboom.essence_ascendance.utility.UtilitySanctuaryService.forget(player);
         SkillHudEvents.forget(player);
         com.mistaboom.essence_ascendance.vitality.VitalityDamageService.removeModifier(player);
         GuardCounterattackService.reset(player);
@@ -98,6 +110,8 @@ public final class SkillEffectRuntime {
     public static void forget(ServerPlayer player) { reset(player); }
 
     public static void movementDiscontinuity(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.reset(player);
+        com.mistaboom.essence_ascendance.gameplay.GatheringOutcomes.reset(player);
         PlayerRuntime runtime = PLAYERS.get(player.getUUID());
         if (runtime == null || runtime.player.get() != player) return;
         Context context = new Context(player, runtime);
@@ -105,6 +119,8 @@ public final class SkillEffectRuntime {
     }
 
     public static void clearAll() {
+        com.mistaboom.essence_ascendance.gameplay.MovementOutcomes.clearAll();
+        com.mistaboom.essence_ascendance.utility.UtilitySanctuaryService.clearObservations();
         SkillHudEvents.clear();
         CombatHudActivity.clear();
         GuardCounterattackService.clearAll();
@@ -261,6 +277,7 @@ public final class SkillEffectRuntime {
 
     /** Native confirmed death, while its authoritative source/caster scope still exists. */
     public static void onLivingDeath(LivingEntity victim, DamageSource source) {
+        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.death(victim, source);
         SkillProcDamageService.ProcContext proc = SkillProcDamageService.current();
         ServerPlayer attributed = proc == null
                 ? EquipmentDamageService.skillDamagePlayer(victim, source) : proc.owner();
@@ -281,6 +298,8 @@ public final class SkillEffectRuntime {
 
     /** Unload/death cleanup supplements weak references and the owner-tick identity check. */
     public static void onEntityRemoved(Entity entity) {
+        com.mistaboom.essence_ascendance.gameplay.RodOutcomes.removed(entity);
+        com.mistaboom.essence_ascendance.utility.UtilitySanctuaryService.targetRemoved(entity);
         for (PlayerRuntime runtime : List.copyOf(PLAYERS.values())) {
             ServerPlayer player = runtime.player.get();
             if (player == null) {
@@ -359,6 +378,23 @@ public final class SkillEffectRuntime {
     public static Context context(ServerPlayer player) { return current(player); }
 
     /**
+     * Read-only observer access. Missing/stale runtime evidence is unknown; observing an outcome
+     * must never reconcile effects, replace attack identity, create state, or invoke handlers.
+     */
+    public static Context observationContext(ServerPlayer player) {
+        if (player == null || !player.isAlive() || player.isRemoved()) return null;
+        PlayerRuntime runtime = PLAYERS.get(player.getUUID());
+        if (runtime == null || runtime.player.get() != player
+                || runtime.baseSettings != EssenceConfigManager.skillEffects()) return null;
+        Set<ResourceLocation> effective = CommittedSkillService.effectiveIds(player);
+        if (!runtime.effective.equals(effective) || runtime.ranks.size() != effective.size()) return null;
+        var committed = CommittedSkillService.context(player);
+        for (ResourceLocation id : effective)
+            if (runtime.ranks.getOrDefault(id, 0) != committed.authoritativeRank(id)) return null;
+        return new Context(player, runtime);
+    }
+
+    /**
      * Shared post-enchantment durability pipeline. Loader adapters call this exactly once before
      * the artifact fracture guard, so maintenance skills compose with Unbreaking and durability efficiency.
      */
@@ -398,6 +434,8 @@ public final class SkillEffectRuntime {
         if (!player.isAlive() || player.isRemoved() || !Double.isFinite(healthLost)
                 || !Double.isFinite(absorptionLost) || healthLost + absorptionLost <= 0) return;
         RecentHostileCombat.acceptedDamage(player,
+                com.mistaboom.essence_ascendance.projectile.ProjectileOwnership.damageSource(source, player));
+        RecentHostileCombat.acceptedEncounterDamage(player,
                 com.mistaboom.essence_ascendance.projectile.ProjectileOwnership.damageSource(source, player));
         Context context = current(player);
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
@@ -481,6 +519,7 @@ public final class SkillEffectRuntime {
     }
 
     private static void clear(Context context) {
+        com.mistaboom.essence_ascendance.utility.UtilitySanctuaryService.forget(context.player());
         var flight = (com.mistaboom.essence_ascendance.visual.FlightVisualState) context.player();
         flight.essenceAscendance$flightFlags(0);
         flight.essenceAscendance$boostTick(Long.MIN_VALUE);

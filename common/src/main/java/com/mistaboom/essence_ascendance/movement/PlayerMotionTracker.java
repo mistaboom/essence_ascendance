@@ -25,6 +25,7 @@ public final class PlayerMotionTracker {
         }
     }
     private static final Map<ServerPlayer, State> STATES = new WeakHashMap<>();
+    private static final ThreadLocal<ServerPlayer> NATIVE_JUMP = new ThreadLocal<>();
     private static final class State {
         final MotionSampleAccumulator pending = new MotionSampleAccumulator();
         final String dimension;
@@ -32,7 +33,7 @@ public final class PlayerMotionTracker {
         Vec3 position, acceptedVelocity;
         long velocityAt = Long.MIN_VALUE;
         float yaw;
-        long lastTick = Long.MIN_VALUE, forcedUntil;
+        long lastTick = Long.MIN_VALUE, forcedUntil, externalForcedUntil;
         Sample sample;
         State(ServerPlayer player, PostureBalanceSettings.Movement policy) {
             this.policy = policy; dimension = dimension(player); position = player.position(); yaw = player.getYRot();
@@ -94,6 +95,20 @@ public final class PlayerMotionTracker {
     public static void forced(ServerPlayer player) {
         State state = STATES.get(player); if (state == null) return;
         state.forcedUntil = player.level().getGameTime() + state.policy.forcedMotionQuietTicks();
+        state.externalForcedUntil = state.forcedUntil;
+    }
+    /** Observer-only cause metadata. Existing forcedUntil and gameplay Sample.forced remain unchanged. */
+    public static boolean nonJumpForced(ServerPlayer player) {
+        State state=STATES.get(player);
+        return state!=null && player.level().getGameTime()<state.externalForcedUntil;
+    }
+    /** Native grounded jump scope; extra skill impulses outside this call remain external forces. */
+    public static void nativeJump(ServerPlayer player,Runnable original) {
+        ServerPlayer previous=NATIVE_JUMP.get();
+        boolean ordinary=player.onGround()&&player.isSprinting()&&MovementAbilityRules.supported(player)
+                &&MovementAbilityRules.allowed(player);
+        if(ordinary)NATIVE_JUMP.set(player);
+        try{original.run();}finally{if(previous==null)NATIVE_JUMP.remove();else NATIVE_JUMP.set(previous);}
     }
     public static void externalMove(Entity entity, MoverType type, Vec3 before) {
         if (!(entity instanceof ServerPlayer player) || type == MoverType.PLAYER) return;
@@ -107,7 +122,12 @@ public final class PlayerMotionTracker {
         // Ignore ordinary gravity/drag. Native jump impulses are safe but cannot themselves generate momentum.
         if (!Double.isFinite(proposed.lengthSqr()) || proposed.horizontalDistance() > current.horizontalDistance() + epsilon
                 || current.horizontalDistance() > epsilon && proposed.horizontalDistance() > epsilon
-                && current.x * proposed.x + current.z * proposed.z < 0) forced(player);
+                && current.x * proposed.x + current.z * proposed.z < 0) {
+            // Preserve the exact existing gameplay quiet window, while exposing that an ordinary
+            // native sprint jump is not knockback/rod/piston movement for another observer.
+            if(NATIVE_JUMP.get()==player)state.forcedUntil=player.level().getGameTime()+state.policy.forcedMotionQuietTicks();
+            else forced(player);
+        }
     }
     public static void forget(ServerPlayer player) { STATES.remove(player); }
     private static String dimension(ServerPlayer player) { return player.level().dimension().location().toString(); }

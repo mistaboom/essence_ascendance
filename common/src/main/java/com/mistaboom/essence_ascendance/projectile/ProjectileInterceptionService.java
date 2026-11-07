@@ -153,6 +153,11 @@ public final class ProjectileInterceptionService {
         control.dragFactor = 1;
         ((ProjectileStateAccess) projectile).essenceAscendance$flightScale(1);
         control.physicsInput = null;
+        // A committed redirect is the defender's new action; never inherit the shooter's weapon or eligibility.
+        next.combatCause = new com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause(
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.action("projectile_redirect"),defender.getUUID(),
+                com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Weapon.UNKNOWN,
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(defender));
         com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(defender, SkillIds.TRAJECTORY_THEFT, "redirected", 1);
         CombatVisualFeedback.link(defender.serverLevel(), TransientVisualIds.WORLD_PROJECTILE_REDIRECT,
                 projectile.position(), null, null, target.getBoundingBox().getCenter(), projectile.getDeltaMovement(),

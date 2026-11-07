@@ -1,0 +1,36 @@
+{
+  "parent": "essence_ascendance:achievements/a193",
+  "display": {
+    "icon": {
+      "id": "essence_ascendance:ascendance_shield",
+      "components": {
+        "minecraft:custom_data": {
+          "essence_ascendance_equipment": {
+            "tier": "dormant"
+          }
+        }
+      }
+    },
+    "title": {
+      "translate": "advancement.essence_ascendance.a200"
+    },
+    "description": {
+      "translate": "advancement.essence_ascendance.a200.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "achieved": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "achieved"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

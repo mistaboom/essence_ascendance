@@ -13,6 +13,11 @@ import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.visual.MachineVisualState;
+import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
+import com.mistaboom.essence_ascendance.gameplay.DissolutionOutcome;
+import com.mistaboom.essence_ascendance.gameplay.DissolutionOutcomes;
+import com.mistaboom.essence_ascendance.gameplay.MachineOutcome;
+import com.mistaboom.essence_ascendance.gameplay.MachineOutcomes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -72,6 +77,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             NonNullList.withSize(MAX_INPUT_SLOTS, ItemStack.EMPTY);
 
     private final MachineBinding binding = new MachineBinding();
+    private final MachineInstanceIdentity physicalIdentity = new MachineInstanceIdentity();
     private UUID ownerId;
     private String ownerName = "";
     private EssenceCrucibleAccessMode accessMode =
@@ -120,6 +126,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             EssenceCrucibleBlockEntity crucible
     ) {
         crucible.processingVisualActive = false;
+        crucible.physicalMachineId();
         EssenceCrucibleChannelService.sourceLoaded(crucible);
         var saved = EssenceSavedData.get(level.getServer());
         if (crucible.binding.refresh(saved)) crucible.bindingChanged();
@@ -239,10 +246,16 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     public boolean bindOnPlacement(Player player) {
         if (!(level instanceof ServerLevel serverLevel)) return false;
         if (!binding.place(EssenceSavedData.get(serverLevel.getServer()), player.getUUID())) return false;
+        physicalIdentity.placed(this);
         ownerId = player.getUUID(); ownerName = player.getGameProfile().getName();
         processingArmed = true; processingTicks = 0; bindingChanged(); return true;
     }
     @Override public MachineBinding machineBinding() { return binding; }
+    public UUID physicalMachineId() {
+        UUID identity = physicalIdentity.get(this);
+        if (physicalIdentity.consumeInvalidation()) binding.clearOperator();
+        return identity;
+    }
     public boolean canPlayerConfigure(Player player) { return ServerMenuAccess.canReach(player, this) && authorize(player, MachineAction.CONFIGURE); }
     public UUID fundingActor() {
         if (!(level instanceof ServerLevel serverLevel)) return null;
@@ -378,9 +391,61 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     public boolean setProcessingEnabled(Player player, boolean enabled) {
         if (!canPlayerConfigure(player)) return false;
         if (enabled && (!(level instanceof ServerLevel serverLevel) || !binding.start(EssenceSavedData.get(serverLevel.getServer()), player.getUUID(), null))) return false;
-        processingArmed = enabled; processingTicks = 0; setChanged(); return true;
+        if (!(player instanceof ServerPlayer serverPlayer) || !AttunementGameplay.eligible(serverPlayer)) binding.clearOperator();
+        processingArmed = enabled; processingTicks = 0; setChanged();
+        if (enabled && player instanceof ServerPlayer serverPlayer) observeInfrastructure(serverPlayer, false);
+        return true;
     }
     public boolean processingEnabled() { return processingArmed; }
+
+    /** A real operator transition samples the current native structure; never a placement/tick scan. */
+    public void observeInfrastructure(ServerPlayer operator, boolean activatedPylon) {
+        observeInfrastructure(operator, activatedPylon, processingArmed);
+    }
+
+    /** Positive completed channel payments are real running work even when dissolution is stopped. */
+    public void observeSuccessfulSupply(ServerPlayer operator) {
+        observeInfrastructure(operator, false, true);
+    }
+
+    private void observeInfrastructure(ServerPlayer operator, boolean activatedPylon, boolean running) {
+        if (!(level instanceof ServerLevel serverLevel) || !AttunementGameplay.eligible(operator)
+                || !authorize(operator, MachineAction.SPEND)) return;
+        var saved = EssenceSavedData.get(serverLevel.getServer());
+        if (!binding.operational(saved)) return;
+        var current = EssenceCrucibleStructureService.evaluateSnapshot(serverLevel, worldPosition);
+        int limit = EssenceConfigManager.get().maxActivePylons();
+        MachineOutcomes.publish(serverLevel.getServer(), new MachineOutcome.Infrastructure(UUID.randomUUID(), operator.getUUID(),
+                serverLevel.dimension().location().toString(), worldPosition.asLong(), physicalMachineId(), activatedPylon,
+                current.activePylons().size(), limit, running, serverLevel.getServer().overworld().getGameTime()));
+    }
+
+    /**
+     * A successful authenticated input insertion selects the operator of automatic processing.
+     * Opening a screen, channeling, placement, item ownership and funding membership do not.
+     * The menu supplies a transient before-image, never a client-provided attribution claim.
+     */
+    void observeMenuInputs(Player player, List<ItemStack> before) {
+        if (!(level instanceof ServerLevel serverLevel) || before.size() != items.size()) return;
+        boolean changed = false;
+        boolean inserted = false;
+        for (int slot = 0; slot < items.size(); slot++) {
+            ItemStack old = before.get(slot), current = items.get(slot);
+            boolean same = ItemStack.isSameItemSameComponents(old, current);
+            changed |= !same || old.getCount() != current.getCount();
+            inserted |= !current.isEmpty() && (!same || current.getCount() > old.getCount());
+        }
+        if (!changed) return;
+        if (!(player instanceof ServerPlayer serverPlayer) || !AttunementGameplay.eligible(serverPlayer)) {
+            binding.clearOperator();
+        } else if (inserted) {
+            if (!canPlayerUse(player)
+                    || !binding.start(EssenceSavedData.get(serverLevel.getServer()), player.getUUID(), null)) binding.clearOperator();
+        }
+        setChanged();
+    }
+
+    List<ItemStack> menuInputSnapshot() { return items.stream().map(ItemStack::copy).toList(); }
 
     public EssenceCrucibleDissolutionMode dissolutionMode() {
         return dissolutionMode;
@@ -552,6 +617,30 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         } catch (RuntimeException invalid) {
             processingVisualActive = false;
             return;
+        }
+        // Operation credit follows the explicit operator, never the reservoir's funding representative.
+        // This executes after credit's reversible mutation succeeded, independently of Attunement awards.
+        java.math.BigInteger creditedUnits = credit.values().stream().reduce(java.math.BigInteger.ZERO, java.math.BigInteger::add);
+        UUID operatorId = binding.operator();
+        ServerPlayer operator = operatorId == null ? null : serverLevel.getServer().getPlayerList().getPlayer(operatorId);
+        if (creditedUnits.signum() > 0 && binding.operatorValid(saved) && AttunementGameplay.eligible(operator)) {
+            java.util.Set<String> consumedInputItems = new java.util.LinkedHashSet<>();
+            for (int slot = 0; slot < plan.consumeCounts().length; slot++)
+                if (plan.consumeCounts()[slot] > 0)
+                    consumedInputItems.add(BuiltInRegistries.ITEM.getKey(before.get(slot).getItem()).toString());
+            int positiveMask = 0;
+            for (int i = 0; i < EssenceCrucibleEssences.ORDERED.size(); i++)
+                if (credit.getOrDefault(EssenceCrucibleEssences.ORDERED.get(i).id(), java.math.BigInteger.ZERO).signum() > 0)
+                    positiveMask |= 1 << i;
+            DissolutionOutcomes.publish(serverLevel.getServer(), new DissolutionOutcome(
+                    AttunementGameplay.action("dissolution"), operatorId, serverLevel.dimension().location(),
+                    worldPosition.asLong(), plan.totalItems(), creditedUnits, serverLevel.getServer().overworld().getGameTime(),
+                    physicalMachineId(), consumedInputItems, positiveMask,
+                    //? if >=26.1.2
+                    /*serverLevel.getServer().overworld().getDefaultClockTime()));*/
+                    //? if <26.1.2
+                    serverLevel.getServer().overworld().getDayTime()));
+            observeInfrastructure(operator, false, true);
         }
         com.mistaboom.essence_ascendance.network.FeedbackDispatch.world(serverLevel, "process.complete", net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
         processingTicks = 0;
@@ -987,6 +1076,13 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             int mask = 0;
             for (int i = 0; i < essences.size(); i++) if (planned.getOrDefault(essences.get(i).id(), 0L) > 0) mask |= 1 << i;
             recentTransferTypes.put(player.getUUID(), mask);
+            if (AttunementGameplay.eligible(player)) {
+                var serverLevel = (ServerLevel) level;
+                MachineOutcomes.publish(serverLevel.getServer(), new MachineOutcome.Channel(UUID.randomUUID(), player.getUUID(),
+                        serverLevel.dimension().location().toString(), worldPosition.asLong(), physicalMachineId(), movedTotal,
+                        serverLevel.getServer().overworld().getGameTime()));
+                observeInfrastructure(player, false, true);
+            }
         }
         transferCursors.put(player.getUUID(), (transferCursor + 1) % essenceCount);
         return movedTotal;
@@ -1027,7 +1123,9 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         /*ContainerHelper.saveAllItems(tag, items);*/
         //? if <26.1.2
         ContainerHelper.saveAllItems(tag, items, registries);
+        physicalMachineId();
         binding.save(tag);
+        physicalIdentity.save(tag);
 
         if (ownerId != null) {
             //? if >=26.1.2
@@ -1070,6 +1168,8 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         //? if <26.1.2
         ContainerHelper.loadAllItems(tag, items, registries);
         binding.load(tag);
+        physicalIdentity.load(tag, this);
+        if (physicalIdentity.consumeInvalidation()) binding.clearOperator();
 
         //? if >=26.1.2
         /*ownerId = tag.read(OWNER_TAG, UUIDUtil.CODEC).orElse(null);*/

@@ -97,6 +97,7 @@ public final class VitalityDamageService {
             dirty(player);
         }
         if (!player.isAlive() || player.isRemoved()) return;
+        double debtBefore = ledger.traumaFraction;
         if (ledger.traumaFraction > 0) {
             int timeout = context.settings().vitality().damage().damageCeiling().combatTimeoutTicks();
             ledger.traumaQuietTicks = Math.max(ledger.traumaQuietTicks, RecentHostileCombat.remaining(context, timeout));
@@ -105,6 +106,10 @@ public final class VitalityDamageService {
             dirty(player);
         }
         reconcileTrauma(player);
+        if (debtBefore > 0 && ledger.traumaFraction == 0)
+            com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.publish(player,
+                    new com.mistaboom.essence_ascendance.gameplay.SurvivalOutcome.CeilingDebt(
+                            com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.context(player, "ceiling_recovery"), debtBefore, 0, false));
     }
     /** Called after Player.actuallyHurt's native health write, before its outer death check. */
     public static void commitHealthDamage(ServerPlayer player, DamageSource source,
@@ -119,7 +124,15 @@ public final class VitalityDamageService {
         }
         if (ledger(player).traumaFraction > 0) {
             double before = player.getMaxHealth();
+            var attribute = player.getAttribute(Attributes.MAX_HEALTH);
+            var applied = attribute == null ? null : attribute.getModifier(TRAUMA);
+            double debtBefore = applied == null ? 0 : Math.max(0, -applied.amount());
             reconcileTrauma(player);
+            double debtAfter = ledger(player).traumaFraction;
+            if (debtAfter > debtBefore && player.getMaxHealth() < before)
+                com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.publish(player,
+                        new com.mistaboom.essence_ascendance.gameplay.SurvivalOutcome.CeilingDebt(
+                                com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.context(player, "ceiling_capacity"), debtBefore, debtAfter, true));
             if (player.getMaxHealth() != before)
                 com.mistaboom.essence_ascendance.network.VanillaPlayerAttributeSyncService.syncOwnerHealth(player);
         }

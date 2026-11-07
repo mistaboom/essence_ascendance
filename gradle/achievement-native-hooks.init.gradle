@@ -1,0 +1,124 @@
+if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one native fixture init script per Gradle invocation')
+gradle.ext.essenceNativeFixture = 'achievements'
+// One exact loader/version server task. All writes remain inside its build/native-fixtures tree.
+allprojects { p ->
+    p.afterEvaluate {
+        if (!p.rootProject.ext.has('nativeFixtureSelection'))
+            p.rootProject.apply from: p.rootProject.file('gradle/native-fixture-selection.gradle')
+        if (p.path != p.rootProject.nativeFixtureSelection.projectPath) return
+        def common = p.rootProject.project(":common:${p.targetMinecraft}")
+        def fabric = p.parent.name == 'fabric'
+        def name = fabric ? 'FabricAchievementNativeMod' : 'NeoForgeAchievementNativeMod'
+        def testRun = p.file('build/native-fixtures/achievement-run').canonicalFile
+        def restartStage = p.providers.gradleProperty('achievementRestartStage').orElse('').get()
+        if (!(restartStage in ['', 'prepare', 'resume']))
+            throw new GradleException('achievementRestartStage must be prepare or resume')
+        def metadata = p.file('build/native-fixtures/achievement-metadata')
+        def compile = p.tasks.register('compileAchievementNativeFixture', JavaCompile) {
+            source(p.rootProject.file("gradle/native-fixtures/${name}.java"))
+            classpath = p.sourceSets.main.compileClasspath
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures/achievement-adapter-classes')
+            options.release = p.targetJava
+            javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(p.targetJava) }
+        }
+        def fixture = p.tasks.register('achievementNativeFixtureJar', Jar) {
+            dependsOn compile, common.tasks.named('testClasses')
+            archiveFileName = 'achievement-fixture.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
+            from(compile.flatMap { it.destinationDirectory })
+            if (fabric) from(common.sourceSets.test.output) {
+                include 'com/mistaboom/essence_ascendance/achievement/AchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/MachineAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/CombatAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/RodAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/MovementAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/SurvivalAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/CompanionAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/FarmingAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/GatheringAchievementNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/achievementcontrol/HarvestRemovalCancellation*.class'
+                include 'com/mistaboom/essence_ascendance/achievementcontrol/mixin/HarvestRemovalCancellationMixin*.class'
+                include 'com/mistaboom/essence_ascendance/achievement/MachineRestartNativeFixture*.class'
+                include 'com/mistaboom/essence_ascendance/verification/BlockEntityTestNbtCompat*.class'
+            }
+            from(metadata)
+            doFirst {
+                metadata.mkdirs()
+                new File(metadata, 'achievement-fixture.mixins.json').text = groovy.json.JsonOutput.toJson([
+                        required: true, minVersion: '0.8', compatibilityLevel: 'JAVA_21',
+                        package: 'com.mistaboom.essence_ascendance.achievementcontrol.mixin',
+                        mixins: ['HarvestRemovalCancellationMixin'], injectors: [defaultRequire: 1]])
+                if (fabric) new File(metadata, 'fabric.mod.json').text = groovy.json.JsonOutput.toJson([
+                        schemaVersion: 1, id: 'essence_achievement_test', version: '1', environment: 'server',
+                        entrypoints: [main: ["com.mistaboom.essence_ascendance.achievementfixture.${name}"]],
+                        mixins: ['achievement-fixture.mixins.json'],
+                        depends: [essence_ascendance: '*']])
+                else {
+                    new File(metadata, 'META-INF').mkdirs()
+                    new File(metadata, 'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_achievement_test"
+version="1"
+displayName="Achievement native fixture"
+[[mixins]]
+config="achievement-fixture.mixins.json"
+[[dependencies.essence_achievement_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1.0.0-beta.1,)"
+ordering="AFTER"
+side="SERVER"
+'''
+                }
+            }
+        }
+        if (!fabric) {
+            p.apply from: p.rootProject.file('gradle/native-fixture-support.gradle')
+            p.useNativeFixtureCommon('achievement', [
+                    'com/mistaboom/essence_ascendance/achievement/AchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/MachineAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/CombatAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/RodAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/MovementAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/SurvivalAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/CompanionAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/FarmingAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievement/GatheringAchievementNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/achievementcontrol/HarvestRemovalCancellation*.class',
+                    'com/mistaboom/essence_ascendance/achievementcontrol/mixin/HarvestRemovalCancellationMixin*.class',
+                    'com/mistaboom/essence_ascendance/achievement/MachineRestartNativeFixture*.class',
+                    'com/mistaboom/essence_ascendance/verification/BlockEntityTestNbtCompat*.class'])
+        }
+        p.tasks.named('runServer').configure { t ->
+            t.internalRunDir.set(testRun)
+            t.dependsOn fixture
+            t.jvmArgs('-Dessence.achievement.fixture=true')
+            if (restartStage) t.jvmArgs('-Dessence.achievement.restart.stage=' + restartStage,
+                    '-Dessence.achievement.restart.marker=' + new File(testRun, 'achievement-restart.properties').canonicalPath)
+            t.doFirst {
+                if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected achievement test directory')
+                testRun.mkdirs()
+                new File(testRun, 'eula.txt').text = 'eula=true\n'
+                def settings = new Properties()
+                settings.setProperty('server-ip', '127.0.0.1')
+                settings.setProperty('server-port', '0')
+                settings.setProperty('online-mode', 'false')
+                settings.setProperty('level-name', 'achievement-fixture-world')
+                settings.setProperty('level-type', 'minecraft:flat')
+                settings.setProperty('generator-settings', groovy.json.JsonOutput.toJson([
+                        biome: 'minecraft:plains', lakes: false, features: false,
+                        layers: [[height: 1, block: 'minecraft:bedrock'],
+                                 [height: 2, block: 'minecraft:dirt'],
+                                 [height: 1, block: 'minecraft:grass_block']]]))
+                settings.setProperty('generate-structures', 'false')
+                settings.setProperty('view-distance', '2')
+                settings.setProperty('simulation-distance', '2')
+                new File(testRun, 'server.properties').withOutputStream { settings.store(it, 'Disposable achievement fixture') }
+                if (fabric) t.jvmArgs('-Dfabric.addMods=' + fixture.get().archiveFile.get().asFile.canonicalPath)
+                else { def mods = new File(testRun, 'mods'); mods.mkdirs(); p.copy { from(fixture.get().archiveFile); into(mods) } }
+            }
+        }
+    }
+}

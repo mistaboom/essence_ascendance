@@ -20,6 +20,7 @@ public final class BondedCompanionService {
     private BondedCompanionService() { }
 
     public static void tick(LivingEntity companion) {
+        com.mistaboom.essence_ascendance.gameplay.CompanionOutcomes.observe(companion);
         if (!(companion instanceof OwnableEntity ownable)) return;
         LivingEntity ownerEntity = ownable.getOwner();
         if (!(ownerEntity instanceof ServerPlayer owner) || !owner.isAlive() || owner.isRemoved()) {
@@ -53,6 +54,25 @@ public final class BondedCompanionService {
         if (state == null || state.lastSeenAt == Long.MIN_VALUE || context.now() < state.lastSeenAt
                 || context.now() - state.lastSeenAt > 1) return null;
         return new Snapshot(state.lastName, state.lastTeleportedAt == context.now());
+    }
+
+    /** Read-only confirmed empowerment at native contact/commit, never applies or grants a skill. */
+    public static ServerPlayer empoweredOwner(LivingEntity companion) {
+        if (!companion.isAlive() || companion.isRemoved() || !(companion instanceof OwnableEntity ownable)
+                || !(ownable.getOwner() instanceof ServerPlayer owner) || !owner.isAlive() || owner.isRemoved()
+                || owner.level() != companion.level() || !CommittedSkillService.isEffective(owner, SkillIds.BONDED_COMPANION)) return null;
+        var context = SkillEffectRuntime.observationContext(owner);
+        if (context == null || !context.isEffective(SkillIds.BONDED_COMPANION)) return null;
+        double bonus = context.settings().utility().bondedCompanion().statBonusFraction();
+        if (!(bonus > EPSILON)) return null;
+        // Owning an effective skill alone does not prove that this particular creature was empowered.
+        for (var attribute : java.util.List.of(Attributes.MAX_HEALTH, Attributes.ATTACK_DAMAGE, Attributes.MOVEMENT_SPEED)) {
+            var instance = companion.getAttribute(attribute);
+            var modifier = instance == null ? null : instance.getModifier(SkillIds.BONDED_COMPANION);
+            if (modifier != null && modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE
+                    && Math.abs(modifier.amount() - bonus) <= EPSILON) return owner;
+        }
+        return null;
     }
 
     private static void apply(LivingEntity companion, double bonus) {

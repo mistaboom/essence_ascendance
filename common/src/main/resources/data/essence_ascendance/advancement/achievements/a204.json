@@ -1,0 +1,29 @@
+{
+  "parent": "essence_ascendance:achievements/a128",
+  "display": {
+    "icon": {
+      "id": "minecraft:wheat"
+    },
+    "title": {
+      "translate": "advancement.essence_ascendance.a204"
+    },
+    "description": {
+      "translate": "advancement.essence_ascendance.a204.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "achieved": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "achieved"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

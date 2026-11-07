@@ -50,6 +50,18 @@ public final class AttunementGameplay {
                 && !player.isSpectator() && !player.hasInfiniteMaterials()
                 && player.server.getPlayerList().getPlayer(player.getUUID()) == player;
     }
+    /** Scoped native administrator mutation; never evidence of a successful survival operation. */
+    public static OutcomeSuppression suppressAdministrativeOutcomes() { return new OutcomeSuppression(); }
+    public static final class OutcomeSuppression implements AutoCloseable {
+        private final boolean previous = SUPPRESSED.get();
+        private boolean closed;
+        private OutcomeSuppression() { SUPPRESSED.set(true); }
+        @Override public void close() {
+            if (closed) return;
+            closed = true;
+            if (previous) SUPPRESSED.set(true); else SUPPRESSED.remove();
+        }
+    }
     public static void award(ServerPlayer player, String root, String activity, String source, double units) {
         if (eligible(player) && Double.isFinite(units) && units > 0)
             AttunementService.submit(player, root, activity, sourceSignature(source), units);
@@ -111,7 +123,7 @@ public final class AttunementGameplay {
         DamageFrame frame = new DamageFrame(target, source, requested, action("damage"));
         frames.push(frame);
         try {
-            boolean accepted = original.getAsBoolean();
+            boolean accepted = com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.damage(target, source, frame.root, original);
             if (accepted || frame.blocked > 0) completeDamage(frame);
             else if (target instanceof ServerPlayer player)
                 reject(player, frame.root, "take_damage", source.getMsgId(), "unconfirmed_damage");
@@ -124,6 +136,7 @@ public final class AttunementGameplay {
     }
     /** Called at the native health/absorption write, before a Totem can restore health. */
     public static void damageMeasured(LivingEntity target, DamageSource source, double ownLoss, double healthLoss) {
+        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.measured(target, source, ownLoss);
         DamageFrame frame = DAMAGE.get().peek();
         if (frame != null && frame.target == target && frame.source == source) {
             frame.loss += Math.max(0, ownLoss);

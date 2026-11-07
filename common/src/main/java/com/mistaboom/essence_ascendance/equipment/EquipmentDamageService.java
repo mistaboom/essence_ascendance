@@ -168,15 +168,21 @@ public final class EquipmentDamageService {
         long token = SkillEffectRuntime.beginPrimaryAttack(player, target);
         PRIMARY_SKILL_ATTACK.set(new PrimarySkillAttack(player, target, isMeleeWeapon(player), attackIdentity, effective));
         var exertion = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.beginExertion(player, "combat");
-        try {
-            action.run();
-        } finally {
-            if (intercepted) player.resetAttackStrengthTicker();
+        var cause = new com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause(
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.action("melee_attack"),player.getUUID(),
+                com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.weapon(player.getMainHandItem(),"MELEE"),
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player));
+        try (var observation = com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.openContact(player,cause,Double.NaN)) {
             try {
-                SkillEffectRuntime.finishPrimaryAttack(player, token);
+                action.run();
             } finally {
-                PRIMARY_SKILL_ATTACK.remove();
-                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.endExertion(exertion);
+                if (intercepted) player.resetAttackStrengthTicker();
+                try {
+                    SkillEffectRuntime.finishPrimaryAttack(player, token);
+                } finally {
+                    PRIMARY_SKILL_ATTACK.remove();
+                    com.mistaboom.essence_ascendance.attunement.AttunementGameplay.endExertion(exertion);
+                }
             }
         }
     }
@@ -221,6 +227,7 @@ public final class EquipmentDamageService {
                 && (measurement.frame == null || measurement.frame == SKILL_DAMAGE_FRAMES.get().peek()))
             measurement.sample = sample;
         double healthBefore = target.getHealth();
+        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.beforeHealthWrite(target,source);
         samples.push(sample);
         boolean completed = false;
         try {
@@ -884,6 +891,8 @@ public final class EquipmentDamageService {
         Vec3 before = entity.getDeltaMovement();
         boolean protection = suppressExplosionDisplacement(entity, source);
         if (!protection) original.run();
+        if (!protection && entity.getDeltaMovement().subtract(before).lengthSqr() > 0)
+            com.mistaboom.essence_ascendance.gameplay.RodOutcomes.competingImpulse(entity);
         if (!(entity instanceof ServerPlayer player)) return;
         if (!protection && entity.getDeltaMovement().subtract(before).lengthSqr() > 0) PostureService.forced(player,"explosion_knockback");
         PendingExplosion pending = EXPLOSION_IMPULSES.remove(player);

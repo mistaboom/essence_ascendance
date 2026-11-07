@@ -63,6 +63,8 @@ public final class PlayerRuntimeLifecycleService {
         LifecycleEvent.SERVER_STOPPING.register(server -> com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.serverStopping());
         LifecycleEvent.SERVER_STOPPED.register(server -> {
             com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.clear();
+            com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.clear(server);
+            com.mistaboom.essence_ascendance.gathering.GeneratedOreObservations.clear(server);
             com.mistaboom.essence_ascendance.attunement.AttunementGameplay.clearAll();
             SkillEffectRuntime.clearAll();
             EquipmentDamageService.clearSkillInput();
@@ -107,6 +109,7 @@ public final class PlayerRuntimeLifecycleService {
             // Skill timers/modifiers use provisional tuning; discard old
             // combat state before applying a newly loaded configuration.
             SkillEffectRuntime.reset(player);
+            com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.forget(player);
             com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);
             refreshCurrentState(
                     player
@@ -137,6 +140,9 @@ public final class PlayerRuntimeLifecycleService {
 
     /** Called by the authoritative death-completion hook, after cancellation. */
     public static void onDeath(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.death(player);
+        com.mistaboom.essence_ascendance.gameplay.EquipmentObservations.forget(player);
+        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.forget(player);
         com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.cancel(player);
         com.mistaboom.essence_ascendance.vitality.VitalityDamageService.onDeath(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
@@ -193,6 +199,7 @@ public final class PlayerRuntimeLifecycleService {
         EquipmentTooltipSyncService.forceSync(
                 player
         );
+        com.mistaboom.essence_ascendance.achievement.AchievementService.reconcile(player);
     }
 
     /*
@@ -201,6 +208,8 @@ public final class PlayerRuntimeLifecycleService {
     private static void resetRuntime(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.gameplay.EquipmentObservations.forget(player);
+        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.forget(player);
         com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.cancel(player);
         com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService.forget(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
@@ -263,6 +272,8 @@ public final class PlayerRuntimeLifecycleService {
     public static void forget(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.gameplay.EquipmentObservations.forget(player);
+        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.forget(player);
         com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.disconnected(player);
         com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService.forget(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);

@@ -195,7 +195,9 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
         if (!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this)) {
             return;
         }
+        var before = serverCrucible == null ? null : serverCrucible.menuInputSnapshot();
         super.clicked(slotId, button, clickType, player);
+        if (before != null) serverCrucible.observeMenuInputs(player, before);
     }
 
     @Override
@@ -216,6 +218,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
 
         ItemStack source = slot.getItem();
         ItemStack copy = source.copy();
+        var before = serverCrucible == null ? null : serverCrucible.menuInputSnapshot();
 
         if (index < MAX_MACHINE_SLOTS) {
             if (!moveItemStackTo(
@@ -251,6 +254,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
         }
 
         slot.onTake(player, source);
+        if (before != null) serverCrucible.observeMenuInputs(player, before);
         return copy;
     }
 

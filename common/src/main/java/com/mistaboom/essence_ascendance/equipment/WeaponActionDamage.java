@@ -64,6 +64,13 @@ public final class WeaponActionDamage {
         try { return nativeHit(player,target,offense,scalar,primaryEligible,direction); }
         finally { TwoHandedEquipmentService.exitCombat(); }
     }
+    /** The collision solver's accepted blade-front distance; not configured reach or a later position sample. */
+    public static EquipmentDamageService.DamageResult hit(ServerPlayer player, Entity target, Offense offense,
+            double scalar, boolean primaryEligible, Vec3 direction,
+            com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause cause, double contactDistance) {
+        return com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.contact(player,cause,contactDistance,
+                () -> hit(player,target,offense,scalar,primaryEligible,direction));
+    }
     private static EquipmentDamageService.DamageResult nativeHit(ServerPlayer player,Entity target,Offense offense,
                                                                  double scalar,boolean primaryEligible,Vec3 direction) {
         if (target instanceof LivingEntity living && !EquipmentDamageService.canSkillHarm(player,living))

@@ -26,8 +26,10 @@ public final class LatentOreBlock extends Block implements EntityBlock {
     @Override
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity entity, ItemStack stack) {
         super.setPlacedBy(level, pos, state, entity, stack);
-        if (level.getBlockEntity(pos) instanceof LatentOreBlockEntity ore)
+        if (level.getBlockEntity(pos) instanceof LatentOreBlockEntity ore) {
+            ore.clearGeneratedOrigin();
             LatentOreHost.read(stack).ifPresent(ore::setHost);
+        }
     }
 
     //? if <26.1.2

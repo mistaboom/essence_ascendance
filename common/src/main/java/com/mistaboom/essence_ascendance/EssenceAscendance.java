@@ -78,6 +78,7 @@ public final class EssenceAscendance {
         com.mistaboom.essence_ascendance.machine.MachineProtection.init();
 
         AscendanceAdvancements.init();
+        com.mistaboom.essence_ascendance.achievement.AchievementService.init();
 
         EssenceConfigManager.load();
         com.mistaboom.essence_ascendance.team.MembershipRuntime.init();

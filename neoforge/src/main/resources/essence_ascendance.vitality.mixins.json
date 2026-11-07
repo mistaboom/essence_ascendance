@@ -5,6 +5,7 @@
   "mixins": [
     "ItemStackDurabilityMixin",
     "NeoForgeDamageCleanupMixin",
+    "NeoForgeHarvestRemovalMixin",
     "LivingEntityShieldDamageMixin",
     "PlayerSkillSweepMixin",
     "VitalityPlayerDamageMixin",

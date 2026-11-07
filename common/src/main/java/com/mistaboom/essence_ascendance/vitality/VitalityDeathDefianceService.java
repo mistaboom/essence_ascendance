@@ -22,15 +22,17 @@ public final class VitalityDeathDefianceService {
         final TimedAbilityState window = new TimedAbilityState();
         double healingFractionPerTick, damageBonus, clearedDebt;
         int clearedEffects;
+        boolean pendingOutcome;
         @Override public void clear() {
-            window.clear(); healingFractionPerTick = damageBonus = clearedDebt = 0; clearedEffects = 0;
+            window.clear(); healingFractionPerTick = damageBonus = clearedDebt = 0; clearedEffects = 0; pendingOutcome = false;
         }
     }
 
     private static final class SpiritWalkState implements SkillEffectState {
         final TimedAbilityState window = new TimedAbilityState();
         double reformHealthFraction;
-        @Override public void clear() { window.clear(); reformHealthFraction = 0; }
+        boolean eligibleOrigin;
+        @Override public void clear() { window.clear(); reformHealthFraction = 0; eligibleOrigin = false; }
     }
 
     public record Snapshot(boolean active, long activeUntil, long cooldownUntil,
@@ -59,6 +61,7 @@ public final class VitalityDeathDefianceService {
             state.damageBonus = tuning.strengthDamageBonus();
             state.clearedDebt = VitalityDamageService.clearDelayedDamage(player);
             state.clearedEffects = StatusInterceptionService.purgeHarmful(player);
+            state.pendingOutcome = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player);
             ProgressionVisualFeedback.deathDefiance(player, false, false);
             return survivingHealth(player);
         }
@@ -71,11 +74,23 @@ public final class VitalityDeathDefianceService {
             state.clear();
             state.window.activate(now, tuning.durationTicks());
             state.reformHealthFraction = tuning.reformHealthFraction();
+            state.eligibleOrigin = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player);
             player.fallDistance = 0;
             ProgressionVisualFeedback.deathDefiance(player, true, false);
             return survivingHealth(player);
         }
         return proposedHealth;
+    }
+
+    /** An interception request is not success until native setHealth has actually preserved life. */
+    public static void confirmHealthWrite(ServerPlayer player) {
+        SecondWindState state = SkillEffectRuntime.context(player).existingState(SkillIds.SECOND_WIND);
+        if (state == null || !state.pendingOutcome) return;
+        state.pendingOutcome = false;
+        if (player.isAlive() && !player.isRemoved())
+            com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.publish(player,
+                    new com.mistaboom.essence_ascendance.gameplay.SurvivalOutcome.SecondWind(
+                            com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.context(player, "second_wind")));
     }
 
     /** Progresses triggered windows even if the player changes the selected choice during the cooldown. */
@@ -100,11 +115,16 @@ public final class VitalityDeathDefianceService {
                 // Normal collision/movement remains native; only damage interaction is intangible.
                 player.fallDistance = 0;
             } else if (spirit.window.finishIfExpired(now)) {
+                boolean aliveBefore = player.isAlive() && !player.isRemoved();
                 double target = Math.max(1.0, player.getMaxHealth() * spirit.reformHealthFraction);
                 if (player.getHealth() < target)
                     player.setHealth((float)Math.min(player.getMaxHealth(), target));
                 player.fallDistance = 0;
                 ProgressionVisualFeedback.deathDefiance(player, true, true);
+                if (spirit.eligibleOrigin && aliveBefore && player.isAlive() && !player.isRemoved())
+                    com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.publish(player,
+                            new com.mistaboom.essence_ascendance.gameplay.SurvivalOutcome.SpiritReform(
+                                    com.mistaboom.essence_ascendance.gameplay.SurvivalOutcomes.context(player, "spirit_reform"), true));
                 context.discardState(SkillIds.SPIRIT_WALK);
             }
         }

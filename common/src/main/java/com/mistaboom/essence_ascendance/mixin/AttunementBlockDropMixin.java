@@ -14,6 +14,7 @@ public abstract class AttunementBlockDropMixin {
     private boolean essenceAscendance$spawnedHarvest(Entity entity, Operation<Boolean> original) {
         boolean spawned = original.call(entity);
         AttunementGameplay.spawnedHarvest(entity, spawned);
+        com.mistaboom.essence_ascendance.gameplay.CommittedItemDrops.spawned(entity, spawned);
         return spawned;
     }
 }

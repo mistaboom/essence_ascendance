@@ -25,6 +25,10 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 public final class PlayerEssenceData {
+    private com.mistaboom.essence_ascendance.achievement.AchievementProgress achievementProgress =
+            new com.mistaboom.essence_ascendance.achievement.AchievementProgress();
+    private Tag opaqueAchievementProgress;
+    public com.mistaboom.essence_ascendance.achievement.AchievementProgress achievementProgress() { return achievementProgress; }
     private int crucibleChannelSelection = com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelection.ALL;
     private long crucibleChannelSelectionRevision;
     public int crucibleChannelSelection() { return crucibleChannelSelection; }
@@ -1032,6 +1036,8 @@ private static final String NEXUS_REVISION_TAG =
 
         CompoundTag root =
                 new CompoundTag();
+        if (opaqueAchievementProgress != null) root.put("achievement_progress", opaqueAchievementProgress.copy());
+        else if (!achievementProgress.empty()) root.put("achievement_progress", achievementProgress.save());
         root.putLong("reservoir_revision", reservoirRevision);
         CompoundTag carry = new CompoundTag();
         reservoirCarry.forEach((type, amount) -> carry.putLong(type.toString(), amount));
@@ -1241,6 +1247,15 @@ private static final String NEXUS_REVISION_TAG =
 
         PlayerEssenceData data =
                 new PlayerEssenceData();
+        if (root.get("achievement_progress") instanceof CompoundTag progress) {
+            data.achievementProgress = com.mistaboom.essence_ascendance.achievement.AchievementProgress.load(
+                    progress);
+        } else if (root.contains("achievement_progress")) {
+            data.opaqueAchievementProgress = root.get("achievement_progress").copy();
+            CompoundTag disabled = new CompoundTag(); disabled.putInt("version", -1);
+            data.achievementProgress = com.mistaboom.essence_ascendance.achievement.AchievementProgress.load(disabled);
+            EssenceAscendance.LOGGER.warn("Malformed achievement_progress envelope retained without interpreting partial progress");
+        }
         if (root.hasUUID("projectile_life")) data.projectileLife = root.getUUID("projectile_life");
         data.dormantGuidebookReceived = root.getBoolean(DORMANT_GUIDEBOOK_RECEIVED_TAG);
 

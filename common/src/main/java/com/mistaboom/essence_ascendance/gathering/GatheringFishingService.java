@@ -7,6 +7,9 @@ import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
 import com.mistaboom.essence_ascendance.skill.effect.TimedStackState;
 import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
+import com.mistaboom.essence_ascendance.gameplay.FarmingOutcome;
+import com.mistaboom.essence_ascendance.gameplay.FarmingOutcomes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.projectile.FishingHook;
 import net.minecraft.world.item.ItemStack;
@@ -183,9 +186,16 @@ public final class GatheringFishingService {
                 context.player(), context.player(), context.player().position(), contextRod, context.player().getLuck());
         if (!reward.isEmpty()) {
             state.lastDrops = FishingLootService.giveOrDrop(context.player(), java.util.List.of(reward));
-            if (state.lastDrops > 0) MicroVisualFeedback.gathering(context.player().serverLevel(),
-                    context.player().position().add(0, 0.6, 0),
-                    context.player().getUUID().getLeastSignificantBits() ^ context.now());
+            if (state.lastDrops > 0) {
+                if (context.isEffective(SkillIds.POCKET_NETS)) {
+                    FarmingOutcomes.publish(context.player(), new FarmingOutcome.PocketReward(
+                            FarmingOutcomes.context(context.player(), "pocket_nets_reward"),
+                            BuiltInRegistries.ITEM.getKey(reward.getItem()).toString(), state.lastDrops, context.player().isSwimming()));
+                }
+                MicroVisualFeedback.gathering(context.player().serverLevel(),
+                        context.player().position().add(0, 0.6, 0),
+                        context.player().getUUID().getLeastSignificantBits() ^ context.now());
+            }
         }
     }
 

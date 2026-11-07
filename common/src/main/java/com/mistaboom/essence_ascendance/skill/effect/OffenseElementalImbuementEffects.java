@@ -47,6 +47,18 @@ final class OffenseElementalImbuementEffects {
         return ids.size();
     }
 
+    /** Both the actual triggering action and this source-owned burning prerequisite need provenance. */
+    private static com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combustionCause(
+            UUID owner, com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause selected,
+            com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause burning) {
+        if (selected == null || !selected.actor().equals(owner)) return null;
+        boolean eligible = selected.eligibleOrigin() && burning != null && burning.actor().equals(owner)
+                && burning.eligibleOrigin();
+        return eligible == selected.eligibleOrigin() ? selected
+                : new com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause(
+                        selected.actionId(), selected.actor(), selected.weapon(), false);
+    }
+
     private static Vec3 direction(Entity source, Entity target) {
         Vec3 delta = target.getBoundingBox().getCenter().subtract(source.getBoundingBox().getCenter());
         return delta.lengthSqr() > 1.0E-8 ? delta.normalize() : new Vec3(0, 1, 0);
@@ -94,7 +106,8 @@ final class OffenseElementalImbuementEffects {
             var settings = context.settings().kindling();
             if (state.burning.active(result.target(), context.now())) {
                 state.ignite(result.target(), context.now(), settings.ignitionDurationTicks(),
-                        result.damageDealt(), settings.burningDamagePercentPerSecond());
+                        result.damageDealt(), settings.burningDamagePercentPerSecond(), null,
+                        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.currentCause(context.player()));
                 elementalDrift(context, result.target(), true);
                 return;
             }
@@ -103,7 +116,8 @@ final class OffenseElementalImbuementEffects {
             if (settings.maxHeat() > 0 && heat >= settings.maxHeat()) {
                 state.heat.remove(result.target());
                 state.ignite(result.target(), context.now(), settings.ignitionDurationTicks(),
-                        result.damageDealt(), settings.burningDamagePercentPerSecond());
+                        result.damageDealt(), settings.burningDamagePercentPerSecond(), null,
+                        com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.currentCause(context.player()));
                 CombatVisualFeedback.at(context.player().serverLevel(), TransientVisualIds.WORLD_IGNITION,
                         result.target().getBoundingBox().getCenter(), direction(context.player(), result.target()),
                         1.05F, 1.15F, VisualIntensity.MAJOR, SemanticVisualColor.FIRE, 16,
@@ -123,7 +137,7 @@ final class OffenseElementalImbuementEffects {
                 if (lineage != null && !context.isEffective(lineage.sourceSkill())) continue;
                 var combustion = context.settings().combustion();
                 PropagationBudget root = lineage == null
-                        ? new PropagationBudget(combustion.maximumGeneration(), combustion.rootTargetBudget()) : lineage.root();
+                        ? new PropagationBudget(combustion.maximumGeneration(), combustion.rootTargetBudget(), pulse.combatCause()) : lineage.root();
                 root.seed(pulse.target().getUUID());
                 SkillProcDamageService.hurt(context.player(), pulse.target(), (float) pulse.magnitude(),
                         SkillProcDamageService.DamageKind.BURNING, lineage == null ? id() : lineage.sourceSkill(), root,
@@ -201,11 +215,19 @@ final class OffenseElementalImbuementEffects {
                     && previous.kind() == SkillProcDamageService.DamageKind.BURNING;
             if (previous != null && !burningKill && (previous.owner() != context.player()
                     || previous.kind() != SkillProcDamageService.DamageKind.COMBUSTION)) return;
-            if (state == null || !state.burning.consume(death.victim(), context.now())) return;
+            if (state == null) return;
+            var burningCause = state.burning.combatCause(death.victim(), context.now());
+            if (!state.burning.consume(death.victim(), context.now())) return;
             var settings = context.settings().combustion();
+            // An owner's own final blow triggers this burst; another actor's blow only releases
+            // the retained source-owned burn. Never lend the other actor's action/weapon to it.
+            var currentCause = com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.currentCause(context.player());
+            var selectedCause = previous == null && death.attributedPlayer() != context.player()
+                    ? burningCause : currentCause;
+            var observedCause = combustionCause(context.player().getUUID(), selectedCause, burningCause);
             PropagationBudget root = previous == null
-                    ? new PropagationBudget(settings.maximumGeneration(), settings.rootTargetBudget())
-                    : previous.root();
+                    ? new PropagationBudget(settings.maximumGeneration(), settings.rootTargetBudget(), observedCause)
+                    : previous.root().withCombatCause(observedCause);
             int generation = previous == null || burningKill && previous.sourceSkill().equals(SkillIds.KINDLING)
                     ? 0 : previous.generation() + 1;
             root.seed(death.victim().getUUID());
@@ -260,6 +282,8 @@ final class OffenseElementalImbuementEffects {
                         result.target().getBoundingBox().getCenter(), direction(context.player(), result.target()),
                         1.10F, 1.15F, VisualIntensity.MAJOR, SemanticVisualColor.FROST, 18,
                         visualSeed(context, result.target(), 21), 1.0F, 0.0F);
+                if (state.frozen.active(result.target(), context.now()))
+                    com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.frozen(context.player(), result.target());
             } else {
                 state.slow(result.target(), Math.min(settings.maximumProgressiveSlow(),
                         chill * settings.slowPerStack()));
@@ -332,7 +356,8 @@ final class OffenseElementalImbuementEffects {
             FrostbiteState state = context.existingState(SkillIds.FROSTBITE);
             if (state == null || !state.frozen.consume(target, context.now())) return;
             var settings = context.settings().shatter();
-            PropagationBudget root = new PropagationBudget(0, settings.maximumTargets());
+            PropagationBudget root = new PropagationBudget(0, settings.maximumTargets(),
+                    com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.currentCause(context.player()));
             root.seed(target.getUUID());
             CombatVisualFeedback.at(context.player().serverLevel(), TransientVisualIds.WORLD_SHATTER,
                     target.getBoundingBox().getCenter(), direction(context.player(), target),
@@ -426,7 +451,8 @@ final class OffenseElementalImbuementEffects {
 
         private void arc(SkillEffectRuntime.Context context, LivingEntity first, double releaseDamage) {
             var settings = context.settings().chainStrike();
-            PropagationBudget root = new PropagationBudget(settings.maximumJumps(), settings.maximumJumps());
+            PropagationBudget root = new PropagationBudget(settings.maximumJumps(), settings.maximumJumps(),
+                    com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.currentCause(context.player()));
             root.seed(first.getUUID());
             Entity origin = first;
             for (int jump = 1; jump <= settings.maximumJumps(); jump++) {
@@ -508,9 +534,15 @@ final class OffenseElementalImbuementEffects {
         }
         void ignite(LivingEntity target, long now, int durationTicks,
                     double triggeringDamage, double damagePercentPerSecond, TargetConditionState.Lineage lineage) {
+            ignite(target, now, durationTicks, triggeringDamage, damagePercentPerSecond, lineage,
+                    lineage == null ? null : lineage.root().combatCause());
+        }
+        void ignite(LivingEntity target, long now, int durationTicks,
+                    double triggeringDamage, double damagePercentPerSecond, TargetConditionState.Lineage lineage,
+                    com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause combatCause) {
             double pulseDamage = SkillEffectMath.clamp(
                     triggeringDamage * damagePercentPerSecond / 100.0, 0.0, Float.MAX_VALUE);
-            burning.apply(target, now, durationTicks, pulseDamage, Kindling.BURN_PULSE_TICKS, lineage);
+            burning.apply(target, now, durationTicks, pulseDamage, Kindling.BURN_PULSE_TICKS, lineage, combatCause);
         }
 
         boolean empty() { return heat.size() == 0 && burning.size() == 0; }

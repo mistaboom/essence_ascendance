@@ -27,5 +27,9 @@ crash-reports/
 Thumbs.db
 .DS_Store
 
+# Reproducible Python interpreter caches
+__pycache__/
+*.py[cod]
+
 # Pack Tester: machine paths, selections and build handoff files
 .pack-tester/

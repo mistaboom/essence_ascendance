@@ -57,7 +57,7 @@ final class OffenseProjectilePayloads {
                     && number(data, "DamageScale", 0, 4) && integer(data, "TargetLimit", 0, 100);
         }
         @Override public void impact(ProjectileImpactEffects.Impact impact, CompoundTag data) {
-            PropagationBudget budget = new PropagationBudget(0, data.getInt("TargetLimit"));
+            PropagationBudget budget = new PropagationBudget(0, data.getInt("TargetLimit"), impact.combatCause());
             // The direct victim already received native damage; the burst affects nearby eligible creatures.
             budget.seed(impact.victim().getUUID());
             SafeCreatureAreaService.burst(impact.owner(), impact.hit().getLocation(), data.getDouble("Radius"),

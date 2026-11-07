@@ -70,6 +70,15 @@ public final class ProjectileRuntime {
                         : com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.resolvedSettings(owner).projectiles(),
                 projectile instanceof AbstractArrow arrow ? Math.max(0, arrow.getPierceLevel()) : 0);
         if (owner != null) state.payload = ProjectileImpactEffects.snapshot(owner, effective);
+        if (owner != null) {
+            // Native arrows expose their launch weapon; Caster launch is the accepted main-hand use.
+            net.minecraft.world.item.ItemStack launchWeapon = projectile instanceof AbstractArrow arrow
+                    ? arrow.getWeaponItem() : owner.getMainHandItem();
+            if (launchWeapon != null) state.combatCause = new com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause(
+                    com.mistaboom.essence_ascendance.attunement.AttunementGameplay.action("projectile_launch"),owner.getUUID(),
+                    com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.weapon(launchWeapon,"PROJECTILE"),
+                    com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(owner));
+        }
         access.essenceAscendance$state(state);
         if (state.managed()) remember(projectile, state);
         if (state.path == ProjectilePath.HOMING) {
@@ -258,7 +267,7 @@ public final class ProjectileRuntime {
         try {
             boolean accepted;
             if (probe.state.redirected && probe.projectile.getOwner() instanceof ServerPlayer defender) {
-                var budget = new com.mistaboom.essence_ascendance.skill.effect.PropagationBudget(0, 1);
+                var budget = new com.mistaboom.essence_ascendance.skill.effect.PropagationBudget(0, 1, probe.state.combatCause);
                 budget.tryVisit(probe.victim.getUUID(), 0);
                 accepted = com.mistaboom.essence_ascendance.skill.effect.SkillProcDamageService.withAttributedDamage(defender,
                         com.mistaboom.essence_ascendance.skill.SkillIds.TRAJECTORY_THEFT,

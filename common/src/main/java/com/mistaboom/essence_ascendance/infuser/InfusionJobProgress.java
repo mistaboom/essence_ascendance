@@ -16,11 +16,13 @@ import net.minecraft.nbt.Tag;
  * copy this machine-owned progress. Focus/equipment retain their existing portable workpieces. */
 public record InfusionJobProgress(ResourceLocation recipe, ItemStack workpiece, ItemStack result,
                                  Map<ResourceLocation, Long> required, Map<ResourceLocation, Long> paid,
-                                 UUID identity, UUID recipient, Map<PoolId, Map<ResourceLocation, Long>> funding) {
+                                 UUID identity, UUID recipient, Map<PoolId, Map<ResourceLocation, Long>> funding,
+                                 InfuserJobCredit credit) {
     private static final String PORTABLE_TAG = "essence_ascendance_paid_job";
     public InfusionJobProgress {
         workpiece = workpiece.copy(); result = result.copy(); required = Map.copyOf(required); paid = Map.copyOf(paid);
         Objects.requireNonNull(identity);
+        if (credit != null && !identity.equals(credit.actionId())) credit = null;
         Map<PoolId, Map<ResourceLocation, Long>> frozen = new LinkedHashMap<>();
         funding.forEach((pool, values) -> frozen.put(pool, Map.copyOf(values))); funding = Map.copyOf(frozen);
         for (var entry : required.entrySet())
@@ -37,7 +39,7 @@ public record InfusionJobProgress(ResourceLocation recipe, ItemStack workpiece, 
     public static InfusionJobProgress begin(EssenceInfuserRecipe recipe, EssenceInfuserRecipeContext context, UUID recipient) {
         ItemStack input = context.workpiece().copy(); input.setCount(recipe.inputCount());
         return new InfusionJobProgress(recipe.id(), input, recipe.createOutput(context),
-                recipe.essenceRequirements(context).minimumByEssence(), Map.of(), UUID.randomUUID(), recipient, Map.of());
+                recipe.essenceRequirements(context).minimumByEssence(), Map.of(), UUID.randomUUID(), recipient, Map.of(), null);
     }
     public boolean matches(EssenceInfuserRecipe current, EssenceInfuserRecipeContext context) {
         ItemStack input = context.workpiece().copy(); input.setCount(current.inputCount());
@@ -49,15 +51,21 @@ public record InfusionJobProgress(ResourceLocation recipe, ItemStack workpiece, 
         Map<ResourceLocation, Long> next = new LinkedHashMap<>(paid);
         amounts.forEach((type, amount) -> next.put(type, InfusionPayments.next(required.getOrDefault(type, 0L), paid.getOrDefault(type, 0L), amount)));
         return new InfusionJobProgress(recipe, workpiece, result, required, next, identity, recipient,
-                InfusionPayments.attribute(funding, pool, amounts));
+                InfusionPayments.attribute(funding, pool, amounts), credit);
+    }
+    public InfusionJobProgress withCredit(InfuserJobCredit value) {
+        InfuserJobCredit attached = value == null ? null : new InfuserJobCredit(identity, value.actor(),
+                value.source(), value.observedSupply(), value.mixedSupply());
+        return new InfusionJobProgress(recipe, workpiece, result, required, paid, identity, recipient, funding, attached);
     }
     public boolean complete() { return required.equals(paid); }
     public CompoundTag saveMetadata() {
         CompoundTag tag = new CompoundTag();
-        tag.putInt("version", 2);
+        tag.putInt("version", 3);
         tag.putString("recipe", recipe.toString());
         tag.put("required", amounts(required)); tag.put("paid", amounts(paid)); tag.putUUID("identity", identity);
         if (recipient != null) tag.putUUID("recipient", recipient);
+        if (credit != null) tag.put("operation_credit", credit.save());
         tag.put("funding", InfusionPayments.saveFunding(funding)); return tag;
     }
     public CompoundTag save(HolderLookup.Provider registries) {
@@ -67,12 +75,13 @@ public record InfusionJobProgress(ResourceLocation recipe, ItemStack workpiece, 
         return tag;
     }
     public static InfusionJobProgress loadMetadata(CompoundTag tag, ItemStack workpiece, ItemStack result) {
-        if (tag.getInt("version") != 2) throw new IllegalStateException("Unsupported paid Infuser job format; preserve this world and use a new development world");
+        if (tag.getInt("version") != 2 && tag.getInt("version") != 3) throw new IllegalStateException("Unsupported paid Infuser job format; preserve this world and use a new development world");
         return new InfusionJobProgress(ResourceLocation.parse(tag.getString("recipe")),
                 workpiece, result,
                 amounts(tag.getCompound("required")), amounts(tag.getCompound("paid")), tag.getUUID("identity"),
                 tag.hasUUID("recipient") ? tag.getUUID("recipient") : null,
-                InfusionPayments.loadFunding(tag.getList("funding", Tag.TAG_COMPOUND)));
+                InfusionPayments.loadFunding(tag.getList("funding", Tag.TAG_COMPOUND)),
+                tag.getInt("version") == 3 ? InfuserJobCredit.load(tag.getCompound("operation_credit")) : null);
     }
     public static InfusionJobProgress load(CompoundTag tag, HolderLookup.Provider registries) {
         return loadMetadata(tag,

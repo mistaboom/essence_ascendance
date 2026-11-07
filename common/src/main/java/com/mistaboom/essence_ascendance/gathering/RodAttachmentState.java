@@ -24,12 +24,18 @@ public final class RodAttachmentState {
     public long lastHeldInputTick = Long.MIN_VALUE;
     public boolean waterFishing;
     public boolean previousWaterPull;
+    public boolean observedPull;
+    public String pullAction;
+    public boolean survivalCast, survivalAttachment;
+    public java.util.UUID attachedTarget;
+    public double attachedRange = Double.NaN;
     public void cast(InteractionHand hand, ItemStack stack, EquipmentFishingRodService.Context context) {
         this.hand = hand; castStack = stack; castContext = context;
     }
     public boolean press() {
         if (!armed || pulling) return false;
-        pulling = true; poweredTicks = 0; openingFrame = null; lastTravelPosition = null; waterTravel = 0; return true;
+        pulling = true; poweredTicks = 0; openingFrame = null; lastTravelPosition = null; waterTravel = 0;
+        observedPull = false; pullAction = null; return true;
     }
     /** Returns true only when a real pulling press is released. */
     public boolean release() { if (pulling) { pulling = false; return true; } armed = true; return false; }

@@ -18,6 +18,8 @@ public final class VitalityDamageNativeHookShapeTest {
     private static final String REGEN = "net/minecraft/world/effect/RegenerationMobEffect";
     private static final String LOCAL = "net/minecraft/client/player/LocalPlayer";
     private static final String GUI = "net/minecraft/client/gui/Gui";
+    private static boolean modern() { return "26.1.2".equals(System.getProperty("essence.minecraft")); }
+    private static String levelArgument() { return modern() ? "Lnet/minecraft/server/level/ServerLevel;" : ""; }
     public static void main(String[] args) throws Exception {
         for (String loader : List.of("fabric", "neoforge")) {
             inspect(TargetTestInputs.nativeClass(loader, PLAYER), declaredFloatOrdinal(loader), loader);
@@ -49,8 +51,7 @@ public final class VitalityDamageNativeHookShapeTest {
     private static void inspect(InputStream input, int expectedFloatOrdinal, String loader) throws Exception {
         check(input != null, loader + " mapped Player class available");
         var type = new ClassNode(); try (input) { new ClassReader(input).accept(type, 0); }
-        var method = type.methods.stream().filter(m -> m.name.equals("actuallyHurt")
-                && m.desc.equals("(Lnet/minecraft/world/damagesource/DamageSource;F)V")).findFirst().orElseThrow();
+        var method = method(type, "actuallyHurt", "(" + levelArgument() + "Lnet/minecraft/world/damagesource/DamageSource;F)V");
         int records = 0, reads = 0, writes = 0, healthWrites = 0;
         int recordIndex = -1, healthIndex = -1;
         for (AbstractInsnNode node : method.instructions) if (node instanceof MethodInsnNode call) {
@@ -90,7 +91,7 @@ public final class VitalityDamageNativeHookShapeTest {
         var living = read(livingInput); var local = read(localInput);
         method(living, "handleDamageEvent", "(Lnet/minecraft/world/damagesource/DamageSource;)V");
         method(living, "playHurtSound", "(Lnet/minecraft/world/damagesource/DamageSource;)V");
-        var hurt = method(living, "hurt", "(Lnet/minecraft/world/damagesource/DamageSource;F)Z");
+        var hurt = method(living, modern() ? "hurtServer" : "hurt", "(" + levelArgument() + "Lnet/minecraft/world/damagesource/DamageSource;F)Z");
         int direction = 0, knockback = 0;
         for (AbstractInsnNode node : hurt.instructions) if (node instanceof MethodInsnNode call) {
             if (call.owner.equals(LIVING) && call.name.equals("indicateDamage") && call.desc.equals("(DD)V")) direction++;
@@ -108,16 +109,18 @@ public final class VitalityDamageNativeHookShapeTest {
         var living = read(livingInput); var food = read(foodInput); var regen = read(regenInput);
         var heal = method(living, "heal", "(F)V");
         check(calls(heal, LIVING, "setHealth", "(F)V") == 1, loader + " accepted native healing has exactly one health write");
-        var tick = method(food, "tick", "(L" + PLAYER + ";)V");
-        check(calls(tick, PLAYER, "isHurt", "()Z") == 2, loader + " both natural regeneration missing-health gates are intercepted");
-        var effect = method(regen, "applyEffectTick", "(L" + LIVING + ";I)Z");
+        String foodActor = modern() ? "net/minecraft/server/level/ServerPlayer" : PLAYER;
+        var tick = method(food, "tick", "(L" + foodActor + ";)V");
+        check(calls(tick, foodActor, "isHurt", "()Z") == 2, loader + " both natural regeneration missing-health gates are intercepted");
+        var effect = method(regen, "applyEffectTick", "(" + levelArgument() + "L" + LIVING + ";I)Z");
         check(calls(effect, LIVING, "getHealth", "()F") == 1, loader + " exact regeneration-effect eligibility expression");
         check(calls(effect, LIVING, "heal", "(F)V") == 1, loader + " effect retains the native heal call");
     }
     private static void inspectHud(InputStream input, String loader) throws Exception {
         check(input != null, loader + " native Gui class available");
         var gui = read(input);
-        method(gui, "render", "(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V");
+        method(gui, modern() ? "extractRenderState" : "render", "(Lnet/minecraft/client/gui/"
+                + (modern() ? "GuiGraphicsExtractor" : "GuiGraphics") + ";Lnet/minecraft/client/DeltaTracker;)V");
         check(gui.fields.stream().anyMatch(f -> f.name.equals("minecraft") && f.desc.equals("Lnet/minecraft/client/Minecraft;")),
                 loader + " native camera context is available to the shared health-capacity renderer hook");
         for (String name : List.of("lastHealth", "displayHealth")) {

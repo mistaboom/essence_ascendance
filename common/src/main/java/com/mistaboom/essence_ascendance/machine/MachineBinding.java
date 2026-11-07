@@ -30,6 +30,8 @@ public final class MachineBinding {
     public UUID personalOwner() { return personalOwner; }
     public PoolId pool() { return pool; }
     public UUID operator() { return operator; }
+    /** Remove human operation attribution without changing ownership, payments, or machine arming. */
+    public void clearOperator() { operator = null; }
     public UUID recipient() { return recipient; }
     public UUID automationRecipient() { return automationRecipient; }
     /** Current server-held workpiece policy; never an authenticated automation actor. */

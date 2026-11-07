@@ -62,6 +62,19 @@ tasks.named('processResources') {
         // Vanilla's 26.1 ingredient codec uses item IDs and #tag IDs directly.
         // Convert only the target output so the authored 1.21.1 recipes remain valid.
         doLast {
+            // Modern advancement backgrounds use a ResourceTexture ID, without
+            // the legacy textures/ prefix and .png suffix. Keep authored inputs
+            // valid for the editor-active 1.21.1 target.
+            fileTree(new File(destinationDir, 'data/essence_ascendance/advancement')).matching {
+                include '**/*.json'
+            }.files.each { advancementFile ->
+                def advancement = new groovy.json.JsonSlurper().parse(advancementFile)
+                def background = advancement.display?.background
+                if (background instanceof String && background.contains(':textures/') && background.endsWith('.png')) {
+                    advancement.display.background = background.replace(':textures/', ':').replaceAll(/\.png$/, '')
+                    advancementFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(advancement)) + '\n'
+                }
+            }
             def recipeDir = new File(destinationDir, 'data/essence_ascendance/recipe')
             fileTree(recipeDir).matching { include '*.json' }.files.each { recipeFile ->
                 def recipe = new groovy.json.JsonSlurper().parse(recipeFile)
@@ -225,6 +238,27 @@ def balanceInvariantMains = [
         balanceScenarioProbeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeScenarioProbeTest',
         nativeEquipmentHeadroomInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.NativeEquipmentHeadroomTest',
         balanceAscensionPolicyInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicyTest',
+        achievementFoundationInvariants: 'com.mistaboom.essence_ascendance.achievement.AchievementFoundationTest',
+        achievementPresentationInvariants: 'com.mistaboom.essence_ascendance.achievement.AchievementPresentationTest',
+        progressionAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.ProgressionAchievementTest',
+        equipmentAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.EquipmentAchievementTest',
+        machineAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.MachineAchievementTest',
+        combatAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.CombatAchievementTest',
+        survivalAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.SurvivalAchievementTest',
+        companionAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.CompanionAchievementTest',
+        farmingAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.FarmingAchievementTest',
+        gatheringAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.GatheringAchievementTest',
+        generatedOreObservationInvariants: 'com.mistaboom.essence_ascendance.gathering.GeneratedOreObservationTest',
+        movementAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.MovementAchievementTest',
+        movementSessionInvariants: 'com.mistaboom.essence_ascendance.gameplay.MovementSessionTest',
+        rodAchievementInvariants: 'com.mistaboom.essence_ascendance.achievement.RodAchievementTest',
+        rodTrajectoryInvariants: 'com.mistaboom.essence_ascendance.gameplay.RodTrajectoryTest',
+        combatSequenceInvariants: 'com.mistaboom.essence_ascendance.gameplay.CombatSequenceTest',
+        combatPropagationInvariants: 'com.mistaboom.essence_ascendance.gameplay.CombatPropagationTest',
+        sanctuaryEncounterInvariants: 'com.mistaboom.essence_ascendance.utility.SanctuaryEncounterTrackerTest',
+        infuserJobCreditInvariants: 'com.mistaboom.essence_ascendance.infuser.InfuserJobCreditTest',
+        machineInstanceIdentityInvariants: 'com.mistaboom.essence_ascendance.machine.MachineInstanceIdentityTest',
+        outcomePolicyInvariants: 'com.mistaboom.essence_ascendance.gameplay.OutcomePolicyTest',
         attunementAccountingTest: 'com.mistaboom.essence_ascendance.attunement.AttunementAccountingTest',
         essenceCommandInvariants: 'com.mistaboom.essence_ascendance.command.EssenceCommandTest',
         playerProgressionResetInvariants: 'com.mistaboom.essence_ascendance.progression.PlayerProgressionResetTest',
@@ -248,6 +282,7 @@ balanceInvariantMains.each { taskName, className ->
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
         systemProperty 'essence.minecraft', project.targetMinecraft
+        if (taskName in ['achievementFoundationInvariants', 'achievementPresentationInvariants']) systemProperty 'essence.repository.root', rootProject.projectDir.absolutePath
         systemProperty 'essence.neoforge.version', project.targetNeoForge
         if (taskName == 'balanceDocumentStreamingInvariants') maxHeapSize = '128m'
         if (taskName == 'balanceGeneratedSectionsInvariants') { maxHeapSize = '128m'; args '--stress' }

@@ -1,0 +1,1707 @@
+{
+  "schemaVersion": 1,
+  "namespace": "essence_ascendance",
+  "provenance": {
+    "workbook": "Essence_Ascendance_Selected_Achievements.xlsx",
+    "sourcePath": "C:\\Users\\rcboo\\Documents\\Essence Ascendance Auxiliary Files\\Sources\\Workbooks\\Essence_Ascendance_Selected_Achievements.xlsx",
+    "sha256": "dc52451bd59c84e98e49b450789146f6a3e51f0d01d1173b3f45c271a1f9dd70",
+    "selectionDate": "2026-11-05",
+    "sheets": [
+      "Pool",
+      "Engineering",
+      "Selection"
+    ],
+    "textAuthority": "Pool columns A (stable ID), B (final name), Q (final action); Engineering and Selection are annotations, never replacement player text.",
+    "normalBuildSource": "This checked-in file. The workbook and authoring applications are not build dependencies."
+  },
+  "capabilities": [
+    "CAUSE",
+    "COMBAT",
+    "CORE",
+    "CRAFT",
+    "FARM",
+    "MACH",
+    "MOVE",
+    "PET",
+    "PROG",
+    "ROD",
+    "SEQUENCE",
+    "SET",
+    "SKILL",
+    "VITAL",
+    "WINDOW",
+    "WORLD"
+  ],
+  "achievements": [
+    {
+      "id": 1,
+      "resourceId": "essence_ascendance:achievements/a001",
+      "name": "Jumped the Shark",
+      "action": "Use one anchored fishing-rod pull to cross at least 20 horizontal blocks of exposed water.",
+      "capabilities": [
+        "CORE",
+        "ROD",
+        "MOVE",
+        "WORLD"
+      ],
+      "notes": {
+        "pool": "Preserve the user's original joke while avoiding a semantic far-bank or island detector. The crossing, not a shark entity, is the joke.",
+        "poolImplementation": "Define horizontal displacement during one anchored pull, sample exposed water along the route, and reject teleportation. Keep the conservative existing hours unless engineering confirms a smaller implementation. Do not silently substitute the existing cumulative Water Skiing counter.",
+        "engineering": "Track one anchored rod-pull session, measure horizontal displacement, and sample exposed water along the qualifying route.",
+        "constraints": "No far-bank, island or shark detector is required. Reject teleports and cumulative travel across separate pulls; retain the conservative 3–7 rule-hour estimate.",
+        "engineeringImplementation": "Define horizontal displacement during one anchored pull, sample exposed water along the route, and reject teleportation. Keep the conservative existing hours unless engineering confirms a smaller implementation. Do not silently substitute the existing cumulative Water Skiing counter.",
+        "selection": "Preserve the user's original joke while avoiding a semantic far-bank or island detector. The crossing, not a shark entity, is the joke."
+      },
+      "sourceRows": {
+        "Pool": 7,
+        "Engineering": 7,
+        "Selection": 7
+      }
+    },
+    {
+      "id": 2,
+      "resourceId": "essence_ascendance:achievements/a002",
+      "name": "Catch and Decease",
+      "action": "Yeet a hostile mob with your fishing rod and have the resulting fall kill it.",
+      "capabilities": [
+        "CORE",
+        "ROD",
+        "COMBAT",
+        "CAUSE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Tag rod launch ownership, expire it safely, and attribute a later fatal fall to that launch.",
+        "constraints": "Requires delayed attribution through release, landing, other damage and world unload. Ordinary rod physics must be playtested; exclude immune bosses and allies.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 8,
+        "Engineering": 8,
+        "Selection": 8
+      }
+    },
+    {
+      "id": 3,
+      "resourceId": "essence_ascendance:achievements/a003",
+      "name": "So Long, and Thanks for All the Fish",
+      "action": "Launch a hostile mob at least 20 horizontal blocks with your fishing rod.",
+      "capabilities": [
+        "CORE",
+        "ROD",
+        "MOVE",
+        "CAUSE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Track launched target displacement from release until landing or timeout and reject teleports.",
+        "constraints": "The 20-block threshold needs ordinary non-personalized rod playtesting; distance is displacement, not accumulated wandering.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 9,
+        "Engineering": 9,
+        "Selection": 9
+      }
+    },
+    {
+      "id": 4,
+      "resourceId": "essence_ascendance:achievements/a004",
+      "name": "Get Over Here!",
+      "action": "Reel a hostile mob from at least eight blocks away into melee range.",
+      "capabilities": [
+        "CORE",
+        "ROD",
+        "MOVE",
+        "SEQUENCE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Capture initial target distance and confirm the same eligible target enters the configured melee threshold.",
+        "constraints": "Define melee range numerically or from the intended equipment range; do not let the player walking to a stationary target satisfy it.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 10,
+        "Engineering": 10,
+        "Selection": 10
+      }
+    },
+    {
+      "id": 5,
+      "resourceId": "essence_ascendance:achievements/a005",
+      "name": "Friendly Neighborhood Fisherman",
+      "action": "Grapple onto a roof or ledge at least ten blocks above your starting position.",
+      "capabilities": [
+        "CORE",
+        "ROD",
+        "MOVE",
+        "WORLD"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Record grapple-start height and award on a supported landing at least ten blocks higher.",
+        "constraints": "Treat roof or ledge as a supported dry landing; semantic building recognition would be unnecessary extra work.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 11,
+        "Engineering": 11,
+        "Selection": 11
+      }
+    },
+    {
+      "id": 7,
+      "resourceId": "essence_ascendance:achievements/a007",
+      "name": "Accio, Loot!",
+      "action": "Hook a dropped item at least eight blocks away and pull it into pickup range.",
+      "capabilities": [
+        "CORE",
+        "ROD",
+        "CRAFT",
+        "SEQUENCE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Retain the hooked item entity ID and initial distance; confirm owner pickup after a meaningful pull.",
+        "constraints": "Account for item merging/despawning and other players picking it up; pickup attribution belongs to the rod user.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 12,
+        "Engineering": 12,
+        "Selection": 12
+      }
+    },
+    {
+      "id": 19,
+      "resourceId": "essence_ascendance:achievements/a019",
+      "name": "The Path of Ascendance",
+      "action": "Build and use your first Ascendance Nexus.",
+      "capabilities": [
+        "CORE",
+        "CRAFT",
+        "PROG",
+        "SEQUENCE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Remember player Nexus placement and confirm a legitimate server menu interaction with it.",
+        "constraints": "Author nationality is not established here; origin category remains unverified rather than inferred from English publication.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 13,
+        "Engineering": 13,
+        "Selection": 13
+      }
+    },
+    {
+      "id": 22,
+      "resourceId": "essence_ascendance:achievements/a022",
+      "name": "Equivalent Exchange",
+      "action": "Dissolve your first supported item in an Essence Crucible.",
+      "capabilities": [
+        "CORE",
+        "MACH"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Award after an attributed dissolution successfully commits Essence to the reservoir.",
+        "constraints": "Use completed positive-yield dissolution; input insertion or unsupported items should not count.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 14,
+        "Engineering": 14,
+        "Selection": 14
+      }
+    },
+    {
+      "id": 24,
+      "resourceId": "essence_ascendance:achievements/a024",
+      "name": "Tapped for Essence",
+      "action": "Successfully channel Essence from a Crucible into your personal supply for the first time.",
+      "capabilities": [
+        "CORE",
+        "MACH",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Borrow the memorable resource-gathering reference, retaining the kept first-channel tutorial. Do not inherit the donor's fiddly drain-the-last-unit condition. Borrowed from deleted ID 218.",
+        "poolImplementation": "Name-only mechanical change. Require positive committed transfer. Existing CORE/MACH/PROG dependencies and 0.5–2 rule hours remain appropriate.",
+        "engineering": "Grant after the first successful positive transfer of Crucible Essence to the player personal reservoir.",
+        "constraints": "Do not inherit the donor idea’s last-unit or emptied-category condition. Keep the original first-channel tutorial.",
+        "engineeringImplementation": "Name-only mechanical change. Require positive committed transfer. Existing CORE/MACH/PROG dependencies and 0.5–2 rule hours remain appropriate.",
+        "selection": "Borrow the memorable resource-gathering reference, retaining the kept first-channel tutorial. Do not inherit the donor's fiddly drain-the-last-unit condition."
+      },
+      "sourceRows": {
+        "Pool": 15,
+        "Engineering": 15,
+        "Selection": 15
+      }
+    },
+    {
+      "id": 26,
+      "resourceId": "essence_ascendance:achievements/a026",
+      "name": "Skill Issue: Resolved",
+      "action": "Purchase your first Skill.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Award on a successful Nexus transaction that increases an owned Skill rank from zero.",
+        "constraints": "Exact meme coinage is not verified; 2010s is an approximate usage-era label, not a first-attestation claim.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 16,
+        "Engineering": 16,
+        "Selection": 16
+      }
+    },
+    {
+      "id": 28,
+      "resourceId": "essence_ascendance:achievements/a028",
+      "name": "Enter the Matrix",
+      "action": "Craft your first Ascendance Matrix.",
+      "capabilities": [
+        "CORE",
+        "CRAFT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Register the successful Ascendance Matrix craft criterion.",
+        "constraints": "Name also matches the 2003 video game, but this proposal references the 1999 film franchise; avoid counting it twice.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 17,
+        "Engineering": 17,
+        "Selection": 17
+      }
+    },
+    {
+      "id": 30,
+      "resourceId": "essence_ascendance:achievements/a030",
+      "name": "Training Montage",
+      "action": "Earn Attunement from three different activity types within one category during the same chapter.",
+      "capabilities": [
+        "CORE",
+        "PROG",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Track unique credited activity IDs per chapter and category and award at three.",
+        "constraints": "Some categories may not expose three enabled sources in every pack; query the live activity registry.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 18,
+        "Engineering": 18,
+        "Selection": 18
+      }
+    },
+    {
+      "id": 31,
+      "resourceId": "essence_ascendance:achievements/a031",
+      "name": "I Have the Power!",
+      "action": "Ascend from Latent to Dormant.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Award after the authoritative Latent-to-Dormant transition commits.",
+        "constraints": "The first transition can auto-promote; do not rely only on the Nexus Ascend button.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 19,
+        "Engineering": 19,
+        "Selection": 19
+      }
+    },
+    {
+      "id": 32,
+      "resourceId": "essence_ascendance:achievements/a032",
+      "name": "The Force Awakens",
+      "action": "Reach the Awakened player tier.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Match successful player-tier transitions against Awakened.",
+        "constraints": "Player tier and equipment tier are separate.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 20,
+        "Engineering": 20,
+        "Selection": 20
+      }
+    },
+    {
+      "id": 33,
+      "resourceId": "essence_ascendance:achievements/a033",
+      "name": "Resonance Cascade",
+      "action": "Reach the Resonant player tier.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Match successful player-tier transitions against Resonant.",
+        "constraints": "This is a title allusion; no actual destructive cascade is required.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 21,
+        "Engineering": 21,
+        "Selection": 21
+      }
+    },
+    {
+      "id": 34,
+      "resourceId": "essence_ascendance:achievements/a034",
+      "name": "Plus Ultra!",
+      "action": "Reach the Ascendant player tier.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Match successful player-tier transitions against Ascendant.",
+        "constraints": "Phrase predates the manga; this catalog records the intended anime/manga association.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 22,
+        "Engineering": 22,
+        "Selection": 22
+      }
+    },
+    {
+      "id": 35,
+      "resourceId": "essence_ascendance:achievements/a035",
+      "name": "Break Through the Heavens",
+      "action": "Reach the Transcendent player tier.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Match successful player-tier transitions against Transcendent.",
+        "constraints": "The title is thematic paraphrase, not a claim of exact translated dialogue.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 23,
+        "Engineering": 23,
+        "Selection": 23
+      }
+    },
+    {
+      "id": 36,
+      "resourceId": "essence_ascendance:achievements/a036",
+      "name": "With Your Powers Combined",
+      "action": "Complete all six category seals in the same post-Latent chapter before taking its manual Ascension.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Keep the strong six-powers-combining analogy, but explicitly avoid the Latent chapter's automatic promotion trap.",
+        "poolImplementation": "Check the completed seal state before promotion clears the chapter. Use six configured categories, not six individual activities. No extra system is required.",
+        "engineering": "Evaluate six completed category seals before the next chapter resets their ledger.",
+        "constraints": "Latent auto-promotes once its required category count is reached, so this should target a later chapter; evaluate before manual Ascension.",
+        "engineeringImplementation": "Check the completed seal state before promotion clears the chapter. Use six configured categories, not six individual activities. No extra system is required.",
+        "selection": "Keep the strong six-powers-combining analogy, but explicitly avoid the Latent chapter's automatic promotion trap."
+      },
+      "sourceRows": {
+        "Pool": 24,
+        "Engineering": 24,
+        "Selection": 24
+      }
+    },
+    {
+      "id": 46,
+      "resourceId": "essence_ascendance:achievements/a046",
+      "name": "You Must Construct Additional Pylons",
+      "action": "Activate a Pylon with an installed Focus and a valid Crucible link.",
+      "capabilities": [
+        "CORE",
+        "MACH"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Emit an inactive-to-active Pylon transition with installed Focus, valid range/link and contributing capacity.",
+        "constraints": "Mere placement or an unlinked/inactive Pylon should not count.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 25,
+        "Engineering": 25,
+        "Selection": 25
+      }
+    },
+    {
+      "id": 49,
+      "resourceId": "essence_ascendance:achievements/a049",
+      "name": "Now You’re Thinking with Essence",
+      "action": "Complete your first Infuser operation.",
+      "capabilities": [
+        "CORE",
+        "MACH"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Award at a successful committed Infuser completion for its operation recipient.",
+        "constraints": "Canceled, stalled or paid-but-uncommitted operations must not award.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 26,
+        "Engineering": 26,
+        "Selection": 26
+      }
+    },
+    {
+      "id": 51,
+      "resourceId": "essence_ascendance:achievements/a051",
+      "name": "Gotta Infuse ’Em All",
+      "action": "Produce filled Essentium in all six Essence categories.",
+      "capabilities": [
+        "CORE",
+        "MACH",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Persist target category IDs from personally credited successful carrier infusions.",
+        "constraints": "Reference is the English franchise slogan; primary classification follows the game franchise, with anime overlap noted.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 27,
+        "Engineering": 27,
+        "Selection": 27
+      }
+    },
+    {
+      "id": 56,
+      "resourceId": "essence_ascendance:achievements/a056",
+      "name": "The Factory Must Grow",
+      "action": "Have three Infusers complete work using the same Crucible’s Essence supply.",
+      "capabilities": [
+        "CORE",
+        "MACH",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Record distinct Infuser block identities completing jobs against the same reservoir/network identity.",
+        "constraints": "Crucible block position is not always equivalent to reservoir identity; team pools can share multiple Crucibles.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 28,
+        "Engineering": 28,
+        "Selection": 28
+      }
+    },
+    {
+      "id": 57,
+      "resourceId": "essence_ascendance:achievements/a057",
+      "name": "Fully Operational",
+      "action": "Run a Crucible with every available active Pylon slot occupied by a functioning Pylon.",
+      "capabilities": [
+        "CORE",
+        "MACH"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Compare active contributing Pylon count with the current configured active limit on network updates.",
+        "constraints": "Use live configured capacity, not a fixed count. Define award recipient when several builders contribute.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 29,
+        "Engineering": 29,
+        "Selection": 29
+      }
+    },
+    {
+      "id": 61,
+      "resourceId": "essence_ascendance:achievements/a061",
+      "name": "Fullmetal Ascendant",
+      "action": "Equip a complete set of Ascendance armor.",
+      "capabilities": [
+        "CORE",
+        "CRAFT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Inspect four armor slots on equipment changes and require eligible Ascendance armor in each.",
+        "constraints": "Decide whether fractured armor counts; recommended require functional pieces.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 30,
+        "Engineering": 30,
+        "Selection": 30
+      }
+    },
+    {
+      "id": 63,
+      "resourceId": "essence_ascendance:achievements/a063",
+      "name": "This Is My Final Form",
+      "action": "Complete an Infuser upgrade that raises an Ascendance weapon to Transcendent tier.",
+      "capabilities": [
+        "CORE",
+        "MACH"
+      ],
+      "notes": {
+        "pool": "The original 'isn't even' wording is contradictory at the final tier. Borrow the donor's single committed final-upgrade receipt, broadened from sword to Ascendance weapon. This preserves the milestone while eliminating lifetime item provenance. Borrowed from deleted ID 170.",
+        "poolImplementation": "Use CORE/MACH only. Credit the actor whose successful upgrade outputs a Transcendent weapon; ownership of a gifted item does not count. Rule estimate: 1–3 hours.",
+        "engineering": "After an equipment Infuser job commits, test that the result is an Ascendance weapon at Transcendent tier and credit the committed upgrade actor.",
+        "constraints": "Do not require this player to have performed every earlier upgrade. Normal upgrade recipes already advance one tier at a time. No item UUID history or lifetime upgrade set is needed.",
+        "engineeringImplementation": "Use CORE/MACH only. Credit the actor whose successful upgrade outputs a Transcendent weapon; ownership of a gifted item does not count. Rule estimate: 1–3 hours.",
+        "selection": "The original 'isn't even' wording is contradictory at the final tier. Borrow the donor's single committed final-upgrade receipt, broadened from sword to Ascendance weapon. This preserves the milestone while eliminating lifetime item provenance."
+      },
+      "sourceRows": {
+        "Pool": 31,
+        "Engineering": 31,
+        "Selection": 31
+      }
+    },
+    {
+      "id": 72,
+      "resourceId": "essence_ascendance:achievements/a072",
+      "name": "Exodia, Assemble!",
+      "action": "Equip all four functional Transcendent Ascendance armor pieces and hold a functional Transcendent Ascendance weapon at the same time.",
+      "capabilities": [
+        "CORE",
+        "CRAFT"
+      ],
+      "notes": {
+        "pool": "Replace a generic completion title with a five-piece assembly reference. Removing the sixth gathering-tool condition makes the action match the allusion and simplifies the current-equipment check. Borrowed from deleted ID 163.",
+        "poolImplementation": "Current five-slot predicate only: no history and no SET. Keep CORE/CRAFT. Do not require five distinct item histories or copy card gameplay. This should remain within the kept candidate's 0.5–2 hour rule estimate.",
+        "engineering": "On equipment changes, check four functional Transcendent Ascendance armor pieces plus one functional Transcendent Ascendance weapon in the main hand.",
+        "constraints": "Five simultaneous equipped pieces match the Exodia allusion. The former sixth gathering-tool requirement is removed. Current slot state only; no item history or collection-set tracker.",
+        "engineeringImplementation": "Current five-slot predicate only: no history and no SET. Keep CORE/CRAFT. Do not require five distinct item histories or copy card gameplay. This should remain within the kept candidate's 0.5–2 hour rule estimate.",
+        "selection": "Replace a generic completion title with a five-piece assembly reference. Removing the sixth gathering-tool condition makes the action match the allusion and simplifies the current-equipment check."
+      },
+      "sourceRows": {
+        "Pool": 32,
+        "Engineering": 32,
+        "Selection": 32
+      }
+    },
+    {
+      "id": 73,
+      "resourceId": "essence_ascendance:achievements/a073",
+      "name": "One Rod to Reel Them All",
+      "action": "Upgrade an Ascendance fishing rod to Transcendent tier.",
+      "capabilities": [
+        "CORE",
+        "MACH"
+      ],
+      "notes": {
+        "pool": "Replaced a generic capstone title with a fishing variation on the One Ring inscription; the Transcendent rod milestone is unchanged.",
+        "poolImplementation": "Pure title change; preserve current CORE/MACH and 0.5–2 hours. No special ring, domination mechanic, or mob kill is implied. This is an adapted title, not a new gameplay requirement.",
+        "engineering": "Match a committed equipment infusion that outputs a Transcendent Ascendance fishing rod.",
+        "constraints": "Gifted ownership is not an upgrade action unless the rule is intentionally broadened.",
+        "engineeringImplementation": "Pure title change; preserve current CORE/MACH and 0.5–2 hours. No special ring, domination mechanic, or mob kill is implied. This is an adapted title, not a new gameplay requirement.",
+        "selection": "Replaced a generic capstone title with a fishing variation on the One Ring inscription; the Transcendent rod milestone is unchanged."
+      },
+      "sourceRows": {
+        "Pool": 33,
+        "Engineering": 33,
+        "Selection": 33
+      }
+    },
+    {
+      "id": 76,
+      "resourceId": "essence_ascendance:achievements/a076",
+      "name": "Stick Them with the Pointy End",
+      "action": "Defeat your first hostile mob using the Glaive’s stab attack.",
+      "capabilities": [
+        "CORE",
+        "COMBAT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Match a confirmed kill to the glaive stab action; award once.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 34,
+        "Engineering": 34,
+        "Selection": 34
+      }
+    },
+    {
+      "id": 77,
+      "resourceId": "essence_ascendance:achievements/a077",
+      "name": "The Three-Body Problem",
+      "action": "Defeat three hostile mobs with one Glaive swipe.",
+      "capabilities": [
+        "CORE",
+        "COMBAT",
+        "CAUSE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Aggregate distinct killed targets by one glaive action ID.",
+        "constraints": "Decide whether delayed skill-proc kills count or only immediate swipe kills.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 35,
+        "Engineering": 35,
+        "Selection": 35
+      }
+    },
+    {
+      "id": 85,
+      "resourceId": "essence_ascendance:achievements/a085",
+      "name": "Let It Go",
+      "action": "Fully freeze a hostile mob with Frostbite.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "COMBAT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Award on the confirmed transition from chilled to frozen for an eligible hostile.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 36,
+        "Engineering": 36,
+        "Selection": 36
+      }
+    },
+    {
+      "id": 95,
+      "resourceId": "essence_ascendance:achievements/a095",
+      "name": "The Name of the Wind",
+      "action": "Use Vector Boost three times during one uninterrupted Essence Wings glide.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "MOVE",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Count successful Vector Boost activations in one glide session.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 37,
+        "Engineering": 37,
+        "Selection": 37
+      }
+    },
+    {
+      "id": 99,
+      "resourceId": "essence_ascendance:achievements/a099",
+      "name": "To Infinity and Beyond!",
+      "action": "Travel 1,000 blocks in one Essence Wings glide, using Vector Boost along the way.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "MOVE",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Combine glide-distance threshold with at least one confirmed Vector Boost.",
+        "constraints": "Tune distance against generated movement settings; avoid teleport distance credit.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 38,
+        "Engineering": 38,
+        "Selection": 38
+      }
+    },
+    {
+      "id": 100,
+      "resourceId": "essence_ascendance:achievements/a100",
+      "name": "Gotta Go Fast",
+      "action": "Reach maximum Running Momentum.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "MOVE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Award when Running Momentum reaches its runtime-configured cap.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 39,
+        "Engineering": 39,
+        "Selection": 39
+      }
+    },
+    {
+      "id": 101,
+      "resourceId": "essence_ascendance:achievements/a101",
+      "name": "Parkour!",
+      "action": "Clear five obstacles with Momentum Vault during one uninterrupted sprint.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "MOVE",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Count successful vault events until sprint or momentum session ends.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 40,
+        "Engineering": 40,
+        "Selection": 40
+      }
+    },
+    {
+      "id": 102,
+      "resourceId": "essence_ascendance:achievements/a102",
+      "name": "HM03: Surf",
+      "action": "Sprint across at least 32 horizontal blocks of exposed water while Surface Tension keeps you on the surface.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "MOVE",
+        "WORLD"
+      ],
+      "notes": {
+        "pool": "Keep the nostalgic code but add 'Surf' so the name communicates something to players who do not remember HM numbers.",
+        "poolImplementation": "Use confirmed Surface Tension travel and reject flight, riding and teleport credit. No new system or higher estimate is needed.",
+        "engineering": "Accumulate qualifying surface-running distance over water.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "Use confirmed Surface Tension travel and reject flight, riding and teleport credit. No new system or higher estimate is needed.",
+        "selection": "Keep the nostalgic code but add 'Surf' so the name communicates something to players who do not remember HM numbers."
+      },
+      "sourceRows": {
+        "Pool": 41,
+        "Engineering": 41,
+        "Selection": 41
+      }
+    },
+    {
+      "id": 107,
+      "resourceId": "essence_ascendance:achievements/a107",
+      "name": "Mostly Dead",
+      "action": "Trigger Spirit Walk and successfully reform alive.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL",
+        "SEQUENCE"
+      ],
+      "notes": {
+        "pool": "Borrow the donor's explicit successful-reformation endpoint and remove the uninteresting minute of waiting afterward. The transformation itself already supplies the movie joke. Borrowed from deleted ID 203.",
+        "poolImplementation": "Grant on confirmed successful alive reformation. CORE/SKILL/VITAL/SEQUENCE observe the transition; no post-reformation WINDOW timer remains.",
+        "engineering": "Observe Spirit Walk activation and its successful alive reformation outcome; grant on confirmed reformation.",
+        "constraints": "Remove the extra one-minute survival timer. Award neither on a failed reformation nor on lethal-hit interception alone. Keep the existing conservative rule-hour range.",
+        "engineeringImplementation": "Grant on confirmed successful alive reformation. CORE/SKILL/VITAL/SEQUENCE observe the transition; no post-reformation WINDOW timer remains.",
+        "selection": "Borrow the donor's explicit successful-reformation endpoint and remove the uninteresting minute of waiting afterward. The transformation itself already supplies the movie joke."
+      },
+      "sourceRows": {
+        "Pool": 42,
+        "Engineering": 42,
+        "Selection": 42
+      }
+    },
+    {
+      "id": 110,
+      "resourceId": "essence_ascendance:achievements/a110",
+      "name": "Second Breakfast",
+      "action": "Have Feast Reflex automatically consume two meals during one fight.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Count automatic meal-completion events inside one hostile-combat session.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 43,
+        "Engineering": 43,
+        "Selection": 43
+      }
+    },
+    {
+      "id": 114,
+      "resourceId": "essence_ascendance:achievements/a114",
+      "name": "UNO Reverse",
+      "action": "Use Status Mirror to send a witch’s harmful status effect back to that witch.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL",
+        "CAUSE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Match mirrored effect source to witch UUID and confirm reflected application.",
+        "constraints": "Pure State is incompatible with receiving harmful effects for Status Mirror.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 44,
+        "Engineering": 44,
+        "Selection": 44
+      }
+    },
+    {
+      "id": 118,
+      "resourceId": "essence_ascendance:achievements/a118",
+      "name": "I Choose You!",
+      "action": "Have a creature empowered by Bonded Companion defeat a hostile mob.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "PET",
+        "COMBAT",
+        "CAUSE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Resolve pet owner and effective companion empowerment on a confirmed hostile kill.",
+        "constraints": "Only eligible bonded combat creatures count; cats do not normally attack hostiles.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 45,
+        "Engineering": 45,
+        "Selection": 45
+      }
+    },
+    {
+      "id": 119,
+      "resourceId": "essence_ascendance:achievements/a119",
+      "name": "Princess Donut’s Bodyguard",
+      "action": "Defeat five hostile mobs while your tamed cat is nearby, without the cat taking damage during those fights.",
+      "capabilities": [
+        "CORE",
+        "PET",
+        "COMBAT",
+        "VITAL",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Bind an owned cat, count nearby hostile kills and invalidate on cat damage during the challenge.",
+        "constraints": "Define nearby radius and encounter resets; multiple cats need explicit selection.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 46,
+        "Engineering": 46,
+        "Selection": 46
+      }
+    },
+    {
+      "id": 120,
+      "resourceId": "essence_ascendance:achievements/a120",
+      "name": "Dungeon Crawler: Barefoot Edition",
+      "action": "Defeat ten hostile mobs below Y=0 using Ascendance weapons while wearing no boots.",
+      "capabilities": [
+        "CORE",
+        "COMBAT",
+        "WORLD",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "Defeat ten hostile mobs below Y=0 in the Overworld using Ascendance weapons while wearing no boots.",
+        "engineering": "Count qualifying weapon kills while below zero elevation and the boots slot is empty.",
+        "constraints": "Specify Overworld to avoid trivial or odd dimension-height interpretations.",
+        "engineeringImplementation": "Defeat ten hostile mobs below Y=0 in the Overworld using Ascendance weapons while wearing no boots.",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 47,
+        "Engineering": 47,
+        "Selection": 47
+      }
+    },
+    {
+      "id": 122,
+      "resourceId": "essence_ascendance:achievements/a122",
+      "name": "Diggy Diggy Flow",
+      "action": "Reach maximum Mining Momentum, then mine another 20 blocks without breaking the rhythm.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "CRAFT",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Count valid block breaks after reaching the live momentum cap until the streak resets.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 48,
+        "Engineering": 48,
+        "Selection": 48
+      }
+    },
+    {
+      "id": 126,
+      "resourceId": "essence_ascendance:achievements/a126",
+      "name": "Under Pressure",
+      "action": "Mine a naturally generated ore block underwater while Aquatic Body is active.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "CRAFT",
+        "WORLD"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Check underwater player state, effective Aquatic Body and natural-ore provenance on harvest.",
+        "constraints": "Aquatic Body improves sight/mining but does not grant underwater breathing.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 49,
+        "Engineering": 49,
+        "Selection": 49
+      }
+    },
+    {
+      "id": 128,
+      "resourceId": "essence_ascendance:achievements/a128",
+      "name": "My Neighbor Grows Things",
+      "action": "Have Verdant Stride successfully advance five different eligible crop types.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "FARM",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Keep the plant-growth joke and borrow the crop-success focus of the discarded farming routine. Successful growth avoids arbitrary final-tick attribution while retaining the user's five-type collection target. Borrowed from deleted ID 181.",
+        "poolImplementation": "Require actual growth by the skill, not passive presence near naturally growing crops. Count distinct eligible block/plant types. Engineering has confirmed this five-type successful-growth formulation; do not bake maturity tracking into the FARM adapter.",
+        "engineering": "Emit actual successful Verdant Stride growth events and add distinct eligible plant/block types to a five-entry collection.",
+        "constraints": "Count skill-caused growth, not natural random ticks or proximity. The default eligible set includes vanilla crops, cocoa and nether wart; five types are feasible. No final-maturity ownership history is needed.",
+        "engineeringImplementation": "Require actual growth by the skill, not passive presence near naturally growing crops. Count distinct eligible block/plant types. Engineering has confirmed this five-type successful-growth formulation; do not bake maturity tracking into the FARM adapter.",
+        "selection": "Keep the plant-growth joke and borrow the crop-success focus of the discarded farming routine. Successful growth avoids arbitrary final-tick attribution while retaining the user's five-type collection target."
+      },
+      "sourceRows": {
+        "Pool": 50,
+        "Engineering": 50,
+        "Selection": 50
+      }
+    },
+    {
+      "id": 131,
+      "resourceId": "essence_ascendance:achievements/a131",
+      "name": "Just Keep Swimming",
+      "action": "Receive a Pocket Nets reward while swimming.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "CRAFT",
+        "MOVE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Award on a successful Pocket Nets reward while the valid swimming state holds.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 51,
+        "Engineering": 51,
+        "Selection": 51
+      }
+    },
+    {
+      "id": 136,
+      "resourceId": "essence_ascendance:achievements/a136",
+      "name": "Power Pole, Extend!",
+      "action": "Land a damaging glaive hit from more than four blocks away using a Dormant-or-higher glaive.",
+      "capabilities": [
+        "CORE",
+        "COMBAT"
+      ],
+      "notes": {
+        "pool": "Keep the explicit extendable-staff inspiration. Use the donor's contact-distance style of check and the current equipment tier instead of the player's lifetime upgrade history. Borrowed from deleted ID 137.",
+        "poolImplementation": "Use accepted server-side blade-contact distance and the current action weapon snapshot. CORE/COMBAT suffice; no ITEM history or prior personal upgrade event is required. Rule estimate remains 1–2.5 hours.",
+        "engineering": "On an accepted damaging glaive hit, read the action weapon snapshot, require tier at least Dormant, and compare resolved blade-contact distance with four blocks.",
+        "constraints": "Current weapon tier is sufficient. Do not require a prior personal upgrade receipt; credit only accepted damage and the server-computed contact distance.",
+        "engineeringImplementation": "Use accepted server-side blade-contact distance and the current action weapon snapshot. CORE/COMBAT suffice; no ITEM history or prior personal upgrade event is required. Rule estimate remains 1–2.5 hours.",
+        "selection": "Keep the explicit extendable-staff inspiration. Use the donor's contact-distance style of check and the current equipment tier instead of the player's lifetime upgrade history."
+      },
+      "sourceRows": {
+        "Pool": 52,
+        "Engineering": 52,
+        "Selection": 52
+      }
+    },
+    {
+      "id": 138,
+      "resourceId": "essence_ascendance:achievements/a138",
+      "name": "It’s Over Nine… Blocks!",
+      "action": "Damage a hostile mob with your glaive from more than nine blocks away.",
+      "capabilities": [
+        "CORE",
+        "COMBAT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Apply a greater-than-nine-block distance predicate to a confirmed glaive hit.",
+        "constraints": "Ordinary Transcendent maximum is ten blocks; evaluate actual blade contact distance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 53,
+        "Engineering": 53,
+        "Selection": 53
+      }
+    },
+    {
+      "id": 139,
+      "resourceId": "essence_ascendance:achievements/a139",
+      "name": "Great Sage, Equal to Heaven",
+      "action": "Reach Transcendent player tier and wield a Transcendent glaive.",
+      "capabilities": [
+        "CORE",
+        "PROG",
+        "CRAFT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Combine committed player tier and held glaive equipment tier predicates.",
+        "constraints": "Thresholds need playtesting with configured balance.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 54,
+        "Engineering": 54,
+        "Selection": 54
+      }
+    },
+    {
+      "id": 145,
+      "resourceId": "essence_ascendance:achievements/a145",
+      "name": "Flying Nimbus Not Included",
+      "action": "Begin an Essence Wings glide and land a glaive hit before touching the ground again.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "MOVE",
+        "COMBAT",
+        "SEQUENCE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Flag an Essence Wings airborne session and require a valid glaive contact before grounding.",
+        "constraints": "Perform a gameplay check for weapon input during gliding; teleport, riding and creative flight should reset.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 55,
+        "Engineering": 55,
+        "Selection": 55
+      }
+    },
+    {
+      "id": 166,
+      "resourceId": "essence_ascendance:achievements/a166",
+      "name": "It's Dangerous to Go Alone",
+      "action": "Equip an Ascendance Sword and Ascendance Shield together for the first time.",
+      "capabilities": [
+        "CORE",
+        "CRAFT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Evaluate main-hand sword and offhand shield after equipment changes.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 56,
+        "Engineering": 56,
+        "Selection": 56
+      }
+    },
+    {
+      "id": 169,
+      "resourceId": "essence_ascendance:achievements/a169",
+      "name": "Heart Container",
+      "action": "Increase maximum health through a Vitality Bonus purchase for the first time.",
+      "capabilities": [
+        "CORE",
+        "PROG"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Compare effective maximum-health Bonus before and after a successful Nexus transaction.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 57,
+        "Engineering": 57,
+        "Selection": 57
+      }
+    },
+    {
+      "id": 176,
+      "resourceId": "essence_ascendance:achievements/a176",
+      "name": "Filled with Determination",
+      "action": "Trigger Second Wind for the first time.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Listen for a successful death-prevention activation.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 58,
+        "Engineering": 58,
+        "Selection": 58
+      }
+    },
+    {
+      "id": 177,
+      "resourceId": "essence_ascendance:achievements/a177",
+      "name": "Death Defiance",
+      "action": "Trigger Second Wind twice during one life, respecting its normal cooldown.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Use the recognizable Hades mechanic name rather than the generic past-tense phrasing. Preserve the user's two-proc challenge; do not add a third just to mimic a particular build.",
+        "poolImplementation": "Name-only change. Respect cooldowns. Achievement 176 remains the first Second Wind milestone; this one requires two successful procs in one life.",
+        "engineering": "Count successful death-prevention procs per life and reset on actual death.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "Name-only change. Respect cooldowns. Achievement 176 remains the first Second Wind milestone; this one requires two successful procs in one life.",
+        "selection": "Use the recognizable Hades mechanic name rather than the generic past-tense phrasing. Preserve the user's two-proc challenge; do not add a third just to mimic a particular build."
+      },
+      "sourceRows": {
+        "Pool": 59,
+        "Engineering": 59,
+        "Selection": 59
+      }
+    },
+    {
+      "id": 182,
+      "resourceId": "essence_ascendance:achievements/a182",
+      "name": "Terrarian at Heart",
+      "action": "Receive a Nature's Boon bonus ore in each of the Overworld, Nether, and End.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "CRAFT",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Collect dimensions of confirmed Nature's Boon reward events.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 60,
+        "Engineering": 60,
+        "Selection": 60
+      }
+    },
+    {
+      "id": 184,
+      "resourceId": "essence_ascendance:achievements/a184",
+      "name": "Limit Break",
+      "action": "While Desperation is active and your health is below 10%, deliver the final blow to the Wither.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "COMBAT",
+        "VITAL"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Capture killer health fraction and effective Desperation at final damage application.",
+        "constraints": "Use health fraction, not a fixed heart count; other damage contributors may still participate.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 61,
+        "Engineering": 61,
+        "Selection": 61
+      }
+    },
+    {
+      "id": 190,
+      "resourceId": "essence_ascendance:achievements/a190",
+      "name": "The Colour of Magic",
+      "action": "Dissolve items that collectively yield all six Essence categories in one Crucible during one Minecraft day.",
+      "capabilities": [
+        "CORE",
+        "MACH",
+        "SET",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Collect positive output categories by reservoir and world day.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 62,
+        "Engineering": 62,
+        "Selection": 62
+      }
+    },
+    {
+      "id": 193,
+      "resourceId": "essence_ascendance:achievements/a193",
+      "name": "Strength Before Weakness",
+      "action": "After Damage Ceiling reduces your maximum-health capacity, fully recover that lost capacity without dying.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL",
+        "SEQUENCE"
+      ],
+      "notes": {
+        "pool": "Kept the Stormlight title and recovery story. Removed ambiguous fight boundaries and avoided a new lethality-attribution condition. Borrowed from deleted ID 164.",
+        "poolImplementation": "Track the existing Damage Ceiling debt and its recovery, not whether a hypothetical unmitigated hit would have killed the player.",
+        "engineering": "Start a recovery episode when Damage Ceiling adds maximum-health debt; grant when that specific debt reaches zero in the same life.",
+        "constraints": "Use the Damage Ceiling debt component, not the absolute max-health total: buying Vitality must not fake recovery. Reset on death. No subjective fight-ended detector or new pre-mitigation lethality check.",
+        "engineeringImplementation": "Track the existing Damage Ceiling debt and its recovery, not whether a hypothetical unmitigated hit would have killed the player.",
+        "selection": "Kept the Stormlight title and recovery story. Removed ambiguous fight boundaries and avoided a new lethality-attribution condition."
+      },
+      "sourceRows": {
+        "Pool": 63,
+        "Engineering": 63,
+        "Selection": 63
+      }
+    },
+    {
+      "id": 197,
+      "resourceId": "essence_ascendance:achievements/a197",
+      "name": "Howl's Moving Workshop",
+      "action": "Successfully complete an Essence Infuser operation in both the Overworld and the Nether.",
+      "capabilities": [
+        "CORE",
+        "MACH",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Borrow the discarded cross-world workshop requirement while preserving the user's chosen Howl reference. Two known dimensions give a clearer adventure objective than three arbitrary positions and avoid a bespoke spatial-clustering rule. Borrowed from deleted ID 171.",
+        "poolImplementation": "Use the same dimension collection pattern as deleted ID171, applied to the kept Howl reference.",
+        "engineering": "Include the server dimension ID in each player-attributed committed infusion receipt, and collect Overworld plus Nether.",
+        "constraints": "Two different machines are allowed. No same-workpiece provenance, moving-block system, terrain test or three-location spatial clustering is needed.",
+        "engineeringImplementation": "Use the same dimension collection pattern as deleted ID171, applied to the kept Howl reference.",
+        "selection": "Borrow the discarded cross-world workshop requirement while preserving the user's chosen Howl reference. Two known dimensions give a clearer adventure objective than three arbitrary positions and avoid a bespoke spatial-clustering rule."
+      },
+      "sourceRows": {
+        "Pool": 64,
+        "Engineering": 64,
+        "Selection": 64
+      }
+    },
+    {
+      "id": 199,
+      "resourceId": "essence_ascendance:achievements/a199",
+      "name": "The Answer Is 42",
+      "action": "Successfully dissolve 42 distinct supported item types.",
+      "capabilities": [
+        "CORE",
+        "MACH",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Maintain a distinct registry-ID set of dissolved item types per player.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 65,
+        "Engineering": 65,
+        "Selection": 65
+      }
+    },
+    {
+      "id": 200,
+      "resourceId": "essence_ascendance:achievements/a200",
+      "name": "Resistance Is Useful",
+      "action": "Reach maximum Adaptive Guard adaptation against one damage type.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Observe configured adaptation-cap crossing for one damage type.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 66,
+        "Engineering": 66,
+        "Selection": 66
+      }
+    },
+    {
+      "id": 201,
+      "resourceId": "essence_ascendance:achievements/a201",
+      "name": "Allons-y!",
+      "action": "Trigger Rush after a kill and sprint while its momentum protection remains active.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "COMBAT",
+        "MOVE"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Link a Rush activation to intentional sprint movement during its live buff.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 67,
+        "Engineering": 67,
+        "Selection": 67
+      }
+    },
+    {
+      "id": 204,
+      "resourceId": "essence_ascendance:achievements/a204",
+      "name": "My Cabbages Are Fine!",
+      "action": "Have Verdant Stride prevent a farmland-trample attempt beneath a mature crop, leaving both the farmland and crop intact.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "FARM"
+      ],
+      "notes": {
+        "pool": "Turn the destruction catchphrase into an explicit successful-protection joke. Any supported mature crop avoids pretending vanilla Minecraft has cabbages.",
+        "poolImplementation": "Hook an actual prevented trample attempt, identify the protected player, and check the mature crop above the farmland immediately. Ordinary landing without prevented trampling does not count.",
+        "engineering": "At the Verdant farmland hook, observe an actually prevented trampling attempt and verify a mature crop remains above the preserved farmland.",
+        "constraints": "Use the actual protection hook; no jump-history or MOVE session is required. Vanilla crops are valid; the reference does not require adding cabbages. Rule hours remain conservatively 2–4.",
+        "engineeringImplementation": "Hook an actual prevented trample attempt, identify the protected player, and check the mature crop above the farmland immediately. Ordinary landing without prevented trampling does not count.",
+        "selection": "Turn the destruction catchphrase into an explicit successful-protection joke. Any supported mature crop avoids pretending vanilla Minecraft has cabbages."
+      },
+      "sourceRows": {
+        "Pool": 68,
+        "Engineering": 68,
+        "Selection": 68
+      }
+    },
+    {
+      "id": 205,
+      "resourceId": "essence_ascendance:achievements/a205",
+      "name": "Moon Prism Power!",
+      "action": "Complete a player Ascension at night while wearing a full Ascendance armor set.",
+      "capabilities": [
+        "CORE",
+        "PROG",
+        "WORLD",
+        "CRAFT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Add nighttime and four armor-slot predicates to the Ascension commit event.",
+        "constraints": "An optional hidden celebration; it should not force progression to wait for night.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 69,
+        "Engineering": 69,
+        "Selection": 69
+      }
+    },
+    {
+      "id": 206,
+      "resourceId": "essence_ascendance:achievements/a206",
+      "name": "Gum-Gum Glaive!",
+      "action": "Land a glaive hit at least eight blocks away.",
+      "capabilities": [
+        "CORE",
+        "COMBAT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Compare accepted damaging blade contact distance to the eight-block threshold.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 70,
+        "Engineering": 70,
+        "Selection": 70
+      }
+    },
+    {
+      "id": 207,
+      "resourceId": "essence_ascendance:achievements/a207",
+      "name": "Talk-No-Jutsu",
+      "action": "Have Sanctuary pacify a pillager that was targeting you, without damaging that pillager.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "COMBAT"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Match Sanctuary disengagement target to pillager and a per-victim no-damage flag.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 71,
+        "Engineering": 71,
+        "Selection": 71
+      }
+    },
+    {
+      "id": 208,
+      "resourceId": "essence_ascendance:achievements/a208",
+      "name": "Frieren Would Approve",
+      "action": "Purchase five different Utility Skills over your adventure.",
+      "capabilities": [
+        "CORE",
+        "PROG",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Collect distinct successful Utility Skill purchases, retaining history after respec.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 72,
+        "Engineering": 72,
+        "Selection": 72
+      }
+    },
+    {
+      "id": 209,
+      "resourceId": "essence_ascendance:achievements/a209",
+      "name": "The Dungeon Is Delicious",
+      "action": "Repair equipment with Metabolic Mending using five different food types while below Y=0.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "VITAL",
+        "WORLD",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Collect food item IDs only after positive repair events below zero height.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 73,
+        "Engineering": 73,
+        "Selection": 73
+      }
+    },
+    {
+      "id": 215,
+      "resourceId": "essence_ascendance:achievements/a215",
+      "name": "Eye of the Tiger",
+      "action": "Defeat five hostile mobs while Hunter's Ledger displays their tracked health and armor information.",
+      "capabilities": [
+        "CORE",
+        "SKILL",
+        "COMBAT",
+        "SET"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Count kills of server-tracked ledger targets; do not depend on screen pixels.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 74,
+        "Engineering": 74,
+        "Selection": 74
+      }
+    },
+    {
+      "id": 216,
+      "resourceId": "essence_ascendance:achievements/a216",
+      "name": "Don't Stop Me Now",
+      "action": "Sprint 500 blocks with Running Momentum without stopping, teleporting, or losing the momentum buff.",
+      "capabilities": [
+        "CORE",
+        "MOVE",
+        "SKILL",
+        "WINDOW"
+      ],
+      "notes": {
+        "pool": "Retained your choice; shared implementation remains worthwhile.",
+        "poolImplementation": "",
+        "engineering": "Accumulate valid sprint distance during one unbroken momentum session.",
+        "constraints": "Threshold is a draft; count only normal survival gameplay and confirmed server events.",
+        "engineeringImplementation": "",
+        "selection": "Retained your choice; shared implementation remains worthwhile."
+      },
+      "sourceRows": {
+        "Pool": 75,
+        "Engineering": 75,
+        "Selection": 75
+      }
+    }
+  ]
+}

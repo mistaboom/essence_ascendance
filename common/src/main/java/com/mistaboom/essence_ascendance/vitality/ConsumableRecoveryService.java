@@ -26,17 +26,25 @@ public final class ConsumableRecoveryService {
         final int nutrition;
         final double saturationPoints;
         final boolean fullHunger;
+        final boolean eligibleOrigin;
+        boolean completed;
         Frame(ServerPlayer player, ItemStack source) {
             this.player = player; this.identity = source; this.source = source.copy();
             var food = source.get(DataComponents.FOOD);
             nutrition = food == null ? 0 : Math.max(0, food.nutrition());
             saturationPoints = food == null ? 0 : Math.max(0, FoodConstants.saturationByModifier(nutrition, food.saturation()));
             fullHunger = player.getFoodData().getFoodLevel() >= FoodConstants.MAX_FOOD;
+            eligibleOrigin = AttunementGameplay.eligible(player);
         }
     }
     private ConsumableRecoveryService() { }
     public static boolean consumingFood() {
         return CONSUMPTION.get() != null && CONSUMPTION.get().nutrition > 0;
+    }
+    /** Only native completed consumption can justify a downstream repair receipt. */
+    public static boolean completedFood(ServerPlayer player) {
+        Frame frame = CONSUMPTION.get();
+        return frame != null && frame.player == player && frame.nutrition > 0 && frame.completed && frame.eligibleOrigin;
     }
     public static boolean foodOrigin(ServerPlayer player) {
         Frame frame = CONSUMPTION.get();
@@ -72,6 +80,8 @@ public final class ConsumableRecoveryService {
             //? if >=26.1.2
             /*double foodBefore = AttunementGameplay.food(player);*/
             ItemStack result = original.get(); // native stack, container, effects, criteria and item callbacks
+            frame.completed = source.getCount() < frame.source.getCount() || result.getCount() < frame.source.getCount()
+                    || result.getItem() != frame.source.getItem();
             //? if >=26.1.2
             /*if (frame.nutrition > 0) AttunementGameplay.foodRestored(player, foodBefore, frame.source);*/
             if (valid(player)) {

@@ -40,6 +40,7 @@ public final class WeaponActionRuntime {
     /** All durable-per-action state lives here. No ThreadLocal survives a contact call. */
     private static final class Action {
         final long id, acceptedAt;
+        final com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause cause;
         final Mode mode;
         final net.minecraft.world.entity.HumanoidArm mainArm;
         final double playerScale;
@@ -68,6 +69,10 @@ public final class WeaponActionRuntime {
             fractured=FracturedEquipmentData.isFractured(stack);
             this.range=range; this.offense=offense; variant=variant(player,stack);
             this.mode=mode; mainArm=player.getMainArm(); playerScale=player.getScale();
+            cause=new com.mistaboom.essence_ascendance.gameplay.CombatOutcome.Cause(
+                    com.mistaboom.essence_ascendance.attunement.AttunementGameplay.action("weapon_action"), player.getUUID(),
+                    com.mistaboom.essence_ascendance.gameplay.CombatOutcomes.weapon(offense.weapon(), mode.name()),
+                    com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player));
             timing=mode==Mode.STAB ? GlaiveTuning.STAB:GlaiveTuning.SWIPE;
             outwardEnd=now+timing.extensionTicks()+timing.outwardTicks();
             phase=mode==Mode.STAB ? Phase.OUTWARD:Phase.EXTEND;
@@ -297,7 +302,8 @@ public final class WeaponActionRuntime {
     private static void contact(ServerPlayer player,Action a,Entity entity) {
         if (!valid(player,a)) { cancel(player); return; }
         if (!a.attempted.add(entity.getUUID())) return;
-        var result=WeaponActionDamage.hit(player,entity,a.offense,a.timing.damageScalar(),!a.primarySpent,a.current.forward());
+        var result=WeaponActionDamage.hit(player,entity,a.offense,a.timing.damageScalar(),!a.primarySpent,a.current.forward(),
+                a.cause,a.current.tipDistance());
         if (result.accepted() && result.loss()>0) {
             a.primarySpent=true;
             if (!a.wearSpent) { a.wearSpent=true; WeaponActionDamage.wear(player,a.stack,a.slot); }

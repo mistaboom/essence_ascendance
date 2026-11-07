@@ -147,6 +147,12 @@ public final class ProjectileNativeInterceptionTest {
     }
 
     static final class Fixture {
+        // Constructor-free levels still need native dimension metadata when real combat causes
+        // an automatic Ascension. Share the immutable vanilla holder across disposable fixtures.
+        private static final Holder<net.minecraft.world.level.dimension.DimensionType> OVERWORLD_TYPE =
+                net.minecraft.data.registries.VanillaRegistries.createLookup()
+                        .lookupOrThrow(net.minecraft.core.registries.Registries.DIMENSION_TYPE)
+                        .getOrThrow(net.minecraft.world.level.dimension.BuiltinDimensionTypes.OVERWORLD);
         final DedicatedServer server;
         final MemoryLevel level;
         final EssenceSavedData saved = new EssenceSavedData();
@@ -195,6 +201,7 @@ public final class ProjectileNativeInterceptionTest {
             //? if <26.1.2
             set(DimensionDataStorage.class, level.storage, "cache", new HashMap<>(Map.of("essence_ascendance_players", saved)));
             set(Level.class, level, "dimension", Level.OVERWORLD);
+            set(Level.class, level, "dimensionTypeRegistration", OVERWORLD_TYPE);
             set(Level.class, level, "random", RandomSource.create(0));
             //? if <26.1.2
             set(Level.class, level, "threadSafeRandom", RandomSource.create(0));
@@ -416,6 +423,8 @@ public final class ProjectileNativeInterceptionTest {
         @Override public long getGameTime() { return tick; }
         //? if <26.1.2
         @Override public long getDayTime() { return tick; }
+        //? if >=26.1.2
+        /*@Override public long getDefaultClockTime() { return tick; }*/
         //? if >=26.1.2
         /*@Override public SavedDataStorage getDataStorage() { return storage; }*/
         //? if <26.1.2

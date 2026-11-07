@@ -81,6 +81,33 @@ public final class UtilitySenseService {
         return Snapshot.empty(player, Mode.NONE);
     }
 
+    /**
+     * Pre-damage evidence from the same capped server snapshot sent to the Ledger HUD.
+     * Does not refresh sensing, infer client pixels, or turn skill ownership into target membership.
+     */
+    public static boolean ledgerEligible(ServerPlayer player, LivingEntity target) {
+        if (player == null || target == null || !target.isAlive() || target.isRemoved()
+                || target.level() != player.level()) return false;
+        var context = SkillEffectRuntime.observationContext(player);
+        if (context == null || !context.isEffective(SkillIds.THREAT_SENSE)
+                || !context.isEffective(SkillIds.HUNTERS_LEDGER)) return false;
+        ThreatState state = context.existingState(SkillIds.THREAT_SENSE);
+        if (state == null || !state.ledger || state.scannedAt == Long.MIN_VALUE) return false;
+        long now = context.now();
+        long age = now - state.scannedAt;
+        if (age < 0 || age > REFRESH_TICKS || !player.level().dimension().location().equals(state.dimension)) return false;
+        double range = context.settings().utility().threatSense().rangeBlocks();
+        if (!Double.isFinite(range) || range <= 0 || target.distanceToSqr(player) > range * range) return false;
+        ObservedThreat observed = state.observed.get(target.getUUID());
+        boolean currentlyTargeting = target instanceof Mob mob && mob.getTarget() == player;
+        if (observed == null || observed.entity.get() != target || now < observed.lastActive
+                || !currentlyTargeting && now - observed.lastActive > context.settings().utility().huntersLedger().memoryTicks()) return false;
+        // The observed map may exceed the output cap; only the actual published target list qualifies.
+        return state.threats.stream().anyMatch(threat -> threat.entityId() == target.getId()
+                && Float.isFinite(threat.health()) && threat.health() > 0
+                && Float.isFinite(threat.maxHealth()) && threat.maxHealth() > 0 && threat.armor() >= 0);
+    }
+
     public static ThreatCounts threatCounts(SkillEffectRuntime.Context context) {
         ThreatState state = context.existingState(SkillIds.THREAT_SENSE);
         if (state == null) return new ThreatCounts(0, 0, 0, 0);
@@ -138,6 +165,7 @@ public final class UtilitySenseService {
         private final Map<UUID, ObservedThreat> observed = new HashMap<>();
         private long scannedAt = Long.MIN_VALUE;
         private boolean ledger;
+        private ResourceLocation dimension;
         private List<Threat> threats = List.of();
         private List<ProjectilePath> projectilePaths = List.of();
         private List<ExplosionDanger> explosions = List.of();
@@ -145,6 +173,7 @@ public final class UtilitySenseService {
         void refresh(ServerPlayer player, long now, double range, boolean ledger, int memoryTicks) {
             this.scannedAt = now;
             this.ledger = ledger;
+            this.dimension = player.level().dimension().location();
             if (range <= 0) {
                 observed.clear();
                 threats = List.of();
@@ -199,6 +228,7 @@ public final class UtilitySenseService {
             observed.clear();
             scannedAt = Long.MIN_VALUE;
             ledger = false;
+            dimension = null;
             threats = List.of();
             projectilePaths = List.of();
             explosions = List.of();

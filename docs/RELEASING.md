@@ -72,61 +72,42 @@ building; allow the workflow to complete before announcing download availability
 Pushing commits or tags alone does not upload jars. Editing existing release notes
 does not re-publish files.
 
-## Shared multiversion release preparation (2026-10-22)
+## Local validation and staging
 
-`gradle/targets.json` is the target authority. `gradle/production-targets.gradle` binds each declared target to its real archive provider; `:writeProductionManifest` writes exact paths and SHA-256 hashes. `tools/release/prepare.py` checks the complete declared set, its metadata and hashes, and stages a fresh directory with the four JARs, `SHA256SUMS`, `CHANGELOG.md` and variant-rich `metadata.json`. The workflows derive their publishing matrix from the validated staged variants.
-
-From the repository root in PowerShell, with Java 25 available to Gradle and Java 21 available as a toolchain:
+`gradle/targets.json` owns the complete target/dependency set. Exact provider paths
+and hashes come from `build/production-artifacts-all.json`; never select jars by
+filename glob or reuse an old release staging directory.
 
 ```powershell
-# Fresh production outputs; run separately so fixture worlds and audit logs survive.
 ./gradlew.bat :cleanProductionOutputs --console=plain
 ./gradlew.bat :checkSupportedTargets --console=plain
 python -m unittest discover -s tools/release -p "test_*.py"
 python tools/release/prepare.py --stage build/release
 ```
 
-The shared CI build installs the distinct Java versions declared in the catalog and
-uses the highest one for Gradle. Local staging never invokes publishing or
-description synchronization. The current workflow edits have been audited locally;
-they require a normal pushed CI run before they count as remote execution evidence.
+Run the Gradle commands separately and sequentially with Java 25; target toolchains
+select Java 21 where needed. The narrow production clean preserves ordinary
+IntelliJ worlds. Do not use a root clean as a substitute for scoped cleanup.
+A focused archive refresh uses `:writeProductionManifest :assetJarInvariants`.
 
-For a focused artifact refresh, use `./gradlew.bat :writeProductionManifest :assetJarInvariants1211 :assetJarInvariants2612 --console=plain`. Gradle rebuilds changed sources, resources and archives; use a new empty staging destination for each preparation.
+`tools/release/prepare.py` verifies all four provider-selected archives, metadata
+and checksums, then emits the jars, `SHA256SUMS`, `CHANGELOG.md` and `metadata.json`.
+CI and release jobs derive their matrices from those validated variants. Local
+staging does not publish. Acceptance records distinguish source/invariant checks,
+native gameplay, client presentation and human review; see [MAINTENANCE.md](MAINTENANCE.md).
 
-| Target | Production provider | Verified output path | SHA-256 |
-| --- | --- | --- | --- |
-| 1.21.1 fabric | `:fabric:1.21.1:remapJar` | `fabric/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.11+mc1.21.1-fabric.jar` | `0a873e29061a7ef6ba217423909e660ecd2832740889bef116b2a3341808e590` |
-| 1.21.1 neoforge | `:neoforge:1.21.1:remapJar` | `neoforge/versions/1.21.1/build/libs/essence_ascendance-1.0.0-beta.11+mc1.21.1-neoforge.jar` | `b1facb89ccd651d65f938b4d8b948b9f66de77812f27c66e40830e2a9c194ef1` |
-| 26.1.2 fabric | `:fabric:26.1.2:shadowJar` | `fabric/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.11+mc26.1.2-fabric.jar` | `cae1fd77455702652ca1b45d79128a498a30506e2e119919ff292dc5b7384bd0` |
-| 26.1.2 neoforge | `:neoforge:26.1.2:shadowJar` | `neoforge/versions/26.1.2/build/libs/essence_ascendance-1.0.0-beta.11+mc26.1.2-neoforge.jar` | `6154f47c7357b2998d3e74cf322238cde5dfdcc8553076200272f18d8a91675a` |
-
-The final local clean gate and fresh `build/release-final-audit` bundle are recorded in the auxiliary `VALIDATION.md` independent-audit section. These hashes are from that clean gate; historical hashes in older handoff sections are superseded.
-
-A future target addition updates `gradle/targets.json`, including `targets`, `release.requiredTargetIds`, the Java/dependency profile, reusable `nativeSources`, `resourceFormat`, `nativeAccess`, and platform dependency data when needed. It also supplies genuine native source/resource and mixin/access boundaries, then verifies the production provider and shared audit. The release script and workflow matrix enumerate the declared targets and refuse a missing member of the required release set.
-
-The publishing inputs preserve required Architectury API, required Fabric API on Fabric, and optional JEI on both sites. CurseForge also lists optional FTB Teams using its separate Fabric and NeoForge project IDs. No official FTB Teams Modrinth project was established, so the Modrinth payload contains the other verified dependencies. This relationship affects listing metadata; the JAR's guarded FTB integration remains optional.
-
-Automated packaged server checks and native fixtures are recorded in the handoff. Interactive client visuals, live multiplayer and restart acceptance remain prerequisites for publishing. GitHub and mod-site publishing also requires the configured platform tokens and approved project listings; these were not accessed here.
+Published dependencies include required Architectury API, required Fabric API
+on Fabric, optional JEI, and optional FTB Teams on CurseForge. Modrinth has no
+verified official FTB Teams project mapping. A future target addition must update
+the catalog, actual native API/resource boundaries and release dependency metadata,
+then pass the same complete gate. Old release hashes belong to dated acceptance
+records or remote release checksums, not this procedural guide.
 
 ## Failure recovery
 
-The beta.3 and beta.4 initial NeoForge Modrinth jobs failed with HTTP 500
-`database_error` / `inserting version dependencies` / `deadlock detected`.
-Both uploaded the unchanged verified artifact successfully on a failed-job rerun.
-This is a Modrinth database failure, not evidence of a bad NeoForge jar or missing
-token. Fabric/NeoForge jobs were scheduled in parallel, with overlapping upload
-activity in beta.3. The release matrix now uses `max-parallel: 1` to remove that
-source of contention. Beta.4's upload calls did not overlap, so concurrent jobs
-are a contributing possibility, not a proven explanation of every deadlock.
-Serialization cannot prevent unrelated Modrinth database contention; its live
-effect remains to be checked on the next release. Publish one release at a time.
-
-Evidence: [beta.3 failed job](https://github.com/mistaboom/essence_ascendance/actions/runs/38199052259/job/114650075807),
-[beta.4 failed job](https://github.com/mistaboom/essence_ascendance/actions/runs/38307199091/job/115007695050),
-and [beta.4 successful rerun](https://github.com/mistaboom/essence_ascendance/actions/runs/38307199091/job/115008859486).
-Automatic blind upload retries remain disabled. Before any manual retry, inspect
-the authenticated Modrinth file list; a project awaiting moderation can return
-404 to unauthenticated reads even when its versions exist.
+Modrinth has previously returned dependency-insert deadlocks. Upload jobs are
+serialized, with blind retries disabled. Inspect exact platform version/file
+identities before retrying a failed job; a lost response may hide a successful upload.
 
 - If build/validation fails, no jars are uploaded. Fix the issue and use a new
   release version/tag for changed code. Do not move an already published tag.

@@ -6,7 +6,10 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
 import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
+import com.mistaboom.essence_ascendance.gameplay.FarmingOutcome;
+import com.mistaboom.essence_ascendance.gameplay.FarmingOutcomes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -15,6 +18,8 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.BonemealableBlock;
 import net.minecraft.world.level.block.SaplingBlock;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
@@ -73,8 +78,14 @@ public final class GatheringRuralService {
                 }
                 return Boolean.TRUE;
             });
-            if (state.equals(level.getBlockState(mutable))) continue;
+            BlockState after = level.getBlockState(mutable);
+            if (state.equals(after)) continue;
             extraTicks++;
+            // Only this attributed skill invocation supplies growth. Background random ticks never publish.
+            if (PlayerAttributedBlockHarvestService.isCrop(state) && advancedCropGrowth(state, after)) {
+                FarmingOutcomes.publish(player, new FarmingOutcome.CropGrowth(
+                        FarmingOutcomes.context(player, "verdant_growth"), BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(), true, true));
+            }
             // One pulse may visit a large farm. Keep the acknowledgement sampled and bounded.
             if (visualEvents++ < 6) {
                 MicroVisualFeedback.gathering(level, net.minecraft.world.phys.Vec3.atCenterOf(mutable),
@@ -157,6 +168,32 @@ public final class GatheringRuralService {
     public static boolean protectsFragileGround(Entity entity) {
         return entity instanceof ServerPlayer player
                 && SkillEffectRuntime.context(player).isEffective(SkillIds.VERDANT_STRIDE);
+    }
+
+    /** A native age advance is affirmative growth; disappearance, damage and arbitrary state changes are not.
+     * Torchflower's native final advance changes block identity instead of retaining an age property. */
+    public static boolean advancedCropGrowth(BlockState before, BlockState after) {
+        if (before == null || after == null || before.equals(after)) return false;
+        if (before.is(Blocks.TORCHFLOWER_CROP) && after.is(Blocks.TORCHFLOWER)) return true;
+        if (before.getBlock() != after.getBlock()) return false;
+        for (var property : before.getProperties()) {
+            if (property instanceof IntegerProperty age && "age".equals(age.getName()))
+                return after.getValue(age) > before.getValue(age);
+        }
+        return false;
+    }
+
+    /** Called only where native fallOn has already selected turnToDirt. Skipping that operation is the
+     * prevention, and immediate before/after reads prove both exact states survived the intercepted call. */
+    public static boolean preventFarmlandTrample(Entity entity, BlockState farmland, net.minecraft.world.level.Level level, BlockPos pos) {
+        if (!protectsFragileGround(entity)) return false;
+        ServerPlayer player = (ServerPlayer) entity;
+        BlockState crop = level.getBlockState(pos.above());
+        boolean mature = PlayerAttributedBlockHarvestService.isEligibleMatureCrop(crop);
+        FarmingOutcomes.publish(player, new FarmingOutcome.TramplePrevented(
+                FarmingOutcomes.context(player, "farmland_trample_prevented"), mature,
+                farmland.equals(level.getBlockState(pos)), crop.equals(level.getBlockState(pos.above()))));
+        return true;
     }
 
     public static int nearbyLivestockCount(ServerPlayer player, double radiusBlocks) {

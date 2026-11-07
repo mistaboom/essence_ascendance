@@ -20,9 +20,11 @@ public abstract class AttunementMenuMixin {
         if (!(actor instanceof ServerPlayer player)) { original.call(slot, button, type, actor); return; }
         AbstractContainerMenu menu = (AbstractContainerMenu) (Object) this;
         var before = AttunementWorkstations.before(menu, slot, player);
+        var crafting = com.mistaboom.essence_ascendance.gameplay.ProgressionCrafting.before(menu, slot, player);
         ItemStack ingredient = menu instanceof BrewingStandMenu ? menu.getSlot(3).getItem().copy() : ItemStack.EMPTY;
         original.call(slot, button, type, actor);
         AttunementWorkstations.completed(menu, player, before);
+        com.mistaboom.essence_ascendance.gameplay.ProgressionCrafting.completed(menu, player, crafting);
         if (menu instanceof BrewingStandMenu && menu == player.containerMenu && menu.stillValid(player)
                 && ((AttunementBrewingMenuAccess) menu).essenceAscendance$brewingStand() instanceof AttunementBrewingOwner owner) {
             ItemStack after = menu.getSlot(3).getItem();

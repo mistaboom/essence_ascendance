@@ -13,6 +13,47 @@ public final class RecentHostileCombat implements SkillEffectState {
     private long lastDamage = Long.MIN_VALUE;
     private long lastOutgoingDamage = Long.MIN_VALUE;
     private ResourceLocation dimension;
+    private long encounterLastDamage = Long.MIN_VALUE;
+    private ResourceLocation encounterDimension;
+    private String encounter;
+    private long encounterStartedAt = Long.MIN_VALUE;
+    private int automaticMeals;
+
+    /** Separate accepted-loss encounter evidence: routing to food/debt may lock sustain without starting a fight. */
+    public static void acceptedEncounterDamage(ServerPlayer player, LivingEntity other) {
+        if (!acceptedHostile(player, other)) return;
+        var context = SkillEffectRuntime.context(player);
+        RecentHostileCombat state = context.state(KEY, RecentHostileCombat::new);
+        if (!com.mistaboom.essence_ascendance.attunement.AttunementGameplay.eligible(player)) {
+            state.encounterLastDamage = Long.MIN_VALUE; state.encounterDimension = null; state.encounter = null; state.automaticMeals = 0;
+            return;
+        }
+        long now = context.now();
+        var dimension = player.level().dimension().location();
+        int timeout = context.settings().vitality().innerSustenance().combatTimeoutTicks();
+        if (!com.mistaboom.essence_ascendance.gameplay.OutcomePolicies.sameFight(state.encounterLastDamage, now, timeout,
+                dimension.equals(state.encounterDimension))) {
+            state.encounter = java.util.UUID.randomUUID().toString(); state.automaticMeals = 0;
+            state.encounterStartedAt = now;
+        }
+        state.encounterLastDamage = now; state.encounterDimension = dimension;
+    }
+    public static String encounter(SkillEffectRuntime.Context context, int timeout) {
+        RecentHostileCombat state = context.existingState(KEY);
+        return state != null && com.mistaboom.essence_ascendance.gameplay.OutcomePolicies.sameFight(
+                state.encounterLastDamage, context.now(), timeout,
+                context.player().level().dimension().location().equals(state.encounterDimension)) ? state.encounter : null;
+    }
+    /** Beginning of the currently observed accepted-loss encounter; -1 means unknown/inactive. */
+    public static long encounterStartedAt(SkillEffectRuntime.Context context, int timeout) {
+        RecentHostileCombat state = context.existingState(KEY);
+        return state == null || encounter(context, timeout) == null ? -1 : state.encounterStartedAt;
+    }
+    /** A bounded encounter checkpoint; only newly completed first/second meals are returned. */
+    public static int completedAutomaticMeal(SkillEffectRuntime.Context context, int timeout) {
+        RecentHostileCombat state = context.existingState(KEY);
+        return state == null || encounter(context, timeout) == null || state.automaticMeals >= 2 ? 0 : ++state.automaticMeals;
+    }
 
     public static void acceptedDamage(ServerPlayer player, LivingEntity other) {
         if (!acceptedHostile(player, other)) return;
@@ -81,5 +122,7 @@ public final class RecentHostileCombat implements SkillEffectState {
         lastDamage = Long.MIN_VALUE;
         lastOutgoingDamage = Long.MIN_VALUE;
         dimension = null;
+        encounterLastDamage = Long.MIN_VALUE; encounterDimension = null; encounter = null; automaticMeals = 0;
+        encounterStartedAt = Long.MIN_VALUE;
     }
 }
