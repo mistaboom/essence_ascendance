@@ -9,7 +9,7 @@ public final class FabricMembershipNativeMod2612 implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             try {
                 Class.forName("com.mistaboom.essence_ascendance.team.MembershipNativeHookTest")
-                        .getMethod("run").invoke(null);
+                        .getMethod("runServer", net.minecraft.server.MinecraftServer.class).invoke(null, server);
                 server.halt(false);
             } catch (Throwable failure) {
                 failure.printStackTrace();

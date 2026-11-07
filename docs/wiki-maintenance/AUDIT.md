@@ -27,6 +27,25 @@ release references honest: unreleased source behavior is not proof of an older t
 
 ## Publication and verification
 
+### Beta.16 membership guide: prepared, publication pending
+
+The membership guide now describes runtime API detection without FTB version
+allowlists, fallback to built-in teams on actual API failure or provider removal,
+preserved confirmed ownership/balances and server-authoritative team controls.
+The review checked `MembershipProviders`, `MembershipRuntime`, `PoolMembershipState`,
+`ReservoirService`, `MachineBinding` and `TeamInterfaceNetworkService`, plus their
+regressions and the deployment evidence summarized in `docs/VALIDATION.md`.
+
+The prepared release-page selection is `Home.md`, `_Footer.md`,
+`Version-and-Maintenance.md`, `Administration-Commands.md`, `Configuration.md`,
+`Integrations-and-Compatibility.md`, `Player-Commands.md`,
+`Teams-and-Shared-Infrastructure.md` and `Troubleshooting.md`. Publish this set
+after the beta.16 release has been verified, then record the actual wiki commit.
+Existing versioned preset downloads retain their original compatibility records;
+these guide edits do not relabel their tested configuration or pack version.
+
+### Preset catalog publication
+
 The preset catalog adds versioned downloads with per-revision compatibility and
 installation notes. Its first entry preserves the verified FTB Evolution 2
 **1.5.1** inputs; the user's subsequent 1.7.0 pack update is not a new full balance

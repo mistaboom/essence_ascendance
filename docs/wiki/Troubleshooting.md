@@ -88,6 +88,8 @@ Preserve it and its error. Restore a compatible backup or deliberately rebuild a
 
 Check `/essence admin membership status`, then the player's `/essence team status` and the appropriate machine status. Provider readiness, actual ownership, range, loaded chunks, selected Essence types and explicit Start are separate from balance generation.
 
+An unteamed player can use a personally placed machine once the FTB manager is ready; creating a party is not required. Placement during manager startup remembers the placer and resolves automatically after complete membership settles. The installed provider's version string does not determine acceptance. If an actual FTB API error occurs, status reports the error and the automatic switch to built-in teams. Existing confirmed teams, recorded money and known machine ownership survive that switch, and the native M interface becomes available. Temporary `NOT_READY` startup does not trigger a switch. An unknown old machine binding remains unavailable rather than being assigned to whoever clicks it.
+
 Use [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) for pack/server configuration, and the Archive for machine operation. Do not switch providers or delete balance as a generic machine fix.
 
 ## Why is generation slow?

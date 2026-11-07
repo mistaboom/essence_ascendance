@@ -81,6 +81,28 @@ extend it to newly generated output.
 
 ## Current release
 
+**Beta.16 is prepared; publication is pending.** It removes FTB version allowlists,
+tries the installed membership API, and recovers to built-in teams on an actual
+failure while preserving confirmed ownership and balances. Server-authoritative
+team controls remain available after fallback. [Release notes](releases/1.0.0-beta.16.md)
+describe the changes and the beta.15 upgrade path, which needs no reset or rebuild.
+
+The membership changes passed the full local four-target gate (324 tasks), with
+482 provider, 169 binding and 281 interface assertions per Minecraft version.
+Native NeoForge 26.1.2 checks passed with FTB absent and the pack's Teams 26.1.2.5 /
+Library 26.1.2.11 binaries. Deployment to the FTB Evolution 2 server restored
+available FTB membership; saved-balance validation passed without regeneration,
+and the user confirmed the fix worked. [VALIDATION.md](VALIDATION.md) records
+the scope. That local candidate still carried beta.15 metadata; it is distinct
+from both the published beta.15 artifacts and the upcoming beta.16 release jars.
+
+Commit the beta.16 version and release notes, wait for CI on that source commit,
+then publish the matching prerelease through the GitHub release workflow. Record
+the release commit, workflow results and downloaded artifact checksums only after
+verification. The existing beta.15 receipt below is historical evidence.
+
+### Published beta.15 receipt
+
 Beta.15 adds the 69-achievement implementation and the **Essence Ascendance** tab
 label. The user accepted the visual result on 2026-11-07 and requested cleanup,
 commit, push and publication. [Release notes](releases/1.0.0-beta.15.md) describe

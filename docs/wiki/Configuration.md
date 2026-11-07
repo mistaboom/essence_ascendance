@@ -101,7 +101,7 @@ Use one of these choices, not both. Place it with the JVM options before the ser
 -Dessence.membershipAuthority=ftb_teams
 ```
 
-If you intentionally change an existing world's provider, follow [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds) first. Missing or unsupported providers can pause access rather than treating every player as solo. A balance rebuild does not switch the team provider.
+If you intentionally change an existing world's provider, follow [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds) first. Installed FTB APIs are attempted without version allowlists. An actual API failure or removal automatically switches to native teams while preserving the last confirmed roster, recorded balances and known machine ownership. Temporary manager startup pauses access until membership settles. A balance rebuild does not switch the team provider.
 
 
 ## Root

@@ -4,7 +4,7 @@ Essence Ascendance adds character progression, evolving equipment and an Essence
 
 **Playing the mod? Use the Ascendance Archive in game.** Its lessons and reference values reflect the server you are connected to. This wiki focuses on installing the mod, fitting it into a pack and maintaining the server.
 
-**Published release: [1.0.0-beta.15](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.15).** Choose the jar for your Minecraft version and loader. Each configuration preset lists its own tested pack version and mod configuration version. When moving from beta.7 or earlier, the earlier requirement for fresh worlds and Essence Ascendance configuration still applies.
+**This guide covers [1.0.0-beta.16](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.16).** Beta.16 tries the installed FTB Teams API without a version allowlist and recovers to built-in teams on an actual integration failure. Choose the jar for your Minecraft version and loader. Each configuration preset lists its own tested pack version and mod configuration version. When moving from beta.7 or earlier, the earlier requirement for fresh worlds and Essence Ascendance configuration still applies.
 
 ## Downloads
 

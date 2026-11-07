@@ -136,13 +136,19 @@ world between provider modes.
 ## Multiplayer and machine contracts
 
 Solo is the default. Membership supports native teams and the registered **FTB
-Teams** adapter; OpenPAC is not a supported current provider. Unsupported or
-unready authority denies operations rather than treating a player as solo.
-Provider installation never silently changes saved authority. The explicit
+Teams** adapter; OpenPAC is not a supported current provider. Installed FTB APIs
+are attempted without version allowlists. Temporary manager initialization
+pauses access until two complete roster observations agree. Actual API failure
+or removal automatically switches to native teams with the last confirmed
+roster, exact player balances and recorded machine ownership preserved. The
+fallback persists across restart; unknown old bindings remain unavailable.
+Installation alone does not change an existing world's authority. The explicit
 `/essence admin membership` prepare/status/activate flow validates its token,
 financial/roster revisions, readiness and current roster. Preparation expires
 at 6,000 server ticks; status does not extend it. Machine bindings from another
-authority are not silently remapped by activation.
+authority are not silently remapped by manual activation. Automatic failure
+fallback has its own exact identity aliases and replays recorded ownership
+history, including for unloaded machines; it does not equalize Stored again.
 
 A player has **one active Crucible source** across a server. Valid Start at another
 source replaces the previous link; duplicate Start cannot multiply throughput,

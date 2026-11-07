@@ -4,7 +4,7 @@ import com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness;
 import dev.architectury.platform.Platform;
 import java.util.UUID;
 
-/** Real loader/API linkage check. Exits before a world; does not claim actual manager/roster gameplay. */
+/** Real loader/API linkage checks, with an additional live-manager check in modern server fixtures. */
 public final class MembershipNativeHookTest {
     private MembershipNativeHookTest() { }
     public static void run() {
@@ -49,6 +49,23 @@ public final class MembershipNativeHookTest {
     public static void runAndExit() {
         try { run(); System.exit(0); } catch (Throwable failure) { failure.printStackTrace(); System.exit(1); }
     }
+    /** Actual started-manager authorization for a UUID with no party; no connected-player gameplay claim. */
+    public static void runServer(net.minecraft.server.MinecraftServer server) {
+        java.util.Objects.requireNonNull(server, "Started server");
+        run();
+        if (Boolean.getBoolean("essence.membership.expectFtb")) {
+            MembershipProvider provider = MembershipRuntime.provider(MembershipAuthority.FTB_TEAMS).provider();
+            var observation = provider.capture(server);
+            if (observation.readiness().status() != ProviderReadiness.Status.AVAILABLE)
+                throw new AssertionError("Started FTB manager must be available: " + observation.readiness());
+            UUID solo = UUID.randomUUID();
+            if (observation.teams().stream().anyMatch(team -> team.members().contains(solo)))
+                throw new AssertionError("Fresh fixture UUID unexpectedly belongs to a party");
+            if (!provider.isCurrent(server, solo, null))
+                throw new AssertionError("Live FTB manager must authorize solo membership without requiring a party");
+            System.out.println("MembershipNativeHookTest: PASS; actual started FTB manager available; party-free UUID authorizes solo membership");
+        }
+    }
     /** Exercise the real registered transport after ordinary mod startup, not standalone CODEC constants.
      * This must not initialize the service itself: that would hide missing startup wiring. */
     private static void registeredInterfacePackets() {
@@ -60,6 +77,7 @@ public final class MembershipNativeHookTest {
                 new com.mistaboom.essence_ascendance.network.EssenceCrucibleSelectionPayload(73, 7, 0),
                 new com.mistaboom.essence_ascendance.network.InfuserSoulbindPayload(73, receipt));
         var s2c = java.util.List.of(
+                new com.mistaboom.essence_ascendance.network.MembershipInterfacePayload(true),
                 new com.mistaboom.essence_ascendance.network.TeamInterfacePayload(73, receipt, 0, 0, 1,
                         java.util.List.of(), java.util.List.of(), 0, 0),
                 new com.mistaboom.essence_ascendance.network.ChannelSessionsPayload(1,
@@ -96,6 +114,6 @@ public final class MembershipNativeHookTest {
                 if (packets.isEmpty()) throw new AssertionError("Startup transport did not construct " + side + " " + payload.type().id());
             }
         }
-        System.out.println("Stage 8 registered transport: 5 C2S codec/receiver and 3 S2C packet construction checks passed");
+        System.out.println("Stage 8 registered transport: 5 C2S codec/receiver and 4 S2C packet construction checks passed");
     }
 }

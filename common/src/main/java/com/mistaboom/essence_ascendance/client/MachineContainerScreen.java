@@ -58,7 +58,7 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     private Component confirmationTitle, confirmationWarning, confirmationAcceptLabel;
     private Button confirmationAccept, confirmationCancel;
     private String activePopup;
-    private Button teamPopupClose, teamPopupPrevious, teamPopupNext;
+    private Button teamButton, teamPopupClose, teamPopupPrevious, teamPopupNext;
     private net.minecraft.client.gui.components.EditBox teamName;
     private final Button[] teamActions = new Button[com.mistaboom.essence_ascendance.network.TeamInterfacePayload.PAGE_SIZE];
 
@@ -84,13 +84,14 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     @Override
     protected final void init() {
         super.init();
+        ClientPacketDispatch.preparePresentationConnection();
         initMachineWidgets();
-        if (TeamInterfaceClientState.nativeButtonVisible() && (menu instanceof com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu
+        if (menu instanceof com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu
                 || menu instanceof com.mistaboom.essence_ascendance.infuser.EssenceInfuserMenu
-                || menu instanceof com.mistaboom.essence_ascendance.pylon.EssencePylonMenu)) {
-            var team = addMachineButton(Component.literal("M"), b -> toggleMachinePopup(TEAM_POPUP),
+                || menu instanceof com.mistaboom.essence_ascendance.pylon.EssencePylonMenu) {
+            teamButton = addMachineButton(Component.literal("M"), b -> toggleMachinePopup(TEAM_POPUP),
                     new UiBounds(leftPos + 23, topPos + 5, HEADER_BUTTON_SIZE, HEADER_BUTTON_SIZE));
-            team.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.mistaboom.essence_ascendance.text.EssenceText.gui("team.open")));
+            teamButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.mistaboom.essence_ascendance.text.EssenceText.gui("team.open")));
             initTeamPopup();
         }
         confirmationAccept = addMachineButton(confirmationAcceptLabel == null ? com.mistaboom.essence_ascendance.text.EssenceText.gui("team.confirm") : confirmationAcceptLabel, b -> {
@@ -145,6 +146,14 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
         return sidePanel(TEAM_POPUP_WIDTH, Math.max(72, popupHeight), MachineScreenLayout.SidePreference.LEFT_FIRST).bounds();
     }
     private void updateTeamPopup() {
+        if (teamButton != null) {
+            teamButton.visible = teamButton.active = TeamInterfaceClientState.nativeButtonVisible();
+            if (!teamButton.visible && isMachinePopupOpen(TEAM_POPUP)) {
+                confirmationAction = null;
+                closeMachinePopup(TEAM_POPUP);
+                return;
+            }
+        }
         if (teamPopupClose == null) return;
         var state = teamPopupSnapshot();
         var bounds = teamPopupBounds();

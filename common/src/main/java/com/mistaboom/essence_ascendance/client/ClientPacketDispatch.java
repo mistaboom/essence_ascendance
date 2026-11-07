@@ -39,7 +39,7 @@ public final class ClientPacketDispatch {
         EquipmentTooltipClientState.clear();
         ItemEssenceTooltipClientState.clear();
         EssenceCrucibleClientState.clear();
-        TeamInterfaceClientState.clear();
+        TeamInterfaceClientState.clearConnection();
         ChannelSessionsClientState.clear();
         EssencePylonClientState.clear();
         SkillEffectHudClientState.clear();

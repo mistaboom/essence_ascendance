@@ -25,6 +25,7 @@ public final class MembershipRuntime {
         boolean started;
         Preparation preparation;
         String notice;
+        ProviderReadiness pendingFailure;
         Session(EssenceSavedData saved, MembershipProvider provider, boolean blocked) {
             this.saved = saved; this.provider = provider; this.blocked = blocked;
             this.settlement = new MembershipSettlement(saved);
@@ -50,8 +51,7 @@ public final class MembershipRuntime {
                               int affectedPlayers, int affectedTeams, String notice) { }
     public static void init() {
         Map<String, String> mods = new HashMap<>();
-        MembershipProviders.entries().stream().flatMap(e -> e.versions().stream())
-                .flatMap(tuple -> tuple.keySet().stream()).distinct().forEach(id -> {
+        MembershipProviders.entries().stream().map(MembershipProviders.Entry::modId).distinct().forEach(id -> {
             if (Platform.isModLoaded(id)) mods.put(id, Platform.getMod(id).getVersion());
         });
         providers = MembershipProviders.discover(mods, Platform.isFabric() ? "fabric" : Platform.isModLoaded("neoforge") ? "neoforge" : "unsupported",
@@ -85,6 +85,11 @@ public final class MembershipRuntime {
         return new ProviderReadiness(ProviderReadiness.Status.NOT_READY, "stage-4", detail);
     }
     private static MembershipAuthority.Decision decision(EssenceSavedData saved) {
+        // An actual API failure makes native membership the durable authority. A stale
+        // startup property must not undo recovery on every restart; explicit activation can.
+        if (saved.membershipAuthority() == MembershipAuthority.NATIVE && saved.hasMembershipFallback())
+            return MembershipAuthority.select(MembershipAuthority.Selection.AUTO, MembershipAuthority.NATIVE,
+                    MembershipProviders.statuses(providers));
         return MembershipAuthority.select(MembershipAuthority.selection(System.getProperty("essence.membershipAuthority", "auto")),
                 saved.establishedMembershipAuthority(), MembershipProviders.statuses(providers));
     }
@@ -116,14 +121,57 @@ public final class MembershipRuntime {
                 String detail = "Live provider membership/permission changed or unavailable";
                 session.observedProviders.put(saved.membershipAuthority(), status(detail));
                 invalidateSession(session, detail);
+                // This probe can run inside a financial operation. Finish denying that
+                // operation, then perform the authority transition at the next server tick.
+                if (!attempt.succeeded()) session.pendingFailure = failed(session.saved.membershipAuthority(),
+                        "Live membership API failed: " + attempt.failure());
             }
         });
         if (blocked) session.settlement.invalidate("Authority activation required");
         else if (saved.membershipAuthority() != MembershipAuthority.NATIVE) {
             session.settlement.invalidate("External authority awaiting settled complete roster");
-            if (session.provider == null) saved.reservoirs().pause(installed.readiness());
+            if (session.provider == null) {
+                ProviderReadiness readiness = installed == null
+                        ? new ProviderReadiness(ProviderReadiness.Status.ABSENT, "absent", "Membership API is no longer installed")
+                        : installed.readiness();
+                saved.reservoirs().pause(readiness);
+                fallback(server, session, readiness);
+            }
         } else MembershipPublication.publish(saved, NativeMembershipService.READY,
                 saved.reservoirs().settledTeams().stream().map(MembershipRoster::from).toList());
+    }
+    static boolean fallbackRequired(ProviderReadiness readiness) {
+        return readiness.status() == ProviderReadiness.Status.FAILED
+                || readiness.status() == ProviderReadiness.Status.ABSENT
+                || readiness.status() == ProviderReadiness.Status.UNSUPPORTED;
+    }
+    private static ProviderReadiness failed(MembershipAuthority authority, String detail) {
+        var installed = providers.get(authority);
+        return new ProviderReadiness(ProviderReadiness.Status.FAILED,
+                installed == null ? "unknown" : installed.readiness().version(), detail);
+    }
+    /** An unavailable startup epoch is not an incompatibility. Only an actual failure
+     * switches authority, using saved ownership/rosters rather than guessing new members. */
+    private static boolean fallback(MinecraftServer server, Session session, ProviderReadiness failure) {
+        if (session.blocked || session.saved.membershipAuthority() == MembershipAuthority.NATIVE
+                || !fallbackRequired(failure)) return false;
+        MembershipAuthority previous = session.saved.membershipAuthority();
+        String detail = previous.displayName() + " integration failed (" + failure.detail()
+                + "); using Essence Ascendance teams with the last confirmed ownership and balances";
+        var attempt = OptionalIntegration.attempt("membership", "preserve ownership and switch to native teams", () ->
+                MembershipFallback.activate(session.saved, detail));
+        if (!attempt.succeeded()) {
+            session.saved.reservoirs().pause(failed(previous, "Native fallback could not preserve saved ownership: " + attempt.failure()));
+            return false;
+        }
+        connect(server, session.saved, false);
+        Session replacement = SESSIONS.get(server);
+        replacement.started = session.started;
+        replacement.observedProviders.putAll(session.observedProviders);
+        replacement.observedProviders.put(previous, failure);
+        replacement.notice = detail;
+        EssenceAscendance.LOGGER.warn("{}", detail);
+        return true;
     }
     private static void invalidateSession(Session session, String detail) {
         session.settlement.invalidate(detail); session.schedule.invalidate();
@@ -150,6 +198,11 @@ public final class MembershipRuntime {
     private static void tick(MinecraftServer server) {
         Session session = SESSIONS.get(server);
         if (session == null || !session.started) return;
+        if (session.pendingFailure != null) {
+            ProviderReadiness failure = session.pendingFailure;
+            session.pendingFailure = null;
+            if (fallback(server, session, failure)) return;
+        }
         if (session.preparation != null && session.preparation.advanceTick()) {
             String notice = session.preparation.expiredMessage();
             cancel(server); SESSIONS.get(server).notice = notice;
@@ -172,14 +225,18 @@ public final class MembershipRuntime {
                     session.schedule.captured(true, preparation.receipt == null);
                 }
             } else {
-                var observation = capture(server, session.saved.membershipAuthority()); session.settlement.observe(observation);
+                var observation = capture(server, session.saved.membershipAuthority());
+                if (fallback(server, session, observation.readiness())) return Boolean.TRUE;
+                session.settlement.observe(observation);
                 session.schedule.captured(MembershipAuthority.ready(observation.readiness()), session.settlement.pending());
             }
             return Boolean.TRUE;
         });
         if (!attempt.succeeded()) {
             MembershipAuthority target = session.preparation == null ? session.saved.membershipAuthority() : session.preparation.target;
-            session.observedProviders.put(target, status("Provider capture/reconciliation failed: " + attempt.failure()));
+            ProviderReadiness failure = failed(target, "Provider capture/reconciliation failed: " + attempt.failure());
+            session.observedProviders.put(target, failure);
+            if (session.preparation == null && fallback(server, session, failure)) return;
             if (session.preparation != null) { session.preparation.candidate = null; session.preparation.receipt = null; }
             session.settlement.invalidate("Provider capture/reconciliation failed: " + attempt.failure()); session.schedule.captured(false, true);
         }
@@ -200,7 +257,8 @@ public final class MembershipRuntime {
         return new Diagnostics(session.saved.membershipAuthority(), session.saved.reservoirs().readiness(),
                 Map.copyOf(states), session.settlement.confirmedDeletions(), preparation == null ? null : preparation.target,
                 receipt == null ? null : receipt.token(), preparation == null ? 0 : preparation.ticksRemaining(),
-                receipt == null ? 0 : receipt.memberCount(), receipt == null ? 0 : receipt.teamCount(), session.notice);
+                receipt == null ? 0 : receipt.memberCount(), receipt == null ? 0 : receipt.teamCount(),
+                session.notice == null && session.saved.hasMembershipFallback() ? session.saved.membershipFallbackReason() : session.notice);
     }
     public static String diagnostics(MinecraftServer server) {
         Session session = Objects.requireNonNull(SESSIONS.get(server), "Membership server not initialized");
@@ -208,7 +266,9 @@ public final class MembershipRuntime {
                 + "; providers " + diagnosticSnapshot(server).providers() + "; confirmed deletions " + session.settlement.confirmedDeletions();
         if (session.preparation != null) result += session.preparation.receipt == null ? "; activation target awaiting two complete observations"
                 : "; " + session.preparation.receipt.description();
-        if (session.notice != null) result += "; " + session.notice;
+        String notice = session.notice == null && session.saved.hasMembershipFallback()
+                ? session.saved.membershipFallbackReason() : session.notice;
+        if (notice != null) result += "; " + notice;
         return result;
     }
     public static String prepare(MinecraftServer server, String id) {

@@ -87,6 +87,8 @@ public final class MachineBinding {
     /** Replay persisted membership events so unloaded infrastructure follows the same ownership rules. */
     public boolean refresh(EssenceSavedData saved) {
         boolean changed = false;
+        PoolId remapped = saved.remapFallbackPool(pool);
+        if (!java.util.Objects.equals(pool, remapped)) { pool = remapped; changed = true; }
         if (pendingPlacementOwner != null) {
             var placement = saved.resolvePool(pendingPlacementOwner).snapshot().orElse(null);
             if (placement == null) return false;

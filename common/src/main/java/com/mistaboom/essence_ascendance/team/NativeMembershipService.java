@@ -16,6 +16,12 @@ public final class NativeMembershipService {
     public record Request(UUID token, UUID applicant, PoolId source, PoolId target,
                           long sourceRevision, long targetRevision) { }
     public NativeMembershipService(EssenceSavedData saved) { this.saved = Objects.requireNonNull(saved); }
+    /** No external API is consulted after failure; stale native invitations do not cross this boundary. */
+    public static NativeMembershipService forFallback(EssenceSavedData saved) {
+        NativeMembershipService result = new NativeMembershipService(saved);
+        saved.reservoirs().settledTeams().forEach(team -> result.names.put(team.pool(), "Recovered team " + team.pool().id().toString().substring(0, 8)));
+        return result;
+    }
     private void writable() {
         if (saved.membershipAuthority() != MembershipAuthority.NATIVE
                 || !MembershipAuthority.ready(saved.reservoirs().readiness()))

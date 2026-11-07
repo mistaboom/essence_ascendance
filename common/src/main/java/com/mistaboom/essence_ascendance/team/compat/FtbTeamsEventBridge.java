@@ -5,7 +5,7 @@ import net.minecraft.server.MinecraftServer;
 
 import java.util.function.Consumer;
 
-/** Registers the audited 26.1.2 FTB event set on the active loader's bus. */
+/** Attempts the compiled FTB event API on the active loader; core membership can use polling. */
 public final class FtbTeamsEventBridge {
     private FtbTeamsEventBridge() { }
 

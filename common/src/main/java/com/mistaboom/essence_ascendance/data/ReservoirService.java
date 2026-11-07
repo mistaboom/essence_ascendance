@@ -254,6 +254,64 @@ public final class ReservoirService {
         reconcile(ready, Math.incrementExact(rosterRevision), teams, authority, publishAuthority, preview);
     }
 
+    /** Complete identity inventory, including receipts needed by currently unloaded machines. */
+    public Set<PoolId> knownPools() {
+        checkThread();
+        Set<PoolId> result = new HashSet<>(teams.keySet()); result.addAll(cursors.keySet()); result.addAll(dissolved.keySet());
+        machineJoins.values().forEach(history -> history.forEach(join -> result.add(join.pool())));
+        return Set.copyOf(result);
+    }
+
+    /**
+     * Actual provider failure changes only membership metadata. Unlike authority activation,
+     * it must not dissolve parties, replay joins, redistribute rounding remainders or edit money.
+     */
+    public void fallbackToNative(java.util.function.UnaryOperator<PoolId> remap, Runnable publishAuthority) {
+        checkThread();
+        MembershipAuthority previous = saved.membershipAuthority();
+        if (previous == MembershipAuthority.NATIVE) throw new IllegalStateException("Native membership needs no fallback");
+        Map<PoolId, MembershipSnapshot> nextTeams = new HashMap<>();
+        Map<UUID, MembershipSnapshot> nextIndex = new HashMap<>();
+        for (MembershipSnapshot snapshot : teams.values()) {
+            PoolId target = remap.apply(snapshot.pool());
+            UUID owner = snapshot.recoveryRecipient();
+            if (target.authority() != MembershipAuthority.NATIVE || target.kind() != PoolId.Kind.TEAM
+                    || owner == null || !snapshot.allows(owner, PoolCapability.MANAGE))
+                throw new IllegalStateException("Cannot preserve the recorded provider team owner during native fallback");
+            // Built-in teams have one owner. External officers remain full ordinary members.
+            var grants = MembershipPolicy.grants(snapshot.members(), Set.of(owner));
+            var replacement = new MembershipSnapshot(target, snapshot.members(), grants, snapshot.membershipRevision(),
+                    snapshot.permissions().equals(grants) ? snapshot.permissionRevision() : Math.incrementExact(snapshot.permissionRevision()), owner);
+            if (nextTeams.put(target, replacement) != null) throw new IllegalStateException("Native fallback team identity collision");
+            for (UUID member : replacement.members()) if (nextIndex.put(member, replacement) != null)
+                throw new IllegalStateException("Native fallback member belongs to multiple teams");
+        }
+        Map<PoolId, Map<ResourceLocation, Integer>> nextCursors = remapKeys(cursors, remap);
+        Map<PoolId, Optional<UUID>> nextDissolved = remapKeys(dissolved, remap);
+        Map<PoolId, Long> nextDissolutionRevisions = remapKeys(dissolutionRevisions, remap);
+        Map<UUID, List<MachineJoin>> nextJoins = new HashMap<>();
+        machineJoins.forEach((owner, history) -> nextJoins.put(owner, new ArrayList<>(history.stream()
+                .map(join -> new MachineJoin(join.revision(), remap.apply(join.pool()))).toList())));
+        long nextRevision = Math.incrementExact(revision), nextRosterRevision = Math.incrementExact(rosterRevision);
+        // All fallible validation and arithmetic precedes publication. No player record is read or written.
+        publishAuthority.run();
+        teams = nextTeams; memberIndex = nextIndex;
+        cursors.clear(); cursors.putAll(nextCursors);
+        dissolved.clear(); dissolved.putAll(nextDissolved);
+        dissolutionRevisions.clear(); dissolutionRevisions.putAll(nextDissolutionRevisions);
+        machineJoins.clear(); machineJoins.putAll(nextJoins);
+        revision = nextRevision; rosterRevision = nextRosterRevision; readiness = NativeMembershipService.READY;
+        views.clear(); saved.setDirty();
+    }
+
+    private static <T> Map<PoolId, T> remapKeys(Map<PoolId, T> source, java.util.function.UnaryOperator<PoolId> remap) {
+        Map<PoolId, T> result = new HashMap<>();
+        source.forEach((pool, value) -> {
+            if (result.put(remap.apply(pool), value) != null) throw new IllegalStateException("Native fallback metadata identity collision");
+        });
+        return result;
+    }
+
     private boolean reconcile(ProviderReadiness readiness, long sourceRevision, Collection<MembershipSnapshot> settledTeams,
                               MembershipAuthority authority, Runnable publishAuthority, boolean preview) {
         checkThread();

@@ -8,10 +8,13 @@ import java.util.UUID;
 /** Connection-scoped snapshots only; preference persistence remains in PlayerEssenceData. */
 public final class TeamInterfaceClientState {
     private static TeamInterfacePayload snapshot;
+    private static boolean nativeAvailable;
     private static boolean initialized;
     private static final UUID EMPTY = new UUID(0, 0);
     public static void init() {
         if (initialized) return; initialized = true;
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C, MembershipInterfacePayload.TYPE, MembershipInterfacePayload.CODEC,
+                (p, c) -> ClientPacketDispatch.queue(c, () -> nativeAvailable = p.nativeAvailable()));
         NetworkManager.registerReceiver(NetworkManager.Side.S2C, TeamInterfacePayload.TYPE, TeamInterfacePayload.CODEC,
                 (p, c) -> ClientPacketDispatch.queue(c, () -> {
                     var mc = net.minecraft.client.Minecraft.getInstance();
@@ -25,12 +28,13 @@ public final class TeamInterfaceClientState {
     }
     public static TeamInterfacePayload snapshot(int menuId) { return snapshot != null && snapshot.menuId() == menuId ? snapshot : null; }
     public static void clear() { snapshot = null; }
+    public static void clearConnection() { clear(); nativeAvailable = false; }
     public static Component text(TeamInterfacePayload.Text text) { return Component.translatable(text.key(), text.arguments().toArray()); }
     public static void request(int menuId, int view, int page) { NetworkManager.sendToServer(new TeamInterfaceActionPayload(menuId, EMPTY, TeamInterfaceActionPayload.REQUEST, view, Math.max(0, page), "")); }
     public static void open(int menuId) { clear(); NetworkManager.sendToServer(new TeamInterfaceActionPayload(menuId, EMPTY, TeamInterfaceActionPayload.OPEN, 0, 0, "")); }
     public static void close(int menuId) { clear(); NetworkManager.sendToServer(new TeamInterfaceActionPayload(menuId, EMPTY, TeamInterfaceActionPayload.CLOSE, 0, 0, "")); }
     public static boolean nativeButtonVisible() {
-        return !dev.architectury.platform.Platform.isModLoaded("ftbteams");
+        return nativeAvailable;
     }
     public static void action(TeamInterfacePayload snapshot, int index, String input) {
         NetworkManager.sendToServer(new TeamInterfaceActionPayload(snapshot.menuId(), snapshot.receipt(), index, snapshot.view(), snapshot.page(), input));

@@ -2,9 +2,12 @@ if (gradle.ext.has('essenceNativeFixture')) throw new GradleException('Run one n
 gradle.ext.essenceNativeFixture = 'membership'
 // Explicit isolated optional-loading checks. The 26.1.2 probes bind a disposable world.
 // Run one exact loader/version runServer task per invocation.
-// Add -PmembershipFixtureFtb=true for exact verified optional binaries.
+// Add -PmembershipFixtureFtb=true for the selected node's declared optional binaries.
 // The 1.21.1 Library variants use checksummed build/ftb-shared-compat-audit binaries;
 // 26.1.2 uses exact full binaries resolved by the selected node's declared coordinates.
+// To exercise another installed API, supply both -PmembershipFixtureFtbTeamsJar=<file>
+// and -PmembershipFixtureFtbLibraryJar=<file>, plus a unique -PmembershipAcceptanceLabel.
+// Explicit local binaries are attempted without any version allowlist.
 allprojects { p ->
     p.afterEvaluate {
         if (!p.rootProject.ext.has('nativeFixtureSelection'))
@@ -14,13 +17,32 @@ allprojects { p ->
         def requestedTasks = selection.taskPaths
         def enabled = p.rootProject.findProperty('membershipFixtureFtb') == 'true'
         def modern = p.targetResourceFormat == '26.1'
+        def teamsPath = p.rootProject.findProperty('membershipFixtureFtbTeamsJar')
+        def libraryPath = p.rootProject.findProperty('membershipFixtureFtbLibraryJar')
+        if ((teamsPath != null) != (libraryPath != null))
+            throw new GradleException('Supply both membershipFixtureFtbTeamsJar and membershipFixtureFtbLibraryJar')
+        def explicitJars = teamsPath != null
+        if (explicitJars && !enabled)
+            throw new GradleException('Explicit FTB fixture binaries require -PmembershipFixtureFtb=true')
+        if (explicitJars && p.rootProject.hasProperty('membershipFixtureFtbLibraryVersion'))
+            throw new GradleException('Choose explicit FTB jar paths or membershipFixtureFtbLibraryVersion, not both')
+        def localProviderJars = explicitJars ? [teamsPath, libraryPath].collect {
+            if (!it.toString().trim()) throw new GradleException('Explicit FTB fixture jar paths must not be blank')
+            def jar = p.rootProject.file(it.toString()).canonicalFile
+            if (!jar.isFile() || !jar.name.toLowerCase(Locale.ROOT).endsWith('.jar'))
+                throw new GradleException("Explicit FTB fixture binary must be an existing .jar file: ${jar}")
+            jar
+        } : []
+        if (explicitJars && (localProviderJars.toSet().size() != 2 || localProviderJars*.name.toSet().size() != 2))
+            throw new GradleException('Explicit Teams and Library binaries must be distinct files with distinct filenames')
         def libraryVersion = p.rootProject.findProperty('membershipFixtureFtbLibraryVersion') ?: p.targetFtbLibrary
-        if (!(libraryVersion in (modern ? [p.targetFtbLibrary] : [p.targetFtbLibrary, '2101.1.36', '2101.1.37'])))
+        if (!explicitJars && !(libraryVersion in (modern ? [p.targetFtbLibrary] : [p.targetFtbLibrary, '2101.1.36', '2101.1.37'])))
             throw new GradleException('Membership fixture requires an audited Library version')
-        def mode = enabled ? 'ftb-' + libraryVersion : 'absent'
+        def mode = explicitJars ? 'ftb-local' : enabled ? 'ftb-' + libraryVersion : 'absent'
         def common = p.rootProject.project(":common:${p.targetMinecraft}")
         def label = p.rootProject.findProperty('membershipAcceptanceLabel') ?: ''
         if (label && !(label ==~ /[a-z0-9-]+/)) throw new GradleException('Membership acceptance label must be lowercase letters, digits and hyphens')
+        if (explicitJars && !label) throw new GradleException('Explicit FTB binaries require a unique membershipAcceptanceLabel')
         def testRun = p.file("build/native-fixtures/membership-native-${p.parent.name}-${mode}${label ? '-' + label : ''}-run").canonicalFile
         def metadata = p.file("build/native-fixtures/membership-fixture-${p.parent.name}-metadata")
         def fixture = p.tasks.register('membershipNativeFixtureJar', Jar) {
@@ -123,11 +145,11 @@ side="SERVER"
             t.doFirst {
                 if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected membership test directory')
                 testRun.mkdirs()
-                def providerJars = enabled && !modern ? [
+                def providerJars = explicitJars ? new ArrayList(localProviderJars) : enabled && !modern ? [
                         p.rootProject.file("build/ftb-stage3-verification/ftb-teams-${p.parent.name}-${p.targetFtbTeams}.jar").canonicalFile,
                         p.rootProject.file("build/${libraryVersion == '2101.1.30' ? 'ftb-stage3-verification' : 'ftb-shared-compat-audit'}/ftb-library-${p.parent.name}-${libraryVersion}.jar").canonicalFile
                 ] : []
-                if (enabled && modern) {
+                if (enabled && modern && !explicitJars) {
                     def artifacts = p.configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts
                     ["ftb-teams-${p.parent.name}": p.targetFtbTeams,
                      "ftb-library-${p.parent.name}": libraryVersion].each { name, version ->
@@ -140,7 +162,7 @@ side="SERVER"
                         providerJars.add(resolved.first().file.canonicalFile)
                     }
                 }
-                if (providerJars.any { !it.isFile() }) throw new GradleException('Missing exact FTB fixture binaries')
+                if (providerJars.any { !it.isFile() }) throw new GradleException('Missing FTB fixture binaries')
                 if (modern) {
                     new File(testRun, 'eula.txt').text = 'eula=true\n'
                     def propertiesFile = new File(testRun, 'server.properties')
@@ -154,6 +176,11 @@ side="SERVER"
                     t.jvmArgs('-Dfabric.addMods=' + ([fixture.get().archiveFile.get().asFile.canonicalFile] + providerJars).collect { it.path }.join(File.pathSeparator))
                 } else {
                     def mods = new File(testRun, 'mods'); mods.mkdirs()
+                    if (explicitJars) {
+                        def expected = ([fixture.get().archiveFile.get().asFile.name] + providerJars*.name).toSet()
+                        def stale = mods.listFiles().findAll { it.isFile() && it.name.endsWith('.jar') && !expected.contains(it.name) }
+                        if (stale) throw new GradleException("Isolated fixture contains other jars ${stale}; use a fresh membershipAcceptanceLabel")
+                    }
                     p.copy { from(fixture.get().archiveFile); from(providerJars); into(mods) }
                 }
             }

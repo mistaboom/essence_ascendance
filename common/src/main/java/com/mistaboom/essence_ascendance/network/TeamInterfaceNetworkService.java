@@ -32,6 +32,7 @@ public final class TeamInterfaceNetworkService {
     }
     private static final Map<ServerPlayer, Sent> SENT = new WeakHashMap<>();
     private static final Map<ServerPlayer, ChannelSessionsPayload> HUD = new WeakHashMap<>();
+    private static final Map<ServerPlayer, Boolean> NATIVE_INTERFACE = new WeakHashMap<>();
     private static final Map<ServerPlayer, TeamPopup> POPUPS = new WeakHashMap<>();
     private static boolean initialized;
     private TeamInterfaceNetworkService() {}
@@ -41,16 +42,27 @@ public final class TeamInterfaceNetworkService {
         if (Platform.getEnvironment() == Env.SERVER) {
             NetworkManager.registerS2CPayloadType(TeamInterfacePayload.TYPE, TeamInterfacePayload.CODEC);
             NetworkManager.registerS2CPayloadType(ChannelSessionsPayload.TYPE, ChannelSessionsPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(MembershipInterfacePayload.TYPE, MembershipInterfacePayload.CODEC);
         }
         NetworkManager.registerReceiver(NetworkManager.Side.C2S, TeamInterfaceActionPayload.TYPE, TeamInterfaceActionPayload.CODEC,
                 (payload, context) -> context.queue(() -> { if (context.getPlayer() instanceof ServerPlayer player) handle(player, payload); }));
         TickEvent.PLAYER_POST.register(p -> {
             if (!(p instanceof ServerPlayer player)) return;
+            if (player.tickCount % 4 == 0) syncMembershipInterface(player);
             if (player.tickCount % 4 == 0) syncHud(player);
             if (player.tickCount % 4 == 0) sync(player, false);
         });
-        LifecycleEvent.SERVER_STOPPED.register(server -> { SENT.keySet().removeIf(p -> p.server == server); HUD.keySet().removeIf(p -> p.server == server); POPUPS.keySet().removeIf(p -> p.server == server); });
+        LifecycleEvent.SERVER_STOPPED.register(server -> { SENT.keySet().removeIf(p -> p.server == server); HUD.keySet().removeIf(p -> p.server == server); POPUPS.keySet().removeIf(p -> p.server == server); NATIVE_INTERFACE.keySet().removeIf(p -> p.server == server); });
         com.mistaboom.essence_ascendance.EssenceAscendance.LOGGER.info("Registered team interface requests, authoritative menu synchronization and incoming-session HUD synchronization");
+    }
+    private static void syncMembershipInterface(ServerPlayer player) {
+        boolean available = nativeInterfaceAvailable(player);
+        if ((!Objects.equals(NATIVE_INTERFACE.get(player), available) || player.tickCount % 100 == 0)
+                && player.connection != null && player.connection.isAcceptingMessages()
+                && NetworkManager.canPlayerReceive(player, MembershipInterfacePayload.TYPE)) {
+            NetworkManager.sendToPlayer(player, new MembershipInterfacePayload(available));
+            NATIVE_INTERFACE.put(player, available);
+        }
     }
     private static void syncHud(ServerPlayer player) {
         var links = EssenceCrucibleChannelService.links(player);
@@ -82,8 +94,7 @@ public final class TeamInterfaceNetworkService {
                 ? Component.translatable("gui.essence_ascendance.team.open_machine_guidance") : providerGuidance(player), false);
     }
     private static boolean nativeInterfaceAvailable(ServerPlayer player) {
-        return EssenceSavedData.get(player.server).membershipAuthority() == MembershipAuthority.NATIVE
-                && !Platform.isModLoaded("ftbteams");
+        return EssenceSavedData.get(player.server).membershipAuthority() == MembershipAuthority.NATIVE;
     }
     public static Component providerGuidance(ServerPlayer player) {
         Text guidance = providerGuidanceText(player);
@@ -92,12 +103,6 @@ public final class TeamInterfaceNetworkService {
     private static Text providerGuidanceText(ServerPlayer player) {
         var saved = EssenceSavedData.get(player.server);
         MembershipAuthority authority = saved.membershipAuthority();
-        // An explicitly selected, installed provider remains authoritative when installed.
-        boolean activeInstalled = authority == MembershipAuthority.FTB_TEAMS && Platform.isModLoaded("ftbteams");
-        MembershipAuthority installed = activeInstalled ? authority
-                : Platform.isModLoaded("ftbteams") ? MembershipAuthority.FTB_TEAMS : authority;
-        if (installed != authority)
-            return Text.of("provider_setup", installed.displayName(), authority.displayName(), installed.id());
         String readiness = MembershipRuntime.interfaceState(player.server, saved.resolvePool(player.getUUID()));
         if (!readiness.equals("READY_SOLO") && !readiness.equals("READY_TEAM"))
             return Text.of("provider_unavailable", authority.displayName());

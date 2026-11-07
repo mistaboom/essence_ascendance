@@ -43,6 +43,15 @@ public final class MultiplayerInterfaceTest {
                 List.of(TeamInterfacePayload.Text.of("requests_count", "257")), Collections.nCopies(6, new TeamInterfacePayload.Control(TeamInterfacePayload.Text.of("approve_request"), TeamInterfacePayload.Text.of("confirm.action"), false, false)), 0, 147);
         var buffer = buffer();
         try { TeamInterfacePayload.CODEC.encode(buffer, payload); check(TeamInterfacePayload.CODEC.decode(buffer).equals(payload), "Real interface codec preserves None, revisions, page and receipt"); } finally { buffer.release(); }
+        for (boolean nativeAvailable : new boolean[]{false, true}) {
+            var availability = new MembershipInterfacePayload(nativeAvailable);
+            buffer = buffer();
+            try {
+                MembershipInterfacePayload.CODEC.encode(buffer, availability);
+                check(MembershipInterfacePayload.CODEC.decode(buffer).equals(availability),
+                        "Native-fallback and active-external interface availability both round-trip without installed-mod inference");
+            } finally { buffer.release(); }
+        }
         var action = new TeamInterfaceActionPayload(17, payload.receipt(), 5, 2, 42, "Create team"); buffer = buffer();
         try { TeamInterfaceActionPayload.CODEC.encode(buffer, action); check(TeamInterfaceActionPayload.CODEC.decode(buffer).equals(action), "Actor-free action codec retains execution receipt"); } finally { buffer.release(); }
         var soulbind = new InfuserSoulbindPromptPayload(17, payload.receipt());

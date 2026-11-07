@@ -17,7 +17,7 @@ public final class MembershipNativeMod2612 {
     private void started(ServerStartedEvent event) {
         try {
             Class.forName("com.mistaboom.essence_ascendance.team.MembershipNativeHookTest")
-                    .getMethod("run").invoke(null);
+                    .getMethod("runServer", net.minecraft.server.MinecraftServer.class).invoke(null, event.getServer());
             event.getServer().halt(false);
         } catch (Throwable failure) {
             failure.printStackTrace();

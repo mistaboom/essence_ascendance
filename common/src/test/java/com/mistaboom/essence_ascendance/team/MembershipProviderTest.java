@@ -23,7 +23,7 @@ public final class MembershipProviderTest {
         nativeOperations(); nativeFailures(); personalAccessRequests(); approvalNaming(); pendingRequestLifecycle(); machineOwnershipReceipts();
         for (MembershipAuthority authority : MembershipAuthority.values()) providerContract(authority);
         for (MembershipAuthority authority : List.of(MembershipAuthority.FTB_TEAMS)) externalLifecycle(authority);
-        versionAndAbsence(); selectionMatrix(); activationBoundary(); activationReviewWindow(); nativeActivation(); captureSchedule();
+        versionAndAbsence(); discoveryFailures(); selectionMatrix(); runtimeFailureRecovery(); activationBoundary(); activationReviewWindow(); nativeActivation(); captureSchedule();
         System.out.println("MembershipProviderTest: " + assertions + " assertions passed");
     }
     private static void nativeOperations() {
@@ -292,49 +292,87 @@ public final class MembershipProviderTest {
         check(saved.resolvePool(A).state() == MembershipResolution.State.READY_TEAM, "Native mutations resume only after explicit activation");
     }
     private static void versionAndAbsence() {
-        for (var entry : MembershipProviders.entries()) for (String loader : List.of("fabric", "neoforge")) {
-            for (var tuple : entry.versions()) {
-                check(MembershipProviders.support(entry, tuple, loader).status() == ProviderReadiness.Status.NOT_READY, "Audited target tuple accepted");
-                check(MembershipProviders.support(entry, tuple, "forge").status() == ProviderReadiness.Status.UNSUPPORTED, "Unaudited loader unsupported");
+        for (var entry : MembershipProviders.entries()) for (String loader : List.of("fabric", "neoforge", "future-loader")) {
+            for (String version : List.of("26.1.2.999", "2101.99.99", "unknown", "future-api-preview+local")) {
+                var detected = MembershipProviders.support(entry, Map.of(entry.modId(), version), loader);
+                check(detected.status() == ProviderReadiness.Status.NOT_READY && detected.version().equals(version),
+                        "Installed versions are diagnostics, never an allowlist: the actual adapter must be attempted");
+                var changedDependency = MembershipProviders.support(entry,
+                        Map.of(entry.modId(), version, "ftblibrary", "newer-library-build"), loader);
+                check(changedDependency.status() == ProviderReadiness.Status.NOT_READY,
+                        "Library updates do not require an Essence Ascendance version-list update");
             }
-            check(MembershipProviders.support(entry, Map.of(entry.modId(), "unknown"), loader).status() == ProviderReadiness.Status.UNSUPPORTED, "Unverified versions fail closed");
-            check(MembershipProviders.support(entry, Map.of(), loader).status() == ProviderReadiness.Status.ABSENT, "Absent distinct from unsupported");
-        }
-        var ftb = MembershipProviders.entries().stream().filter(e -> e.authority() == MembershipAuthority.FTB_TEAMS).findFirst().orElseThrow();
-        //? if >=26.1.2
-        /*var shared = Map.of("ftbteams", "26.1.2.4", "ftblibrary", "26.1.2.9");*/
-        //? if <26.1.2
-        var shared = Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.36", "architectury", "13.0.11");
-        for (String loader : List.of("fabric", "neoforge")) {
-            check(MembershipProviders.support(ftb, shared, loader).status() == ProviderReadiness.Status.NOT_READY,
-                    "One installed FTB tuple supports functional membership");
-            //? if <26.1.2
-            var newest = new HashMap<>(shared); newest.put("ftblibrary", "2101.1.37");
-            //? if <26.1.2
-            check(MembershipProviders.support(ftb, newest, loader).status() == ProviderReadiness.Status.NOT_READY, "The installed Library 2101.1.37 tuple supports functional membership");
-            //? if >=26.1.2
-            /*for (var rejected : List.of(Map.of("ftbteams", "26.1.2.4", "ftblibrary", "26.1.2.8"), Map.of("ftbteams", "26.1.2.3", "ftblibrary", "26.1.2.9"), Map.of("ftbteams", "26.1.2.4")))*/
-            //? if <26.1.2
-            for (var rejected : List.of(Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.35"),
-                    //? if <26.1.2
-                    Map.of("ftbteams", "2101.1.10", "ftblibrary", "2101.1.36"), Map.of("ftbteams", "2101.1.11")))
-                check(MembershipProviders.support(ftb, rejected, loader).status() == ProviderReadiness.Status.UNSUPPORTED,
-                        "Unverified or incomplete membership tuple remains blocked");
+            check(MembershipProviders.support(entry, Map.of(), loader).status() == ProviderReadiness.Status.ABSENT,
+                    "A genuinely absent provider remains distinct from a failed API attempt");
         }
         // Loading unconditional public contracts in a fixture runtime with no FTB jars must succeed.
         try { Class.forName("com.mistaboom.essence_ascendance.team.MembershipRuntime"); check(true, "Common runtime absent-safe class loading"); }
         catch (ClassNotFoundException failure) { throw new AssertionError(failure); }
     }
+    private static void discoveryFailures() {
+        Map<String, String> mods = Map.of("ftbteams", "future-api-preview+local");
+        int[] created = {0}, hooks = {0};
+        var healthy = fixtureProvider(() -> hooks[0]++);
+        var available = MembershipProviders.discover(mods, "future-loader", (server, authority) -> { }, (entry, version) -> {
+            created[0]++;
+            check(version.equals(mods.get(entry.modId())), "The adapter receives the installed version for diagnostics");
+            return healthy;
+        });
+        var ftb = available.get(MembershipAuthority.FTB_TEAMS);
+        check(created[0] == 1 && hooks[0] == 1 && ftb.provider() == healthy
+                        && ftb.readiness().status() == ProviderReadiness.Status.NOT_READY,
+                "A future version reaches real adapter construction and event registration without guessing readiness");
+        var absent = MembershipProviders.discover(Map.of(), "neoforge", (server, authority) -> { }, (entry, version) -> {
+            throw new AssertionError("Absent optional API must never be linked");
+        });
+        check(absent.get(MembershipAuthority.FTB_TEAMS).provider() == null
+                        && absent.get(MembershipAuthority.FTB_TEAMS).readiness().status() == ProviderReadiness.Status.ABSENT,
+                "Absent optional mods do not load an adapter");
+        List<java.util.function.Supplier<MembershipProvider>> failures = List.of(
+                () -> { throw new NoClassDefFoundError("fixture missing API class"); },
+                () -> { throw new NoSuchMethodError("fixture changed API signature"); },
+                () -> { throw new IllegalStateException("fixture API initialization failed"); });
+        for (var factory : failures) {
+            var failed = MembershipProviders.discover(mods, "neoforge", (server, authority) -> { }, (entry, version) -> factory.get());
+            var result = failed.get(MembershipAuthority.FTB_TEAMS);
+            check(result.provider() == null && result.readiness().status() == ProviderReadiness.Status.FAILED
+                            && result.readiness().detail().contains("fixture")
+                            && result.readiness().version().equals(mods.get("ftbteams")),
+                    "An actual missing/changed/broken API is isolated and diagnosed instead of aborting startup");
+            check(failed.get(MembershipAuthority.NATIVE).readiness().status() == ProviderReadiness.Status.AVAILABLE,
+                    "An optional API failure does not disable native membership discovery");
+        }
+        var polling = fixtureProvider(() -> { throw new NoSuchMethodError("fixture event API changed"); });
+        var eventsFailed = MembershipProviders.discover(mods, "neoforge", (server, authority) -> { }, (entry, version) -> polling)
+                .get(MembershipAuthority.FTB_TEAMS);
+        check(eventsFailed.provider() == polling && eventsFailed.readiness().status() == ProviderReadiness.Status.NOT_READY
+                        && eventsFailed.readiness().detail().toLowerCase(Locale.ROOT).contains("poll"),
+                "A broken optional event hook retains authoritative capture and live permission checks through polling");
+        check(eventsFailed.provider().capture(null).readiness().status() == ProviderReadiness.Status.AVAILABLE,
+                "Event-hook failure cannot poison an otherwise working roster API");
+        boolean fatalEscaped = false;
+        try { MembershipProviders.discover(mods, "neoforge", (server, authority) -> { }, (entry, version) -> {
+            throw new OutOfMemoryError("fixture fatal VM failure");
+        }); } catch (OutOfMemoryError expected) { fatalEscaped = true; }
+        check(fatalEscaped, "Fatal VM failures are not mislabeled as optional API incompatibility");
+    }
+    private static MembershipProvider fixtureProvider(Runnable install) {
+        return new MembershipProvider() {
+            @Override public Observation capture(MinecraftServer server) { return new Observation(READY, List.of()); }
+            @Override public boolean isCurrent(MinecraftServer server, UUID member, MembershipSnapshot settled) { return settled == null; }
+            @Override public void installInvalidation(java.util.function.Consumer<MinecraftServer> invalidate) { install.run(); }
+        };
+    }
     private static void selectionMatrix() {
         ProviderReadiness absent = new ProviderReadiness(ProviderReadiness.Status.ABSENT, "none", "Absent");
-        ProviderReadiness unsupported = new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, "x", "Unaudited");
+        ProviderReadiness unsupported = new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, "x", "Legacy unavailable state fixture");
         ProviderReadiness waiting = new ProviderReadiness(ProviderReadiness.Status.NOT_READY, "x", "Starting");
         for (var ftb : List.of(absent, unsupported, waiting, READY)) {
             var statuses = Map.of(MembershipAuthority.NATIVE, READY, MembershipAuthority.FTB_TEAMS, ftb);
             var selected = MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null, statuses);
             MembershipAuthority expected = ftb == absent ? MembershipAuthority.NATIVE : MembershipAuthority.FTB_TEAMS;
             check(selected.authority() == expected, "Deterministic new-world AUTO matrix");
-            if (ftb == unsupported) check(!selected.usable(), "Installed unsupported never silently enables native");
+            if (ftb == unsupported) check(!selected.usable(), "Selection reports unavailable evidence; preserved-state fallback belongs to the runtime");
             for (MembershipAuthority authority : MembershipAuthority.values()) {
                 check(MembershipAuthority.select(MembershipAuthority.Selection.AUTO, authority, statuses).authority() == authority, "Persisted authority survives install/removal/replacement");
                 check(MembershipAuthority.select(MembershipAuthority.selection(authority.id()), null, statuses).authority() == authority, "Stable explicit ID selection");
@@ -375,6 +413,104 @@ public final class MembershipProviderTest {
         for (int tick = 1; tick < MembershipCaptureSchedule.RECOVERY_TICKS; tick++) check(!schedule.due(), "No full capture between bounded checks");
         check(schedule.due(), "Bounded fallback detects eventless changes"); schedule.captured(false, true);
         check(!schedule.due(), "Unavailable provider is not queried every tick"); schedule.invalidate(); check(schedule.due(), "Event invalidation captures next tick");
+    }
+    @SuppressWarnings("unchecked")
+    private static void runtimeFailureRecovery() {
+        try {
+            var providersField = MembershipRuntime.class.getDeclaredField("providers"); providersField.setAccessible(true);
+            var sessionsField = MembershipRuntime.class.getDeclaredField("SESSIONS"); sessionsField.setAccessible(true);
+            var connect = MembershipRuntime.class.getDeclaredMethod("connect", MinecraftServer.class, EssenceSavedData.class, boolean.class);
+            var tick = MembershipRuntime.class.getDeclaredMethod("tick", MinecraftServer.class);
+            var decision = MembershipRuntime.class.getDeclaredMethod("decision", EssenceSavedData.class);
+            connect.setAccessible(true); tick.setAccessible(true); decision.setAccessible(true);
+            Map<Object, Object> sessions = (Map<Object, Object>) sessionsField.get(null);
+            Object previousProviders = providersField.get(null), previousSession = sessions.get(null);
+            boolean hadSession = sessions.containsKey(null);
+            String previousSelection = System.getProperty("essence.membershipAuthority");
+            try {
+                System.setProperty("essence.membershipAuthority", "auto");
+                for (String mode : List.of("initialization", "removed", "capture-linkage", "capture-status", "waiting", "probe-error", "probe-change")) {
+                    var ready = new ProviderReadiness(ProviderReadiness.Status.AVAILABLE, "future-api", "Complete fixture roster");
+                    var waiting = new ProviderReadiness(ProviderReadiness.Status.NOT_READY, "future-api", "Manager still starting");
+                    var failed = new ProviderReadiness(ProviderReadiness.Status.FAILED, "future-api", "Actual fixture API failure");
+                    var party = MembershipRoster.party(MembershipAuthority.FTB_TEAMS, TEAM, List.of(A, B), Set.of(A), A);
+                    var evidence = new MembershipProvider.Observation(ready, List.of(party));
+                    boolean[] probeChanged = {false};
+                    MembershipProvider fake = new MembershipProvider() {
+                        public Observation capture(MinecraftServer server) {
+                            if (mode.equals("capture-linkage")) throw new NoSuchMethodError("Fixture roster API removed");
+                            if (mode.equals("capture-status")) return new Observation(failed, List.of());
+                            if (mode.equals("waiting")) return new Observation(waiting, List.of());
+                            return evidence;
+                        }
+                        public boolean isCurrent(MinecraftServer server, UUID member, MembershipSnapshot settled) {
+                            if (probeChanged[0] && mode.equals("probe-error")) throw new NoClassDefFoundError("Fixture live API removed");
+                            return !probeChanged[0];
+                        }
+                        public void installInvalidation(java.util.function.Consumer<MinecraftServer> invalidate) { }
+                    };
+                    boolean disconnected = mode.equals("initialization") || mode.equals("removed");
+                    var discovery = mode.equals("removed")
+                            ? new ProviderReadiness(ProviderReadiness.Status.ABSENT, "absent", "Fixture mod removed")
+                            : disconnected ? failed : waiting;
+                    providersField.set(null, Map.of(
+                            MembershipAuthority.NATIVE, new MembershipProviders.Installed(READY, null),
+                            MembershipAuthority.FTB_TEAMS, new MembershipProviders.Installed(discovery, disconnected ? null : fake)));
+                    var saved = new EssenceSavedData(); saved.establishMembershipAuthority(MembershipAuthority.FTB_TEAMS);
+                    seed(saved, A, 120); seed(saved, B, 40);
+                    MembershipPublication.publish(saved, ready, List.of(party));
+                    var money = accounts(saved);
+                    connect.invoke(null, null, saved, false);
+                    var started = sessions.get(null).getClass().getDeclaredField("started"); started.setAccessible(true);
+                    started.setBoolean(sessions.get(null), true);
+                    if (mode.startsWith("probe-")) {
+                        tick.invoke(null, (Object) null); tick.invoke(null, (Object) null);
+                        check(saved.resolvePool(A).requireReady().pool().equals(party.pool()), "A complete working API settles before live-probe failure testing");
+                        probeChanged[0] = true;
+                        check(saved.resolvePool(A).snapshot().isEmpty() && saved.membershipAuthority() == MembershipAuthority.FTB_TEAMS,
+                                "A failed or stale live probe denies the current operation without switching authority inside it");
+                        check(accounts(saved).equals(money), "Denied live authorization changes no player money");
+                        probeChanged[0] = false;
+                    }
+                    tick.invoke(null, (Object) null);
+                    if (mode.equals("waiting") || mode.equals("probe-change")) {
+                        check(saved.membershipAuthority() == MembershipAuthority.FTB_TEAMS && !saved.hasMembershipFallback(),
+                                "Temporary startup and ordinary roster changes never trigger an automatic authority switch");
+                        if (mode.equals("probe-change")) {
+                            tick.invoke(null, (Object) null);
+                            check(saved.resolvePool(A).requireReady().pool().equals(party.pool()), "A changed live probe resumes through two matching captures");
+                        } else {
+                            for (int count = 0; count < 210; count++) tick.invoke(null, (Object) null);
+                            check(saved.membershipAuthority() == MembershipAuthority.FTB_TEAMS && saved.resolvePool(A).snapshot().isEmpty(),
+                                    "Repeated not-ready observations keep saved membership protected while the manager initializes");
+                        }
+                    } else {
+                        check(saved.membershipAuthority() == MembershipAuthority.NATIVE && saved.hasMembershipFallback(),
+                                mode + " automatically establishes the built-in authority");
+                        var resolved = saved.resolvePool(A).requireReady();
+                        check(resolved.pool().equals(saved.remapFallbackPool(party.pool())) && resolved.members().equals(List.of(A, B))
+                                        && !resolved.allows(C, PoolCapability.USE),
+                                mode + " preserves the last confirmed team and excludes outsiders");
+                        check(MembershipRuntime.diagnosticSnapshot(null).notice().contains("using Essence Ascendance teams"),
+                                "Automatic fallback is visible in membership status");
+                        var loaded = EssenceSavedData.load(save(saved), null);
+                        System.setProperty("essence.membershipAuthority", "ftb_teams");
+                        var next = (MembershipAuthority.Decision) decision.invoke(null, loaded);
+                        check(next.authority() == MembershipAuthority.NATIVE && !next.authorityChangeRequired(),
+                                "Persisted fallback survives restart even when a stale startup property requests the failed provider");
+                        System.setProperty("essence.membershipAuthority", "auto");
+                    }
+                    check(accounts(saved).equals(money), mode + " preserves exact recorded player balances");
+                }
+            } finally {
+                providersField.set(null, previousProviders);
+                if (hadSession) sessions.put(null, previousSession); else sessions.remove(null);
+                if (previousSelection == null) System.clearProperty("essence.membershipAuthority");
+                else System.setProperty("essence.membershipAuthority", previousSelection);
+            }
+        } catch (ReflectiveOperationException failure) {
+            throw new AssertionError("Unable to exercise automatic membership fallback lifecycle", failure);
+        }
     }
     @SuppressWarnings("unchecked")
     private static void activationReviewWindow() {

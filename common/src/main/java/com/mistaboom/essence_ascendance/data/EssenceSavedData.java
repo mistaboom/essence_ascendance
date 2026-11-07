@@ -68,6 +68,21 @@ public final class EssenceSavedData extends SavedData {
         PoolMembershipState replacement = memberships.forAuthority(authority);
         reservoirs.activateAuthority(authority, ready, teams, () -> memberships = replacement, preview);
     }
+    public boolean hasMembershipFallback() { reservoirs.checkThread(); return memberships.hasFallback(); }
+    public String membershipFallbackReason() { reservoirs.checkThread(); return memberships.fallbackReason(); }
+    public com.mistaboom.essence_ascendance.team.PoolId remapFallbackPool(com.mistaboom.essence_ascendance.team.PoolId pool) {
+        reservoirs.checkThread(); return memberships.remapFallbackPool(pool);
+    }
+    /** Retain confirmed membership and exact accounts when an installed external API actually fails. */
+    public boolean fallbackToNative(String reason) {
+        reservoirs.checkThread();
+        if (membershipAuthority() == MembershipAuthority.NATIVE) return false;
+        PoolMembershipState replacement = memberships.forNativeFallback(reservoirs.knownPools(), reason);
+        reservoirs.fallbackToNative(replacement::remapFallbackPool, () -> memberships = replacement);
+        membershipProbe = ignored -> { };
+        nativeMembership = com.mistaboom.essence_ascendance.team.NativeMembershipService.forFallback(this);
+        setDirty(); return true;
+    }
     public void membershipProbe(java.util.function.Consumer<UUID> probe) {
         reservoirs.checkThread(); membershipProbe = java.util.Objects.requireNonNull(probe);
     }

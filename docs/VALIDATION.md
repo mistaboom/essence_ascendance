@@ -18,6 +18,19 @@ four targets, and the user accepted the reviewed visual result on 2026-11-07.
 counts and the distinction between those two archive sets. A later version/package
 has its own release checks; earlier exact-byte evidence is not relabeled.
 
+The 2026-11-07 membership compatibility fix passed `checkSupportedTargets` on
+all four targets. Both common suites include 482 provider, 169 binding and 281
+interface assertions: arbitrary installed versions, actual API failures,
+fresh-world solo recovery, exact balances, historical ownership and durable
+native fallback. Isolated NeoForge 26.1.2 servers passed with FTB absent and with
+the pack's Teams 26.1.2.5 / Library 26.1.2.11 binaries. The installed FTB manager
+returned a complete available roster and accepted a party-free UUID as solo;
+71 actual-interface fixture assertions covered controlled parties and transitions.
+After deployment to the FTB Evolution 2 server, membership reported FTB Teams
+`AVAILABLE` and saved-profile validation passed without regeneration. Server and
+Prism jar hashes matched; settings and the saved generated profile were unchanged.
+These checks do not substitute for a connected client's graphical playthrough.
+
 | Evidence | What it establishes | Limit |
 | --- | --- | --- |
 | Normal `checkSupportedTargets` | Both versioned common suites, all four catalog-selected production/archive asset checks and Pack Tester regression | Compilation, invariant and packaging success do not prove every live interaction. |

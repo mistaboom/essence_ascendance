@@ -30,7 +30,7 @@ public enum MembershipAuthority {
                 && readiness.requiredEvidenceComplete();
     }
 
-    /** Selection is policy. Established authority is retained through absence or API failure. */
+    /** Selection retains persisted identities. Runtime failure recovery migrates them separately. */
     public static Decision select(Selection requested, MembershipAuthority established,
                                   Map<MembershipAuthority, ProviderReadiness> providers) {
         Objects.requireNonNull(requested);
@@ -41,7 +41,7 @@ public enum MembershipAuthority {
         } else if (requested != Selection.AUTO) {
             selected = valueOf(requested.name());
         } else {
-            // A supported provider that is still starting must not cause a native fallback.
+            // An installed provider that is still starting must not cause a native fallback.
             selected = NATIVE;
             for (MembershipAuthority candidate : new MembershipAuthority[]{FTB_TEAMS}) {
                 ProviderReadiness status = status(providers, candidate);
@@ -51,7 +51,7 @@ public enum MembershipAuthority {
                     break;
                 }
             }
-            // With no supported external authority, an installed unusable one blocks native AUTO.
+            // Runtime recovery must explicitly preserve identities if an installed API fails.
             if (selected == NATIVE) for (MembershipAuthority candidate : new MembershipAuthority[]{FTB_TEAMS}) {
                 if (status(providers, candidate).status() != ProviderReadiness.Status.ABSENT) {
                     selected = candidate; break;
@@ -65,6 +65,6 @@ public enum MembershipAuthority {
     private static ProviderReadiness status(Map<MembershipAuthority, ProviderReadiness> providers,
                                              MembershipAuthority authority) {
         return providers.getOrDefault(authority, new ProviderReadiness(
-                ProviderReadiness.Status.ABSENT, "none", "No supported membership adapter available"));
+                ProviderReadiness.Status.ABSENT, "none", "Membership API is not installed"));
     }
 }

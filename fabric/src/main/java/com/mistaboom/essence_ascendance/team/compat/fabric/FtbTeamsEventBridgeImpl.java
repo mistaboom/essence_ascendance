@@ -20,21 +20,21 @@ package com.mistaboom.essence_ascendance.team.compat.fabric;
 //? if >=26.1.2
 /*        var managerChanged = FtbTeamsMembershipProvider.managerInvalidation(invalidate);*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_MANAGER.register(managerChanged::accept);*/
+/*        FTBTeamsEvents.TEAM_MANAGER.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> managerChanged.accept(data)));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_CREATED.register(data -> changed.accept(data.team(), null));*/
+/*        FTBTeamsEvents.TEAM_CREATED.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> changed.accept(data.team(), null)));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_DELETED.register(data -> changed.accept(data.team(), null));*/
+/*        FTBTeamsEvents.TEAM_DELETED.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> changed.accept(data.team(), null)));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_CHANGED_TEAM.register(data -> changed.accept(data.team(), data.previousTeam()));*/
+/*        FTBTeamsEvents.PLAYER_CHANGED_TEAM.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> changed.accept(data.team(), data.previousTeam())));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_JOINED_PARTY_TEAM.register(data -> changed.accept(data.team(), data.previousTeam()));*/
+/*        FTBTeamsEvents.PLAYER_JOINED_PARTY_TEAM.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> changed.accept(data.team(), data.previousTeam())));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_LEFT_PARTY_TEAM.register(data -> changed.accept(data.team(), data.playerTeam()));*/
+/*        FTBTeamsEvents.PLAYER_LEFT_PARTY_TEAM.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> changed.accept(data.team(), data.playerTeam())));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.PLAYER_TRANSFERRED_OWNERSHIP.register(data -> changed.accept(data.team(), null));*/
+/*        FTBTeamsEvents.PLAYER_TRANSFERRED_OWNERSHIP.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> changed.accept(data.team(), null)));*/
 //? if >=26.1.2
-/*        FTBTeamsEvents.TEAM_PROPERTIES_CHANGED.register(data -> changed.accept(data.team(), null));*/
+/*        FTBTeamsEvents.TEAM_PROPERTIES_CHANGED.register(data -> FtbTeamsMembershipProvider.observeEvent(() -> changed.accept(data.team(), null)));*/
 //? if >=26.1.2
 /*    }*/
 //? if >=26.1.2

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.team.compat;
 
 import com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness;
+import com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration;
 import com.mistaboom.essence_ascendance.team.*;
 import dev.ftb.mods.ftbteams.api.*;
 import dev.ftb.mods.ftbteams.api.event.*;
@@ -9,12 +10,12 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/** Only this conditionally constructed class links an audited FTB Teams public API. */
+/** Only this conditionally constructed class links the installed FTB Teams public API. */
 public final class FtbTeamsMembershipProvider implements MembershipProvider {
-    //? if >=26.1.2
-    /*private static final String VERSION = "26.1.2.4";*/
-    //? if <26.1.2
-    private static final String VERSION = "2101.1.11";
+    private final String version;
+    public FtbTeamsMembershipProvider(String version) {
+        this.version = Objects.requireNonNullElse(version, "unknown");
+    }
     private static TeamManager manager(MinecraftServer server) {
         FTBTeamsAPI.API api = FTBTeamsAPI.api();
         if (api == null || !api.isManagerLoaded()) return null;
@@ -33,7 +34,7 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
         return managers;
     }
     @Override public Observation capture(MinecraftServer server) {
-        return captureManager(manager(server));
+        return captureManager(manager(server), version);
     }
     @Override public Optional<String> teamName(MinecraftServer server, UUID id) {
         return teamName(manager(server), id);
@@ -44,8 +45,11 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
                 .map(team -> team.getName().getString()).filter(name -> !name.isBlank());
     }
     static Observation captureManager(TeamManager manager) {
+        return captureManager(manager, "unknown");
+    }
+    static Observation captureManager(TeamManager manager, String version) {
         if (manager == null) return new Observation(new ProviderReadiness(ProviderReadiness.Status.NOT_READY,
-                VERSION, "FTB manager not loaded for this server"), List.of());
+                version, "FTB manager not loaded for this server"), List.of());
         List<MembershipRoster> rosters = new ArrayList<>();
         for (Team team : manager.getTeams()) {
             // Player/default teams resolve to solo; server administrative groupings are excluded.
@@ -61,7 +65,7 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
             rosters.add(MembershipRoster.party(MembershipAuthority.FTB_TEAMS, team.getId(), members, managers, team.getOwner()));
         }
         // A complete party roster includes offline members. Invitations/allies never enter getMembers().
-        return new Observation(new ProviderReadiness(ProviderReadiness.Status.AVAILABLE, VERSION,
+        return new Observation(new ProviderReadiness(ProviderReadiness.Status.AVAILABLE, version,
                 "Complete actual FTB party rosters including offline members"), rosters);
     }
     @Override public boolean isCurrent(MinecraftServer server, UUID member, MembershipSnapshot settled) {
@@ -87,10 +91,19 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
     }
     static BiConsumer<Team, Team> teamInvalidation(Runnable invalidate) {
         return (team, previous) -> {
-            // First login creates a default player team and changes null -> player, neither of
-            // which changes a captured party roster. Leaving a party must inspect the old team.
-            if (serverParty(team) || serverParty(previous)) invalidate.run();
+            observeEvent(() -> {
+                // First login creates a default player team and changes null -> player, neither of
+                // which changes a captured party roster. Leaving a party must inspect the old team.
+                if (serverParty(team) || serverParty(previous)) invalidate.run();
+            });
         };
+    }
+    /** Event APIs are optional accelerators; core live probes and roster polling still authorize access. */
+    public static void observeEvent(Runnable event) {
+        OptionalIntegration.attempt("ftb_teams", "membership event callback; periodic roster polling remains enabled", () -> {
+            event.run();
+            return Boolean.TRUE;
+        });
     }
     private static boolean serverParty(Team team) {
         // Deleted parties can already be invalid; their removal must still settle fail-closed.
@@ -98,10 +111,10 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
     }
     //? if >=26.1.2 {
     /*public static Consumer<TeamManagerEvent.Data> managerInvalidation(Consumer<MinecraftServer> invalidate) {
-        return event -> {
+        return event -> observeEvent(() -> {
             // Persisting existing data (including first-login personal teams) does not change membership.
             if (event.action() != TeamManagerEvent.Action.SAVED) invalidate.accept(event.manager().getServer());
-        };
+        });
     }
     *///? }
     @Override public void installInvalidation(Consumer<MinecraftServer> invalidate) {
@@ -110,24 +123,24 @@ public final class FtbTeamsMembershipProvider implements MembershipProvider {
         //? if <26.1.2
         var changed = teamInvalidation(invalidate);
         //? if <26.1.2
-        TeamManagerEvent.CREATED.register(e -> invalidate.accept(e.getManager().getServer()));
+        TeamManagerEvent.CREATED.register(e -> observeEvent(() -> invalidate.accept(e.getManager().getServer())));
         //? if <26.1.2
-        TeamManagerEvent.LOADED.register(e -> invalidate.accept(e.getManager().getServer()));
+        TeamManagerEvent.LOADED.register(e -> observeEvent(() -> invalidate.accept(e.getManager().getServer())));
         //? if <26.1.2
-        TeamManagerEvent.DESTROYED.register(e -> invalidate.accept(e.getManager().getServer()));
+        TeamManagerEvent.DESTROYED.register(e -> observeEvent(() -> invalidate.accept(e.getManager().getServer())));
         //? if <26.1.2
-        TeamEvent.CREATED.register(e -> changed.accept(e.getTeam(), null));
+        TeamEvent.CREATED.register(e -> observeEvent(() -> changed.accept(e.getTeam(), null)));
         //? if <26.1.2
-        TeamEvent.DELETED.register(e -> changed.accept(e.getTeam(), null));
+        TeamEvent.DELETED.register(e -> observeEvent(() -> changed.accept(e.getTeam(), null)));
         //? if <26.1.2
-        TeamEvent.PLAYER_CHANGED.register(e -> changed.accept(e.getTeam(), e.getPreviousTeam().orElse(null)));
+        TeamEvent.PLAYER_CHANGED.register(e -> observeEvent(() -> changed.accept(e.getTeam(), e.getPreviousTeam().orElse(null))));
         //? if <26.1.2
-        TeamEvent.PLAYER_JOINED_PARTY.register(e -> changed.accept(e.getTeam(), e.getPreviousTeam()));
+        TeamEvent.PLAYER_JOINED_PARTY.register(e -> observeEvent(() -> changed.accept(e.getTeam(), e.getPreviousTeam())));
         //? if <26.1.2
-        TeamEvent.PLAYER_LEFT_PARTY.register(e -> changed.accept(e.getTeam(), e.getPlayerTeam()));
+        TeamEvent.PLAYER_LEFT_PARTY.register(e -> observeEvent(() -> changed.accept(e.getTeam(), e.getPlayerTeam())));
         //? if <26.1.2
-        TeamEvent.OWNERSHIP_TRANSFERRED.register(e -> changed.accept(e.getTeam(), null));
+        TeamEvent.OWNERSHIP_TRANSFERRED.register(e -> observeEvent(() -> changed.accept(e.getTeam(), null)));
         //? if <26.1.2
-        TeamEvent.PROPERTIES_CHANGED.register(e -> changed.accept(e.getTeam(), null));
+        TeamEvent.PROPERTIES_CHANGED.register(e -> observeEvent(() -> changed.accept(e.getTeam(), null)));
     }
 }

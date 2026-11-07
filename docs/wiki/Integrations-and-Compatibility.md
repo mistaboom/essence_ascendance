@@ -24,9 +24,9 @@ Info, Settings and membership popups reserve space on their actual side of the m
 
 Membership integration controls shared Stored Essence and machine access. It does not influence item valuation through quests.
 
-Beta.9 supports native solo/teams without another mod, and the functional FTB Teams integration described in [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#membership-providers). Its checked combinations are Teams **2101.1.11** with Library **2101.1.30, 2101.1.36 or 2101.1.37**, on Fabric or NeoForge for Minecraft 1.21.1. Use the required dependencies for those builds; an arbitrary newer version is not automatically covered.
+Essence Ascendance supports native solo/teams without another mod and the functional FTB Teams integration described in [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#membership-providers). The adapter attempts the installed FTB API without a Teams or Library version allowlist. Use builds and dependencies appropriate to your Minecraft version and loader. A newer version is not rejected just because its version string is unknown; its actual API must still work.
 
-Choose the provider before creating your pack's world. Adding or replacing a provider in an existing world does not automatically change its saved membership authority or reassign every machine. Follow the [authority change procedure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#deliberately-changing-authority) if you intend that change.
+Choose the provider before creating your pack's world. Adding a provider does not automatically change an existing world's saved authority. Actual FTB API failure or removal automatically falls back to native teams, preserving the last confirmed roster, balances and known machine ownership. Temporary manager startup waits for readiness instead. Follow the [authority change procedure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#deliberately-changing-authority) for an intentional change or return to FTB Teams after fallback.
 
 FTB Quests can remain in your pack, but its definitions and rewards are not used to infer item access or Skill placement. No quest-reading configuration is needed.
 

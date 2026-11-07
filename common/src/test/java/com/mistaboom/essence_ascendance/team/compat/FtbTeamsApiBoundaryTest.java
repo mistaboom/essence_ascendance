@@ -19,6 +19,7 @@ public final class FtbTeamsApiBoundaryTest {
         Team individual = team(C, C, new HashMap<>(Map.of(C, TeamRank.OWNER)), "player");
         Team administrative = team(new UUID(2, 2), D, new HashMap<>(Map.of(D, TeamRank.OWNER)), "server");
         eventInvalidation(party, individual, administrative);
+        soloPlacementAndJoin();
         List<Team> all = new ArrayList<>(List.of(party, individual, administrative));
         Map<UUID, Team> effective = new HashMap<>(Map.of(A, party, B, party, C, individual));
         TeamManager manager = (TeamManager) Proxy.newProxyInstance(TeamManager.class.getClassLoader(), new Class<?>[]{TeamManager.class},
@@ -74,6 +75,58 @@ public final class FtbTeamsApiBoundaryTest {
         });
         System.out.println("FTB shared provider/accounting contract through actual API translation: PASS");
         System.out.println("FtbTeamsApiBoundaryTest: " + assertions + " assertions passed against real API interfaces with fixture rosters (not live multiplayer)");
+    }
+    private static void soloPlacementAndJoin() {
+        String installedVersion = "future-api-preview+local";
+        var saved = new com.mistaboom.essence_ascendance.data.EssenceSavedData();
+        saved.establishMembershipAuthority(MembershipAuthority.FTB_TEAMS);
+        saved.reservoirs().credit(A, Map.of(com.mistaboom.essence_ascendance.essence.EssenceTypes.OFFENSE.id(),
+                com.mistaboom.essence_ascendance.data.ReservoirService.SCALE.multiply(java.math.BigInteger.valueOf(120))),
+                com.mistaboom.essence_ascendance.data.ReservoirService.NONE);
+        saved.reservoirs().credit(B, Map.of(com.mistaboom.essence_ascendance.essence.EssenceTypes.OFFENSE.id(),
+                com.mistaboom.essence_ascendance.data.ReservoirService.SCALE.multiply(java.math.BigInteger.valueOf(40))),
+                com.mistaboom.essence_ascendance.data.ReservoirService.NONE);
+        var settlement = new MembershipSettlement(saved);
+        settlement.observe(FtbTeamsMembershipProvider.captureManager(null, installedVersion));
+        var placed = new com.mistaboom.essence_ascendance.machine.MachineBinding();
+        placed.place(saved, A);
+        var stored = new net.minecraft.nbt.CompoundTag(); placed.save(stored);
+        var restored = new com.mistaboom.essence_ascendance.machine.MachineBinding(); restored.load(stored);
+        check(!restored.operational(saved), "Placement waits only for an actually unready manager, not for party creation");
+        List<Team> all = new ArrayList<>(); Map<UUID, Team> effective = new HashMap<>();
+        TeamManager manager = (TeamManager) Proxy.newProxyInstance(TeamManager.class.getClassLoader(), new Class<?>[]{TeamManager.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getTeams" -> List.copyOf(all);
+                    case "getTeamForPlayerID" -> Optional.ofNullable(effective.get((UUID) args[0]));
+                    default -> throw new AssertionError("Unexpected API call " + method);
+                });
+        var solo = FtbTeamsMembershipProvider.captureManager(manager, installedVersion);
+        check(solo.readiness().status() == ProviderReadiness.Status.AVAILABLE
+                        && solo.readiness().version().equals(installedVersion) && solo.teams().isEmpty(),
+                "A working future-version manager with no party is authoritative ready solo, not unsupported");
+        settlement.observe(solo); settlement.observe(solo);
+        check(restored.refresh(saved) && restored.personalOwner().equals(A)
+                        && restored.allows(saved, A, com.mistaboom.essence_ascendance.machine.MachineAction.USE)
+                        && !restored.allows(saved, B, com.mistaboom.essence_ascendance.machine.MachineAction.USE),
+                "Previously pending Crucible ownership becomes usable personally without creating a team or replacing it");
+        var fresh = new com.mistaboom.essence_ascendance.machine.MachineBinding(); fresh.place(saved, A);
+        check(fresh.operational(saved) && fresh.personalOwner().equals(A),
+                "Fresh no-party placement works immediately after manager readiness");
+        Team party = team(new UUID(5, 5), A, new HashMap<>(Map.of(A, TeamRank.OWNER, B, TeamRank.MEMBER)), "party");
+        all.add(party); effective.put(A, party); effective.put(B, party);
+        settlement.invalidate("Actual FTB party created");
+        var joined = FtbTeamsMembershipProvider.captureManager(manager, installedVersion);
+        settlement.observe(joined); settlement.observe(joined);
+        check(restored.refresh(saved) && restored.pool().id().equals(party.getId())
+                        && restored.allows(saved, B, com.mistaboom.essence_ascendance.machine.MachineAction.USE)
+                        && !restored.allows(saved, C, com.mistaboom.essence_ascendance.machine.MachineAction.USE),
+                "A pre-party Crucible follows the actual new team while keeping outsiders excluded");
+        fresh.place(saved, A);
+        check(fresh.pool().equals(restored.pool()) && fresh.operational(saved),
+                "Replacing a device after joining uses the same ready team authority");
+        check(saved.getPlayerData(A).getCrucibleStored(com.mistaboom.essence_ascendance.essence.EssenceTypes.OFFENSE) == 80
+                        && saved.getPlayerData(B).getCrucibleStored(com.mistaboom.essence_ascendance.essence.EssenceTypes.OFFENSE) == 80,
+                "Solo-to-party recovery conserves and equalizes Stored Essence exactly once");
     }
     private static void eventInvalidation(Team party, Team individual, Team administrative) {
         var saved = new com.mistaboom.essence_ascendance.data.EssenceSavedData();

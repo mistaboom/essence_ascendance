@@ -22,7 +22,7 @@ public final class MachineBindingTest {
         for (MembershipAuthority authority : MembershipAuthority.values()) {
             bindingContract(authority); operatorCreditContract(authority); dissolution(authority); pendingPlacement(authority); capacity(authority);
         }
-        links(); pylonPacket();
+        freshNativeFallback(); nativeFallback(); fallbackOwnershipHistory(); links(); pylonPacket();
         System.out.println("MachineBindingTest: " + checks + " assertions passed");
     }
     private static void bindingContract(MembershipAuthority authority) {
@@ -194,6 +194,134 @@ public final class MachineBindingTest {
         check(wide.equals(BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TWO)), "Fill limit multiplication is exact beyond signed long");
         check(MachineCapacity.visualFill(BigInteger.valueOf(100).multiply(ReservoirService.SCALE),BigInteger.valueOf(200)) == 5000, "Visual fill uses aggregate capacity without dividing by six");
         check(!MachineCapacity.accepts(BigInteger.valueOf(200).multiply(ReservoirService.SCALE), BigInteger.ONE, small), "Even a fractional addition is rejected before input consumption");
+    }
+    private static void freshNativeFallback() {
+        var saved = new EssenceSavedData(); saved.establishMembershipAuthority(MembershipAuthority.FTB_TEAMS);
+        saved.reservoirs().pause(new ProviderReadiness(ProviderReadiness.Status.FAILED, "future-api",
+                "Actual API failure before the first complete roster"));
+        var machine = new MachineBinding(); machine.place(saved, A);
+        CompoundTag pending = new CompoundTag(); machine.save(pending);
+        CompoundTag before = saved.save(new CompoundTag(), null);
+        check(machine.pool() == null && !machine.operational(saved)
+                        && before.getCompound("pool_membership").getCompound("solos").isEmpty()
+                        && saved.reservoirs().settledTeams().isEmpty(),
+                "First placement records only its trusted placer when the external API fails before any membership exists");
+        check(MembershipFallback.activate(saved, "Actual API failed before any membership was confirmed"),
+                "A fresh failed external authority can fall back without inventing a previous team or solo record");
+        CompoundTag fallback = saved.save(new CompoundTag(), null);
+        var membership = fallback.getCompound("pool_membership");
+        check(membership.getCompound("solos").isEmpty()
+                        && NbtVersionCompat.getList(membership, "fallback_pools", net.minecraft.nbt.Tag.TAG_COMPOUND).isEmpty()
+                        && fallback.getCompound("players").equals(before.getCompound("players")),
+                "Fresh fallback persists an empty identity mapping without creating accounts or sharing money");
+        var restarted = EssenceSavedData.load(fallback, null);
+        check(restarted.membershipAuthority() == MembershipAuthority.NATIVE && restarted.hasMembershipFallback()
+                        && restarted.membershipFallbackReason().equals(saved.membershipFallbackReason()),
+                "Empty fallback metadata and its failure explanation survive restart before the first player resolves");
+        var restored = new MachineBinding(); restored.load(pending);
+        check(restored.refresh(restarted) && restored.personalOwner().equals(A) && restored.operational(restarted)
+                        && restored.allows(restarted, A, MachineAction.USE) && !restored.allows(restarted, B, MachineAction.USE),
+                "The originally placed device becomes usable only by its placer without creating a team or replacing it");
+        check(restarted.resolvePool(A).requireReady().isSoloFor(A) && restarted.reservoirs().settledTeams().isEmpty(),
+                "Fresh fallback grants ordinary personal access and never manufactures a party");
+        var fresh = new MachineBinding(); fresh.place(restarted, A);
+        check(fresh.operational(restarted) && fresh.pool().equals(restored.pool()),
+                "Subsequent placements use the same ready personal identity");
+        var reloaded = EssenceSavedData.load(restarted.save(new CompoundTag(), null), null);
+        check(reloaded.resolvePool(A).requireReady().pool().equals(restored.pool()),
+                "The newly resolved native solo identity persists after the empty-fallback recovery");
+    }
+    private static void nativeFallback() {
+        var saved = new EssenceSavedData(); saved.establishMembershipAuthority(MembershipAuthority.FTB_TEAMS);
+        publish(saved);
+        var personalBeforeJoin = new MachineBinding(); personalBeforeJoin.place(saved, A);
+        CompoundTag beforeJoin = new CompoundTag(); personalBeforeJoin.save(beforeJoin);
+        var team = roster(MembershipAuthority.FTB_TEAMS, 60, List.of(A, B), Set.of(A, B), A); publish(saved, team);
+        saved.reservoirs().credit(A, Map.of(EssenceTypes.OFFENSE.id(), ReservoirService.SCALE.multiply(BigInteger.valueOf(101)).add(BigInteger.ONE)), ReservoirService.NONE);
+        saved.getPlayerData(A).setAvailable(EssenceTypes.OFFENSE, 13);
+        saved.getPlayerData(B).setAvailable(EssenceTypes.OFFENSE, 7);
+        var loadedMachine = new MachineBinding(); loadedMachine.place(saved, A); loadedMachine.start(saved, A, A);
+        CompoundTag unloadedMachine = new CompoundTag(); loadedMachine.save(unloadedMachine);
+        var personal = new MachineBinding(); personal.place(saved, C); PoolId priorSolo = personal.pool();
+        BigInteger total = saved.reservoirs().read(A).units(EssenceTypes.OFFENSE.id());
+        long financialRevision = saved.reservoirs().revision(), rosterRevision = saved.reservoirs().rosterRevision();
+        CompoundTag before = saved.save(new CompoundTag(), null);
+        saved.reservoirs().pause(new ProviderReadiness(ProviderReadiness.Status.FAILED, "future", "Actual missing FTB API"));
+        var pending = new MachineBinding(); pending.place(saved, D);
+        check(MembershipFallback.activate(saved, "Actual missing FTB API") && saved.membershipAuthority() == MembershipAuthority.NATIVE,
+                "An actual provider failure can activate built-in teams without losing the last confirmed roster");
+        PoolId nativeTeam = saved.remapFallbackPool(team.pool()), nativeSolo = saved.remapFallbackPool(priorSolo);
+        check(nativeTeam.authority() == MembershipAuthority.NATIVE && !nativeTeam.equals(team.pool())
+                        && nativeSolo.authority() == MembershipAuthority.NATIVE && !nativeSolo.equals(priorSolo),
+                "Fallback records exact native replacement identities for known teams and solo pools");
+        check(saved.resolvePool(A).requireReady().pool().equals(nativeTeam)
+                        && saved.resolvePool(B).requireReady().pool().equals(nativeTeam)
+                        && saved.resolvePool(C).requireReady().isSoloFor(C),
+                "Last-confirmed teammates stay together and unrelated solo players stay separate");
+        check(saved.save(new CompoundTag(), null).getCompound("players").equals(before.getCompound("players"))
+                        && saved.reservoirs().read(A).units(EssenceTypes.OFFENSE.id()).equals(total),
+                "Fallback preserves every player record, whole amount, fractional carry and personal Available balance");
+        check(saved.resolvePool(A).requireReady().allows(A, PoolCapability.MANAGE)
+                        && !saved.resolvePool(B).requireReady().allows(B, PoolCapability.MANAGE)
+                        && saved.resolvePool(B).requireReady().allows(B, PoolCapability.USE)
+                        && saved.resolvePool(B).requireReady().allows(B, PoolCapability.SPEND),
+                "The recorded owner becomes native manager while former external officers retain normal member access");
+        check(saved.reservoirs().revision() == financialRevision + 1 && saved.reservoirs().rosterRevision() == rosterRevision + 1
+                        && cursorPositions(before, team.pool()).equals(cursorPositions(saved.save(new CompoundTag(), null), nativeTeam)),
+                "Fallback invalidates old transaction and roster receipts once, retaining remainder rotation without equalizing again");
+        check(loadedMachine.refresh(saved) && loadedMachine.pool().equals(nativeTeam)
+                        && loadedMachine.allows(saved, B, MachineAction.USE) && !loadedMachine.allows(saved, C, MachineAction.USE),
+                "Loaded team machinery follows its exact preserved roster without outsider access");
+        check(personal.refresh(saved) && personal.pool().equals(nativeSolo) && personal.allows(saved, C, MachineAction.USE),
+                "Personal machinery remains usable by its owner after fallback");
+        check(pending.refresh(saved) && pending.personalOwner().equals(D) && pending.allows(saved, D, MachineAction.USE),
+                "A device placed during a failed provider becomes usable through native solo membership");
+        var restarted = EssenceSavedData.load(saved.save(new CompoundTag(), null), null);
+        var unloaded = new MachineBinding(); unloaded.load(unloadedMachine);
+        check(unloaded.refresh(restarted) && unloaded.pool().equals(nativeTeam) && unloaded.allows(restarted, B, MachineAction.USE),
+                "Saved fallback aliases recover machinery that was unloaded during the failure and server restart");
+        var beforeParty = new MachineBinding(); beforeParty.load(beforeJoin);
+        check(beforeParty.refresh(restarted) && beforeParty.pool().equals(nativeTeam),
+                "An unloaded personal machine replays its confirmed team join after fallback");
+        var unknown = new PoolId(MembershipAuthority.FTB_TEAMS, PoolId.Kind.TEAM, new UUID(99, 99));
+        CompoundTag foreign = unloadedMachine.copy(); foreign.getCompound("machine_binding").put("pool", unknown.save());
+        var orphan = new MachineBinding(); orphan.load(foreign);
+        check(restarted.remapFallbackPool(unknown).equals(unknown) && !orphan.refresh(restarted)
+                        && !orphan.operational(restarted) && !orphan.allows(restarted, A, MachineAction.USE),
+                "Unknown old team ownership is never guessed from the placer or granted to a current native team");
+        CompoundTag once = restarted.save(new CompoundTag(), null);
+        check(!MembershipFallback.activate(restarted, "Repeated same API error") && restarted.save(new CompoundTag(), null).equals(once),
+                "Repeated fallback does not regenerate IDs, metadata receipts or player money");
+        restarted.nativeMembership().leave(B);
+        check(!unloaded.allows(restarted, B, MachineAction.USE) && unloaded.allows(restarted, A, MachineAction.USE),
+                "Built-in team controls work after fallback and revoke a departing member's device access");
+    }
+    private static CompoundTag cursorPositions(CompoundTag world, PoolId pool) {
+        var entries = NbtVersionCompat.getList(world.getCompound("reservoir_settlement"), "cursors", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        for (int index = 0; index < entries.size(); index++) {
+            CompoundTag entry = entries.getCompound(index);
+            if (PoolId.load(entry.getCompound("pool")).equals(pool)) return entry.getCompound("positions").copy();
+        }
+        return new CompoundTag();
+    }
+    private static void fallbackOwnershipHistory() {
+        for (boolean dissolved : List.of(false, true)) {
+            var saved = new EssenceSavedData(); saved.establishMembershipAuthority(MembershipAuthority.FTB_TEAMS); publish(saved);
+            var machine = new MachineBinding(); machine.place(saved, A);
+            CompoundTag beforeJoin = new CompoundTag(); machine.save(beforeJoin);
+            var oldTeam = roster(MembershipAuthority.FTB_TEAMS, 70, List.of(A, B), Set.of(B), B); publish(saved, oldTeam);
+            var retained = roster(MembershipAuthority.FTB_TEAMS, 70, List.of(B), Set.of(B), B);
+            if (dissolved) publish(saved); else publish(saved, retained);
+            var newTeam = roster(MembershipAuthority.FTB_TEAMS, 71, List.of(A, C), Set.of(A), A);
+            if (dissolved) publish(saved, newTeam); else publish(saved, retained, newTeam);
+            MembershipFallback.activate(saved, "API failed after recorded ownership transitions");
+            var restarted = EssenceSavedData.load(saved.save(new CompoundTag(), null), null);
+            var unloaded = new MachineBinding(); unloaded.load(beforeJoin);
+            check(unloaded.refresh(restarted) && unloaded.allows(restarted, B, MachineAction.USE)
+                            && !unloaded.allows(restarted, A, MachineAction.USE),
+                    dissolved ? "Fallback replays a confirmed dissolution to its recovery owner, not the former placer's new team"
+                            : "Fallback preserves join then departure history so unloaded machinery remains with the original team");
+        }
     }
     private static void pylonPacket() {
         var wide = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TWO);
