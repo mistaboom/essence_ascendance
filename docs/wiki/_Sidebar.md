@@ -25,6 +25,11 @@
 - [Integrations and compatibility](https://github.com/mistaboom/essence_ascendance/wiki/Integrations-and-Compatibility)
 - [Worked scenarios](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios)
 
+### Downloads
+
+- [Configuration presets](https://github.com/mistaboom/essence_ascendance/wiki/Config-Presets)
+- [Mod releases](https://github.com/mistaboom/essence_ascendance/releases)
+
 ### Operate and maintain
 
 - [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure)
@@ -33,4 +38,4 @@
 - [Troubleshooting and FAQ](https://github.com/mistaboom/essence_ascendance/wiki/Troubleshooting)
 - [Version and upgrade guidance](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance)
 
-[Downloads](https://github.com/mistaboom/essence_ascendance/releases) · [Issues](https://github.com/mistaboom/essence_ascendance/issues) · [Source](https://github.com/mistaboom/essence_ascendance)
+[Issues](https://github.com/mistaboom/essence_ascendance/issues) · [Source](https://github.com/mistaboom/essence_ascendance)

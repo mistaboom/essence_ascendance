@@ -15,3 +15,10 @@ docs/audio/*.json -text whitespace=cr-at-eol
 # The valuation regression compares the canonical snapshot byte-for-byte.
 # Keep its reference identical on Windows developers' machines and Linux CI.
 common/src/test/resources/valuation/valuation-reference.json text eol=lf
+
+# Preset inputs and published archives are byte-bound to their download checksums.
+presets/** -text whitespace=cr-at-eol
+presets/downloads/*.zip binary
+docs/wiki/Config-Presets.md text eol=lf
+docs/wiki/Preset-*.md text eol=lf
+tools/presets/*.py text eol=lf

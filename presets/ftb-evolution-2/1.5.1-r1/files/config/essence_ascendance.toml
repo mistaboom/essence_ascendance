@@ -1,0 +1,188 @@
+# FTB Evolution 2 1.5.1 / solo Normal / automation expected
+# Pack-specific inputs. Latent onboarding remains near baseline; later investment grows for automation.
+# Essence Ascendance: pack-maker balance intent
+# These are GENERATOR INPUTS. The server runs from essence_ascendance/generated_balance.json.gz.
+# Edit this file, then run /essence admin balance rebuild as an operator to apply changes.
+# Normal restart and datapack reload reuse the saved profile; rebuild explicitly after edits.
+# Existing valid generated data remains active if a rebuild fails.
+# Do not edit generated_balance.json.gz; inspect reports/balance_report.md for its values.
+# Sort/filter reports/*.csv in a spreadsheet; these exports do not change gameplay.
+# Full troubleshooting evidence stays in the generated JSON and diagnostics/.
+#
+# Per-Skill unlock tiers, ranks and stat endpoints: essence_ascendance/skill_settings.toml.
+# Per-Bonus tier spans and stat endpoints: essence_ascendance/bonus_settings.toml.
+# Both files are emitted after valid balance generation; existing files are never overwritten.
+# This main file owns shared generation, economy, attunement, worldgen and diagnostic policy.
+#
+# Omitted keys use the documented progression defaults. Unknown keys are errors.
+# Supported TOML: these named tables, decimal numbers, booleans, quoted strings.
+# Advanced facts additionally support [[fact]] and arrays of primitive values.
+# Inline tables, dates, dotted bare keys, hexadecimal numbers and multiline strings
+# are intentionally unsupported. Use quoted keys for exact JSON Pointer overrides.
+schema_version = 1
+
+[latent_ore]
+# Ordinary noise generators expose their primary default solid terrain.
+# Distribution uses these configured baselines; acquisition and supply are not inferred.
+# Defaults provide 16 size-9 attempts, with no cave-exposure discard.
+# Unknown generators
+# are skipped with a diagnostic; this never scans or generates chunks.
+automatic_dimensions = true
+# Optional distribution tables: [latent_ore.overworld], [latent_ore.nether],
+# [latent_ore.end]. Keys: enabled, vein_size, veins_per_chunk, min_y, max_y,
+# discard_chance_on_air_exposure. These are baseline inputs; generation scales
+# enabled nonzero baselines remain at least 12 attempts of size 9.
+# Disabled/zero-count inputs remain off. Default Overworld Y is -48..64.
+# Exact dimension overrides take ownership; enabled=false always excludes it.
+# hosts replaces automatic selection with exact primary rock block ids.
+# Empty/omitted hosts means automatic discovery. No tags or separate ore blocks.
+# Ordinary custom dimensions inherit the generated Overworld abundance over
+# their usable heights. Exact dimension distributions and /runtime/worldgen
+# exact overrides bypass the configured distribution floor.
+# [[latent_ore.dimension]]
+# dimension = "example:deep_caverns"
+# enabled = true
+# hosts = ["example:base_rock", "example:lower_rock"]
+# vein_size = 9
+# veins_per_chunk = 16
+# [[latent_ore.dimension]]
+# dimension = "example:void_realm"
+# enabled = false
+
+[power]
+# Overall desired position relative to measured external catalog references.
+# Base equipment is normalized to Transcendent catalog-reference parity; this
+# control still sets added-power headroom for Nexus/skills and combined builds.
+# Range 0.1..4.0; default 1.0. 1.2 asks for stronger Ascendance contributions.
+# This is not a percentage of the single strongest registered item.
+# Default automatic allocation targets at Transcendent: equipment 1x pack parity,
+# external gear + developed Nexus 2x, external gear + ranked skills 2x,
+# combined builds 3x. Only a <=20%-health Desperation build can use 4x burst;
+# sustained damage still uses 3x. These are allocation checks, not stacking buffs.
+# Native starting/meaningful floors and explicit Skill/Bonus settings apply afterward
+# and may exceed these soft targets. Native mechanical limits remain binding.
+# Combined tier ceilings: 1.5x / 1.7x / 2x / 2.5x / 3x. Existing band controls
+# scale the added headroom relative to the default values below.
+overall = 1.0
+# Relative emphasis within the detected progression bands, each 0.1..4.0.
+# Raising early helps the first meaningful investments; lowering apex reins in
+# complete endgame builds. These are relative positions, so early may exceed late.
+early = 0.8
+mid = 0.9
+late = 1.0
+apex = 1.1
+
+[progression]
+# Player ascension completes Category Attunement seals through eligible gameplay.
+# Length scales the activity journey; cost pressure changes generated investment
+# references and costs. No wallet amount, skill or item is required to ascend.
+# Normalized resolved Bonus development and historical paid skill receipts
+# accelerate future activity only. Bonus prices do not determine development credit.
+# Compare generated targets and breadth in reports/attunement_*.csv.
+# Bonus costs preserve the nonuniform category economy and nonlinear tier segments.
+# Per-track utility, compatible capability routes, native thresholds and build
+# headroom resolve prices, start/completion tiers and effects during generation.
+# Every Bonus slider purchases continuously. Native thresholds inform valuation
+# and useful checkpoints; they do not restrict targets or snap Step Height purchases.
+# Review reports/bonus_tracks.csv and diagnostics/ for the resolved reasoning.
+# Intended journey length relative to the generated pack economy.
+# Range 0.1..10.0; 1.0 is the baseline, 2.0 asks for a longer investment journey.
+length = 1.25
+# Separate affordability pressure, 0.1..10.0. 0.75 makes generated costs cheaper.
+# Prefer correcting a wrong resource fact in balance_overrides.toml before using
+# this to compensate for a valuation bug. This does not alter resource facts.
+cost_pressure = 1.0
+
+[generation]
+# Explicit encounter-duration assumptions, in seconds, rather than hidden stat targets.
+# Routine/boss health divided by these windows supplies encounter DPS pressure.
+routine_seconds = 4.0
+boss_seconds = 40.0
+# Duration used for sustained-survival and recovery checks.
+survival_seconds = 10.0
+# Cost = stable valuation base * entry effort * growth^band
+#        * progression.length * progression.cost_pressure.
+# These are effort ratios; no fixed currency total or per-tier weapon table.
+entry_resource_effort = 80.0
+effort_growth = 4.0
+
+[attunement]
+# Contribution speed relative to the generated activity journey. Range 0.1..10;
+# default 1.0. Higher values complete seals faster without changing Essence costs.
+pace = 1.0
+# Added multiplier at the generated current-tier category development reference.
+# Range 0..4; default 1 gives at most 2x. Zero investment always earns base credit.
+maximum_acceleration = 1.0
+# Minimum efficiency of a legitimate repeated source. Range 0.01..1; default
+# 0.15 keeps farms productive while encouraging variety. Never disables farms.
+repetition_floor = 0.25
+# Maximum extra efficiency for varied recent sources. Range 0..1; default 0.25.
+# Higher values favor changing activities; this is bounded and never mandatory.
+variety_strength = 0.35
+# Recent source exposure in generated reference outcomes, integer 8..256; default 64.
+# Larger windows soften repetition longer. Distance, health and XP amounts advance
+# this window; network packets and individual orb/healing callbacks do not.
+# Every seal keeps independent bounded history. Two substantial sources can earn variety.
+history_window = 64
+# Effort multiplier for Dormant's first powered chapter. Range 0.1..1; default
+# 0.75 makes the opening chapter 25% shorter, then generation eases to 1.0 by
+# the final chapter. Legitimate outcomes have no per-action progress ceiling.
+early_effort_fraction = 0.65
+# Effort multiplier for the automatic Latent onboarding chapter. Range 0.1..1;
+# default 1.0 uses the full entry effort, allowing more time to get established.
+# Ordinary play still reaches Dormant automatically; no Nexus or ore gate is added.
+onboarding_effort_fraction = 0.8
+# Shape of increasing category breadth, range 0.25..4; default 1.0 produces
+# ceil((categoryCount-1)*transitionPosition/transitionCount). Smaller values ask
+# for broader early participation; final progression leaves one category optional.
+breadth_exponent = 1.0
+
+[builds]
+# Partial-participation emphasis in semantic capability allocation, 0.1..1.0.
+# Actual numeric Nexus and skill values are no longer discounted by these
+# shares: their separate final-output ceilings constrain composed gameplay.
+partial_viability = 0.65
+# Strength of multiplicative-composition safeguards, 0..1; default 0.75.
+# Higher values leave less headroom for stacked multipliers. Zero relaxes this
+# policy but does not disable numeric validity, rank or economy invariants.
+composition_safeguard = 0.75
+
+[budget]
+# Split semantic capability allocation among the three systems. These weights
+# are not direct percentages of live damage, defense, or the final-output caps.
+# Each share must be 0.01..0.98; all three MUST sum to 1.0.
+# Equipment always retains its generated pack-parity foundation.
+equipment = 0.40
+nexus = 0.35
+skills = 0.25
+
+[economy]
+# Additional pressure on cross-Essence flexibility, 0..0.95; default 0.10.
+# This is a generation policy input, not one loss percentage applied to every
+# carrier, repair, dissolution and conversion transaction.
+conversion_loss_pressure = 0.10
+
+[policies]
+# Flight: preserve_progression (default), restrict.
+# preserve_progression retains existing milestone prerequisites;
+# restrict reduces flight-oriented budget without bypassing prerequisite checks.
+flight = "preserve_progression"
+# Mining: preserve_progression (default), restrict.
+# Applies to vein/area mining capability budgets, not just tool mining speed.
+# Shared registered tool properties establish reference magnitudes.
+# Tool harvest levels start at native iron level 2 and advance toward
+# the pack maximum. Larger level ranges are spread across all equipment tiers.
+# This discrete progression is independent of physical-stat curve shaping.
+mining = "preserve_progression"
+# Outliers: exclude_unsupported (default), winsorize, include_attainable.
+# exclude_unsupported removes extremes unsupported by the rest of a reference
+# population; winsorize caps their influence instead. include_attainable admits
+# measured catalog extremes. Explicit exclusion facts still apply.
+outliers = "exclude_unsupported"
+
+[diagnostics]
+# Confidence below this value is highlighted for pack-maker review; range 0..1.
+warning_confidence = 0.60
+# Expanded evidence and explanations during explicit regeneration. Compact report
+# and stable CSV diagnostics remain available when false.
+expanded = true

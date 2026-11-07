@@ -1,16 +1,22 @@
 # Essence Ascendance for pack makers
 
-Essence Ascendance adds character progression, evolving equipment and an Essence-powered machine network to **Minecraft 1.21.1**, on **Fabric and NeoForge**. It generates a starting balance from the items, recipes and equipment in your pack, then lets you adjust the results through configuration files.
+Essence Ascendance adds character progression, evolving equipment and an Essence-powered machine network to **Minecraft 1.21.1 and 26.1.2**, on **Fabric and NeoForge**. It generates a starting balance from the items, recipes and equipment in your pack, then lets you adjust the results through configuration files.
 
 **Playing the mod? Use the Ascendance Archive in game.** Its lessons and reference values reflect the server you are connected to. This wiki focuses on installing the mod, fitting it into a pack and maintaining the server.
 
-**This guide covers [1.0.0-beta.9](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.9).** Beta.9 adds the Ascendance Glaive and its Archive lessons. It introduces no additional saved-format break over beta.8. When moving from beta.7 or earlier, the beta.8 requirement for fresh worlds and Essence Ascendance configuration still applies.
+**Published release: [1.0.0-beta.15](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.15).** Choose the jar for your Minecraft version and loader. Each configuration preset lists its own tested pack version and mod configuration version. When moving from beta.7 or earlier, the earlier requirement for fresh worlds and Essence Ascendance configuration still applies.
+
+## Downloads
+
+- [Mod downloads](https://github.com/mistaboom/essence_ascendance/releases) — Essence Ascendance jars for each supported Minecraft version and loader.
+- [Configuration presets](https://github.com/mistaboom/essence_ascendance/wiki/Config-Presets) — premade pack tuning, versioned ZIP downloads, installation instructions and testing status.
 
 ## Start here
 
 | You want to… | Read |
 | --- | --- |
 | Add the mod to a pack | [Installation and server setup](https://github.com/mistaboom/essence_ascendance/wiki/Installation-and-Server-Setup) |
+| Start with premade pack tuning | [Configuration presets](https://github.com/mistaboom/essence_ascendance/wiki/Config-Presets) |
 | Understand what is automatic | [How pack balance works](https://github.com/mistaboom/essence_ascendance/wiki/Procedural-Balance) |
 | Choose the right file to edit | [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) |
 | Move a Skill, change its ranks or adjust its effects | [Skill settings](https://github.com/mistaboom/essence_ascendance/wiki/Configuration#skill-settings) |
@@ -31,4 +37,4 @@ The result is a starting point to test in your pack. Useful but unusual items ca
 
 ## Project links
 
-[Download beta.9](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.9) · [All releases](https://github.com/mistaboom/essence_ascendance/releases) · [Report an issue](https://github.com/mistaboom/essence_ascendance/issues) · [Version information](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance)
+[Mod downloads](https://github.com/mistaboom/essence_ascendance/releases) · [Configuration presets](https://github.com/mistaboom/essence_ascendance/wiki/Config-Presets) · [Report an issue](https://github.com/mistaboom/essence_ascendance/issues) · [Version information](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance)

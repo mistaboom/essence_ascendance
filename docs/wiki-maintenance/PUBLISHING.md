@@ -1,6 +1,6 @@
 # Maintaining and publishing the wiki
 
-**Edit only `docs/wiki/*.md` in this repository.** These are the maintained originals. GitHub serves the live wiki from a separate repository at https://github.com/mistaboom/essence_ascendance.wiki.git, but no permanent second local checkout is needed. Pushing the main repository alone does not publish wiki pages.
+**Maintain wiki pages in this repository, under `docs/wiki/*.md`.** Ordinary pages are edited there. Preset download pages are generated from the catalog and revision inputs in `presets/`; follow [the preset maintenance guide](../../presets/README.md) instead of editing those generated pages directly. GitHub serves the live wiki from a separate repository at https://github.com/mistaboom/essence_ascendance.wiki.git, but no permanent second local checkout is needed. Pushing the main repository alone does not publish wiki pages.
 
 The current source-review map and last recorded publication are in [AUDIT.md](AUDIT.md).
 The project handoff is [MAINTENANCE.md](../MAINTENANCE.md). Dated chat-by-chat history
@@ -71,6 +71,13 @@ Run the publisher's focused checks without contacting GitHub:
 These checks exercise preview without pushing, selective and full publication, default-branch discovery, preservation of wiki-only pages and pending source-code edits, unchanged source staging, no-change publication, invalid inputs, and temporary-checkout cleanup.
 
 ## Verify the published result
+
+For preset downloads, push the reviewed canonical preset files, ZIPs, checksums
+and generated pages to the main repository before publishing the selected wiki
+pages. This makes the download links available first. Verify the public ZIP's
+SHA-256 against the catalog, not just that its URL responds. Preserve existing
+revision downloads; a changed preset gets a new revision. The catalog and detail
+pages are published manually with the same selected-page workflow above.
 
 Open https://github.com/mistaboom/essence_ascendance/wiki and check the changed pages. For a full publication, also check:
 

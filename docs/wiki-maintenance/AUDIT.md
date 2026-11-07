@@ -15,6 +15,7 @@ The earlier dated audit/passdown/publication chronology remains in Git history.
 | Saved state and upgrade boundaries | `EssenceSavedData`, `PlayerEssenceData`, version checks and maintained release notes |
 | Shared ownership and machine transactions | membership services, `machine/`, `crucible/`, `infuser/`, `pylon/`, `nexus/` |
 | Recipe valuation and pack-specific results | balance-generation owners, saved reports, `docs/pack-compatibility.md` |
+| Preset downloads and tested pack versions | `presets/catalog.json`, immutable revision inputs under `presets/`, `tools/presets/build.py` |
 | Archive navigation and displayed values | current Archive UI, guide registrations and language resources |
 | Audio commands and Minecraft settings | `docs/audio/CONTRACT.md`, `docs/audio/VALIDATION.md`, audio command handlers |
 | Achievement rules and native progress | `docs/achievements/CONTRACT.md`, `STATUS.md`, `PLAYER-GUIDE.md` |
@@ -25,6 +26,20 @@ hardcode pack-specific values into generic prose. Keep supported-version and
 release references honest: unreleased source behavior is not proof of an older tag.
 
 ## Publication and verification
+
+The preset catalog adds versioned downloads with per-revision compatibility and
+installation notes. Its first entry preserves the verified FTB Evolution 2
+**1.5.1** inputs; the user's subsequent 1.7.0 pack update is not a new full balance
+audit. The ZIP contains four TOMLs and a standalone additive datapack, plus
+instructions, the project license and checksums. It excludes generated profiles,
+worlds, player records and internal audit material. A completed numeric check is
+reported separately from an unfinished progression/boss playthrough.
+
+Catalog pages are generated from their maintained inputs and committed under
+`docs/wiki/` for the existing publisher. New packs and revisions do not require
+changes to the publisher or a new copy of the website. The selected publication
+scope is `Config-Presets.md`, `Preset-FTB-Evolution-2-1-5-1-r1.md`, `Home.md`,
+`_Sidebar.md` and `_Footer.md`; pending integration documentation is separate.
 
 The last recorded audio wiki publication is commit
 `5762bdfbfc46c0c0fd7658a1bc32e359a9fff01a` on the separate wiki repository, from the

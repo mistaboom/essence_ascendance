@@ -1,0 +1,1167 @@
+# FTB Evolution 2 1.5.1: reviewed personal progression for solo Normal with automation.
+# Candidate pack-specific inputs, not the universal Essence Ascendance defaults.
+# All 90 Skills reviewed; every generated rank count is preserved.
+# Edit inputs, then run /essence admin balance rebuild. Restart alone reuses the saved profile.
+# Percentage/fraction, tick, block and damage units are native values.
+# Prerequisites, milestones, selection groups and generated costs are unchanged by this file.
+schema_version = 1
+
+# Raise full qualifying repeat-hit resistance to 20% (four qualifying stacks at 5%). Gives a deliberate defensive alternative to the pack skill tree and high armor without approaching immunity.
+[[skill]]
+id = "essence_ascendance:adaptive_guard"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "posture/adaptive/resistancePerStack"
+at_first_rank = 0.05
+at_max_rank = 0.05
+
+# Raise the brief high-damage-response speeds to 15% attack and 20% movement. The >25%-maximum-health loss trigger, five-second duration, and knockback value remain; the buff is conditional and does not rescue every small hit.
+[[skill]]
+id = "essence_ascendance:adrenaline"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/attackSpeedBonus"
+at_first_rank = 0.15
+at_max_rank = 0.15
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/durationTicks"
+at_first_rank = 100.0
+at_max_rank = 100.0
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/knockbackResistance"
+at_first_rank = 0.25
+at_max_rank = 0.25
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/movementSpeedBonus"
+at_first_rank = 0.2
+at_max_rank = 0.2
+
+# Keep 20%-33.8842% beneficial potion enhancement. Potion infrastructure and effect pylons already exist, so preserve a bounded brewing reward and its milestone/diminishing rules.
+[[skill]]
+id = "essence_ascendance:alchemical_amplification"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "utility/alchemicalAmplification/maximumBonusFraction"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.338842
+
+# Keep the feeding-gated 11.4285%-24.3902% gift chance. Animal Pen and automated livestock alternatives exist; this remains useful local production without raising passive farm throughput.
+[[skill]]
+id = "essence_ascendance:animal_gift"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "gathering/animalGift/giftChance"
+at_first_rank = 0.114285
+at_max_rank = 0.24390199999999998
+
+# Keep the Awakened binary native underwater mining/visibility restoration. The pack adds underwater exploration; this does not confer breathing or general damage immunity.
+[[skill]]
+id = "essence_ascendance:aquatic_body"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+# Raise a full five-hit chain from two armor to five armor removed, and toughness reduction to one total. Apotheosis uses a/(a+armor), while the pack includes strong armor, so a small flat two-armor shred was a weak Resonant payoff.
+[[skill]]
+id = "essence_ascendance:armor_crack"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "armorCrack/armorReductionPerStack"
+at_first_rank = 1.0
+at_max_rank = 1.0
+
+[[skill.stat]]
+path = "armorCrack/toughnessReductionPerStack"
+at_first_rank = 0.2
+at_max_rank = 0.2
+
+# Raise companion stat gains to 20%-40% so milestone-gated tames remain useful beside the pack combat progression. Preserve safe catch-up distances rather than turn it into unrestricted teleportation.
+[[skill]]
+id = "essence_ascendance:bonded_companion"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "utility/bondedCompanion/catchupDistanceBlocks"
+at_first_rank = 29.393876913398138
+at_max_rank = 20.784609690826528
+
+[[skill.stat]]
+path = "utility/bondedCompanion/statBonusFraction"
+at_first_rank = 0.2
+at_max_rank = 0.4
+
+# Raise the directional stationary full-meter resistance from 10% to 20%. Competes with adaptive guard and evasive current as an exclusive posture; does not stack all three postures.
+[[skill]]
+id = "essence_ascendance:bulwark_stance"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "posture/bulwark/maximumResistance"
+at_first_rank = 0.2
+at_max_rank = 0.2
+
+# Keep 75%-87.8048% retained chain damage and the existing three-jump limit. This already gives efficient area coverage; increased static damage is not being added on top.
+[[skill]]
+id = "essence_ascendance:chain_strike"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "chainStrike/damageFalloff"
+at_first_rank = 0.75
+at_max_rank = 0.8780479999999999
+
+# Keep the charge-dependent 35%-87.5% ballistic-height bonus and steering. It is useful before jetpacks and remains a distinct choice from directional air-jump.
+[[skill]]
+id = "essence_ascendance:charged_jump"
+tier = "essence_ascendance:awakened"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/chargedJump/heightBonus"
+at_first_rank = 0.35
+at_max_rank = 0.875
+
+[[skill.stat]]
+path = "mobility/chargedJump/steeringBonus"
+at_first_rank = 0.25
+at_max_rank = 0.625
+
+# Raise Awakened burst damage from two to four HP. The proc requires ignition buildup; its bounded propagation still handles groups. Four HP stays modest versus pack boss health and cannot replace the primary weapon.
+[[skill]]
+id = "essence_ascendance:combustion"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill.stat]]
+path = "combustion/damage"
+at_first_rank = 4.0
+at_max_rank = 4.0
+
+# Keep the late toggle at 8-20 blocks. Explosion protection is valuable around dense machine bases; larger fields would erase too much exploration threat without improving the basic use case.
+[[skill]]
+id = "essence_ascendance:containment_field"
+tier = "essence_ascendance:ascendant"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/containmentField/radiusBlocks"
+at_first_rank = 8.0
+at_max_rank = 20.0
+
+# Raise nearby-target damage from 20% to 35% of the reflected amount. It remains dependent on successful guarding and the base reflection, making the Resonant shield branch rewarding without an unconditional area attack.
+[[skill]]
+id = "essence_ascendance:crowd_reprisal"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "guard/reprisal/damageScale"
+at_first_rank = 0.35
+at_max_rank = 0.35
+
+# Keep all three ranks. This converts prevention into temporary maximum-health loss, not free ordinary damage resistance; changing its fraction would alter both cost and survival. Verify with canisters in game.
+[[skill]]
+id = "essence_ascendance:damage_ceiling"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/damage/damageCeiling/damageTakenFraction"
+at_first_rank = 0.891042
+at_max_rank = 0.7658699999999999
+
+# Raise the five-stack speed payoff from 10% to 20% for melee, bow and EA caster equally. It requires the low-health/kill branch and is still temporary; the pack already provides combat-tree rate bonuses.
+[[skill]]
+id = "essence_ascendance:death_rush"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "deathRush/attackSpeedBonusPercentPerStack"
+at_first_rank = 4.0
+at_max_rank = 4.0
+
+[[skill.stat]]
+path = "deathRush/bowDrawSpeedBonusPercentPerStack"
+at_first_rank = 4.0
+at_max_rank = 4.0
+
+[[skill.stat]]
+path = "deathRush/castSpeedBonusPercentPerStack"
+at_first_rank = 4.0
+at_max_rank = 4.0
+
+# Raise the multiplier on Soul Ward capacity from +8.9673% to +50%, preserving retention/decay. Runtime multiplies the existing ward, not maximum HP directly: with proposed Soul Ward, a20-HP player goes from3 to4.5 ward HP. The progression-contract measurement omits that underlying Soul Ward fraction, so its nominal floor alone was not sufficient.
+[[skill]]
+id = "essence_ascendance:deep_ward"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/wards/deepWard/capacityBonusFraction"
+at_first_rank = 0.5
+at_max_rank = 0.5
+
+# Keep +20% maximum conditional damage at Dormant. Early health-risk damage should remain modest while bonus damage and pack combat-tree multipliers can stack later.
+[[skill]]
+id = "essence_ascendance:desperation"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "desperation/maxDamageBonusPercent"
+at_first_rank = 20.0
+at_max_rank = 20.0
+
+# Keep the useful native extra jump and 32.5%-81.25% added height. The one-air-charge/reset rules are the important boundary, not a larger numeric ceiling.
+[[skill]]
+id = "essence_ascendance:double_jump"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/doubleJump/heightBonus"
+at_first_rank = 0.325
+at_max_rank = 0.8125
+
+[[skill.stat]]
+path = "mobility/doubleJump/steeringBonus"
+at_first_rank = 0.15
+at_max_rank = 0.375
+
+# Move to Awakened while keeping the Enchanter milestone and binary behavior. Apotheosis enchanting is a pack progression path, so offer information should become available when that path starts.
+[[skill]]
+id = "essence_ascendance:enchanting_insight"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+# Keep the bounded XP/Essence kill rewards. HNN and Apothic Spawners already support mass production; do not multiply this economy entry point while tuning resource values separately.
+[[skill]]
+id = "essence_ascendance:essence_bloom"
+tier = "essence_ascendance:ascendant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/essenceBloom/bonusExperienceFraction"
+at_first_rank = 0.16666599999999998
+at_max_rank = 0.416666
+
+[[skill.stat]]
+path = "gathering/essenceBloom/essencePerExperiencePoint"
+at_first_rank = 0.22499999999999998
+at_max_rank = 0.5625
+
+[[skill.stat]]
+path = "gathering/essenceBloom/triggerChance"
+at_first_rank = 0.14315789473684212
+at_max_rank = 0.294627383015598
+
+# Keep Ascendant equipment-free gliding, the Elytra milestone, replacement choice and 50%-100% drag compensation. This preserves a reason to use the pack jetpack path before permanent personal flight.
+[[skill]]
+id = "essence_ascendance:essence_wings"
+tier = "essence_ascendance:ascendant"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/essenceWings/horizontalDragCompensation"
+at_first_rank = 0.5
+at_max_rank = 1.0
+
+# Keep 17.8374%-25.8948% maximum dodge. With canister health, additional resistance and the pack combat tree, raising stochastic full-hit prevention further is unnecessary.
+[[skill]]
+id = "essence_ascendance:evasive_current"
+tier = "essence_ascendance:ascendant"
+ranks = 2
+
+[[skill.stat]]
+path = "posture/evasive/maximumDodgeChance"
+at_first_rank = 0.178374
+at_max_rank = 0.258948
+
+# Raise late payload splash from 20% to 35% of a confirmed hit. The payload remains a choice against rooting and retains the finite trigger budget; adds useful area coverage to high-tier projectiles.
+[[skill]]
+id = "essence_ascendance:explosive_payload"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "projectiles/payload/explosiveDamageScale"
+at_first_rank = 0.35
+at_max_rank = 0.35
+
+# Keep Resonant 5.2-13 seconds of jetpack-style thrust and generated recharge. Iron Jetpacks already offers configurable powered flight; personal burst flight should be an alternative with a clear stamina tradeoff.
+[[skill]]
+id = "essence_ascendance:fatigue_flight"
+tier = "essence_ascendance:resonant"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/fatigueFlight/enduranceTicks"
+at_first_rank = 104.0
+at_max_rank = 260.0
+
+[[skill.stat]]
+path = "mobility/fatigueFlight/groundRechargeTicks"
+at_first_rank = 87.0
+at_max_rank = 35.0
+
+[[skill.stat]]
+path = "mobility/fatigueFlight/thrustGravityMultiplier"
+at_first_rank = 1.55
+at_max_rank = 2.375
+
+# Keep all four food-use speed ranks and automatic eating behavior. Existing food/backpack support makes quality of life valuable; extra acceleration could turn metabolic repair into an excessive food-processing route.
+[[skill]]
+id = "essence_ascendance:feast_reflex"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "vitality/feastReflex/useDurationMultiplier"
+at_first_rank = 0.714286
+at_max_rank = 0.285715
+
+# Keep the streak-based bite and extra-catch boosts. Starcatcher and the EA rod coexist; unchanged bounded rewards avoid assuming unsupported custom fish-hook compatibility.
+[[skill]]
+id = "essence_ascendance:fishers_call"
+tier = "essence_ascendance:awakened"
+ranks = 3
+
+[[skill.stat]]
+path = "gathering/fishersCall/maximumBiteSpeedMultiplier"
+at_first_rank = 1.2249999999999999
+at_max_rank = 1.5625
+
+[[skill.stat]]
+path = "gathering/fishersCall/maximumExtraCatchChance"
+at_first_rank = 0.05739130434782609
+at_max_rank = 0.1321056845476381
+
+# Keep the three early fishing ranks, including timing windows and virtual luck. A modest foundation supports actual fishing without claiming it duplicates Starcatcher mechanics.
+[[skill]]
+id = "essence_ascendance:fishing_instinct"
+tier = "essence_ascendance:dormant"
+ranks = 3
+
+[[skill.stat]]
+path = "gathering/fishingInstinct/biteSpeedMultiplier"
+at_first_rank = 1.2249999999999999
+at_max_rank = 1.5625
+
+[[skill.stat]]
+path = "gathering/fishingInstinct/reelWindowMultiplier"
+at_first_rank = 1.225
+at_max_rank = 1.5625000000000002
+
+[[skill.stat]]
+path = "gathering/fishingInstinct/virtualLuckLevels"
+at_first_rank = 0.175
+at_max_rank = 0.4375
+
+# Keep full-chain +5% damage/+5% attack speed at Dormant. Avoid doubling early combat power before other investments; Armor Crack carries the later reward for this branch.
+[[skill]]
+id = "essence_ascendance:frenzy"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "frenzy/attackSpeedBonusPercentPerStack"
+at_first_rank = 1.0
+at_max_rank = 1.0
+
+[[skill.stat]]
+path = "frenzy/damageBonusPercentPerStack"
+at_first_rank = 1.0
+at_max_rank = 1.0
+
+# Keep the Awakened binary friendly-fire gate. Solo play still has tames/allies; it does not need numeric inflation or removal.
+[[skill]]
+id = "essence_ascendance:friendly_fire_ward"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+# Reduce a completed early freeze from 4-10 seconds to 2-5 seconds, retaining five ranks and existing buildup/slow. This is still strong crowd control without allowing an early ten-second lock to dominate ordinary encounters.
+[[skill]]
+id = "essence_ascendance:frostbite"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "frostbite/freezeDurationTicks"
+at_first_rank = 40.0
+at_max_rank = 100.0
+
+[[skill.stat]]
+path = "frostbite/maximumProgressiveSlow"
+at_first_rank = 0.39999999999999997
+at_max_rank = 0.39999999999999997
+
+[[skill.stat]]
+path = "frostbite/slowPerStack"
+at_first_rank = 0.08
+at_max_rank = 0.08
+
+# Keep the 1.2-1.371025 maximum multiplier and buildup. Larger bonus damage makes this multiplier more valuable already; it should not increase alongside every damage source.
+[[skill]]
+id = "essence_ascendance:guard_amplifier"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "guard/amplifier/maximumMultiplier"
+at_first_rank = 1.2
+at_max_rank = 1.371025
+
+[[skill.stat]]
+path = "guard/amplifier/perBlockGrowth"
+at_first_rank = 0.04524704538791003
+at_max_rank = 0.09275644304521555
+
+# Keep 85% shield slowdown removal. It gives the early shield branch practical mobility; full removal would erase its remaining commitment.
+[[skill]]
+id = "essence_ascendance:guarded_advance"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "guard/mobility/slowdownRemoval"
+at_first_rank = 0.85
+at_max_rank = 0.85
+
+# Keep 1.25-1.625 breeding recovery and the rural choice. Animal automation is already present, and this remains a useful manual husbandry reward rather than a replacement machine farm.
+[[skill]]
+id = "essence_ascendance:herdkeeper"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/herdkeeper/breedingRecoveryMultiplier"
+at_first_rank = 1.25
+at_max_rank = 1.625
+
+# Keep native arrow 2-5 and EA caster 12-30 degrees per tick. Aim behavior needs in-game trajectory checks; larger turns should not be inferred from stronger enemy health.
+[[skill]]
+id = "essence_ascendance:homing_projectile"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "projectiles/arrow/turnDegreesPerTick"
+at_first_rank = 2.0
+at_max_rank = 5.0
+
+[[skill.stat]]
+path = "projectiles/caster/turnDegreesPerTick"
+at_first_rank = 12.0
+at_max_rank = 30.0
+
+# Raise redirected damage to 15%-25%, retaining nutrition consumption and the exclusive damage-handling branch. Gives food infrastructure an intentional defensive use; no unlimited full redirect.
+[[skill]]
+id = "essence_ascendance:hunger_ward"
+tier = "essence_ascendance:resonant"
+ranks = 2
+
+[[skill.stat]]
+path = "vitality/damage/hungerWard/damageShare"
+at_first_rank = 0.15
+at_max_rank = 0.25
+
+# Keep creature-memory duration and five ranks. The pack already has health readouts, so the value is observed-target persistence rather than stronger damage or omniscience.
+[[skill]]
+id = "essence_ascendance:hunters_ledger"
+tier = "essence_ascendance:awakened"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/huntersLedger/memoryTicks"
+at_first_rank = 183.0
+at_max_rank = 458.0
+
+# Raise maximum virtual Looting from 0.5 to 1.5 at Ascendant. A studied species should materially reward active hunting compared with automated mob drops; mutually exclusive Essence Bloom remains the alternate reward.
+[[skill]]
+id = "essence_ascendance:hunters_study"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "gathering/huntersStudy/maximumVirtualLootingLevels"
+at_first_rank = 1.5
+at_max_rank = 1.5
+
+# Keep 24.5283%-69.8113% impact reduction. The pack has vertical terrain and multiple flight routes; partial reduction preserves progression toward equipment and fall bonuses.
+[[skill]]
+id = "essence_ascendance:impact_control"
+tier = "essence_ascendance:dormant"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/impactControl/damageReduction"
+at_first_rank = 0.245283
+at_max_rank = 0.698113
+
+# Set processing to 1.25-1.65x rather than 1.325-1.8125x. An always-available proximity bonus compounds a very automation-heavy pack, so keep a useful 25%-65% gain while preserving finite work limits and Ascendant gating.
+[[skill]]
+id = "essence_ascendance:industrious_presence"
+tier = "essence_ascendance:ascendant"
+ranks = 4
+
+[[skill.stat]]
+path = "utility/industriousPresence/processingSpeedMultiplier"
+at_first_rank = 1.25
+at_max_rank = 1.65
+
+# Keep recovery of one hunger and half saturation every 8.9-4.35 seconds under its existing out-of-combat conditions. Ultimine and food costs remain meaningful, with later food-independent convenience.
+[[skill]]
+id = "essence_ascendance:inner_sustenance"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "vitality/innerSustenance/hungerPerRecovery"
+at_first_rank = 1.0
+at_max_rank = 1.0
+
+[[skill.stat]]
+path = "vitality/innerSustenance/hungerRecoveryIntervalTicks"
+at_first_rank = 178.0
+at_max_rank = 87.0
+
+[[skill.stat]]
+path = "vitality/innerSustenance/saturationPerRecovery"
+at_first_rank = 0.5
+at_max_rank = 0.5
+
+# Keep 0.5-1.25-block active sweep. Manual interception is a timing skill; a larger radius is not justified by stronger armor or larger resource factories.
+[[skill]]
+id = "essence_ascendance:interceptor"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "projectiles/control/swingRadius"
+at_first_rank = 0.5
+at_max_rank = 1.25
+
+# Keep 5% burning confirmed-hit damage and 5% direct amplification at Dormant. These scale with the strengthened weapon/bonus ladder, unlike fixed elemental bursts.
+[[skill]]
+id = "essence_ascendance:kindling"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "kindling/burningDamageAmplificationPercent"
+at_first_rank = 5.0
+at_max_rank = 5.0
+
+[[skill.stat]]
+path = "kindling/burningDamagePercentPerSecond"
+at_first_rank = 5.0
+at_max_rank = 5.0
+
+# Keep Ascendant immersion protection only. The pack has Incendium and Ice and Fire; retain the distinction between lava traversal and general fire damage immunity.
+[[skill]]
+id = "essence_ascendance:lavaborn"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+# Keep 5% base plus its small chain gain. Later damage, healing bonuses, canisters and the pack melee tree already increase sustain; raising leech simultaneously would compound too strongly.
+[[skill]]
+id = "essence_ascendance:life_steal"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/lifeSteal/baseHealingFraction"
+at_first_rank = 0.049999999999999996
+at_max_rank = 0.049999999999999996
+
+[[skill.stat]]
+path = "vitality/lifeSteal/perHitHealingFraction"
+at_first_rank = 0.001158251048885505
+at_max_rank = 0.001158251048885505
+
+# Keep 18.3673%-36% durability buffer and 9.0909%-20% performance. Material-paid strengthening remains a competitive alternative to passive/food repair, particularly with strong pack equipment.
+[[skill]]
+id = "essence_ascendance:masterwork_tempering"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "utility/masterworkTempering/maximumOverdurabilityFraction"
+at_first_rank = 0.183673
+at_max_rank = 0.36
+
+[[skill.stat]]
+path = "utility/masterworkTempering/maximumPerformanceBonus"
+at_first_rank = 0.09090899999999999
+at_max_rank = 0.19999999999999998
+
+[[skill.stat]]
+path = "utility/masterworkTempering/reinforcementFractionPerMaterialUnit"
+at_first_rank = 0.1111111111111111
+at_max_rank = 0.23809523809523808
+
+# Raise healing to 0.5 HP per nutrition while retaining one food point per overflow HP. The round trip remains lossy at 0.5, and a normal four-nutrition meal gives two HP rather than one at this late tier.
+[[skill]]
+id = "essence_ascendance:metabolic_conversion"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/damage/metabolicConversion/foodPointsPerOverflowHealth"
+at_first_rank = 1.0
+at_max_rank = 1.0
+
+[[skill.stat]]
+path = "vitality/damage/metabolicConversion/healthPerNutrition"
+at_first_rank = 0.5
+at_max_rank = 0.5
+
+# Raise repair from one to two native durability points per intrinsic food point. This complements the proposed 512-8,192 EA durability ladder while retaining a shared resource-paid repair budget; external gear also includes 8,000-durability dragonsteel.
+[[skill]]
+id = "essence_ascendance:metabolic_mending"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "utility/metabolicMending/repairPointsPerFoodPoint"
+at_first_rank = 2.0
+at_max_rank = 2.0
+
+# Keep 30%-75% full-rhythm speed. Ultimine starts at 16 blocks and the pack mining tree raises its limit; mining speed should remain useful without increasing mass-harvest yield again.
+[[skill]]
+id = "essence_ascendance:mining_momentum"
+tier = "essence_ascendance:awakened"
+ranks = 5
+
+[[skill.stat]]
+path = "gathering/miningMomentum/maximumSpeedBonus"
+at_first_rank = 0.3
+at_max_rank = 0.75
+
+# Keep 1.5-block step clearance and improving momentum requirement. This is conditional traversal and should not duplicate larger permanent Step Height bonuses.
+[[skill]]
+id = "essence_ascendance:momentum_vault"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/momentumVault/minimumMomentum"
+at_first_rank = 0.8888889999999999
+at_max_rank = 0.43360499999999996
+
+[[skill.stat]]
+path = "mobility/momentumVault/stepHeight"
+at_first_rank = 1.5
+at_max_rank = 1.5
+
+# Keep the Transcendent 7.7264%-14.6505% eligible-natural-stone extra-ore route. Its late gate and natural-block requirement matter in a pack with mining dimensions, Ultimine and resource automation.
+[[skill]]
+id = "essence_ascendance:natures_boon"
+tier = "essence_ascendance:transcendent"
+ranks = 2
+
+[[skill.stat]]
+path = "gathering/naturesBoon/dropChance"
+at_first_rank = 0.077264
+at_max_rank = 0.146505
+
+# Move useful 12-30-block ore detection to Resonant. The pack already includes Scannable and mining automation; waiting until Ascendant makes a manual exploration skill arrive too late.
+[[skill]]
+id = "essence_ascendance:ore_sight"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/oreSight/rangeBlocks"
+at_first_rank = 12.0
+at_max_rank = 30.0
+
+# Raise accepted-healing debt cancellation to 50%. This gives the delayed-damage branch a clear Ascendant benefit while keeping half the healing-to-debt ratio and no healing recursion.
+[[skill]]
+id = "essence_ascendance:pain_purge"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/damage/painPurge/queuePerHealing"
+at_first_rank = 0.5
+at_max_rank = 0.5
+
+# Keep 50%-65.522% retained damage and current shield interaction. Penetration is already a substantial capability; preserve the distinction from ricochet/homing and avoid extra boss penetration assumptions.
+[[skill]]
+id = "essence_ascendance:piercing_projectile"
+tier = "essence_ascendance:resonant"
+ranks = 2
+
+[[skill.stat]]
+path = "projectiles/piercingDamageMultiplier"
+at_first_rank = 0.5
+at_max_rank = 0.65522
+
+[[skill.stat]]
+path = "projectiles/piercingShieldDamageMultiplier"
+at_first_rank = 0.8
+at_max_rank = 0.92
+
+# Keep passive swimming catch chance and two ranks. Active fishing has its own investment; passive resource production should stay bounded in an automation pack.
+[[skill]]
+id = "essence_ascendance:pocket_nets"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "gathering/pocketNets/dropChance"
+at_first_rank = 0.03
+at_max_rank = 0.07177
+
+# Raise shared beneficial duration to 35%-50% for useful solo companion support. Ally target count/radius and reduced-duration behavior remain, rather than assuming a multiplayer party.
+[[skill]]
+id = "essence_ascendance:potion_relay"
+tier = "essence_ascendance:resonant"
+ranks = 2
+
+[[skill.stat]]
+path = "utility/potionRelay/durationFraction"
+at_first_rank = 0.35
+at_max_rank = 0.5
+
+# Set the inner speed factor to 0.35 (65% slowing) instead of 0.125 (87.5%). At Awakened this still grants a clear reaction window, while preserving threat from ordinary projectiles until active interception investments.
+[[skill]]
+id = "essence_ascendance:projectile_drag_field"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill.stat]]
+path = "projectiles/control/minimumSpeedFactor"
+at_first_rank = 0.35
+at_max_rank = 0.35
+
+# Keep Transcendent binary harmful-status prevention. It remains the late exclusive alternative to returning statuses, not an early blanket immunity.
+[[skill]]
+id = "essence_ascendance:pure_state"
+tier = "essence_ascendance:transcendent"
+ranks = 1
+
+# Keep the 20%-35.3759% prevented-damage contribution and knockback echo. More powerful bosses already supply more reflected damage; Crowded Reprisal receives the targeted later improvement.
+[[skill]]
+id = "essence_ascendance:reflexive_ward"
+tier = "essence_ascendance:dormant"
+ranks = 2
+
+[[skill.stat]]
+path = "guard/ward/knockbackEchoScale"
+at_first_rank = 0.5
+at_max_rank = 1.025
+
+[[skill.stat]]
+path = "guard/ward/preventedReflectionScale"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.353759
+
+# Raise native passive repair from one to two durability points per second. This fits the proposed lower EA durability ladder; a shared single-item stream and active-use idle reset preserve equipment upkeep.
+[[skill]]
+id = "essence_ascendance:restful_mending"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "utility/restfulMending/repairPointsPerSecond"
+at_first_rank = 2.0
+at_max_rank = 2.0
+
+# Keep 50%-64.925% retained secondary-hit damage. Extra target coverage complements the strengthened late bonus damage without a second independent scaling increase.
+[[skill]]
+id = "essence_ascendance:ricochet"
+tier = "essence_ascendance:resonant"
+ranks = 2
+
+[[skill.stat]]
+path = "projectiles/ricochetDamageMultiplier"
+at_first_rank = 0.5
+at_max_rank = 0.64925
+
+# Raise timed counter damage from 10%-15.8364% to 15%-35%, preserving existing reach ranks. The pack companion has a much larger 2.5x riposte mechanic; this remains a modest skill reward and needs a combined-trigger check.
+[[skill]]
+id = "essence_ascendance:riposte"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "guard/riposte/bonusReach"
+at_first_rank = 0.75
+at_max_rank = 1.875
+
+[[skill.stat]]
+path = "guard/riposte/damageScale"
+at_first_rank = 0.15
+at_max_rank = 0.35
+
+# Keep the health-dependent recovery curve and two ranks. Larger maximum health and healing bonuses already increase sustain; compare it with leech in the same injured state.
+[[skill]]
+id = "essence_ascendance:rising_recovery"
+tier = "essence_ascendance:dormant"
+ranks = 2
+
+[[skill.stat]]
+path = "vitality/risingRecovery/maxSpeedBonus"
+at_first_rank = 0.5278039999999999
+at_max_rank = 0.843819
+
+# Keep 2-5-second roots and the bounded maximum duration. This late control choice is useful without turning high-damage projectile builds into permanent immobilization.
+[[skill]]
+id = "essence_ascendance:rooting_payload"
+tier = "essence_ascendance:ascendant"
+ranks = 5
+
+[[skill.stat]]
+path = "projectiles/payload/rootDurationTicks"
+at_first_rank = 40.0
+at_max_rank = 100.0
+
+[[skill.stat]]
+path = "projectiles/payload/rootMaxDurationTicks"
+at_first_rank = 80.0
+at_max_rank = 200.0
+
+# Set full-sprint buildup speed to 20%-50%, down from 25%-62.5%. Athletics already supplies up to +30% movement speed; movement bonuses can compound, so retain the sprint fantasy without excessive early handling speed.
+[[skill]]
+id = "essence_ascendance:running_momentum"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/runningMomentum/maximumSpeedBonus"
+at_first_rank = 0.2
+at_max_rank = 0.5
+
+# Keep kill-triggered 2.7-6.75-second momentum retention. This does not add another speed multiplier, so reducing Running Momentum already handles the stacking concern.
+[[skill]]
+id = "essence_ascendance:rush"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/rush/durationTicks"
+at_first_rank = 54.0
+at_max_rank = 135.0
+
+# Keep partial 21.5686%-36.0511% material recovery and XP. Automated mob gear and recycling exist; do not approach full refunds or increase the chance of craft/recycle value loops.
+[[skill]]
+id = "essence_ascendance:salvagers_craft"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "gathering/salvagersCraft/bonusExperienceFraction"
+at_first_rank = 0.13043478260869565
+at_max_rank = 0.2351816443594646
+
+[[skill.stat]]
+path = "gathering/salvagersCraft/materialRecoveryFraction"
+at_first_rank = 0.215686
+at_max_rank = 0.36051099999999997
+
+# Keep Transcendent/beacon gating, reduce maximum radius from 100 to 64 blocks while retaining a 40-block first rank. Magnum Torch handles dedicated base suppression; personal disengaged-hostile pacification should not cover most nearby exploration.
+[[skill]]
+id = "essence_ascendance:sanctuary"
+tier = "essence_ascendance:transcendent"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/sanctuary/radiusBlocks"
+at_first_rank = 40.0
+at_max_rank = 64.0
+
+# Keep 20%-50% recovery and the existing cooldown. The pack already has cheat-death behavior and Inventory Totem, so avoid simultaneously strengthening every lethal-save layer.
+[[skill]]
+id = "essence_ascendance:second_wind"
+tier = "essence_ascendance:transcendent"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/deathDefiance/secondWind/recoveryHealthFraction"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.5
+
+[[skill.stat]]
+path = "vitality/deathDefiance/secondWind/strengthDamageBonus"
+at_first_rank = 0.1
+at_max_rank = 0.25
+
+# Raise Awakened shard damage from two to four HP to match Combustion. Its freeze prerequisite and limited targets remain, while shorter Frostbite duration avoids receiving stronger damage and stronger early control together.
+[[skill]]
+id = "essence_ascendance:shatter"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill.stat]]
+path = "shatter/shardDamage"
+at_first_rank = 4.0
+at_max_rank = 4.0
+
+# Keep the conditional final-ward-heart regeneration and knockback. Improved Soul Ward capacity already supports the branch; avoid inflating health-percentage recovery with canister scaling.
+[[skill]]
+id = "essence_ascendance:shattering_ward"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/wards/shatteringWard/healingFractionPerSecond"
+at_first_rank = 0.020834
+at_max_rank = 0.020834
+
+[[skill.stat]]
+path = "vitality/wards/shatteringWard/knockback"
+at_first_rank = 0.39999999999999997
+at_max_rank = 0.39999999999999997
+
+# Keep knockback 0.6-1.5 and half-second stagger. Contact/repeat limits preserve a movement-dependent shield attack, and pack high-damage enemies do not justify permanent stagger.
+[[skill]]
+id = "essence_ascendance:shield_ram"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "guard/ram/knockback"
+at_first_rank = 0.6
+at_max_rank = 1.5
+
+[[skill.stat]]
+path = "guard/ram/staggerTicks"
+at_first_rank = 10.0
+at_max_rank = 10.0
+
+# Raise capacity from 10% to 15% of maximum health, retaining 5% victim-health acquisition and its expiry. Three HP of capacity at baseline is a meaningful Resonant reward; stronger canister builds benefit without uncapping ward storage.
+[[skill]]
+id = "essence_ascendance:soul_ward"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/wards/soulWard/capacityHealthFraction"
+at_first_rank = 0.15
+at_max_rank = 0.15
+
+[[skill.stat]]
+path = "vitality/wards/soulWard/victimHealthFraction"
+at_first_rank = 0.049999999999999996
+at_max_rank = 0.049999999999999996
+
+# Keep 3.8-second escape and 33.3333%-55.5555% reform health. Combined lethal-save ordering with pack cheat death/Inventory Totem needs gameplay verification, not more numeric power.
+[[skill]]
+id = "essence_ascendance:spirit_walk"
+tier = "essence_ascendance:transcendent"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/deathDefiance/spiritWalk/durationTicks"
+at_first_rank = 76.0
+at_max_rank = 76.0
+
+[[skill.stat]]
+path = "vitality/deathDefiance/spiritWalk/reformHealthFraction"
+at_first_rank = 0.333333
+at_max_rank = 0.555555
+
+# Keep ten seconds to pay delayed damage. This is a single timing capability, and more delay could combine too efficiently with multiple recovery systems.
+[[skill]]
+id = "essence_ascendance:staggered_pain"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/damage/staggeredPain/paymentTicks"
+at_first_rank = 200.0
+at_max_rank = 200.0
+
+# Keep the Dormant two-HP discharge. It works while moving and later chains; the pack already provides five-damage lightning in its own combat progression. Larger early passive procs would flatten routine fights.
+[[skill]]
+id = "essence_ascendance:static_charge"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "staticCharge/lightningDamage"
+at_first_rank = 2.0
+at_max_rank = 2.0
+
+# Reduce the Transcendent return cooldown from ten to eight seconds. It remains slower than repeated-hit intervals and a choice against full status prevention, giving the active return option a useful niche.
+[[skill]]
+id = "essence_ascendance:status_mirror"
+tier = "essence_ascendance:transcendent"
+ranks = 1
+
+[[skill.stat]]
+path = "status/mirrorCooldownTicks"
+at_first_rank = 160.0
+at_max_rank = 160.0
+
+# Keep generated stored-force capacity and 0.25-0.45247 damage conversion. This is already a charged counterattack; increasing it with reflection and Riposte would over-reward a single block.
+[[skill]]
+id = "essence_ascendance:stored_force"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "guard/storedForce/damageScale"
+at_first_rank = 0.25
+at_max_rank = 0.45247
+
+# Keep the Resonant binary water/lava-surface support, sneak override and rod behavior. It enables a distinct traversal/fishing style without unrestricted submerged flight.
+[[skill]]
+id = "essence_ascendance:surface_tension"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+# Keep the Dormant terrain-hazard convenience. Worldgen includes varied terrain, and the narrow supported-hazard behavior does not bypass combat progression.
+[[skill]]
+id = "essence_ascendance:terrain_freedom"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+# Keep 24-60-block hazard awareness. The pack has many structures and health-information mods, making awareness useful without requiring a radius increase.
+[[skill]]
+id = "essence_ascendance:threat_sense"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/threatSense/rangeBlocks"
+at_first_rank = 24.0
+at_max_rank = 60.0
+
+# Keep tool selection and 15%-37.5% eligible lower-tier speed. The pack has hammers, gadgets and Ultimine; correctness of harvest level matters more than another global mining-speed increase.
+[[skill]]
+id = "essence_ascendance:tool_instinct"
+tier = "essence_ascendance:dormant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/toolInstinct/maximumLowerTierSpeedBonus"
+at_first_rank = 0.15
+at_max_rank = 0.375
+
+# Keep Awakened automatic carried-torch placement. It consumes the light source and remains a practical alternative to helmet lights, rather than free illumination everywhere.
+[[skill]]
+id = "essence_ascendance:torchbearer"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+# Keep 1.25-2x return speed and 18-45-degree steering. This already reaches native caps; test eligible mod projectiles rather than raising numerical limits.
+[[skill]]
+id = "essence_ascendance:trajectory_theft"
+tier = "essence_ascendance:ascendant"
+ranks = 5
+
+[[skill.stat]]
+path = "projectiles/control/theftSpeedMultiplier"
+at_first_rank = 1.25
+at_max_rank = 2.0
+
+[[skill.stat]]
+path = "projectiles/control/theftTurnDegreesPerTick"
+at_first_rank = 18.0
+at_max_rank = 45.0
+
+# Move the exclusive 12-30-block natural-loot scan to Resonant alongside Ore Sight. Loot-heavy structures and existing information tools justify an exploration reward before advanced automation dominates.
+[[skill]]
+id = "essence_ascendance:treasure_sense"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/treasureSense/rangeBlocks"
+at_first_rank = 12.0
+at_max_rank = 30.0
+
+# Keep Transcendent single-rank sustained flight and Elytra milestone. Iron Jetpacks may provide flight earlier, but this is equipment-free sustained access and remains an apex personal reward.
+[[skill]]
+id = "essence_ascendance:untethered_flight"
+tier = "essence_ascendance:transcendent"
+ranks = 1
+
+[[skill.stat]]
+path = "mobility/untetheredFlight/airRechargeTicks"
+at_first_rank = 55.0
+at_max_rank = 55.0
+
+# Keep 4.35-2.15-second recharge and existing strength. The wing path already reaches free repeatable boosts; increasing speed would compound athletics and flight bonuses.
+[[skill]]
+id = "essence_ascendance:vector_boost"
+tier = "essence_ascendance:transcendent"
+ranks = 3
+
+[[skill.stat]]
+path = "mobility/vectorBoost/rechargeTicks"
+at_first_rank = 87.0
+at_max_rank = 43.0
+
+# Keep directional impulse and braking ranks. The replacement of Double Jump is an important choice; preserve native once-per-airborne resource handling.
+[[skill]]
+id = "essence_ascendance:vector_jump"
+tier = "essence_ascendance:resonant"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/vectorJump/brakeFraction"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.666666
+
+[[skill.stat]]
+path = "mobility/vectorJump/impulseBonus"
+at_first_rank = 0.7
+at_max_rank = 1.75
+
+# Move free proximity crop growth to Resonant. Squat Grow explicitly blacklists Mystical Agriculture crops and costs XP, whereas this native crop tick route can affect eligible MA crops. Later earned access avoids an immediate alternate early crop accelerator.
+[[skill]]
+id = "essence_ascendance:verdant_stride"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "gathering/verdantStride/growthChance"
+at_first_rank = 0.5399999999999999
+at_max_rank = 0.5399999999999999
+
+# Reduce discounts to 15%-25% and slow local restock to 120-60 seconds. Easy Villagers and automatable trading already exist; retain the Hero milestone reward without making early free restocks and discounts dominate the material economy.
+[[skill]]
+id = "essence_ascendance:village_patron"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "utility/villagePatron/discountFraction"
+at_first_rank = 0.15
+at_max_rank = 0.25
+
+[[skill.stat]]
+path = "utility/villagePatron/restockIntervalTicks"
+at_first_rank = 2400.0
+at_max_rank = 1200.0
+
+# Keep eight-to-twenty-block local lighting guidance and binary vision protections. This has strong quality-of-life value in caves and should remain an alternative to Threat Sense.
+[[skill]]
+id = "essence_ascendance:waylight"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/waylight/searchRadiusBlocks"
+at_first_rank = 8.0
+at_max_rank = 20.0

@@ -34,6 +34,7 @@ into the feature contracts and acceptance summaries linked below.
 | Audio architecture, current evidence and authoring | [audio/PASSDOWN.md](audio/PASSDOWN.md) |
 | Models, procedural assets and promoted audio | [../art/README.md](../art/README.md) |
 | Canonical player/pack-maker wiki | [wiki/Home.md](wiki/Home.md) |
+| Premade configuration presets and adding new packs | [../presets/README.md](../presets/README.md) |
 | Wiki source review and publishing | [wiki-maintenance/PUBLISHING.md](wiki-maintenance/PUBLISHING.md) |
 
 Keep irreproducible authoring/design references in the consolidated auxiliary

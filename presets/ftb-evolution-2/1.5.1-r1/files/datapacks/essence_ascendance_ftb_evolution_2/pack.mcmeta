@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Essence Ascendance tuning for FTB Evolution 2 1.5.1",
+    "min_format": [101, 0],
+    "max_format": [101, 2147483647]
+  }
+}

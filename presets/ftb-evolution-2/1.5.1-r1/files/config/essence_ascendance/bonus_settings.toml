@@ -1,0 +1,333 @@
+# FTB Evolution 2 1.5.1 - Essence Ascendance pack balance proposal
+# Solo Normal, automation expected, competitive parallel progression.
+# Apply with /essence admin balance rebuild; saved JSON is output only.
+# All 41 Bonus tracks individually reviewed. See bonus-audit.json.
+schema_version = 1
+
+[[bonus]]
+# Retain a useful native-anvil discount, but spread it across four stages. Apotheosis augmenting uses a separate table and its 175/225 level costs are not reduced by this Bonus.
+id = "essence_ascendance:anvil_efficiency"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Reduce end knockback from 104% to 60%; melee control stays helpful without repeatedly driving targets out of short-range combos. Players can stop investing earlier.
+id = "essence_ascendance:attack_knockback"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 60.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Bring underwater convenience forward to exploration while Just Dire waterbreathing and later EA aquatic skills offer full solutions. Sixty seconds is a useful reserve, not infinite air.
+id = "essence_ascendance:breath_hold"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 60.0
+minimum_bonus_at_lowest = 5.0
+
+[[bonus]]
+# Keep a meaningful doubled manual harvest at completion, reached later. Mystical Agriculture and automated harvesting already provide scalable production; this is a player-attributed route, not a global machine multiplier.
+id = "essence_ascendance:crop_yield"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 100.0
+minimum_bonus_at_lowest = 20.0
+
+[[bonus]]
+# Extend five-point progress across all tiers; a modest retaliatory route amid high-health enemies. This is additional reflection and still obeys source eligibility and shield mechanics.
+id = "essence_ascendance:damage_reflection"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 25.0
+minimum_bonus_at_lowest = 5.0
+
+[[bonus]]
+# Half wear remains useful with the proposed sane gear durability ladder and pack repair options. Complete it late and keep maintenance meaningful; MA unbreakable armor is disabled by the pack.
+id = "essence_ascendance:durability_efficiency"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Keep native enchantment spending relevant while making long-term Apothic enchanting investment cheaper. The discount does not raise enchantment quality or erase level requirements.
+id = "essence_ascendance:enchanting_efficiency"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Round the existing 104% to a clear doubling. Strong XP farms and Ancient Knowledge already exist, so avoid larger multiplicative XP inflation.
+id = "essence_ascendance:experience_gain"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 100.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Increase completion moderately, but postpone it; supports creepers and modded explosions without removing explosive danger or overriding other defenses.
+id = "essence_ascendance:explosion_resistance"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Moderate fall protection grows through exploration and flight. Just Dire negatefalldamage is enabled; EA retains a partial passive path and its separate traversal skills.
+id = "essence_ascendance:fall_resistance"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 60.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Give gradual Nether safety without granting passive immunity; Just Dire lavaimmunity, potion charms, and EA lava skills remain distinct full solutions.
+id = "essence_ascendance:fire_resistance"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 60.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Round existing 104% to double supported countdown throughput. Keep all five stages; Lure and fishing skills already multiply productivity and native transitions remain authoritative.
+id = "essence_ascendance:fishing_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 100.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Start alongside Fatigue Flight rather than selling a Dormant upgrade before EA ability flight exists. Fifty percent remains controllable alongside other movement systems; does not claim to accelerate opaque jetpacks.
+id = "essence_ascendance:flight_speed"
+min_tier = "essence_ascendance:resonant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Retain the existing +3 levels. Apothic enchantment systems and manual mining already combine with this, and MA automation supplies an alternative; larger Fortune would inflate ore loops.
+id = "essence_ascendance:fortune"
+min_tier = "essence_ascendance:resonant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 3.0
+minimum_bonus_at_lowest = 0.5
+
+[[bonus]]
+# Retain the generated native limit and four-stage progression. At completion, 5-tick shield raising reaches the 1-tick mechanical floor; further increases cannot create useful raising states.
+id = "essence_ascendance:guard_readiness"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 80.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Retain the full native blocking-slowdown removal ceiling at Transcendent. A five-stage Mobility investment supports shield builds without exceeding ordinary movement speed by itself.
+id = "essence_ascendance:guarded_movement"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 100.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Lower and postpone broad healing amplification because BHC patches, Apotheosis healing/lifesteal and other external heals can stack. Forty percent stays relevant without multiplying every strong external heal by 1.52 early.
+id = "essence_ascendance:healing_effectiveness"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 40.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Scale recovery to the increased health environment but spread it across the whole journey. At completion 1.5 HP/second takes 40 seconds to restore a standalone 60 HP EA health pool before other sources.
+id = "essence_ascendance:health_regeneration"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 0.75
+minimum_bonus_at_lowest = 0.1
+
+[[bonus]]
+# Round 52% to half exhaustion. Food remains meaningful for the pack and Hunger Ward spending is intentionally excluded from passive efficiency.
+id = "essence_ascendance:hunger_efficiency"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Earlier small traversal benefit, later restrained 40% impulse endpoint. Stacking a large impulse with jump/mobility skills and other mod equipment is disruptive indoors; this is not a linear 40% height gain.
+id = "essence_ascendance:jump_height"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 40.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Retain about half native knockback resistance but distribute across four tiers. Armor and other modifiers can consume remaining headroom; do not promise additive immunity.
+id = "essence_ascendance:knockback_resistance"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Retain +3 effective levels as the manual/combat collection route. Apothic spawners and pack mob farms already allow scale; no extra global farm multiplier is needed.
+id = "essence_ascendance:looting"
+min_tier = "essence_ascendance:resonant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 3.0
+minimum_bonus_at_lowest = 0.5
+
+[[bonus]]
+# Round 5.2 to five Luck and spread through four stages. Only quality-aware loot pools respond; this cannot be priced or presented as universal rare-drop multiplication.
+id = "essence_ascendance:luck"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 5.0
+minimum_bonus_at_lowest = 1.0
+
+[[bonus]]
+# Extend caster cadence investment to four stages. At the current 1.7 actions/second baseline, 10/20/30/40 percent reduces recovery from 12 to 11/10/9/8 ticks, providing a real improvement each stage.
+id = "essence_ascendance:magic_cast_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 40.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Four meaningful flat damage steps replace a tiny two-stage track. Current apex caster baseline is only 5 with no measured external caster reference; +4 raises it to 9 before skills, requiring live spell comparisons rather than fabricated parity.
+id = "essence_ascendance:magic_damage"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 4.0
+minimum_bonus_at_lowest = 1.0
+
+[[bonus]]
+# Four modest resistance steps improve late survivability against magical enemies while leaving damage meaningful. The three source-specific resistances are alternatives by damage classification, not one combined 60% reduction.
+id = "essence_ascendance:magic_resistance"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 20.0
+minimum_bonus_at_lowest = 5.0
+
+[[bonus]]
+# Raise end health by 20 hearts to compete with BHC, whose config allows 10 hearts per canister type; automatic references only see vanilla 20 HP. Retain a small +2 hearts opening and a late endpoint. Full-health/low-health skills and external canisters need in-game stacking checks.
+id = "essence_ascendance:max_health"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 20.0
+minimum_bonus_at_lowest = 2.0
+
+[[bonus]]
+# Replace the single +10% Dormant purchase with four +10 percentage-point stages. At apex 2 attacks/second, +40% gives 2.8 before skill speed; paired with +12 damage it is about 2.07x naked gear DPS, leaving room for conditional skills.
+id = "essence_ascendance:melee_attack_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 40.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Replace +2.2 completion with a late +12 flat damage path. Against apex 25 damage this is +48%, before speed and skills; gives combat investment a substantial identity while equipment still supplies most base damage.
+id = "essence_ascendance:melee_damage"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 12.0
+minimum_bonus_at_lowest = 1.0
+
+[[bonus]]
+# Four five-point stages instead of two make broad physical protection grow gradually. Apotheosis uses a different armor formula, so keep this separate reduction modest rather than chasing the generated vanilla EHP estimate.
+id = "essence_ascendance:melee_resistance"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 20.0
+minimum_bonus_at_lowest = 5.0
+
+[[bonus]]
+# Round 104% to double block-breaking rate, retaining five tiers. Strong mining tools, Just Dire instabreak, and automation already exist; extra speed above instant-break thresholds has no value.
+id = "essence_ascendance:mining_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 100.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Reduce 52% to 40% and stretch it through Transcendent. Other movement equipment and EA running/mobility skills stack, so passive controllability matters more than inflated top speed.
+id = "essence_ascendance:movement_speed"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 40.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Round to 50% and distribute over four stages. Supports aiming and travel reliability while the pack has advanced bow abilities; avoid excessive velocity multiplying native arrow damage unexpectedly.
+id = "essence_ascendance:projectile_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Extend draw-speed progression to four meaningful tiers. Current bow rate1 gives 20 baseline ticks and 18/17/15/14 at 10/20/30/40%; speed remains compatible with projectile skill investments.
+id = "essence_ascendance:ranged_attack_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 40.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Increase +3.1 to +5 and spread across four tiers. Current apex base9 becomes14, about1.56x hit strength; with40% speed it is2.18x before conditional projectile skills.
+id = "essence_ascendance:ranged_damage"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 5.0
+minimum_bonus_at_lowest = 1.0
+
+[[bonus]]
+# Four modest source-specific stages keep skeletons and ranged bosses relevant while upgrading survivability. Avoid high passive protection stacking with armor, enchantments and postures.
+id = "essence_ascendance:ranged_resistance"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 20.0
+minimum_bonus_at_lowest = 5.0
+
+[[bonus]]
+# Reduce +4.1 to +3 blocks because it adds to both block and entity interaction and compounds equipment reach. Still a substantial late utility and melee-spacing reward.
+id = "essence_ascendance:reach"
+min_tier = "essence_ascendance:resonant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 3.0
+minimum_bonus_at_lowest = 0.5
+
+[[bonus]]
+# Round 52% to 50% and distribute over four tiers. Building and cautious movement improve without excessive interaction with Swift Sneak and external speed modifiers.
+id = "essence_ascendance:sneak_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Extend harmful-duration reduction through four stages. Late magical enemies justify 50%, while full immunity stays with specific skills or modded equipment rather than a passive all-effect guarantee.
+id = "essence_ascendance:status_resistance"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 50.0
+minimum_bonus_at_lowest = 10.0
+
+[[bonus]]
+# Move full-block then roughly fence-height stepping into exploration, matching abundant pack traversal alternatives. Preserve the original collision-derived endpoint instead of rounding below a real block boundary; native base .6 remains additive.
+id = "essence_ascendance:step_height"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:resonant"
+bonus_at_max = 0.9625
+minimum_bonus_at_lowest = 0.4
+
+[[bonus]]
+# Retain all five stages and the measured native water-movement headroom ceiling. Other equipment can consume this attribute headroom; larger numbers would not ensure faster swimming.
+id = "essence_ascendance:swim_speed"
+min_tier = "essence_ascendance:dormant"
+max_tier = "essence_ascendance:transcendent"
+bonus_at_max = 100.0
+minimum_bonus_at_lowest = 10.0

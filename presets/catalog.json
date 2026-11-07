@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "entries": [
+    {
+      "id": "ftb-evolution-2",
+      "revision": "1.5.1-r1",
+      "pack_name": "FTB Evolution 2",
+      "pack_version": "1.5.1",
+      "minecraft": "26.1.2",
+      "loader": "NeoForge",
+      "config_format": "1.0.0-beta.15",
+      "status": "Playtest",
+      "tested_on": "2026-11-07",
+      "summary": "A full progression path for solo Normal play with automation, tuned to remain competitive with the pack's endgame gear at comparable effort.",
+      "compatibility_notes": [
+        "The complete balance audit targeted FTB Evolution 2 1.5.1 and its original mod list. Later pack versions, other loaders and other Minecraft versions are not validated by this download.",
+        "All 90 Skills, 41 Bonuses, 6,981 payout ceilings and 11 bulk-material limits were checked in the generated result. A full progression and boss playthrough is still in progress.",
+        "The separate companion datapack is required. Install it with the four TOML files before rebuilding balance.",
+        "The original 1.5.1 pack uses FTB Teams 26.1.2.4 and FTB Library 26.1.2.9, which work with published Essence Ascendance beta.15. Updated packs with newer FTB versions need an Essence Ascendance build containing the subsequent compatibility fix; these configs cannot patch a mod jar."
+      ],
+      "source": "ftb-evolution-2/1.5.1-r1",
+      "page": "Preset-FTB-Evolution-2-1-5-1-r1"
+    }
+  ]
+}
