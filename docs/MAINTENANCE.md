@@ -81,7 +81,7 @@ extend it to newly generated output.
 
 ## Current release
 
-**Beta.17 is published; release-workflow artifact distribution is running.**
+**The beta.17 release workflow is complete; GitHub downloads are verified.**
 Source commit `13e4bccb5115e5f751346a71c286df1785b25a48` fixes the equipment-rule
 refresh race found while reopening the ATM11 audit world. It preserves eager
 refresh for non-ticking automation players and defers off-thread inventory work
@@ -97,10 +97,51 @@ records the scope and remaining playthrough limits.
 
 [CI run 42431826634](https://github.com/mistaboom/essence_ascendance/actions/runs/42431826634)
 passed the exact source commit: all 324 Gradle tasks and 25 release tests, with
-the build completing in 28m 4s. The matching prerelease was published through
-the GitHub release workflow; final artifact and platform verification is pending. Preserve the published beta.16 artifacts; do not replace
-them with beta.17 bytes or substitute local build hashes for downloaded release
-hashes. Record the beta.17 publication receipt only after verification.
+the build completing in 28m 4s. The ATM11 preset and current guides are published;
+[the wiki receipt](wiki-maintenance/AUDIT.md) records source, rendered-page and
+public-download verification.
+
+### Published beta.17 receipt
+
+The release source is `13e4bccb5115e5f751346a71c286df1785b25a48`, tagged
+`v1.0.0-beta.17`. The
+[release workflow](https://github.com/mistaboom/essence_ascendance/actions/runs/42434154081)
+passed all 324 Gradle tasks in 27m 45s and all 25 release tests. All ten jobs
+succeeded: build, GitHub downloads, four CurseForge uploads and four Modrinth
+uploads. The [GitHub beta.17 release](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.17)
+contains four jars and their checksums. Workflow artifact `13599801053` has ZIP
+SHA-256 `d4627bfdd38fb2521095ffbbfd5354b18277c6b95bba43e1cf7372a503294258`.
+
+Independent downloads of all four GitHub jars match the workflow's sizes and
+SHA-256 hashes; release notes and the checksum asset match too. Modrinth has
+exactly four matching beta.17 records, with the expected game/loader versions,
+dependencies and changelog. All four actual Modrinth CDN downloads match the
+workflow's SHA-256, SHA-512 and size.
+
+| Target | Published SHA-256 | Modrinth version |
+| --- | --- | --- |
+| 1.21.1 Fabric | `2c6cbd666a1a8dddc5494e97d51c8211904fa42453e65f1f60083c01dceb5493` | `qOkQJoNM` |
+| 1.21.1 NeoForge | `6a6ae7d787d45d1622a4131d33e648c8a5c8a25bfebe55f34183c5f73e663878` | `IW5eIwc0` |
+| 26.1.2 Fabric | `52544e4d037b2d5e489217dbd4be6e247b563f208c589f31e182f43f894a6271` | `maYQVIxu` |
+| 26.1.2 NeoForge | `49950dc20c003612c20cd9c0920ff2730b01b5f41e0caaa3fced56581535600d` | `GDwnbD1o` |
+
+Verification on 2026-11-08 at 01:58 UTC found Modrinth's project `processing`,
+with `requested_status=approved`, no approval date and anonymous project/version
+APIs returning 404. Upload acceptance and accessible CDN bytes do not establish
+public approval. All four CurseForge upload logs explicitly report success, but
+the author file API returned 403; beta.17 file IDs, public visibility and
+independent CDN comparisons remain unverified. At 01:59 UTC, the retrieved
+[public file list](https://www.curseforge.com/minecraft/mc-mods/essence-ascendance/files/all?page=1&pageSize=20&showAlphaFiles=hide&sortBy=dateCreated&sortOrder=desc)
+showed 42 results, including all four beta.16 and beta.15 files, with beta.16
+newest and no beta.17 files observed. Its cache freshness is unknown; absence
+is not proof of rejection. Do not re-upload because a public list has not updated.
+
+Detailed local receipts are `build/beta17-github-verification.json`,
+`build/beta17-modsite-verification.json` and
+`build/beta17-workflow-verification.json`; the build log is
+`build/beta17-release-workflow-build.log`. These published hashes are independent
+of the local jars used for native acceptance. Preserve the published beta.16
+artifacts and their historical receipt below.
 
 ### Published beta.16 receipt
 

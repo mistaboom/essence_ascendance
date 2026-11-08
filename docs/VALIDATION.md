@@ -54,10 +54,17 @@ The recorded generated-profile file SHA-256 is
 its internal integrity value is
 `26cf8a7da6e19ecb511df99fb14bdb0d8daee9834226690f1e5e35559829cd22`.
 Post-reopen command validation passed at 16:00:50 with the same file checksum.
-Exact-source CI then passed all 324 tasks and 25 release tests. Release-workflow
-distribution and public preset publication were pending at this checkpoint; [MAINTENANCE.md](MAINTENANCE.md) records subsequent
-status. These checks establish generation, persistence and the reported lifecycle
-repair, not a complete progression/boss playthrough or every mod interaction.
+Exact-source CI and the subsequent beta.17 release workflow each passed all
+324 tasks and 25 release tests. All ten release jobs succeeded. Independent
+downloads of all four GitHub and Modrinth jars matched the official workflow
+artifacts; [MAINTENANCE.md](MAINTENANCE.md) records their exact hashes and the
+remaining Modrinth approval and CurseForge public-visibility limits. The ATM11
+preset and current guides are published, with rendered-page and public ZIP
+verification recorded in [the wiki receipt](wiki-maintenance/AUDIT.md).
+These publication checks are separate from the local-jar native acceptance
+above. Native acceptance establishes generation, persistence and the reported
+lifecycle repair; a complete progression/boss playthrough and every mod
+interaction remain outside its scope.
 
 | Evidence | What it establishes | Limit |
 | --- | --- | --- |

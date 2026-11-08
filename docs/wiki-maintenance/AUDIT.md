@@ -27,7 +27,7 @@ release references honest: unreleased source behavior is not proof of an older t
 
 ## Publication and verification
 
-### Beta.17 release guide: prepared, publication pending
+### Beta.17 release guide: published
 
 The membership guide now describes runtime API detection without FTB version
 allowlists, fallback to built-in teams on actual API failure or provider removal,
@@ -36,17 +36,20 @@ The review checked `MembershipProviders`, `MembershipRuntime`, `PoolMembershipSt
 `ReservoirService`, `MachineBinding` and `TeamInterfaceNetworkService`, plus their
 regressions and the deployment evidence summarized in `docs/VALIDATION.md`.
 
-The prepared release-page selection is `Home.md`, `_Footer.md`,
+The release-page selection was `Home.md`, `_Footer.md`,
 `Version-and-Maintenance.md`, `Administration-Commands.md`, `Configuration.md`,
 `Integrations-and-Compatibility.md`, `Player-Commands.md`,
-`Teams-and-Shared-Infrastructure.md` and `Troubleshooting.md`. Publish this set
-after the beta.17 release gate succeeds, then record the actual wiki commit.
+`Teams-and-Shared-Infrastructure.md` and `Troubleshooting.md`. These pages were
+published with the ATM11 catalog selection below after exact-source CI passed.
 The reported world-reopen failure has now passed local native acceptance in
 ATM11: beta.17 loaded the saved profile and joined the same world after save/quit,
 without the policy-cache exception or resulting datapack failure. The controlled
 regression and version-specific fixture scope are recorded in
-[../VALIDATION.md](../VALIDATION.md). Exact-source CI passed all 324 tasks and 25 release tests. Release-workflow
-artifact verification and this wiki publication remain pending.
+[../VALIDATION.md](../VALIDATION.md). Exact-source CI and the
+[beta.17 release workflow](https://github.com/mistaboom/essence_ascendance/actions/runs/42434154081)
+both passed all 324 tasks and 25 release tests. All ten release jobs succeeded;
+the official artifact verification receipt is maintained in
+[../MAINTENANCE.md](../MAINTENANCE.md).
 Existing versioned preset downloads retain their original compatibility records;
 these guide edits do not relabel their tested configuration or pack version.
 
@@ -62,9 +65,9 @@ reported separately from an unfinished progression/boss playthrough.
 
 Catalog pages are generated from their maintained inputs and committed under
 `docs/wiki/` for the existing publisher. New packs and revisions do not require
-changes to the publisher or a new copy of the website. The selected publication
-scope is `Config-Presets.md`, `Preset-FTB-Evolution-2-1-5-1-r1.md`, `Home.md`,
-`_Sidebar.md` and `_Footer.md`; pending integration documentation is separate.
+changes to the publisher or a new copy of the website. The original publication
+scope was `Config-Presets.md`, `Preset-FTB-Evolution-2-1-5-1-r1.md`, `Home.md`,
+`_Sidebar.md` and `_Footer.md`; integration documentation was outside that selection.
 
 That selection was published on 2026-11-07 as wiki commit
 `67e8ac1d7f76556f3ab27ee40dfc678057d8eb79`, from main-repository source commit
@@ -75,9 +78,9 @@ packaging suite, generated-output check and disposable wiki publisher checks
 passed locally; the Configuration presets GitHub Actions run also passed on Linux.
 These are publication and packaging checks, not a new gameplay balance audit.
 
-### ATM11 preset: native acceptance recorded, publication pending
+### ATM11 preset: published with native acceptance
 
-The prepared `atm11/0.14.0-beta-r1` revision targets ATM11 0.14.0-beta on
+The published `atm11/0.14.0-beta-r1` revision targets ATM11 0.14.0-beta on
 NeoForge 26.1.2 with Essence Ascendance beta.17. Its audit covered the original
 298 mod jars and supplied/generated configurations. The preset contains all 90 Skills,
 41 Bonuses, 66 equipment controls, 6,935 category payout ceilings across 6,934
@@ -93,18 +96,30 @@ passed locally on 2026-11-07. The generated result matched all 658 authored
 controls, and reopening retained integrity
 `26cf8a7da6e19ecb511df99fb14bdb0d8daee9834226690f1e5e35559829cd22`.
 Post-reopen command validation passed at 16:00:50 with the same profile file checksum.
-Exact-source CI subsequently passed all 324 tasks and 25 release tests.
-Release-workflow artifact verification and wiki publication remain pending.
+Exact-source CI passed all 324 tasks and 25 release tests.
+The release workflow subsequently passed all ten build and publication jobs.
 Progression effort and competitive endgame behavior remain design targets;
 a complete progression and boss playthrough has not been completed.
 
-Publish the generated `Config-Presets.md` and
-`Preset-ATM11-0-14-0-beta-r1.md` pages with the selected navigation/release pages
-after the main-repository download is available and the release gate passes.
-Then verify the live detail page and anonymous ZIP hash and record the actual wiki
-commit. The original FTB Evolution 2 ZIP remains byte-for-byte unchanged; the
-historical `67e8ac1d7f76556f3ab27ee40dfc678057d8eb79` publication above remains its
-receipt, not evidence that the new ATM11 page has already been published.
+The generated `Config-Presets.md` and `Preset-ATM11-0-14-0-beta-r1.md` pages,
+`_Sidebar.md` and the nine release-guide pages above were published on
+2026-11-07 (2026-11-08 UTC) as wiki commit
+`c5d130d08c5606422311a16fe312cef67ddff963`, from main-repository source
+`72d4c68478ddd405fdac21434799eea33f638d65`. The reviewed selection contained
+12 pages; 11 changed and the sidebar already matched. Fresh anonymous HTTP
+reads verified that all 12 raw pages exactly matched their canonical source.
+The rendered catalog, ATM11 detail, Home and Version pages show the current
+content, beta.17 footer, Downloads navigation and correct public ZIP link.
+
+The public ATM11 ZIP was independently downloaded without authentication. Its
+SHA-256 is `4d33c6eb5b2b7f4d3d70baa6ad5eb0a1863d332182a6cd83abb5937f877a78bd`;
+all eight archive members, payload checksums and paths passed verification.
+[Configuration presets run 42434315065](https://github.com/mistaboom/essence_ascendance/actions/runs/42434315065)
+passed all 22 tests and the generated-output check on Linux at preset source
+`c152b6b2273dde919b22b6584430d2bfad225532`. The original FTB Evolution 2 ZIP
+remains byte-for-byte unchanged at SHA-256
+`a5f421bbdb39e4442794789bac8229003b4769cf8018f6783a9ba550c5228879`;
+its historical wiki publication receipt above is preserved.
 
 The last recorded audio wiki publication is commit
 `5762bdfbfc46c0c0fd7658a1bc32e359a9fff01a` on the separate wiki repository, from the
