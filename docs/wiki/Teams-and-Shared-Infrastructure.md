@@ -2,7 +2,7 @@
 
 [Home](https://github.com/mistaboom/essence_ascendance/wiki/Home) · [Commands](https://github.com/mistaboom/essence_ascendance/wiki/Commands) · [Updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery)
 
-**Current membership scope:** native authority and functional FTB Teams membership. Use matching builds on the server and clients. Upgrading from earlier betas requires fresh worlds and fresh Essence Ascendance configuration; older formats are not migrated. Keep historical worlds with their matching build and inputs. Install the intended team provider before creating a new world. Dated beta.5 receipts retain their original scope in [version history](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance).
+**Current membership scope:** native authority and functional FTB Teams membership. Use matching builds on the server and clients. The earlier fresh-world and fresh-configuration requirement applies when upgrading from beta.7 or earlier; those older formats are not migrated. Updating from beta.15 or beta.16 within the same Minecraft version requires no world or configuration reset. Keep historical worlds with their matching build and inputs. Install the intended team provider before creating a new world. Dated beta.5 receipts retain their original scope in [version history](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance).
 
 This is the pack-maker and administrator reference. Players should use the connected server's [Ascendance Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive) for lessons, machine operation and resolved values.
 
