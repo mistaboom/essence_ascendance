@@ -17,7 +17,7 @@ public final class TwoHandedEquipmentService {
         public boolean mayAttack() { return status == Status.COMPATIBLE; }
     }
     private static final Decision PENDING = new Decision(Status.PENDING, false, false, false, true, 0, -1);
-    private static final Map<ServerPlayer, State> STATES = new WeakHashMap<>();
+    private static final Map<ServerPlayer, State> STATES = Collections.synchronizedMap(new WeakHashMap<>());
     private static final ThreadLocal<Integer> COMBAT = ThreadLocal.withInitial(() -> 0);
     private TwoHandedEquipmentService() { }
 
@@ -56,6 +56,7 @@ public final class TwoHandedEquipmentService {
         var d = decision(player);
         if (d.status() == Status.INCOMPATIBLE) {
             var s = STATES.get(player);
+            if (s == null) return false;
             long now = player.level().getGameTime();
             if (s.lastMessage == Long.MIN_VALUE || now < s.lastMessage || now - s.lastMessage >= 20) {
                 PlayerMessageCompat.send(player, Component.translatable("message.essence_ascendance.incompatible_offhand"), true);
@@ -150,10 +151,26 @@ public final class TwoHandedEquipmentService {
     public static void enterCombat() { COMBAT.set(COMBAT.get() + 1); }
     public static void exitCombat() { COMBAT.set(COMBAT.get() - 1); }
     public static void rulesChanged() {
-        for (var player : new ArrayList<>(STATES.keySet())) {
-            STATES.get(player).refresh = true;
+        // Resource loading can also run on the client thread while an old integrated
+        // server is disconnecting. Snapshot strong keys and their exact states together;
+        // never access player inventory or send policy updates from that loading thread.
+        var targets = new ArrayList<Map.Entry<ServerPlayer, State>>();
+        synchronized (STATES) {
+            STATES.forEach((player, state) -> {
+                if (player != null) targets.add(Map.entry(player, state));
+            });
+        }
+        for (var target : targets) {
+            var player = target.getKey();
+            if (!player.server.isSameThread()) continue;
+            // The lifecycle's forget call owns removal. Automation players can be
+            // registered here without a player-list entry, network listener or tick.
+            if (STATES.get(player) != target.getValue() || player.isRemoved()) continue;
+            target.getValue().refresh = true;
             reconcile(player);
         }
+        // Other server threads observe the new policy generation immediately. Their
+        // ordinary player tick reconciles the stale decision on the owning thread.
     }
     public static void forget(ServerPlayer player) { STATES.remove(player); TwoHandedPolicyPayload.forget(player); }
 

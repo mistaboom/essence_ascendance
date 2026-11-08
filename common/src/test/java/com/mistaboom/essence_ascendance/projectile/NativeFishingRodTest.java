@@ -35,6 +35,7 @@ public final class NativeFishingRodTest {
         var saved = f.saved.getPlayerData(player.getUUID());
         saved.setInvested(EssenceStats.FISHING_SPEED, EssenceConfigManager.get().balanceProfile().bonusTrack(EssenceStats.FISHING_SPEED.id()).checkpoints().getLast().cumulativeCap());
         try {
+            exposedWaterColumns(f);
             infusionTransactions(f);
             for (var tier : EquipmentTier.values()) {
                 EquipmentTierData.setTier(rod, tier);
@@ -132,6 +133,38 @@ public final class NativeFishingRodTest {
             }
         } finally { f.close(); if(previous==null)EssenceConfigManager.reset();else EssenceConfigManager.install(previous); }
         System.out.println("NativeFishingRodTest: "+checks+" actual registered equipment, native cast/use/release, attachment, server force, durability and traversal checks PASS");
+    }
+    private static void exposedWaterColumns(ProjectileNativeInterceptionTest.Fixture f) {
+        var oldTags = com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.snapshot(BuiltInRegistries.FLUID);
+        var tags = new HashMap<>(oldTags);
+        tags.put(net.minecraft.tags.FluidTags.WATER,
+                List.of(Fluids.WATER.builtInRegistryHolder(), Fluids.FLOWING_WATER.builtInRegistryHolder()));
+        var unloaded = f.level.unloadedMachineChunks;
+        try {
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.FLUID, tags);
+            f.level.memoryBlocks.put(BlockPos.ZERO, Blocks.WATER.defaultBlockState());
+            f.level.memoryBlocks.put(new BlockPos(0, 100, 0), Blocks.AIR.defaultBlockState());
+            var surface = new Vec3(.5, 1, .5);
+            check(com.mistaboom.essence_ascendance.gameplay.RodOutcomes.exposedWaterRoute(f.player, surface, surface),
+                    "Native rod outcomes recognize loaded exposed water through the column heightmap");
+            f.level.memoryBlocks.put(new BlockPos(0, 3, 0), Blocks.STONE.defaultBlockState());
+            check(!com.mistaboom.essence_ascendance.gameplay.RodOutcomes.exposedWaterRoute(f.player, surface, surface),
+                    "A solid roof prevents an exposed-water outcome despite water below it");
+            f.level.memoryBlocks.remove(new BlockPos(0, 3, 0));
+            f.level.unloadedMachineChunks = new HashSet<>();
+            //? if >=26.1.2
+            /*f.level.unloadedMachineChunks.add(net.minecraft.world.level.ChunkPos.pack(0, 0));*/
+            //? if <26.1.2
+            f.level.unloadedMachineChunks.add(net.minecraft.world.level.ChunkPos.asLong(0, 0));
+            long reads = f.level.heightmapReads;
+            check(!com.mistaboom.essence_ascendance.gameplay.RodOutcomes.exposedWaterRoute(f.player, surface, surface)
+                            && f.level.heightmapReads == reads,
+                    "An unloaded water route is rejected before any heightmap or chunk request");
+        } finally {
+            f.level.memoryBlocks.clear();
+            f.level.unloadedMachineChunks = unloaded;
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.FLUID, oldTags);
+        }
     }
     private static void attachmentTransitions(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
         ProjectileNativeInterceptionTest.set(net.minecraft.world.level.Level.class,f.level,"dimensionTypeRegistration",

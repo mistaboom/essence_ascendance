@@ -81,11 +81,26 @@ extend it to newly generated output.
 
 ## Current release
 
-**Beta.16 is prepared; publication is pending.** It removes FTB version allowlists,
-tries the installed membership API, and recovers to built-in teams on an actual
-failure while preserving confirmed ownership and balances. Server-authoritative
-team controls remain available after fallback. [Release notes](releases/1.0.0-beta.16.md)
-describe the changes and the beta.15 upgrade path, which needs no reset or rebuild.
+**Beta.17 is being prepared; validation and publication are pending.** The
+follow-up addresses a startup crash observed when reopening the native ATM11
+audit world: `TwoHandedEquipmentService.rulesChanged` dereferenced player state
+that had disappeared after disconnect. The lifecycle fix and regression test
+are being verified; successful validation is not yet established here.
+[Release notes](releases/1.0.0-beta.17.md) describe the intended correction.
+
+Complete the focused regression, native reopen check and supported-target gate
+before committing/publishing the follow-up. Preserve the published beta.16
+artifacts; do not replace them with beta.17 bytes or substitute local build hashes
+for downloaded release hashes. Record beta.17's source, workflow and publication
+receipt only after verification.
+
+### Published beta.16 receipt
+
+Beta.16 removes FTB version allowlists, tries the installed membership API, and
+recovers to built-in teams on an actual failure while preserving confirmed
+ownership and balances. Server-authoritative team controls remain available
+after fallback. [Release notes](releases/1.0.0-beta.16.md) describe the changes
+and the beta.15 upgrade path, which needs no reset or rebuild.
 
 The membership changes passed the full local four-target gate (324 tasks), with
 482 provider, 169 binding and 281 interface assertions per Minecraft version.
@@ -94,12 +109,42 @@ Library 26.1.2.11 binaries. Deployment to the FTB Evolution 2 server restored
 available FTB membership; saved-balance validation passed without regeneration,
 and the user confirmed the fix worked. [VALIDATION.md](VALIDATION.md) records
 the scope. That local candidate still carried beta.15 metadata; it is distinct
-from both the published beta.15 artifacts and the upcoming beta.16 release jars.
+from the published beta.15 and beta.16 artifacts.
 
-Commit the beta.16 version and release notes, wait for CI on that source commit,
-then publish the matching prerelease through the GitHub release workflow. Record
-the release commit, workflow results and downloaded artifact checksums only after
-verification. The existing beta.15 receipt below is historical evidence.
+The release source is `7d41a7a7ddc171ebbcdedf09335e25f00a3107a8`, tagged
+`v1.0.0-beta.16`. The
+[release workflow](https://github.com/mistaboom/essence_ascendance/actions/runs/42428827966)
+passed all 324 Gradle tasks in 21m 26s and all 25 release tests. All ten jobs
+succeeded: build, GitHub downloads, four CurseForge uploads and four Modrinth
+uploads. The [GitHub beta.16 release](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.16)
+contains four jars and their checksums. Workflow artifact `13596993618` has ZIP
+SHA-256 `f136512053198229feecc149842f62147be1414a5d9bde0898c189da0ba2e8eb`.
+
+Independent downloads of all four GitHub jars match the workflow's sizes and
+SHA-256 hashes; release notes and the checksum asset match too. Modrinth has
+exactly four matching beta.16 records, with the expected game/loader versions,
+dependencies and changelog. All four actual Modrinth CDN downloads match the
+workflow's SHA-256, SHA-512 and size.
+
+| Target | Published SHA-256 | Modrinth version |
+| --- | --- | --- |
+| 1.21.1 Fabric | `970c2b66fe38686f69c8dd29a7c83f22e074e789394c466dec7037c648cb8147` | `oifLLlRZ` |
+| 1.21.1 NeoForge | `56bfcce77a5e593396dfd09f2d938321cb3cdd4e471353cb1b105bf05d9babe0` | `TvXVWE4y` |
+| 26.1.2 Fabric | `c4013d6a45531cedda3c0c6a0cc79ef5a76a6266853eee48e3cf95e0cb3ed5d7` | `jC7vw8Y5` |
+| 26.1.2 NeoForge | `231db8a0098d8f6794cfbd7c7c87b89d6b56c6807469cd1859eda4020a32de90` | `vLCUj4WX` |
+
+Verification on 2026-11-08 UTC still found Modrinth's project `processing`, with
+`requested_status=approved`, no approval date and anonymous project/version
+APIs returning 404. Upload acceptance and accessible CDN bytes do not establish
+public approval. All four CurseForge upload logs explicitly report successful
+publication, but the author file API returned 403; exact file IDs, public
+visibility and independent CDN comparisons remain unverified. The retrieved
+public list showed beta.14 and may be cached; a fresh-query fetch was unavailable.
+Do not re-upload because a public list has not updated. Detailed local receipts
+are `build/beta16-github-verification.json`,
+`build/beta16-modsite-verification.json` and
+`build/beta16-workflow-verification.json`; the build log is
+`build/beta16-release-workflow-build.log`.
 
 ### Published beta.15 receipt
 

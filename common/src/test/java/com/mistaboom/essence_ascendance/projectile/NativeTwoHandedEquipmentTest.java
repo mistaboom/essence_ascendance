@@ -38,6 +38,7 @@ public final class NativeTwoHandedEquipmentTest {
         TwoHandedEquipmentPolicy.rulesChanged();
         try {
             disconnectedPlayers(f);
+            reloadPlayerLifecycle(f, tags);
             var glaive = new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get());
             p.setItemInHand(InteractionHand.MAIN_HAND, glaive);
             var totem = new ItemStack(Items.TOTEM_OF_UNDYING);
@@ -343,6 +344,9 @@ public final class NativeTwoHandedEquipmentTest {
             check(!valid(simulated), "Socketless equipment mutations still enforce two-handed combat rules");
             simulated.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.TOTEM_OF_UNDYING));
             check(valid(simulated), "Socketless fake-player equipment changes reconcile without network negotiation");
+            TwoHandedEquipmentPolicy.rulesChanged();
+            check(TwoHandedEquipmentService.validateAttack(simulated),
+                    "Owner-thread reload keeps socketless automation immediately usable without a player tick");
             com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.track(f.player, simulated);
             com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.untrack(f.player, simulated);
             var send = com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.class.getDeclaredMethod("send",
@@ -353,10 +357,116 @@ public final class NativeTwoHandedEquipmentTest {
             simulated.connection = null;
             simulated.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             check(valid(simulated), "A player without a listener also reconciles safely");
+            f.onlinePlayers.remove(simulated);
+            f.players.remove(simulated.getUUID());
+            TwoHandedEquipmentPolicy.rulesChanged();
+            check(TwoHandedEquipmentService.validateAttack(simulated),
+                    "Owner-thread reload eagerly refreshes unlisted automation without a listener or player tick");
         } finally {
+            if (!f.onlinePlayers.contains(simulated)) f.onlinePlayers.add(simulated);
+            f.players.put(simulated.getUUID(), simulated);
             simulated.connection = handler;
             ProjectileNativeInterceptionTest.set(net.minecraft.server.network.ServerCommonPacketListenerImpl.class, handler, "connection", previousTransport);
         }
+    }
+    private static void reloadPlayerLifecycle(ProjectileNativeInterceptionTest.Fixture f,
+            Map<TagKey<Item>, List<Holder<Item>>> originalTags) throws ReflectiveOperationException {
+        var first = f.player(PolicyPlayer.class, Vec3.ZERO, "reload_first");
+        var second = f.player(PolicyPlayer.class, Vec3.ZERO, "reload_second");
+        var firstConnection = first.connection;
+        var secondConnection = second.connection;
+        var visited = new PolicyPlayer[1];
+        var departed = new PolicyPlayer[1];
+        try {
+            for (var player : List.of(first, second)) {
+                player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
+                player.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.TOTEM_OF_UNDYING));
+                check(valid(player), "Reload lifecycle starts with a resolved passive offhand");
+            }
+            var changedTags = new HashMap<>(originalTags);
+            changedTags.put(TwoHandedEquipmentPolicy.PASSIVE_OFFHAND, List.of());
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, changedTags);
+            reloadFromOtherThread(first);
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, originalTags);
+            TwoHandedEquipmentPolicy.rulesChanged();
+            check(valid(first) && valid(second), "Server-thread reload restores both players after deferred refresh");
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, changedTags);
+            // An equipment query may enter another lifecycle callback. Whichever player
+            // refreshes first disconnects the other, without depending on cache iteration order.
+            first.onNextHandRead = () -> {
+                second.onNextHandRead = null;
+                visited[0] = first; departed[0] = second;
+                TwoHandedEquipmentService.forget(second);
+                second.connection = null;
+            };
+            second.onNextHandRead = () -> {
+                first.onNextHandRead = null;
+                visited[0] = second; departed[0] = first;
+                TwoHandedEquipmentService.forget(first);
+                first.connection = null;
+            };
+            TwoHandedEquipmentPolicy.rulesChanged();
+            check(visited[0] != null && departed[0] != null, "Reload exercises a disconnect during equipment refresh");
+            var active = TwoHandedEquipmentService.decision(visited[0]);
+            check(active.status() == TwoHandedEquipmentService.Status.INCOMPATIBLE
+                            && active.generation() == TwoHandedEquipmentPolicy.generation(),
+                    "Connected player receives the changed passive-offhand rule despite another disconnect");
+            check(TwoHandedEquipmentService.decision(departed[0]).status() == TwoHandedEquipmentService.Status.PENDING,
+                    "Reload does not resurrect equipment state forgotten during refresh");
+            TwoHandedEquipmentPolicy.rulesChanged();
+            check(TwoHandedEquipmentService.decision(departed[0]).status() == TwoHandedEquipmentService.Status.PENDING,
+                    "Further reloads leave an already forgotten player untracked");
+            check(visited[0].getMainHandItem().is(AscendanceItems.ASCENDANCE_GLAIVE.get())
+                            && visited[0].getOffhandItem().is(Items.TOTEM_OF_UNDYING),
+                    "Reload and disconnect leave the connected player's actual equipment unchanged");
+            first.connection = firstConnection;
+            second.connection = secondConnection;
+            TwoHandedEquipmentService.refresh(departed[0]);
+            check(TwoHandedEquipmentService.decision(departed[0]).status() == TwoHandedEquipmentService.Status.INCOMPATIBLE,
+                    "An explicit later join refresh initializes the forgotten player under current rules");
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, originalTags);
+            TwoHandedEquipmentPolicy.rulesChanged();
+            check(valid(first) && valid(second), "Restored rules reach both connected players after rejoining");
+        } finally {
+            first.onNextHandRead = null;
+            second.onNextHandRead = null;
+            first.connection = firstConnection;
+            second.connection = secondConnection;
+            TwoHandedEquipmentService.forget(first);
+            TwoHandedEquipmentService.forget(second);
+            com.mistaboom.essence_ascendance.verification.RegistryTagTestCompat.bind(BuiltInRegistries.ITEM, originalTags);
+            TwoHandedEquipmentPolicy.rulesChanged();
+        }
+    }
+    private static void reloadFromOtherThread(PolicyPlayer player) {
+        var ownerThread = Thread.currentThread();
+        var failure = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+        var reads = new java.util.concurrent.atomic.AtomicInteger();
+        player.onNextHandRead = () -> {
+            reads.incrementAndGet();
+            if (Thread.currentThread() != ownerThread)
+                throw new AssertionError("Off-thread reload must not inspect live player equipment");
+        };
+        var reload = new Thread(() -> {
+            try { TwoHandedEquipmentPolicy.rulesChanged(); }
+            catch (Throwable thrown) { failure.set(thrown); }
+        }, "essence-policy-reload-test");
+        reload.setDaemon(true);
+        reload.start();
+        try { reload.join(5_000); }
+        catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Interrupted while testing rule reload", interrupted);
+        }
+        check(!reload.isAlive(), "Off-thread rule reload completes without waiting for server inventory work");
+        if (failure.get() != null) throw new AssertionError("Off-thread rule reload failed", failure.get());
+        check(reads.get() == 0, "Off-thread reload defers live equipment reads to the server thread");
+        check(TwoHandedEquipmentService.decision(player).status() == TwoHandedEquipmentService.Status.PENDING,
+                "A changed off-thread rule generation cannot reuse the previous combat decision");
+        TwoHandedEquipmentService.reconcile(player);
+        check(TwoHandedEquipmentService.decision(player).status() == TwoHandedEquipmentService.Status.INCOMPATIBLE
+                        && TwoHandedEquipmentService.decision(player).generation() == TwoHandedEquipmentPolicy.generation(),
+                "The next server reconciliation applies the deferred rule generation");
     }
     private static void interactions(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var p = (PolicyPlayer) f.player;
@@ -491,7 +601,14 @@ public final class NativeTwoHandedEquipmentTest {
     private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); checks++; }
     static final class PolicyPlayer extends ServerPlayer {
         int messages, openedMenus; String messageKey;
+        Runnable onNextHandRead;
         private PolicyPlayer() { super(null, null, null, null); throw new AssertionError("Fixture only"); }
+        @Override public ItemStack getMainHandItem() {
+            var callback = onNextHandRead;
+            onNextHandRead = null;
+            if (callback != null) callback.run();
+            return super.getMainHandItem();
+        }
         //? if >=26.1.2
         /*@Override public void sendOverlayMessage(Component message) { recordMessage(message); }*/
         //? if >=26.1.2

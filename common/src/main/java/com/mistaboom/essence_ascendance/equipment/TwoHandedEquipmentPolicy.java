@@ -8,6 +8,7 @@ import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Mutation-time classification only. Never called by attack, damage, or active-action validation. */
 public final class TwoHandedEquipmentPolicy {
@@ -15,21 +16,21 @@ public final class TwoHandedEquipmentPolicy {
     private static final List<TagKey<Item>> ACTIVE_TOOLS = List.of(tag("c", "tools"),
             tag("c", "tools/shield"), tag("c", "tools/shields"), tag("c", "shields"),
             tag("c", "tools/melee_weapons"), tag("c", "tools/bow"), tag("c", "tools/crossbow"));
-    private static long generation;
+    private static final AtomicLong GENERATION = new AtomicLong();
     private static long classifications;
-    private static Set<DataComponentType<?>> extraDependencies = Set.of();
+    private static volatile Set<DataComponentType<?>> extraDependencies = Set.of();
 
     private TwoHandedEquipmentPolicy() { }
     private static TagKey<Item> tag(String namespace, String path) {
         return TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace, path));
     }
-    public static long generation() { return generation; }
+    public static long generation() { return GENERATION.get(); }
     public static long classifications() { return classifications; }
     public static void rulesChanged() {
-        generation++;
         var dependencies = new HashSet<DataComponentType<?>>();
         for (var provider : EquipmentStatProviderRegistry.providers()) dependencies.addAll(provider.equipmentPolicyComponents());
         extraDependencies = Set.copyOf(dependencies);
+        GENERATION.incrementAndGet();
         TwoHandedEquipmentService.rulesChanged();
     }
 

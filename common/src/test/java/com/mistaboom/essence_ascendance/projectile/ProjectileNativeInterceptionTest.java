@@ -363,7 +363,7 @@ public final class ProjectileNativeInterceptionTest {
 
     /** A storage boundary only: every intercepted entity, native input method and gameplay decision stays real. */
     static final class MemoryLevel extends ServerLevel {
-        long blockStateReads,entityQueries;
+        long blockStateReads,entityQueries,heightmapReads;
         List<Entity> entities;
         long tick;
         MinecraftServer memoryServer;
@@ -380,6 +380,22 @@ public final class ProjectileNativeInterceptionTest {
         //? if <26.1.2
         @Override public int getMinBuildHeight() { return -64; }
         @Override public int getHeight() { return 384; }
+        @Override public int getHeight(net.minecraft.world.level.levelgen.Heightmap.Types type, int x, int z) {
+            heightmapReads++;
+            if (!hasChunk(x >> 4, z >> 4)) throw new AssertionError("Heightmap read unknown terrain");
+            // Model the loaded column's native heightmap without constructing a chunk.
+            // Native heightmaps return the first free Y above the highest matching block.
+            //? if >=26.1.2
+            /*int firstFree = getMinY();*/
+            //? if <26.1.2
+            int firstFree = getMinBuildHeight();
+            if (memoryBlocks != null) for (var entry : memoryBlocks.entrySet()) {
+                var position = entry.getKey();
+                if (position.getX() == x && position.getZ() == z && !isOutsideBuildHeight(position)
+                        && type.isOpaque().test(entry.getValue())) firstFree = Math.max(firstFree, position.getY() + 1);
+            }
+            return firstFree;
+        }
         List<net.minecraft.world.phys.shapes.VoxelShape> movementSupport;
         net.minecraft.core.RegistryAccess memoryRegistries;
         net.minecraft.world.damagesource.DamageSources memoryDamageSources;
