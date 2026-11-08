@@ -1,0 +1,1075 @@
+# ATM11 0.14.0-beta: solo Normal; automation expected.
+# All 90 native Skills reviewed; no unsupported external mod hooks are implied.
+# Apply with /essence admin balance rebuild; existing saved profiles are not rebuilt on restart.
+# Percentage fields, fractions, whole ticks and choice/prerequisite rules retain native meaning.
+schema_version = 1
+
+[[skill]]
+id = "essence_ascendance:adaptive_guard"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "posture/adaptive/resistancePerStack"
+at_first_rank = 0.025
+at_max_rank = 0.075
+
+[[skill]]
+id = "essence_ascendance:adrenaline"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/attackSpeedBonus"
+at_first_rank = 0.1
+at_max_rank = 0.2
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/durationTicks"
+at_first_rank = 100
+at_max_rank = 100
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/knockbackResistance"
+at_first_rank = 0.25
+at_max_rank = 0.25
+
+[[skill.stat]]
+path = "vitality/damage/adrenaline/movementSpeedBonus"
+at_first_rank = 0.15
+at_max_rank = 0.25
+
+[[skill]]
+id = "essence_ascendance:alchemical_amplification"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "utility/alchemicalAmplification/maximumBonusFraction"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.338842
+
+[[skill]]
+id = "essence_ascendance:animal_gift"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "gathering/animalGift/giftChance"
+at_first_rank = 0.114285
+at_max_rank = 0.24390199999999998
+
+[[skill]]
+id = "essence_ascendance:aquatic_body"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:armor_crack"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "armorCrack/armorReductionPerStack"
+at_first_rank = 0.8
+at_max_rank = 2.4
+
+[[skill.stat]]
+path = "armorCrack/toughnessReductionPerStack"
+at_first_rank = 0.2
+at_max_rank = 0.6
+
+[[skill]]
+id = "essence_ascendance:bonded_companion"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "utility/bondedCompanion/catchupDistanceBlocks"
+at_first_rank = 29.393876913398138
+at_max_rank = 20.784609690826528
+
+[[skill.stat]]
+path = "utility/bondedCompanion/statBonusFraction"
+at_first_rank = 0.14893599999999999
+at_max_rank = 0.304347
+
+[[skill]]
+id = "essence_ascendance:bulwark_stance"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "posture/bulwark/maximumResistance"
+at_first_rank = 0.1
+at_max_rank = 0.25
+
+[[skill]]
+id = "essence_ascendance:chain_strike"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "chainStrike/damageFalloff"
+at_first_rank = 0.75
+at_max_rank = 0.9
+
+[[skill]]
+id = "essence_ascendance:charged_jump"
+tier = "essence_ascendance:awakened"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/chargedJump/heightBonus"
+at_first_rank = 0.35
+at_max_rank = 0.875
+
+[[skill.stat]]
+path = "mobility/chargedJump/steeringBonus"
+at_first_rank = 0.25
+at_max_rank = 0.625
+
+[[skill]]
+id = "essence_ascendance:combustion"
+tier = "essence_ascendance:awakened"
+ranks = 3
+
+[[skill.stat]]
+path = "combustion/damage"
+at_first_rank = 2
+at_max_rank = 10
+
+[[skill]]
+id = "essence_ascendance:containment_field"
+tier = "essence_ascendance:ascendant"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/containmentField/radiusBlocks"
+at_first_rank = 8.0
+at_max_rank = 20.0
+
+[[skill]]
+id = "essence_ascendance:crowd_reprisal"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "guard/reprisal/damageScale"
+at_first_rank = 0.2
+at_max_rank = 0.4
+
+[[skill]]
+id = "essence_ascendance:damage_ceiling"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/damage/damageCeiling/damageTakenFraction"
+at_first_rank = 0.882563
+at_max_rank = 0.750379
+
+[[skill]]
+id = "essence_ascendance:death_rush"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "deathRush/attackSpeedBonusPercentPerStack"
+at_first_rank = 2
+at_max_rank = 4
+
+[[skill.stat]]
+path = "deathRush/bowDrawSpeedBonusPercentPerStack"
+at_first_rank = 2
+at_max_rank = 4
+
+[[skill.stat]]
+path = "deathRush/castSpeedBonusPercentPerStack"
+at_first_rank = 2
+at_max_rank = 4
+
+[[skill]]
+id = "essence_ascendance:deep_ward"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/wards/deepWard/capacityBonusFraction"
+at_first_rank = 0.1
+at_max_rank = 0.25
+
+[[skill]]
+id = "essence_ascendance:desperation"
+tier = "essence_ascendance:dormant"
+ranks = 3
+
+[[skill.stat]]
+path = "desperation/maxDamageBonusPercent"
+at_first_rank = 20
+at_max_rank = 40
+
+[[skill]]
+id = "essence_ascendance:double_jump"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/doubleJump/heightBonus"
+at_first_rank = 0.325
+at_max_rank = 0.8125
+
+[[skill.stat]]
+path = "mobility/doubleJump/steeringBonus"
+at_first_rank = 0.15
+at_max_rank = 0.375
+
+[[skill]]
+id = "essence_ascendance:enchanting_insight"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:essence_bloom"
+tier = "essence_ascendance:ascendant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/essenceBloom/bonusExperienceFraction"
+at_first_rank = 0.16666599999999998
+at_max_rank = 0.416666
+
+[[skill.stat]]
+path = "gathering/essenceBloom/essencePerExperiencePoint"
+at_first_rank = 0.22499999999999998
+at_max_rank = 0.5625
+
+[[skill.stat]]
+path = "gathering/essenceBloom/triggerChance"
+at_first_rank = 0.14315789473684212
+at_max_rank = 0.294627383015598
+
+[[skill]]
+id = "essence_ascendance:essence_wings"
+tier = "essence_ascendance:ascendant"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/essenceWings/horizontalDragCompensation"
+at_first_rank = 0.5
+at_max_rank = 1.0
+
+[[skill]]
+id = "essence_ascendance:evasive_current"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "posture/evasive/maximumDodgeChance"
+at_first_rank = 0.15
+at_max_rank = 0.3
+
+[[skill]]
+id = "essence_ascendance:explosive_payload"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "projectiles/payload/explosiveDamageScale"
+at_first_rank = 0.2
+at_max_rank = 0.4
+
+[[skill]]
+id = "essence_ascendance:fatigue_flight"
+tier = "essence_ascendance:resonant"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/fatigueFlight/enduranceTicks"
+at_first_rank = 104.0
+at_max_rank = 260.0
+
+[[skill.stat]]
+path = "mobility/fatigueFlight/groundRechargeTicks"
+at_first_rank = 87.0
+at_max_rank = 35.0
+
+[[skill.stat]]
+path = "mobility/fatigueFlight/thrustGravityMultiplier"
+at_first_rank = 1.55
+at_max_rank = 2.375
+
+[[skill]]
+id = "essence_ascendance:feast_reflex"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "vitality/feastReflex/useDurationMultiplier"
+at_first_rank = 0.714286
+at_max_rank = 0.285715
+
+[[skill]]
+id = "essence_ascendance:fishers_call"
+tier = "essence_ascendance:awakened"
+ranks = 3
+
+[[skill.stat]]
+path = "gathering/fishersCall/maximumBiteSpeedMultiplier"
+at_first_rank = 1.2249999999999999
+at_max_rank = 1.5625
+
+[[skill.stat]]
+path = "gathering/fishersCall/maximumExtraCatchChance"
+at_first_rank = 0.05739130434782609
+at_max_rank = 0.1321056845476381
+
+[[skill]]
+id = "essence_ascendance:fishing_instinct"
+tier = "essence_ascendance:dormant"
+ranks = 3
+
+[[skill.stat]]
+path = "gathering/fishingInstinct/biteSpeedMultiplier"
+at_first_rank = 1.2249999999999999
+at_max_rank = 1.5625
+
+[[skill.stat]]
+path = "gathering/fishingInstinct/reelWindowMultiplier"
+at_first_rank = 1.225
+at_max_rank = 1.5625000000000002
+
+[[skill.stat]]
+path = "gathering/fishingInstinct/virtualLuckLevels"
+at_first_rank = 0.175
+at_max_rank = 0.4375
+
+[[skill]]
+id = "essence_ascendance:frenzy"
+tier = "essence_ascendance:dormant"
+ranks = 3
+
+[[skill.stat]]
+path = "frenzy/attackSpeedBonusPercentPerStack"
+at_first_rank = 1
+at_max_rank = 3
+
+[[skill.stat]]
+path = "frenzy/damageBonusPercentPerStack"
+at_first_rank = 1
+at_max_rank = 3
+
+[[skill]]
+id = "essence_ascendance:friendly_fire_ward"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:frostbite"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "frostbite/freezeDurationTicks"
+at_first_rank = 40
+at_max_rank = 100
+
+[[skill.stat]]
+path = "frostbite/maximumProgressiveSlow"
+at_first_rank = 0.39999999999999997
+at_max_rank = 0.39999999999999997
+
+[[skill.stat]]
+path = "frostbite/slowPerStack"
+at_first_rank = 0.08
+at_max_rank = 0.08
+
+[[skill]]
+id = "essence_ascendance:guard_amplifier"
+tier = "essence_ascendance:awakened"
+ranks = 3
+
+[[skill.stat]]
+path = "guard/amplifier/maximumMultiplier"
+at_first_rank = 1.2
+at_max_rank = 1.5
+
+[[skill.stat]]
+path = "guard/amplifier/perBlockGrowth"
+at_first_rank = 0.04
+at_max_rank = 0.1
+
+[[skill]]
+id = "essence_ascendance:guarded_advance"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "guard/mobility/slowdownRemoval"
+at_first_rank = 0.85
+at_max_rank = 0.85
+
+[[skill]]
+id = "essence_ascendance:herdkeeper"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/herdkeeper/breedingRecoveryMultiplier"
+at_first_rank = 1.25
+at_max_rank = 1.625
+
+[[skill]]
+id = "essence_ascendance:homing_projectile"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "projectiles/arrow/turnDegreesPerTick"
+at_first_rank = 2.0
+at_max_rank = 5.0
+
+[[skill.stat]]
+path = "projectiles/caster/turnDegreesPerTick"
+at_first_rank = 12.0
+at_max_rank = 30.0
+
+[[skill]]
+id = "essence_ascendance:hunger_ward"
+tier = "essence_ascendance:resonant"
+ranks = 2
+
+[[skill.stat]]
+path = "vitality/damage/hungerWard/damageShare"
+at_first_rank = 0.09999999999999999
+at_max_rank = 0.179133
+
+[[skill]]
+id = "essence_ascendance:hunters_ledger"
+tier = "essence_ascendance:awakened"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/huntersLedger/memoryTicks"
+at_first_rank = 183.0
+at_max_rank = 458.0
+
+[[skill]]
+id = "essence_ascendance:hunters_study"
+tier = "essence_ascendance:ascendant"
+ranks = 5
+
+[[skill.stat]]
+path = "gathering/huntersStudy/maximumVirtualLootingLevels"
+at_first_rank = 0.5
+at_max_rank = 2.5
+
+[[skill]]
+id = "essence_ascendance:impact_control"
+tier = "essence_ascendance:dormant"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/impactControl/damageReduction"
+at_first_rank = 0.245283
+at_max_rank = 0.698113
+
+[[skill]]
+id = "essence_ascendance:industrious_presence"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "utility/industriousPresence/processingSpeedMultiplier"
+at_first_rank = 1.325
+at_max_rank = 2
+
+[[skill]]
+id = "essence_ascendance:inner_sustenance"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "vitality/innerSustenance/hungerPerRecovery"
+at_first_rank = 1.0
+at_max_rank = 1.0
+
+[[skill.stat]]
+path = "vitality/innerSustenance/hungerRecoveryIntervalTicks"
+at_first_rank = 178.0
+at_max_rank = 87.0
+
+[[skill.stat]]
+path = "vitality/innerSustenance/saturationPerRecovery"
+at_first_rank = 0.5
+at_max_rank = 0.5
+
+[[skill]]
+id = "essence_ascendance:interceptor"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "projectiles/control/swingRadius"
+at_first_rank = 0.5
+at_max_rank = 1.25
+
+[[skill]]
+id = "essence_ascendance:kindling"
+tier = "essence_ascendance:dormant"
+ranks = 2
+
+[[skill.stat]]
+path = "kindling/burningDamageAmplificationPercent"
+at_first_rank = 5
+at_max_rank = 5
+
+[[skill.stat]]
+path = "kindling/burningDamagePercentPerSecond"
+at_first_rank = 5
+at_max_rank = 10
+
+[[skill]]
+id = "essence_ascendance:lavaborn"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:life_steal"
+tier = "essence_ascendance:dormant"
+ranks = 2
+
+[[skill.stat]]
+path = "vitality/lifeSteal/baseHealingFraction"
+at_first_rank = 0.05
+at_max_rank = 0.075
+
+[[skill.stat]]
+path = "vitality/lifeSteal/perHitHealingFraction"
+at_first_rank = 0.001
+at_max_rank = 0.002
+
+[[skill]]
+id = "essence_ascendance:masterwork_tempering"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "utility/masterworkTempering/maximumOverdurabilityFraction"
+at_first_rank = 0.183673
+at_max_rank = 0.36
+
+[[skill.stat]]
+path = "utility/masterworkTempering/maximumPerformanceBonus"
+at_first_rank = 0.09090899999999999
+at_max_rank = 0.19999999999999998
+
+[[skill.stat]]
+path = "utility/masterworkTempering/reinforcementFractionPerMaterialUnit"
+at_first_rank = 0.1111111111111111
+at_max_rank = 0.23809523809523808
+
+[[skill]]
+id = "essence_ascendance:metabolic_conversion"
+tier = "essence_ascendance:ascendant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/damage/metabolicConversion/foodPointsPerOverflowHealth"
+at_first_rank = 1.0
+at_max_rank = 1.0
+
+[[skill.stat]]
+path = "vitality/damage/metabolicConversion/healthPerNutrition"
+at_first_rank = 0.25
+at_max_rank = 0.25
+
+[[skill]]
+id = "essence_ascendance:metabolic_mending"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "utility/metabolicMending/repairPointsPerFoodPoint"
+at_first_rank = 2
+at_max_rank = 8
+
+[[skill]]
+id = "essence_ascendance:mining_momentum"
+tier = "essence_ascendance:awakened"
+ranks = 5
+
+[[skill.stat]]
+path = "gathering/miningMomentum/maximumSpeedBonus"
+at_first_rank = 0.3
+at_max_rank = 0.75
+
+[[skill]]
+id = "essence_ascendance:momentum_vault"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/momentumVault/minimumMomentum"
+at_first_rank = 0.8888889999999999
+at_max_rank = 0.43360499999999996
+
+[[skill.stat]]
+path = "mobility/momentumVault/stepHeight"
+at_first_rank = 1.5
+at_max_rank = 1.5
+
+[[skill]]
+id = "essence_ascendance:natures_boon"
+tier = "essence_ascendance:transcendent"
+ranks = 2
+
+[[skill.stat]]
+path = "gathering/naturesBoon/dropChance"
+at_first_rank = 0.077264
+at_max_rank = 0.146505
+
+[[skill]]
+id = "essence_ascendance:ore_sight"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/oreSight/rangeBlocks"
+at_first_rank = 12.0
+at_max_rank = 30.0
+
+[[skill]]
+id = "essence_ascendance:pain_purge"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/damage/painPurge/queuePerHealing"
+at_first_rank = 0.25
+at_max_rank = 0.5
+
+[[skill]]
+id = "essence_ascendance:piercing_projectile"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "projectiles/piercingDamageMultiplier"
+at_first_rank = 0.5
+at_max_rank = 0.8
+
+[[skill.stat]]
+path = "projectiles/piercingShieldDamageMultiplier"
+at_first_rank = 0.8
+at_max_rank = 0.95
+
+[[skill]]
+id = "essence_ascendance:pocket_nets"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "gathering/pocketNets/dropChance"
+at_first_rank = 0.03
+at_max_rank = 0.07177
+
+[[skill]]
+id = "essence_ascendance:potion_relay"
+tier = "essence_ascendance:resonant"
+ranks = 2
+
+[[skill.stat]]
+path = "utility/potionRelay/durationFraction"
+at_first_rank = 0.25
+at_max_rank = 0.36
+
+[[skill]]
+id = "essence_ascendance:projectile_drag_field"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill.stat]]
+path = "projectiles/control/minimumSpeedFactor"
+at_first_rank = 0.125
+at_max_rank = 0.125
+
+[[skill]]
+id = "essence_ascendance:pure_state"
+tier = "essence_ascendance:transcendent"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:reflexive_ward"
+tier = "essence_ascendance:dormant"
+ranks = 2
+
+[[skill.stat]]
+path = "guard/ward/knockbackEchoScale"
+at_first_rank = 0.5
+at_max_rank = 1.25
+
+[[skill.stat]]
+path = "guard/ward/preventedReflectionScale"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.336537
+
+[[skill]]
+id = "essence_ascendance:restful_mending"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "utility/restfulMending/repairPointsPerSecond"
+at_first_rank = 2
+at_max_rank = 8
+
+[[skill]]
+id = "essence_ascendance:ricochet"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "projectiles/ricochetDamageMultiplier"
+at_first_rank = 0.5
+at_max_rank = 0.8
+
+[[skill]]
+id = "essence_ascendance:riposte"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "guard/riposte/bonusReach"
+at_first_rank = 0.75
+at_max_rank = 1.875
+
+[[skill.stat]]
+path = "guard/riposte/damageScale"
+at_first_rank = 0.1
+at_max_rank = 0.3
+
+[[skill]]
+id = "essence_ascendance:rising_recovery"
+tier = "essence_ascendance:dormant"
+ranks = 2
+
+[[skill.stat]]
+path = "vitality/risingRecovery/maxSpeedBonus"
+at_first_rank = 0.5278039999999999
+at_max_rank = 0.8485659999999999
+
+[[skill]]
+id = "essence_ascendance:rooting_payload"
+tier = "essence_ascendance:ascendant"
+ranks = 5
+
+[[skill.stat]]
+path = "projectiles/payload/rootDurationTicks"
+at_first_rank = 40.0
+at_max_rank = 100.0
+
+[[skill.stat]]
+path = "projectiles/payload/rootMaxDurationTicks"
+at_first_rank = 80.0
+at_max_rank = 200.0
+
+[[skill]]
+id = "essence_ascendance:running_momentum"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/runningMomentum/maximumSpeedBonus"
+at_first_rank = 0.25
+at_max_rank = 0.625
+
+[[skill]]
+id = "essence_ascendance:rush"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "mobility/rush/durationTicks"
+at_first_rank = 54.0
+at_max_rank = 135.0
+
+[[skill]]
+id = "essence_ascendance:salvagers_craft"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "gathering/salvagersCraft/bonusExperienceFraction"
+at_first_rank = 0.13043478260869565
+at_max_rank = 0.2351816443594646
+
+[[skill.stat]]
+path = "gathering/salvagersCraft/materialRecoveryFraction"
+at_first_rank = 0.215686
+at_max_rank = 0.36051099999999997
+
+[[skill]]
+id = "essence_ascendance:sanctuary"
+tier = "essence_ascendance:transcendent"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/sanctuary/radiusBlocks"
+at_first_rank = 32
+at_max_rank = 64
+
+[[skill]]
+id = "essence_ascendance:second_wind"
+tier = "essence_ascendance:transcendent"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/deathDefiance/secondWind/recoveryHealthFraction"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.5
+
+[[skill.stat]]
+path = "vitality/deathDefiance/secondWind/strengthDamageBonus"
+at_first_rank = 0.1
+at_max_rank = 0.25
+
+[[skill]]
+id = "essence_ascendance:shatter"
+tier = "essence_ascendance:awakened"
+ranks = 3
+
+[[skill.stat]]
+path = "shatter/shardDamage"
+at_first_rank = 2
+at_max_rank = 10
+
+[[skill]]
+id = "essence_ascendance:shattering_ward"
+tier = "essence_ascendance:ascendant"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/wards/shatteringWard/healingFractionPerSecond"
+at_first_rank = 0.021
+at_max_rank = 0.063
+
+[[skill.stat]]
+path = "vitality/wards/shatteringWard/knockback"
+at_first_rank = 0.4
+at_max_rank = 0.6
+
+[[skill]]
+id = "essence_ascendance:shield_ram"
+tier = "essence_ascendance:awakened"
+ranks = 4
+
+[[skill.stat]]
+path = "guard/ram/knockback"
+at_first_rank = 0.6
+at_max_rank = 1.5
+
+[[skill.stat]]
+path = "guard/ram/staggerTicks"
+at_first_rank = 10.0
+at_max_rank = 10.0
+
+[[skill]]
+id = "essence_ascendance:soul_ward"
+tier = "essence_ascendance:resonant"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/wards/soulWard/capacityHealthFraction"
+at_first_rank = 0.1
+at_max_rank = 0.2
+
+[[skill.stat]]
+path = "vitality/wards/soulWard/victimHealthFraction"
+at_first_rank = 0.05
+at_max_rank = 0.05
+
+[[skill]]
+id = "essence_ascendance:spirit_walk"
+tier = "essence_ascendance:transcendent"
+ranks = 3
+
+[[skill.stat]]
+path = "vitality/deathDefiance/spiritWalk/durationTicks"
+at_first_rank = 76.0
+at_max_rank = 76.0
+
+[[skill.stat]]
+path = "vitality/deathDefiance/spiritWalk/reformHealthFraction"
+at_first_rank = 0.333333
+at_max_rank = 0.555555
+
+[[skill]]
+id = "essence_ascendance:staggered_pain"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill.stat]]
+path = "vitality/damage/staggeredPain/paymentTicks"
+at_first_rank = 200.0
+at_max_rank = 200.0
+
+[[skill]]
+id = "essence_ascendance:static_charge"
+tier = "essence_ascendance:dormant"
+ranks = 3
+
+[[skill.stat]]
+path = "staticCharge/lightningDamage"
+at_first_rank = 2
+at_max_rank = 6
+
+[[skill]]
+id = "essence_ascendance:status_mirror"
+tier = "essence_ascendance:transcendent"
+ranks = 1
+
+[[skill.stat]]
+path = "status/mirrorCooldownTicks"
+at_first_rank = 200.0
+at_max_rank = 200.0
+
+[[skill]]
+id = "essence_ascendance:stored_force"
+tier = "essence_ascendance:awakened"
+ranks = 3
+
+[[skill.stat]]
+path = "guard/storedForce/damageScale"
+at_first_rank = 0.25
+at_max_rank = 1
+
+[[skill]]
+id = "essence_ascendance:surface_tension"
+tier = "essence_ascendance:resonant"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:terrain_freedom"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:threat_sense"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/threatSense/rangeBlocks"
+at_first_rank = 24.0
+at_max_rank = 60.0
+
+[[skill]]
+id = "essence_ascendance:tool_instinct"
+tier = "essence_ascendance:dormant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/toolInstinct/maximumLowerTierSpeedBonus"
+at_first_rank = 0.15
+at_max_rank = 0.375
+
+[[skill]]
+id = "essence_ascendance:torchbearer"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill]]
+id = "essence_ascendance:trajectory_theft"
+tier = "essence_ascendance:ascendant"
+ranks = 5
+
+[[skill.stat]]
+path = "projectiles/control/theftSpeedMultiplier"
+at_first_rank = 1.25
+at_max_rank = 2.0
+
+[[skill.stat]]
+path = "projectiles/control/theftTurnDegreesPerTick"
+at_first_rank = 18.0
+at_max_rank = 45.0
+
+[[skill]]
+id = "essence_ascendance:treasure_sense"
+tier = "essence_ascendance:resonant"
+ranks = 4
+
+[[skill.stat]]
+path = "gathering/treasureSense/rangeBlocks"
+at_first_rank = 12.0
+at_max_rank = 30.0
+
+[[skill]]
+id = "essence_ascendance:untethered_flight"
+tier = "essence_ascendance:transcendent"
+ranks = 1
+
+[[skill.stat]]
+path = "mobility/untetheredFlight/airRechargeTicks"
+at_first_rank = 55.0
+at_max_rank = 55.0
+
+[[skill]]
+id = "essence_ascendance:vector_boost"
+tier = "essence_ascendance:transcendent"
+ranks = 3
+
+[[skill.stat]]
+path = "mobility/vectorBoost/rechargeTicks"
+at_first_rank = 87.0
+at_max_rank = 43.0
+
+[[skill]]
+id = "essence_ascendance:vector_jump"
+tier = "essence_ascendance:resonant"
+ranks = 5
+
+[[skill.stat]]
+path = "mobility/vectorJump/brakeFraction"
+at_first_rank = 0.19999999999999998
+at_max_rank = 0.666666
+
+[[skill.stat]]
+path = "mobility/vectorJump/impulseBonus"
+at_first_rank = 0.7
+at_max_rank = 1.75
+
+[[skill]]
+id = "essence_ascendance:verdant_stride"
+tier = "essence_ascendance:awakened"
+ranks = 1
+
+[[skill.stat]]
+path = "gathering/verdantStride/growthChance"
+at_first_rank = 0.5399999999999999
+at_max_rank = 0.5399999999999999
+
+[[skill]]
+id = "essence_ascendance:village_patron"
+tier = "essence_ascendance:awakened"
+ranks = 2
+
+[[skill.stat]]
+path = "utility/villagePatron/discountFraction"
+at_first_rank = 0.183673
+at_max_rank = 0.315654
+
+[[skill.stat]]
+path = "utility/villagePatron/restockIntervalTicks"
+at_first_rank = 1343.0
+at_max_rank = 758.0
+
+[[skill]]
+id = "essence_ascendance:waylight"
+tier = "essence_ascendance:dormant"
+ranks = 5
+
+[[skill.stat]]
+path = "utility/waylight/searchRadiusBlocks"
+at_first_rank = 8.0
+at_max_rank = 20.0

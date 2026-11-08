@@ -20,6 +20,27 @@
       ],
       "source": "ftb-evolution-2/1.5.1-r1",
       "page": "Preset-FTB-Evolution-2-1-5-1-r1"
+    },
+    {
+      "id": "atm11",
+      "revision": "0.14.0-beta-r1",
+      "pack_name": "All the Mods 11 (ATM11)",
+      "pack_version": "0.14.0-beta",
+      "minecraft": "26.1.2",
+      "loader": "NeoForge",
+      "config_format": "1.0.0-beta.17",
+      "status": "Playtest",
+      "tested_on": "2026-11-07",
+      "summary": "A full progression path for solo Normal play with automation, intended to compete with ATM11's endgame equipment through stronger later investment.",
+      "compatibility_notes": [
+        "The audit targeted ATM11 0.14.0-beta, its 298 original mod jars, and supplied and generated configurations. Later pack versions, other loaders and other Minecraft versions require another review.",
+        "All 90 Skills, 41 Bonuses, 66 equipment values, payout limits for 6,934 resources, 12 bulk-material entries and 124 equipment-reference corrections were checked in the generated result. Native rebuild and saved-profile validation passed; a full progression and boss playthrough remains unverified.",
+        "Install both the config and kubegroovy folders into the game directory. The required companion tag depends on ATM11's KubeGroovy server data loader.",
+        "Named ATM ore tool gates are retained. The Vigor Bow comparison assumes 40 installed heart canisters, and Essence casters retain lower raw damage because they bypass ordinary armor and damage cooldowns.",
+        "Use Essence Ascendance beta.17 or later; beta.17 fixes an equipment-rule refresh race that could prevent reopening a world in the same client session."
+      ],
+      "source": "atm11/0.14.0-beta-r1",
+      "page": "Preset-ATM11-0-14-0-beta-r1"
     }
   ]
 }

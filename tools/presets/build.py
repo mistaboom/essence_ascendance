@@ -155,6 +155,10 @@ def allowed_payload(name: str) -> bool:
         return False
     if len(path.parts) >= 2 and path.parts[0] == "config" and path.suffix == ".toml":
         return True
+    # KubeGroovy supplies a virtual server datapack from this directory. Keep
+    # executable scripts, client assets and arbitrary loader files out of presets.
+    if len(path.parts) >= 5 and path.parts[:2] == ("kubegroovy", "data") and path.suffix == ".json":
+        return True
     return len(path.parts) >= 3 and path.parts[0] == "datapacks" and (
         len(path.parts) == 3 and path.name == "pack.mcmeta"
         or len(path.parts) >= 5 and path.parts[2] == "data" and path.suffix == ".json"
@@ -304,7 +308,9 @@ def detail_page(item: dict, files: dict[str, bytes], archive: bytes) -> str:
     if item["compatibility_notes"]:
         text += "\n## Compatibility notes\n\n"
         text += "".join("- " + markdown(note) + "\n" for note in item["compatibility_notes"])
-    text += "\n## Installation and notes\n\n" + files["README.txt"].decode("utf-8").rstrip() + "\n"
+    # Wiki sources use LF in Git; preserve the authored bytes only in the ZIP.
+    readme = files["README.txt"].decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    text += "\n## Installation and notes\n\n" + readme.rstrip() + "\n"
     text += "\n## Download verification\n\n"
     text += f'Archive: `{archive_name(item)}`\n\nSHA-256:\n\n```text\n{sha256(archive)}\n```\n\n'
     text += "The archive includes `SHA256SUMS.txt` for the individual files.\n\n### Included files\n\n"

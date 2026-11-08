@@ -10,6 +10,7 @@ Download editable Essence Ascendance settings prepared for specific modpacks. Ea
 
 | Pack | Pack version | Minecraft | Loader | Preset | Status | Download |
 | --- | --- | --- | --- | --- | --- | --- |
+| All the Mods 11 (ATM11) | 0.14.0-beta | 26.1.2 | NeoForge | [0.14.0-beta-r1](https://github.com/mistaboom/essence_ascendance/wiki/Preset-ATM11-0-14-0-beta-r1) | Playtest | [ZIP](https://github.com/mistaboom/essence_ascendance/raw/refs/heads/main/presets/downloads/atm11-0.14.0-beta-r1.zip) |
 | FTB Evolution 2 | 1.5.1 | 26.1.2 | NeoForge | [1.5.1-r1](https://github.com/mistaboom/essence_ascendance/wiki/Preset-FTB-Evolution-2-1-5-1-r1) | Playtest | [ZIP](https://github.com/mistaboom/essence_ascendance/raw/refs/heads/main/presets/downloads/ftb-evolution-2-1.5.1-r1.zip) |
 
 ## Using a preset

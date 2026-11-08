@@ -81,18 +81,26 @@ extend it to newly generated output.
 
 ## Current release
 
-**Beta.17 is being prepared; validation and publication are pending.** The
-follow-up addresses a startup crash observed when reopening the native ATM11
-audit world: `TwoHandedEquipmentService.rulesChanged` dereferenced player state
-that had disappeared after disconnect. The lifecycle fix and regression test
-are being verified; successful validation is not yet established here.
-[Release notes](releases/1.0.0-beta.17.md) describe the intended correction.
+**Beta.17 is published; release-workflow artifact distribution is running.**
+Source commit `13e4bccb5115e5f751346a71c286df1785b25a48` fixes the equipment-rule
+refresh race found while reopening the ATM11 audit world. It preserves eager
+refresh for non-ticking automation players and defers off-thread inventory work
+to the owning server thread. [Release notes](releases/1.0.0-beta.17.md).
 
-Complete the focused regression, native reopen check and supported-target gate
-before committing/publishing the follow-up. Preserve the published beta.16
-artifacts; do not replace them with beta.17 bytes or substitute local build hashes
-for downloaded release hashes. Record beta.17's source, workflow and publication
-receipt only after verification.
+All four local production archives passed their 68-task build/asset check, and
+all 25 release-tool tests passed. The Fabric 1.21.1 native fixture passed,
+including 413 two-handed checks and 132 fishing checks after a test-only heightmap
+fixture repair. ATM11 0.14.0-beta on NeoForge 26.1.2 passed rebuild, reload,
+saved-profile validation, save/quit/reopen in the same client session and
+post-reopen validation with unchanged profile bytes. [VALIDATION.md](VALIDATION.md)
+records the scope and remaining playthrough limits.
+
+[CI run 42431826634](https://github.com/mistaboom/essence_ascendance/actions/runs/42431826634)
+passed the exact source commit: all 324 Gradle tasks and 25 release tests, with
+the build completing in 28m 4s. The matching prerelease was published through
+the GitHub release workflow; final artifact and platform verification is pending. Preserve the published beta.16 artifacts; do not replace
+them with beta.17 bytes or substitute local build hashes for downloaded release
+hashes. Record the beta.17 publication receipt only after verification.
 
 ### Published beta.16 receipt
 

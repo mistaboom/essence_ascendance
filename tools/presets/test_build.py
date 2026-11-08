@@ -115,6 +115,42 @@ class PresetBuildTests(unittest.TestCase):
             result[name] = digest
         return result
 
+    def test_wiki_normalizes_readme_newlines_but_archive_preserves_bytes(self) -> None:
+        readme = b"# Test preset\r\n\r\nInstall these files.\r\n"
+        (self.source() / "README.txt").write_bytes(readme)
+        preset_builder.build(self.root, write=True)
+        catalog = json.loads((self.root / "presets/catalog.json").read_text(encoding="utf-8"))
+        page = self.root / "docs/wiki" / (catalog["entries"][0]["page"] + ".md")
+        self.assertNotIn(b"\r", page.read_bytes())
+        self.assertIn(b"# Test preset\n\nInstall these files.\n", page.read_bytes())
+        with zipfile.ZipFile(self.archive()) as bundle:
+            self.assertEqual(readme, bundle.read("README.txt"))
+            self.assertEqual(hashlib.sha256(readme).hexdigest(),
+                             self.checksums(bundle.read("SHA256SUMS.txt"))["README.txt"])
+        preset_builder.build(self.root)
+
+    def test_kubegroovy_data_round_trip_and_checksums(self) -> None:
+        name = "kubegroovy/data/essence_ascendance/tags/item/low_value_bulk_materials.json"
+        content = '{"replace": false, "values": ["minecraft:calcite"]}\n'
+        self.write(self.source() / "files" / name, content)
+        preset_builder.build(self.root, write=True)
+        with zipfile.ZipFile(self.archive()) as bundle:
+            self.assertEqual(content.encode(), bundle.read(name))
+            self.assertEqual(hashlib.sha256(content.encode()).hexdigest(),
+                             self.checksums(bundle.read("SHA256SUMS.txt"))[name])
+        preset_builder.build(self.root)
+
+    def test_kubegroovy_scripts_and_non_data_files_rejected(self) -> None:
+        for name in ("kubegroovy/server_scripts/setup.groovy",
+                     "kubegroovy/startup_scripts/setup.json",
+                     "kubegroovy/assets/example/lang/en_us.json",
+                     "kubegroovy/data/private.json"):
+            with self.subTest(name=name):
+                file = self.source() / "files" / name
+                self.write(file, "{}\n")
+                self.assert_rejected_without_writes()
+                file.unlink()
+
     def test_archive_round_trip_checksums_and_reproducibility(self) -> None:
         preset_builder.build(self.root, write=True)
         archive = self.archive()

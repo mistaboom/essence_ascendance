@@ -27,7 +27,7 @@ release references honest: unreleased source behavior is not proof of an older t
 
 ## Publication and verification
 
-### Beta.16 membership guide: prepared, publication pending
+### Beta.17 release guide: prepared, publication pending
 
 The membership guide now describes runtime API detection without FTB version
 allowlists, fallback to built-in teams on actual API failure or provider removal,
@@ -40,7 +40,13 @@ The prepared release-page selection is `Home.md`, `_Footer.md`,
 `Version-and-Maintenance.md`, `Administration-Commands.md`, `Configuration.md`,
 `Integrations-and-Compatibility.md`, `Player-Commands.md`,
 `Teams-and-Shared-Infrastructure.md` and `Troubleshooting.md`. Publish this set
-after the beta.16 release has been verified, then record the actual wiki commit.
+after the beta.17 release gate succeeds, then record the actual wiki commit.
+The reported world-reopen failure has now passed local native acceptance in
+ATM11: beta.17 loaded the saved profile and joined the same world after save/quit,
+without the policy-cache exception or resulting datapack failure. The controlled
+regression and version-specific fixture scope are recorded in
+[../VALIDATION.md](../VALIDATION.md). Exact-source CI passed all 324 tasks and 25 release tests. Release-workflow
+artifact verification and this wiki publication remain pending.
 Existing versioned preset downloads retain their original compatibility records;
 these guide edits do not relabel their tested configuration or pack version.
 
@@ -68,6 +74,37 @@ matched its recorded SHA-256, and all individual file checksums passed. The pres
 packaging suite, generated-output check and disposable wiki publisher checks
 passed locally; the Configuration presets GitHub Actions run also passed on Linux.
 These are publication and packaging checks, not a new gameplay balance audit.
+
+### ATM11 preset: native acceptance recorded, publication pending
+
+The prepared `atm11/0.14.0-beta-r1` revision targets ATM11 0.14.0-beta on
+NeoForge 26.1.2 with Essence Ascendance beta.17. Its audit covered the original
+298 mod jars and supplied/generated configurations. The preset contains all 90 Skills,
+41 Bonuses, 66 equipment controls, 6,935 category payout ceilings across 6,934
+resources, 124 reference corrections and 12 additive bulk-material tag entries.
+The ZIP supplies four TOMLs and the required
+`kubegroovy/data/essence_ascendance/tags/item/low_value_bulk_materials.json`, plus
+instructions, license and checksums. Installation requires both `config` and
+`kubegroovy` in the game directory; no generated profile or private audit files
+are distributed.
+
+The beta.17 native rebuild, reload, saved-profile validation and save/quit/reopen
+passed locally on 2026-11-07. The generated result matched all 658 authored
+controls, and reopening retained integrity
+`26cf8a7da6e19ecb511df99fb14bdb0d8daee9834226690f1e5e35559829cd22`.
+Post-reopen command validation passed at 16:00:50 with the same profile file checksum.
+Exact-source CI subsequently passed all 324 tasks and 25 release tests.
+Release-workflow artifact verification and wiki publication remain pending.
+Progression effort and competitive endgame behavior remain design targets;
+a complete progression and boss playthrough has not been completed.
+
+Publish the generated `Config-Presets.md` and
+`Preset-ATM11-0-14-0-beta-r1.md` pages with the selected navigation/release pages
+after the main-repository download is available and the release gate passes.
+Then verify the live detail page and anonymous ZIP hash and record the actual wiki
+commit. The original FTB Evolution 2 ZIP remains byte-for-byte unchanged; the
+historical `67e8ac1d7f76556f3ab27ee40dfc678057d8eb79` publication above remains its
+receipt, not evidence that the new ATM11 page has already been published.
 
 The last recorded audio wiki publication is commit
 `5762bdfbfc46c0c0fd7658a1bc32e359a9fff01a` on the separate wiki repository, from the

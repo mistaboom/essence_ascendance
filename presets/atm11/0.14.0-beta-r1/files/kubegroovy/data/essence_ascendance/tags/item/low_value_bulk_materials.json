@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "ae2:sky_dust",
+    "allthemodium:ancient_stone",
+    "minecraft:andesite",
+    "minecraft:blackstone",
+    "minecraft:calcite",
+    "minecraft:cobbled_deepslate",
+    "minecraft:diorite",
+    "minecraft:end_stone",
+    "minecraft:granite",
+    "minecraft:mud",
+    "minecraft:netherrack",
+    "minecraft:tuff"
+  ]
+}

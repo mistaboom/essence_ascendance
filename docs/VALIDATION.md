@@ -31,6 +31,34 @@ After deployment to the FTB Evolution 2 server, membership reported FTB Teams
 Prism jar hashes matched; settings and the saved generated profile were unchanged.
 These checks do not substitute for a connected client's graphical playthrough.
 
+The 2026-11-07 beta.17 world-reopen fix was verified from source commit
+`13e4bccb5115e5f751346a71c286df1785b25a48`. The Fabric 1.21.1 native fixture passed
+413 two-handed equipment checks, including removal during reload, off-thread
+invalidation and socketless automation, plus 132 fishing checks. A test-only
+heightmap fixture repair allowed the latter checks to complete; it changed no
+production fishing behavior. All four production archives and 25 release-tool
+tests passed. The NeoForge 26.1.2 fixture passed its 43 arrow/Glaive checks, but
+does not run the legacy full two-handed fixture. Actual ATM11 26.1.2 world reopening
+therefore supplied the separate acceptance evidence for the reported failure.
+
+With beta.17 installed, ATM11 0.14.0-beta rebuilt its preset successfully at
+15:54:56 Alaska time: 37,988 resource rows and 34,681 dissolution entries. All
+658 authored controls matched the generated result; the audit also confirmed
+6,935 category payout ceilings across 6,934 resources and all 124 reference
+corrections. `/reload` completed without KubeGroovy errors at 15:56:49, and
+`/essence debug balance validate` passed at 15:57:47. After saving and reopening,
+the same profile loaded in 4,431 ms at 15:58:42 and the player joined at 15:58:49,
+without the two-handed-policy null dereference or the resulting datapack failure.
+The recorded generated-profile file SHA-256 is
+`500cb100197b94ef990b551e0bde0abf91fe4a9dce00fceb78c22fca48b5f9ab`;
+its internal integrity value is
+`26cf8a7da6e19ecb511df99fb14bdb0d8daee9834226690f1e5e35559829cd22`.
+Post-reopen command validation passed at 16:00:50 with the same file checksum.
+Exact-source CI then passed all 324 tasks and 25 release tests. Release-workflow
+distribution and public preset publication were pending at this checkpoint; [MAINTENANCE.md](MAINTENANCE.md) records subsequent
+status. These checks establish generation, persistence and the reported lifecycle
+repair, not a complete progression/boss playthrough or every mod interaction.
+
 | Evidence | What it establishes | Limit |
 | --- | --- | --- |
 | Normal `checkSupportedTargets` | Both versioned common suites, all four catalog-selected production/archive asset checks and Pack Tester regression | Compilation, invariant and packaging success do not prove every live interaction. |
@@ -75,7 +103,7 @@ Native fixture sources remain separate from production archives.
 | Area | Representative maintained checks | Required boundary |
 | --- | --- | --- |
 | Membership, machines and sharing | `MembershipProviderTest`, `MembershipNativeHookTest`, `MachineBindingTest`, `MachinePlacementTest`, `ConcurrentChannelSchedulerTest`; native `NativeMachineBindingTest`, `NativeSinglePlayerChannelTest`, `NativeAutomatedItemOwnershipTest`, `NativeInfuserStartTest` | Current menu/player/reach/physical machine and binding, settled ownership, one player source, fair source sharing, paid-work conservation, stale confirmation and automation rollback |
-| Input, combat and lifecycle | `NativeGlaiveActionTest`, `NativeTwoHandedEquipmentTest`, `ProjectileNativeInterceptionTest`, native hook-shape suites and `RuntimeLifecycleTest` | Dead/removed actors cannot poison input sequence; bounded observations/restarts, spent cooldown preservation, no discarded-backlog damage, accepted damage and lifecycle cleanup |
+| Input, combat and lifecycle | `NativeGlaiveActionTest`, `NativeTwoHandedEquipmentTest`, `ProjectileNativeInterceptionTest`, native hook-shape suites and `RuntimeLifecycleTest` | Dead/removed actors cannot poison input sequence; bounded observations/restarts, spent cooldown preservation, no discarded-backlog damage, accepted damage, removal during rule reload, owner-thread reconciliation and socketless automation |
 | Carrier and salvage conservation | `NativeCarrierCompatibilityTest`, `NativeResourceChainsTest`, `NativeSalvageTest`, `DurabilityDomainTest` | Exact stored denominations, conversion equality, alternative recipes, returned containers, bounded random recovery and incompatible material bills |
 | Survival and recovery | `RecoveryTest`, `SustenanceTest`, `FoodEffectOriginCodecTest`, `NativeVitalityRecoveryTest`, `NativeVitalitySustenanceTest`, `VitalityBalanceTest` | Native durability-point work, fractional carry, idle reset, real meal cadence/consumption, food-origin healing and ordinary exhaustion |
 | Generated progression and native limits | `NativeBonusMechanicsTest`, `BonusTrackGeneratorTest`, `BonusTrackProgressionTest`, `SkillRankCurveTest`, `SkillRankLedgerTest`, `NativeEquipmentHeadroomTest`, `SkillSettingsConfigTest`, `BonusSettingsConfigTest` | Meaningful increments on the same context, native caps/quantization, saved payment history, settings validation and unchanged human files |

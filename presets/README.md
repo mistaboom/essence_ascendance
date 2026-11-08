@@ -19,6 +19,7 @@ presets/
         config/...
         datapacks/<standalone-pack>/pack.mcmeta
         datapacks/<standalone-pack>/data/...
+        kubegroovy/data/<namespace>/...  (when the target pack uses KubeGroovy)
   downloads/
     <pack-id>-<pack-version>-r1.zip
     SHA256SUMS.txt
@@ -40,6 +41,10 @@ own directory so updating a modpack's managed datapack does not replace it.
    and JSON resources below `data/`. Review the files for credentials, private
    network addresses and local paths. The builder catches some accidental local
    provenance; it is not a complete secret scanner or a Minecraft schema validator.
+   Packs using KubeGroovy may instead include declarative JSON resources below
+   `kubegroovy/data/<namespace>/`. That loader supplies the server datapack;
+   no separate `pack.mcmeta` is needed there. Document the loader requirement
+   and exact installation path. Executable scripts and client assets are excluded.
 3. Write `README.txt` using Markdown-compatible headings and prose. It is bundled
    unchanged and also appears on the detail page. Explain the intended difficulty,
    play style, prerequisites, exact installation paths, required companion packs,

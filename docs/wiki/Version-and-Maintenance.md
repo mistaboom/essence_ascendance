@@ -6,7 +6,7 @@
 
 | Reference | Version |
 | --- | --- |
-| Current command guidance, membership behavior and release targets | **1.0.0-beta.16**, refreshed November 7, 2026 |
+| Current command guidance, membership behavior and release targets | **1.0.0-beta.17**, refreshed November 7, 2026 |
 | This wiki's balance/configuration guide | **1.0.0-beta.9**, refreshed October 18, 2026 |
 | Minecraft / Java | **1.21.1 / 21** and **26.1.2 / 25** |
 | Loaders | Fabric and NeoForge for each Minecraft version; four separate builds |
@@ -14,8 +14,14 @@
 
 Use the build matching both Minecraft and loader, with matching mod versions on
 the server and clients. This pack-maker guide retains its beta.9 balance refresh
-and dated evidence; current commands, membership behavior and release targets are updated for beta.16.
+and dated evidence; current commands, membership behavior and release targets are updated for beta.17.
 Player gameplay instructions remain in the Ascendance Archive.
+
+## Added in beta.17
+
+Fixes an equipment-rule refresh race that could stop a single-player world from
+reopening in the same client session, presenting a datapack-loading failure.
+Connected players still receive refreshed equipment rules after a data reload.
 
 ## Added in beta.16
 
@@ -46,7 +52,7 @@ for exact syntax, permissions and audience limits.
 
 ## Updating from earlier betas
 
-Updating from beta.15 within the same Minecraft version requires no world,
+Updating from beta.15 or beta.16 within the same Minecraft version requires no world,
 player-progress or configuration reset, and no balance rebuild. Update both the
 server and clients. Existing settings and generated balance remain in place.
 
