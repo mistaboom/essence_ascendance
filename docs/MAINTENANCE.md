@@ -81,7 +81,7 @@ extend it to newly generated output.
 
 ## Current release
 
-**Beta.18 is prepared for the GitHub release workflow.** It fixes Minecraft 26
+**The beta.18 release workflow is complete; GitHub downloads are verified.** It fixes Minecraft 26
 skill outlines, continuous Essence Wings/vanilla rocket flight and Vector Boost,
 switches Nexus to the ordinary fullscreen screen foundation, and fixes translated
 command arguments and admin toggle activation. The user accepted the clean
@@ -91,7 +91,55 @@ The temporary skill-lab generators, launch scripts and dedicated native fixture
 were removed before release. The focused line-rendering, flight, text and Nexus
 regressions remain; native admin-command coverage lives in the existing server
 fixture. [VALIDATION.md](VALIDATION.md) records the checks and their boundaries.
-Publication still requires CI on the release commit and the distribution workflow.
+
+### Published beta.18 receipt
+
+The release source is `e37a3fec9d65d67404cc2c316242284841bc5125`, tagged
+`v1.0.0-beta.18`. [CI](https://github.com/mistaboom/essence_ascendance/actions/runs/42547668140)
+passed all 328 Gradle tasks in 17m 10s and all 25 release-tool tests. The
+[release workflow](https://github.com/mistaboom/essence_ascendance/actions/runs/42549342823)
+then passed all 328 tasks in 28m 24s and all 25 release tests. All ten jobs
+succeeded: build, GitHub downloads, four CurseForge uploads and four Modrinth
+uploads. No upload retries or manual jar attachments were needed.
+
+The [GitHub beta.18 prerelease](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.18)
+contains four jars and their checksums. Workflow artifact `13645234922` has ZIP
+SHA-256 `d887b59f63343205fe01b8d22b1e637595c490a0d26777b29482ba35d9989919`.
+All four downloaded GitHub jars match that artifact's sizes and SHA-256 hashes;
+the release notes and checksum asset match too. The published jars contain no
+temporary lab files, lab hooks or authored regression-test classes.
+
+Modrinth has exactly four beta.18 records with the expected game/loader versions,
+dependencies and changelog. All four actual Modrinth CDN downloads match the
+workflow's SHA-256, SHA-512 and sizes.
+
+| Target | Published SHA-256 | Modrinth version |
+| --- | --- | --- |
+| 1.21.1 Fabric | `19ea4da217c04b8f49b6d43fd63d364eb7d888fd0d60cd2e2422377a3c28dbf5` | `dcArok3j` |
+| 1.21.1 NeoForge | `a1fbe44c8ec3d48d47fb614e6d8dbfd5be13fdc88cf3ad21c813dbf7cdd00bc0` | `Qswe7kwS` |
+| 26.1.2 Fabric | `8522e84c7fdd06146caec14248c2ec9919785437a13a4f4aade79f5372317f0f` | `FJiq1yXv` |
+| 26.1.2 NeoForge | `89ee7110be28778037b1e2d2363ae9fe88b94ae067e73fdbacc8155e9def168b` | `E16Vu8YK` |
+
+Verification on 2026-11-09 at 02:42 UTC found Modrinth's project still
+`processing`, with `requested_status=approved`, no approval date, and anonymous
+project/version APIs returning 404. Successful uploads and CDN downloads do not
+establish public project approval.
+
+All four CurseForge upload logs explicitly report success. By 02:46 UTC, its
+anonymous file API exposed all four beta.18 records, and individual public
+metadata matched their filenames, byte lengths, Minecraft versions, loaders and
+beta release type. The file IDs are `9520621` (1.21.1 Fabric), `9520622`
+(1.21.1 NeoForge), `9520624` (26.1.2 Fabric) and `9520628` (26.1.2 NeoForge).
+CurseForge CDN bytes were not independently downloaded. The earlier upload/list
+delay required no retry; the later public-metadata evidence is retained in
+`build/beta18-cf-publication-watch.json`.
+
+The beta.18 Home, Version and footer wiki pages were published as commit
+`2dabbf698119ebf4a23a7ee71cb437909adc9195`. Fresh raw-page and rendered-HTML checks
+passed; [the wiki receipt](wiki-maintenance/AUDIT.md) records their exact scope.
+Local publication evidence is retained in `build/beta18-ci-verification.json`,
+`build/beta18-release-summary.json`, `build/beta18-github-verification.json`,
+`build/beta18-modsite-verification.json` and `build/beta18-wiki-verification.json`.
 
 ### Previous beta.17 release
 

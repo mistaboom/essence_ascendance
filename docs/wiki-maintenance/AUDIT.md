@@ -27,7 +27,7 @@ release references honest: unreleased source behavior is not proof of an older t
 
 ## Publication and verification
 
-### Beta.18 release guide: prepared for publication
+### Beta.18 release guide: published
 
 The focused selection is `Home.md`, `_Footer.md` and
 `Version-and-Maintenance.md`. It updates the release pointer and describes the
@@ -36,9 +36,30 @@ safe translated command arguments and admin toggle activation. Review compared
 the production changes, retained regressions and beta.18 release notes; current
 test and user-acceptance boundaries remain in [../VALIDATION.md](../VALIDATION.md).
 The earlier beta.17/beta.16 behavior and beta.9 balance-guide history are retained.
-Preset downloads and their original tested versions are unchanged. Preview and
-publish this exact selection after the beta.18 GitHub Release exists; publication
-and rendered-page verification have not yet been recorded.
+Preset downloads and their original tested versions are unchanged.
+
+The three-page selection was published on 2026-11-08 (2026-11-09 UTC) as wiki
+commit `2dabbf698119ebf4a23a7ee71cb437909adc9195`, from canonical source commit
+`e37a3fec9d65d67404cc2c316242284841bc5125`. The publisher recorded the successful
+push and removed its temporary checkout. Fresh anonymous HTTPS reads completed
+at 02:41 UTC on November 9 verified that all three raw pages exactly matched
+their canonical bytes. The live rendered Home and Version pages show beta.18
+guidance and the inline beta.18 footer. Home links to the public beta.18 release;
+the Version page includes the `added-in-beta18` heading anchor.
+
+All 20 distinct linked destinations from those rendered pages returned HTTP 200.
+The five referenced cross-page anchors and all 15 local heading anchors were
+present, including the existing Skill/Bonus settings, membership and audio links.
+The local receipt is `build/beta18-wiki-verification.json`; publication output is
+`build/beta18-wiki-publish.log`. These checks used fresh HTTP responses rather than
+search-engine or browsing-tool caches. The wiki commit identity comes from the
+publisher receipt; this HTTP audit did not separately query Git remote HEAD.
+
+Verification covered rendered HTML content, links and anchors, not browser
+screenshots, interactive layout or another full review of linked-page content.
+It establishes this documentation publication only: release workflow results and
+artifact-byte checks are separate, and no new gameplay, pack balance or universal
+compatibility claim follows from it. Existing preset ZIPs were not re-downloaded.
 
 ### Beta.17 release guide: published
 
