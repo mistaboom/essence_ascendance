@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.compat.jei;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
-import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
@@ -359,30 +358,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
-        /*
-         * The Nexus consumes the full logical screen. Mark that complete area
-         * as GUI-owned so JEI does not place its ingredient list over the
-         * progression tracks while remaining an optional compile-time bridge.
-         */
-        registration.addGuiContainerHandler(
-                AscendanceNexusScreen.class,
-                new IGuiContainerHandler<AscendanceNexusScreen>() {
-                    @Override
-                    public List<Rect2i> getGuiExtraAreas(
-                            AscendanceNexusScreen screen
-                    ) {
-                        return List.of(
-                                new Rect2i(
-                                        0,
-                                        0,
-                                        screen.width,
-                                        screen.height
-                                )
-                        );
-                    }
-                }
-        );
-
         // These areas exist only while the foreground popup is open. Reporting
         // them through JEI's supported GUI handler prevents ingredient/bookmark
         // input from stealing the click before the screen's popup controls see it.

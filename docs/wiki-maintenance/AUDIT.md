@@ -27,6 +27,19 @@ release references honest: unreleased source behavior is not proof of an older t
 
 ## Publication and verification
 
+### Beta.18 release guide: prepared for publication
+
+The focused selection is `Home.md`, `_Footer.md` and
+`Version-and-Maintenance.md`. It updates the release pointer and describes the
+Minecraft 26 line-rendering and owned-Wings fixes, the ordinary-screen Nexus,
+safe translated command arguments and admin toggle activation. Review compared
+the production changes, retained regressions and beta.18 release notes; current
+test and user-acceptance boundaries remain in [../VALIDATION.md](../VALIDATION.md).
+The earlier beta.17/beta.16 behavior and beta.9 balance-guide history are retained.
+Preset downloads and their original tested versions are unchanged. Preview and
+publish this exact selection after the beta.18 GitHub Release exists; publication
+and rendered-page verification have not yet been recorded.
+
 ### Beta.17 release guide: published
 
 The membership guide now describes runtime API detection without FTB version

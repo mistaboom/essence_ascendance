@@ -81,6 +81,20 @@ extend it to newly generated output.
 
 ## Current release
 
+**Beta.18 is prepared for the GitHub release workflow.** It fixes Minecraft 26
+skill outlines, continuous Essence Wings/vanilla rocket flight and Vector Boost,
+switches Nexus to the ordinary fullscreen screen foundation, and fixes translated
+command arguments and admin toggle activation. The user accepted the clean
+Minecraft 26 playthrough on 2026-11-08. [Release notes](releases/1.0.0-beta.18.md).
+
+The temporary skill-lab generators, launch scripts and dedicated native fixture
+were removed before release. The focused line-rendering, flight, text and Nexus
+regressions remain; native admin-command coverage lives in the existing server
+fixture. [VALIDATION.md](VALIDATION.md) records the checks and their boundaries.
+Publication still requires CI on the release commit and the distribution workflow.
+
+### Previous beta.17 release
+
 **The beta.17 release workflow is complete; GitHub downloads are verified.**
 Source commit `13e4bccb5115e5f751346a71c286df1785b25a48` fixes the equipment-rule
 refresh race found while reopening the ATM11 audit world. It preserves eager

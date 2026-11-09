@@ -55,9 +55,12 @@ public final class ProceduralGeometry {
     private static void lineVertex(PoseStack pose, VertexConsumer out,
                                    double x, double y, double z, double nx, double ny, double nz,
                                    int rgb, int opacity) {
-        out.addVertex(pose.last().pose(), (float) x, (float) y, (float) z)
+        VertexConsumer vertex = out.addVertex(pose.last().pose(), (float) x, (float) y, (float) z)
                 .setColor(rgb >> 16 & 255, rgb >> 8 & 255, rgb & 255, opacity)
                 .setNormal(pose.last(), (float) nx, (float) ny, (float) nz);
+        // 26.1's line shader expands the line using a per-vertex width; an omitted width is invisible.
+        //? if >=26.1.2
+        /*vertex.setLineWidth(2.0F);*/
     }
 
     private static int opacity(float alpha) { return Math.clamp(Math.round(alpha * 255.0F), 0, 255); }

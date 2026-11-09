@@ -129,7 +129,21 @@ public final class ProceduralRenderTypes {
     /*public static RenderType lines(String name, Depth depth) { return modern(name, true, depth, depth == Depth.WORLD); }*/
     //? if >=26.1.2
     /*private static RenderType lines(String name, Depth depth, boolean writeDepth) { return modern(name, true, depth, writeDepth); }*/
-    //? if >=26.1.2
-    /*private static RenderType modern(String name, boolean linePass, Depth depth, boolean writeDepth) { var snippet = linePass ? RenderPipelines.LINES_SNIPPET : RenderPipelines.DEBUG_FILLED_SNIPPET; var pipeline = RenderPipeline.builder(snippet).withLocation(Identifier.fromNamespaceAndPath("essence_ascendance", name)).withVertexFormat(linePass ? DefaultVertexFormat.POSITION_COLOR_NORMAL : DefaultVertexFormat.POSITION_COLOR, linePass ? VertexFormat.Mode.LINES : VertexFormat.Mode.QUADS).withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT)).withDepthStencilState(new DepthStencilState(depth == Depth.WORLD ? CompareOp.LESS_THAN_OR_EQUAL : CompareOp.ALWAYS_PASS, writeDepth)).withCull(false).build(); return RenderType.create(name, RenderSetup.builder(pipeline).bufferSize(RenderType.TRANSIENT_BUFFER_SIZE).sortOnUpload().createRenderSetup()); }*/
+    //? if >=26.1.2 {
+    /*private static RenderType modern(String name, boolean linePass, Depth depth, boolean writeDepth) {
+        // Inherit the shader's native vertex contract. In 26.1 line vertices also require LineWidth;
+        // overriding the snippet with the former POSITION_COLOR_NORMAL format collapses every line.
+        var snippet = linePass ? RenderPipelines.LINES_SNIPPET : RenderPipelines.DEBUG_FILLED_SNIPPET;
+        var pipeline = RenderPipeline.builder(snippet)
+                .withLocation(Identifier.fromNamespaceAndPath("essence_ascendance", name))
+                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withDepthStencilState(new DepthStencilState(
+                        depth == Depth.WORLD ? CompareOp.LESS_THAN_OR_EQUAL : CompareOp.ALWAYS_PASS, writeDepth))
+                .withCull(false)
+                .build();
+        return RenderType.create(name, RenderSetup.builder(pipeline)
+                .bufferSize(RenderType.TRANSIENT_BUFFER_SIZE).sortOnUpload().createRenderSetup());
+    }
+    *///? }
 
 }

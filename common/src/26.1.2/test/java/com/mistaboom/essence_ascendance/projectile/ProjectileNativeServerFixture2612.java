@@ -11,17 +11,28 @@ import com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService;
 import com.mistaboom.essence_ascendance.equipment.WeaponActionDamage;
 import com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
+import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
+import com.mistaboom.essence_ascendance.movement.FlightAbilityService;
+import com.mistaboom.essence_ascendance.movement.FlightAbilityState;
+import com.mistaboom.essence_ascendance.movement.MovementAbilityInput;
+import com.mistaboom.essence_ascendance.skill.SkillGroups;
 import com.mistaboom.essence_ascendance.skill.SkillActivationPolicy;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.skill.effect.MobilityFlightEffects;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import com.mistaboom.essence_ascendance.utility.ExplosionContainmentService;
 import com.mistaboom.essence_ascendance.visual.EntityPresentationBridge2612;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSource;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.Connection;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket;
 import net.minecraft.resources.Identifier;
@@ -31,13 +42,18 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.players.PlayerList;
+import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.entity.projectile.arrow.SpectralArrow;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.ExplosionDamageCalculator;
@@ -47,6 +63,7 @@ import net.minecraft.world.level.entity.Visibility;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -101,10 +118,215 @@ public final class ProjectileNativeServerFixture2612 {
             check(access.essenceAscendance$flightScale() == 1,
                     "Native attachment releases its slowed flight scale");
         }
+        nativeAdminSkillCommands(level);
         rapidGlaive(level);
+        nativeWings(level);
         nativeExplosion(level);
         System.out.println("ProjectileNativeServerFixture2612: " + checks
-                + " registry-bound native arrow, attachment, physics, glaive and explosion checks PASS");
+                + " registry-bound native arrow, attachment, physics, admin skill commands, glaive, wings, rocket, boost and explosion checks PASS");
+    }
+
+    /** Registered commands must activate self-selected toggles as well as their prerequisite branches. */
+    private static void nativeAdminSkillCommands(ServerLevel level) throws Exception {
+        var profile = new GameProfile(UUID.randomUUID(), "AdminSkillProbe");
+        var client = ClientInformation.createDefault();
+        var player = new ServerPlayer(level.getServer(), level, profile, client);
+        var channel = connectPlayer(player, profile, client);
+        var data = EssenceSavedData.get(level.getServer()).getPlayerData(player.getUUID());
+        var messages = new ArrayList<Component>();
+        var output = new CommandSource() {
+            @Override public void sendSystemMessage(Component message) { messages.add(message); }
+            @Override public boolean acceptsSuccess() { return true; }
+            @Override public boolean acceptsFailure() { return true; }
+            @Override public boolean shouldInformAdmins() { return false; }
+        };
+        var source = player.createCommandSourceStack().withPermission(PermissionSet.ALL_PERMISSIONS).withSource(output);
+        var dispatcher = level.getServer().getCommands().getDispatcher();
+        try {
+            data.setTier(AscendanceTiers.TRANSCENDENT);
+            SkillRegistry.referencedPermanentMilestoneIds().forEach(data::completeMilestone);
+            // Sanctuary's only prerequisite is deliberately owned but unselected. The actual
+            // activation command must select Waylight and the independent Sanctuary toggle.
+            data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.WAYLIGHT)));
+            SkillEffectRuntime.refresh(player);
+            for (var id : List.of(SkillIds.SANCTUARY, SkillIds.INDUSTRIOUS_PRESENCE, SkillIds.CONTAINMENT_FIELD)) {
+                check(SkillRegistry.require(id).activationPolicy() == SkillActivationPolicy.TOGGLE,
+                        "Native admin activation probe covers a self-selected toggle: " + id);
+                messages.clear();
+                check(dispatcher.execute("essence admin player skills grant \"" + id + "\"", source) == 1
+                                && data.ownsSkill(id),
+                        "Registered admin grant commits the requested toggle: " + id);
+                check(messages.stream().anyMatch(message -> message.getContents() instanceof TranslatableContents text
+                                && text.getKey().equals("command.essence_ascendance.admin.skills.granted")
+                                && text.getArgs().length == 2 && Integer.valueOf(1).equals(text.getArgs()[0])
+                                && id.toString().equals(text.getArgs()[1])),
+                        "Native grant feedback safely carries its count and normalized identifier: " + id);
+                check(data.getLoadoutSelection(id).isEmpty() && !SkillEffectRuntime.context(player).isEffective(id),
+                        "Granting ownership alone leaves the toggle inactive: " + id);
+                String activate = "essence admin player skills activate \"" + id + "\"";
+                check(dispatcher.execute(activate, source) == 1
+                                && data.getLoadoutSelection(id).filter(id::equals).isPresent()
+                                && SkillEffectRuntime.context(player).isEffective(id),
+                        "Registered admin activation immediately selects and enables the toggle: " + id);
+                if (id.equals(SkillIds.SANCTUARY)) {
+                    check(data.getLoadoutSelection(SkillGroups.UTILITY_SENSE_FOCUS).filter(SkillIds.WAYLIGHT::equals).isPresent()
+                                    && SkillEffectRuntime.context(player).isEffective(SkillIds.WAYLIGHT),
+                            "Sanctuary activation also selects its owned Waylight prerequisite branch");
+                }
+                var selections = Map.copyOf(data.getLoadoutSelections());
+                var ownership = Map.copyOf(data.getOwnedSkills());
+                check(dispatcher.execute(activate, source) == 1
+                                && selections.equals(data.getLoadoutSelections())
+                                && ownership.equals(data.getOwnedSkills())
+                                && SkillEffectRuntime.context(player).isEffective(id),
+                        "Repeated admin activation is idempotent and never switches the toggle off: " + id);
+            }
+            var selections = Map.copyOf(data.getLoadoutSelections());
+            var ownership = Map.copyOf(data.getOwnedSkills());
+            messages.clear();
+            check(dispatcher.execute("essence admin player skills grant \"essence_ascendance:fixture_missing_skill\"", source) == 0
+                            && selections.equals(data.getLoadoutSelections()) && ownership.equals(data.getOwnedSkills()),
+                    "Unknown native skill grant fails without changing committed ownership or selections");
+            check(messages.size() == 2, "Unknown skill grant sends player context followed by one failure");
+            // Vanilla sendFailure wraps the supplied translation in a red empty-root component.
+            var failureMessage = messages.getLast();
+            check(failureMessage.getContents().equals(Component.empty().getContents())
+                            && failureMessage.getSiblings().size() == 1
+                            && Component.empty().withStyle(ChatFormatting.RED).getStyle().getColor()
+                                    .equals(failureMessage.getStyle().getColor()),
+                    "Unknown skill rejection uses the actual native red failure wrapper");
+            check(failureMessage.getSiblings().getFirst().getContents() instanceof TranslatableContents text
+                            && text.getKey().equals("command.essence_ascendance.error.unknown_skill")
+                            && text.getArgs().length == 1
+                            && "essence_ascendance:fixture_missing_skill".equals(text.getArgs()[0]),
+                    "Native unknown-skill feedback safely carries the rejected identifier");
+        } finally {
+            data.clearAllSkillsForAdmin();
+            PlayerRuntimeLifecycleService.forget(player);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /** Real transformed glide validation and vanilla rockets, without a rendered-client simulation. */
+    @SuppressWarnings("unchecked")
+    private static void nativeWings(ServerLevel level) throws ReflectiveOperationException {
+        var profile = new GameProfile(UUID.randomUUID(), "WingsProbe");
+        var client = ClientInformation.createDefault();
+        var player = new ServerPlayer(level.getServer(), level, profile, client);
+        var channel = connectPlayer(player, profile, client);
+        var data = EssenceSavedData.get(level.getServer()).getPlayerData(player.getUUID());
+        var nativeGlide = LivingEntity.class.getDeclaredMethod("updateFallFlying");
+        var flightTicks = LivingEntity.class.getDeclaredField("fallFlyTicks");
+        nativeGlide.setAccessible(true);
+        flightTicks.setAccessible(true);
+        var managerField = ServerLevel.class.getDeclaredField("entityManager");
+        var visibilityField = PersistentEntitySectionManager.class.getDeclaredField("chunkVisibility");
+        managerField.setAccessible(true);
+        visibilityField.setAccessible(true);
+        var manager = (PersistentEntitySectionManager<Entity>) managerField.get(level);
+        var visibility = (Map<Long, Visibility>) visibilityField.get(manager);
+        var chunk = new ChunkPos(0, 0);
+        var priorVisibility = visibility.getOrDefault(chunk.pack(), Visibility.HIDDEN);
+        long originalTime = level.getGameTime();
+        FireworkRocketEntity rocket = null;
+        try {
+            level.getChunk(0, 0);
+            manager.updateChunkStatus(chunk, Visibility.TICKING);
+            player.setPos(8, 280, 8);
+            player.setOnGround(false);
+            player.setYRot(0);
+            player.setXRot(0);
+            player.setDeltaMovement(new Vec3(0, -.1, .2));
+            check(player.getItemBySlot(EquipmentSlot.CHEST).isEmpty(), "Wings probe has no physical Elytra");
+            data.setTier(AscendanceTiers.TRANSCENDENT);
+            SkillRegistry.referencedPermanentMilestoneIds().forEach(data::completeMilestone);
+            data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.IMPACT_CONTROL),
+                    SkillRegistry.require(SkillIds.FATIGUE_FLIGHT), SkillRegistry.require(SkillIds.ESSENCE_WINGS),
+                    SkillRegistry.require(SkillIds.VECTOR_BOOST)));
+            data.setLoadoutSelection(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.ESSENCE_WINGS);
+            SkillEffectRuntime.refresh(player);
+            check(SkillEffectRuntime.context(player).isEffective(SkillIds.ESSENCE_WINGS)
+                            && SkillEffectRuntime.context(player).isEffective(SkillIds.VECTOR_BOOST),
+                    "Real committed loadout enables Wings and Vector Boost");
+            var wingsHandler = SkillEffectRegistry.get(SkillIds.ESSENCE_WINGS);
+            var boostHandler = SkillEffectRegistry.get(SkillIds.VECTOR_BOOST);
+            var hold = new MovementAbilityInput(MovementAbilityInput.ENABLED | MovementAbilityInput.JUMP);
+            FlightAbilityService.input(player, hold);
+            level.getServer().getWorldData().overworldData().setGameTime(originalTime + MovementAbilityInput.HEARTBEAT_TICKS);
+            FlightAbilityService.input(player, hold);
+            wingsHandler.tick(SkillEffectRuntime.context(player));
+            check(MobilityFlightEffects.ownedWings(SkillEffectRuntime.context(player)),
+                    "Held ordinary Jump at the apex starts one owned native glide");
+            FlightAbilityState wings = SkillEffectRuntime.context(player).existingState(SkillIds.ESSENCE_WINGS);
+            long started = wings.wingsStartedTick();
+            FlightAbilityService.input(player, new MovementAbilityInput(MovementAbilityInput.ENABLED));
+            // Exercise both early equipment rejection and the native periodic durability/event boundaries.
+            for (int tick = 0; tick < 60; tick++) {
+                level.getServer().getWorldData().overworldData().setGameTime(started + tick + 1);
+                if (tick % MovementAbilityInput.HEARTBEAT_TICKS == 0)
+                    FlightAbilityService.input(player, new MovementAbilityInput(MovementAbilityInput.ENABLED));
+                flightTicks.setInt(player, tick);
+                nativeGlide.invoke(player);
+                check(player.isFallFlying(), "Native MC26 upkeep must not drop equipment-free Wings at tick " + tick);
+                wingsHandler.tick(SkillEffectRuntime.context(player));
+                check(wings.wingsActive() && wings.wingsStartedTick() == started
+                                && wingsHandler.hudEntries(SkillEffectRuntime.context(player)).getFirst().active(),
+                        "One glide session and its HUD survive without restart/flicker at tick " + tick);
+            }
+            player.setDeltaMovement(new Vec3(0, -.1, .2));
+            FlightAbilityService.input(player, hold);
+            var beforeBoost = player.getDeltaMovement();
+            boostHandler.tick(SkillEffectRuntime.context(player));
+            FlightAbilityState boost = SkillEffectRuntime.context(player).existingState(SkillIds.VECTOR_BOOST);
+            check(boost.boostCharge() == 0 && player.getDeltaMovement().z > beforeBoost.z,
+                    "A fresh ordinary Jump during sustained Wings actually boosts velocity and spends charge");
+            FlightAbilityService.input(player, hold);
+            var afterBoost = player.getDeltaMovement();
+            boostHandler.tick(SkillEffectRuntime.context(player));
+            check(player.getDeltaMovement().equals(afterBoost), "Held Jump cannot replay the same boost");
+
+            var fireworks = new ItemStack(Items.FIREWORK_ROCKET, 3);
+            player.setItemInHand(InteractionHand.MAIN_HAND, fireworks);
+            Items.FIREWORK_ROCKET.use(level, player, InteractionHand.MAIN_HAND);
+            check(fireworks.getCount() == 2, "Vanilla rocket use accepts the same native Wings glide and consumes one rocket");
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof FireworkRocketEntity candidate && candidate.distanceToSqr(player) < 4) {
+                    rocket = candidate;
+                    break;
+                }
+            }
+            check(rocket != null, "Actual vanilla item use spawns an attached rocket in the native world");
+            player.setDeltaMovement(new Vec3(0, -.1, .2));
+            for (int tick = 0; tick < 6; tick++) {
+                nativeGlide.invoke(player);
+                wingsHandler.tick(SkillEffectRuntime.context(player));
+                double beforeRocket = player.getDeltaMovement().z;
+                rocket.tick();
+                check(player.isFallFlying() && player.getDeltaMovement().z > beforeRocket,
+                        "Vanilla attached rocket keeps adding forward thrust during Wings, tick " + tick);
+            }
+            player.stopFallFlying();
+            wingsHandler.tick(SkillEffectRuntime.context(player));
+            check(!wings.wingsActive() && !wingsHandler.hudEntries(SkillEffectRuntime.context(player)).getFirst().active(),
+                    "A native glide stop removes owned flight and the HUD immediately");
+            // Merely owning the skill must not grant arbitrary native glide state without a session.
+            player.startFallFlying();
+            nativeGlide.invoke(player);
+            check(!player.isFallFlying(), "MC26 rejects an unowned empty-chest glide instead of inventing a flight lease");
+            player.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.ELYTRA));
+            player.startFallFlying();
+            flightTicks.setInt(player, 19);
+            nativeGlide.invoke(player);
+            check(player.isFallFlying() && player.getItemBySlot(EquipmentSlot.CHEST).getDamageValue() == 1,
+                    "Ordinary equipped Elytra still follows vanilla glide validation and durability");
+        } finally {
+            if (rocket != null) rocket.discard();
+            data.clearAllSkillsForAdmin();
+            SkillEffectRuntime.forget(player);
+            manager.updateChunkStatus(chunk, priorVisibility);
+            level.getServer().getWorldData().overworldData().setGameTime(originalTime);
+            channel.finishAndReleaseAll();
+        }
     }
 
     @SuppressWarnings("unchecked")

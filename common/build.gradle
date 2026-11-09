@@ -143,6 +143,7 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        essenceTextInvariants: 'com.mistaboom.essence_ascendance.text.EssenceTextTest',
         multiplayerInterfaceInvariants: 'com.mistaboom.essence_ascendance.network.MultiplayerInterfaceTest',
         concurrentChannelSchedulerInvariants: 'com.mistaboom.essence_ascendance.crucible.ConcurrentChannelSchedulerTest',
         crucibleChannelSelectionInvariants: 'com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelectionTest',
@@ -170,6 +171,7 @@ def balanceInvariantMains = [
         ascendanceArmorInvariants: 'com.mistaboom.essence_ascendance.client.armor.AscendanceArmorTest',
         ascendanceShieldInvariants: 'com.mistaboom.essence_ascendance.client.AscendanceShieldTest',
         armorVisualInvariants: 'com.mistaboom.essence_ascendance.client.armor.ArmorEmissionTest',
+        proceduralLineRenderInvariants: 'com.mistaboom.essence_ascendance.client.ProceduralLineRenderTest',
         ascendancePaletteInvariants: 'com.mistaboom.essence_ascendance.client.AscendancePaletteTest',
         texturePixelInvariants: 'com.mistaboom.essence_ascendance.visual.TexturePixelsTest',
         latentOreResourceInvariants: 'com.mistaboom.essence_ascendance.client.ore.LatentOreResourcesTest',

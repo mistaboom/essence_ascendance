@@ -34,6 +34,7 @@ import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.skill.SkillDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillActivationPolicy;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
@@ -709,6 +710,8 @@ final class EssenceAdminCommands {
         for (ResourceLocation suppression : plan.automaticSuppressionsToClear()) savedData.clearLoadoutSelection(player.getUUID(), suppression);
         for (var assignment : plan.selectableAssignments().entrySet())
             savedData.setLoadoutSelection(player.getUUID(), assignment.getKey(), assignment.getValue());
+        if (skill.activationPolicy() == SkillActivationPolicy.TOGGLE)
+            savedData.setLoadoutSelection(player.getUUID(), id, id);
         PlayerRuntimeLifecycleService.refreshProgressionState(player);
         EssenceCommandUtil.send(source, EssenceCommandUtil.good("Activated the loadout branch required by " + id + "."));
         return 1;

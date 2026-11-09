@@ -25,6 +25,7 @@ final class FullscreenRenderContractTest {
 
     static int run() throws Exception {
         checks = 0;
+        checks += NexusScreenSessionContractTest.run();
         nativeLifecycle(read(TargetTestInputs.nativeClass("fabric", SCREEN)), read(TargetTestInputs.nativeClass("fabric", CONTAINER)));
         nativeLifecycle(read(TargetTestInputs.nativeClass("neoforge", SCREEN)), read(TargetTestInputs.nativeClass("neoforge", CONTAINER)));
 

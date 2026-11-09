@@ -330,7 +330,7 @@ public final class ArchiveAuditTest {
         var completion = calls(method(nexus, "consumeTransactionResult"));
         int open = -1, close = -1;
         for (int i = 0; i < completion.size(); i++) {
-            if (completion.get(i).name.equals("onClose")) close = i;
+            if (completion.get(i).name.equals("closeNexus")) close = i;
             if (completion.get(i).owner.equals(root + "AscendanceArchiveScreen")) open = i;
         }
         check(open > close && close >= 0 && completion.stream().anyMatch(c -> c.name.equals("nexusRevision")),

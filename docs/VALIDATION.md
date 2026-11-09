@@ -101,6 +101,48 @@ No old audio/multiplayer/pack-generation count is a substitute for an affected
 current test. Build logs and fixture worlds are disposable outputs; reusable
 test sources, current contracts and compact accepted results are maintained.
 
+## Minecraft 26.1.2 skill regression checks
+
+The 2026-11-08 fixes restore the native line vertex format and per-vertex width
+used by Ore Sight, Threat Sense and shared procedural lines. Essence Wings now
+preserves its owned glide before vanilla rejects missing glider equipment,
+retaining continuous flight state, vanilla rocket thrust and Vector Boost.
+Shared translated messages normalize identifier arguments without mutating caller
+arrays; admin skill activation also enables toggle skills. Both latter defects
+were exposed by executing temporary skill-test-world selector functions. The
+generators, launch scripts and lab-only fixture were then removed at the user's
+request; the actual runtime fixes and focused regression tests remain.
+
+- Native line-buffer checks passed 107 assertions on 1.21.1 and 173 on 26.1.2,
+  including required vertex attributes, render passes and negative controls.
+  They validate geometry contracts, not visible pixels.
+- The dedicated 26.1.2 projectile/flight fixture passed 179 checks on each of
+  NeoForge and Fabric, including equipment-free Wings continuity, server HUD
+  state, vanilla firework thrust and fresh-Jump Vector Boost.
+- After lab removal, the existing native fixture passed 202 checks on each
+  loader. It now also executes real admin grant/activation commands for all
+  three toggle skills, verifies prerequisite and repeated activation, and checks
+  normalized success/error messages without lab resources or launch scripts.
+- Before removal, the isolated NeoForge 26.1.2 lab fixture passed 2,759 checks while executing
+  5,669 native commands across all 90 selectors, including prerequisites,
+  effective selection, supplies and baseline/reset/refill paths. This proves
+  usable rank-1 setup, not successful observation of every skill's effect.
+- The 26.1.2 achievement native fixture passed all nine suites and 4,879
+  assertions on each loader. Controlled machine, combat, movement, survival,
+  companion, farming, gathering and rod interactions provide bounded native
+  behavior evidence; they do not exhaust every skill or rank combination.
+
+The final `checkSupportedTargets` run passed all 328 tasks and produced all four
+production archives. The eight additional damage, healing, posture, status,
+sustenance and recovery checks also passed; their native-shape assertions cover
+both loaders' exact artifacts and do not substitute for gameplay. The native lab
+fixture used a fresh disposable save, separate from normal IntelliJ run directories
+and existing saves. On 2026-11-08 the user reported that the clean test world now
+works and authorized release. That graphical acceptance covers the reported
+regressions; it is not an exhaustive claim about every skill, rank combination
+or modpack interaction. Native admin-command regression checks remain in the
+existing projectile/server fixture without any dependency on the removed lab.
+
 ## Reusable regression coverage
 
 Tests below are maintained under `common/src/test/java/com/mistaboom/essence_ascendance`.

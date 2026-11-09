@@ -33,23 +33,23 @@ public final class EssenceText {
     public static MutableComponent audioSubtitle(String key) { return Component.translatable(key); }
 
     public static MutableComponent gui(String path, Object... args) {
-        return Component.translatable("gui." + MOD_ID + "." + path, args);
+        return translated("gui." + MOD_ID + "." + path, args);
     }
 
     public static MutableComponent tooltip(String path, Object... args) {
-        return Component.translatable("tooltip." + MOD_ID + "." + path, args);
+        return translated("tooltip." + MOD_ID + "." + path, args);
     }
 
     public static MutableComponent command(String path, Object... args) {
-        return Component.translatable("command." + MOD_ID + "." + path, args);
+        return translated("command." + MOD_ID + "." + path, args);
     }
 
     public static MutableComponent jei(String path, Object... args) {
-        return Component.translatable("jei." + MOD_ID + "." + path, args);
+        return translated("jei." + MOD_ID + "." + path, args);
     }
 
     public static MutableComponent term(String path, Object... args) {
-        return Component.translatable("term." + MOD_ID + "." + path, args);
+        return translated("term." + MOD_ID + "." + path, args);
     }
 
     /** Existing machine amount language, shared with server projections and session HUD cards. */
@@ -58,7 +58,7 @@ public final class EssenceText {
     }
 
     public static MutableComponent guide(String path, Object... args) {
-        return Component.translatable("guide." + MOD_ID + "." + path, args);
+        return translated("guide." + MOD_ID + "." + path, args);
     }
 
     public static MutableComponent essence(EssenceDefinition essence) {
@@ -129,7 +129,14 @@ public final class EssenceText {
          * keys created by this mod are guaranteed in en_us.json; external or
          * config-defined names should use named(...) instead.
          */
-        return Component.translatable(key, args);
+        return translated(key, args);
+    }
+
+    private static MutableComponent translated(String key, Object[] args) {
+        // Identifiers and other diagnostic objects are display text, not valid
+        // translation arguments in MC26. Keep styled Components and scalar
+        // values intact through vanilla's normalizer without mutating callers.
+        return Component.translatableEscape(key, args.clone());
     }
 
     private static MutableComponent named(

@@ -49,13 +49,16 @@ import com.mistaboom.essence_ascendance.client.ui.UiOverlayStack;
 import com.mistaboom.essence_ascendance.client.ui.UiNavigationMemory;
 import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
-import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenContainerScreen;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScreen;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenControls;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenLayout;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenNavigation;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
 import com.mistaboom.essence_ascendance.client.nexus.NexusPageLayout;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.screens.inventory.MenuAccess;
+//? if >=26.1.2
+/*import net.minecraft.client.input.KeyEvent;*/
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
@@ -85,7 +88,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * staged plan to the server; the server validates and commits it atomically.
  */
 public final class AscendanceNexusScreen
-        extends FullscreenContainerScreen<AscendanceNexusMenu> {
+        extends FullscreenScreen implements MenuAccess<AscendanceNexusMenu> {
+
+    // Retain the server's slotless authorization session without inventory-screen rendering or input.
+    private final AscendanceNexusMenu menu;
 
     private static final int PANEL = 0xCC1C1C20;
     private static final int PANEL_INNER = 0xCC29292D;
@@ -173,7 +179,8 @@ public final class AscendanceNexusScreen
             Inventory playerInventory,
             Component title
     ) {
-        super(menu, playerInventory, title);
+        super(title);
+        this.menu = menu;
         navigationPlayer = playerInventory.player.getUUID();
         ClientPacketDispatch.preparePresentationConnection();
         navigationSession = NexusNavigationState.session();
@@ -192,6 +199,49 @@ public final class AscendanceNexusScreen
         }
     }
 
+    @Override public AscendanceNexusMenu getMenu() { return menu; }
+
+    @Override public boolean isPauseScreen() { return false; }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (!canPromptForExit() || !minecraft.player.isAlive() || minecraft.player.isRemoved()) {
+            closeNexus();
+        }
+    }
+
+    //? if >=26.1.2 {
+    /*@Override public boolean keyPressed(KeyEvent event) {
+        if (super.keyPressed(event)) return true;
+        if (minecraft != null && minecraft.options.keyInventory.matches(event)) {
+            onClose();
+            return true;
+        }
+        return false;
+    }*/
+    //? }
+    //? if <26.1.2 {
+    @Override public boolean keyPressed(int key, int scan, int modifiers) {
+        if (super.keyPressed(key, scan, modifiers)) return true;
+        if (minecraft != null && minecraft.options.keyInventory.matches(key, scan)) {
+            onClose();
+            return true;
+        }
+        return false;
+    }
+    //? }
+
+    /** End only this screen's live session; stale callbacks must not close a replacement menu. */
+    private void closeNexus() {
+        if (minecraft == null || minecraft.screen != this) return;
+        if (minecraft.player != null && minecraft.player.containerMenu == menu) {
+            minecraft.player.closeContainer();
+        } else {
+            super.onClose();
+        }
+    }
+
     @Override
     public void removed() {
         AscendanceNexusTransactionClientState.forget(this);
@@ -201,6 +251,7 @@ public final class AscendanceNexusScreen
         NexusNavigationState.remember(navigationSession, navigationPlayer,
                 new NexusNavigationState.Snapshot(navigation.mode(), navigationPages,
                         attunementView.navigation(), scrollX, scrollY));
+        if (minecraft != null && minecraft.player != null) menu.removed(minecraft.player);
         super.removed();
     }
 
@@ -394,7 +445,7 @@ public final class AscendanceNexusScreen
                                 ? "nexus.modal.discard_archive" : "nexus.modal.discard_exit", idle, () -> {
                     boolean archive = pendingDecision == PendingDecision.ARCHIVE;
                     draft.clearAndCapture(ClientEssenceState.snapshot()); transactionFeedback = null;
-                    pendingDecision = PendingDecision.NONE; super.onClose();
+                    pendingDecision = PendingDecision.NONE; closeNexus();
                     if (archive) AscendanceArchiveScreen.open();
                 }),
                 modalControl("back", row.get(2), pendingDecision == PendingDecision.ARCHIVE
@@ -3737,7 +3788,7 @@ public final class AscendanceNexusScreen
     @Override
     public void onClose() {
         if (!canPromptForExit()) {
-            super.onClose();
+            closeNexus();
             return;
         }
 
@@ -3754,7 +3805,7 @@ public final class AscendanceNexusScreen
             return;
         }
 
-        super.onClose();
+        closeNexus();
     }
 
     private void requestArchive() {
@@ -3765,7 +3816,7 @@ public final class AscendanceNexusScreen
             pendingCompletion = PendingCompletion.NONE;
             transactionFeedback = null;
         } else {
-            super.onClose();
+            closeNexus();
             AscendanceArchiveScreen.open();
         }
     }
@@ -3777,7 +3828,7 @@ public final class AscendanceNexusScreen
         } else {
             boolean archive = pendingDecision == PendingDecision.ARCHIVE;
             pendingDecision = PendingDecision.NONE;
-            super.onClose();
+            closeNexus();
             if (archive) AscendanceArchiveScreen.open();
         }
     }
@@ -4285,12 +4336,12 @@ public final class AscendanceNexusScreen
 
         if (acceptedAscension) {
             acceptedAscension = false;
-            super.onClose();
+            closeNexus();
             AscensionAnimation.confirmed(snapshot.tierId());
         } else if (completion == PendingCompletion.EXIT) {
-            super.onClose();
+            closeNexus();
         } else if (completion == PendingCompletion.ARCHIVE) {
-            super.onClose();
+            closeNexus();
             AscendanceArchiveScreen.open();
         }
     }

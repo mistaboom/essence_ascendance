@@ -1,10 +1,10 @@
 # Fullscreen composition
 
-The fullscreen presentation layer lives in `client.ui.fullscreen`. Nexus is its shipping menu-backed consumer and the Ascendance Archive is its shipping ordinary-screen consumer. `FullscreenCompositionTest.ArchiveScreenExample` remains a small nonshipping composition fixture. The framework has no Nexus or Archive mode, essence/category, screen-ID switch, transaction, network, or menu dependency.
+The fullscreen presentation layer lives in `client.ui.fullscreen`. Nexus and the Ascendance Archive are its shipping ordinary-screen consumers. Nexus separately retains a slotless server menu as its progression authorization session. `FullscreenCompositionTest.ArchiveScreenExample` remains a small nonshipping composition fixture. The framework has no Nexus or Archive mode, essence/category, screen-ID switch, transaction, network, or menu dependency.
 
 ## Host and lifecycle boundary
 
-`FullscreenContainerScreen<M>` still extends Minecraft's `AbstractContainerScreen<M>`. It preserves container initialization, normal ticking, menu validity, vanilla key handling, closing, and removal. It forwards presentation to `FullscreenComposition`, including input before vanilla fallback, reflow on initialization/resize, foreground overlays, and tooltip suppression. A slotless fullscreen menu is the intended container use; inventory-slot layout is not implemented by this adapter.
+`FullscreenContainerScreen<M>` is available for future container-based consumers and extends Minecraft's `AbstractContainerScreen<M>`. It preserves container initialization, normal ticking, menu validity, vanilla key handling, closing, and removal. It forwards presentation to `FullscreenComposition`, including input before vanilla fallback, reflow on initialization/resize, foreground overlays, and tooltip suppression. A slotless fullscreen menu is the intended container use; inventory-slot layout is not implemented by this adapter.
 
 `FullscreenScreen` provides the same composition contract for an ordinary Minecraft `Screen`. It does not construct a menu or emulate container/transaction behavior. Both adapters expose:
 
@@ -12,6 +12,8 @@ The fullscreen presentation layer lives in `client.ui.fullscreen`. Nexus is its 
 - `beforeFullscreenFrame()`: optional host work before composing/rendering; Nexus consumes authoritative transaction results here.
 - `renderFullscreenTooltips(...)`: host content tooltips, called only when the overlay stack allows them.
 - `fullscreen`: the instance-owned composition controller. Neither adapter saves navigation or chooses a close policy for its host.
+
+Nexus extends the same `FullscreenScreen` as Archive and implements Minecraft's `MenuAccess<AscendanceNexusMenu>` opening contract. The menu has no item slots and does not determine presentation or input. It retains server-side reach, block existence, session identity and transaction validation. Nexus explicitly ends that session on confirmed departures, retains the inventory-key close shortcut after composed input, stays nonpausing, and dismisses invalid/dead-player sessions without offering a draft dialog. Menu cleanup and server-requested closes retain their native lifecycle. No inventory rendering, slot interaction or container-screen inheritance is involved.
 
 ### Native widgets and optional inventory sidebars
 
@@ -23,7 +25,9 @@ The installed ATM10 Dark Mode Everywhere 1.4.0 jar explains the reported bottom-
 
 Both fullscreen hosts additionally register their concrete class through `FullscreenSidebarCompatibility` before native initialization. When FTB Library is present, its public client `addSidebarScreenBlacklist` API excludes that class from its inventory sidebar. This remains necessary for providers that draw through their own screen events instead of native widget collections. Optional absence never loads FTB classes; an unavailable API logs one warning. Other inventory, machine and title screens retain their normal controls and sidebars.
 
-`FullscreenRenderContractTest` checks the production policy, both host boundaries, and the actual mapped native widget-collection methods on common/Fabric and NeoForge. `FullscreenCompositionTest` continues to exercise composed controls, focus, input and overlays. These are bytecode/behavior contracts without an OpenGL context: compilation and these checks do not establish that Mixin successfully transformed a running client or that an installed pack renders correctly. Loader client initialization and an in-game visual check are separate acceptance steps.
+TrashSlot's container overlay requires `AbstractContainerScreen`. Both Nexus and Archive now use ordinary screens, so neither qualifies. Nexus no longer needs a per-menu TrashSlot layout exclusion or a JEI container-area registration. Normal inventory and machine screens retain their existing overlays and integrations.
+
+`FullscreenRenderContractTest` checks the production policy, both host boundaries, and the actual mapped native widget-collection methods on common/Fabric and NeoForge. Its shared `NexusScreenSessionContractTest` exercises compiled lifecycle guards for owned/replaced menus, stale screens, player death/removal and unavailable client context. `FullscreenCompositionTest` continues to exercise composed controls, focus, input and overlays. These are bytecode/behavior contracts without an OpenGL context: compilation and these checks do not establish that Mixin successfully transformed a running client or that an installed pack renders correctly. Loader client initialization and an in-game visual check are separate acceptance steps.
 
 ### Native background rendering contract
 

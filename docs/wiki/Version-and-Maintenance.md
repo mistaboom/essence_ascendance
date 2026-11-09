@@ -6,7 +6,7 @@
 
 | Reference | Version |
 | --- | --- |
-| Current command guidance, membership behavior and release targets | **1.0.0-beta.17**, refreshed November 7, 2026 |
+| Current command guidance, membership behavior and release targets | **1.0.0-beta.18**, refreshed November 8, 2026 |
 | This wiki's balance/configuration guide | **1.0.0-beta.9**, refreshed October 18, 2026 |
 | Minecraft / Java | **1.21.1 / 21** and **26.1.2 / 25** |
 | Loaders | Fabric and NeoForge for each Minecraft version; four separate builds |
@@ -14,8 +14,22 @@
 
 Use the build matching both Minecraft and loader, with matching mod versions on
 the server and clients. This pack-maker guide retains its beta.9 balance refresh
-and dated evidence; current commands, membership behavior and release targets are updated for beta.17.
+and dated evidence; current commands, membership behavior and release targets are updated for beta.18.
 Player gameplay instructions remain in the Ascendance Archive.
+
+## Added in beta.18
+
+Minecraft 26 again renders Ore Sight, Threat Sense and shared skill outlines.
+Essence Wings maintains a continuous equipment-free glide, including its active
+HUD state, vanilla firework thrust and fresh-Jump Vector Boost.
+
+The Nexus now uses the same ordinary fullscreen foundation as the Archive.
+Inventory overlays such as TrashSlot no longer attach to it; server transaction
+validation and the apply/discard/exit flow remain intact.
+
+Skill-grant and unknown-skill messages accept identifiers under Minecraft 26's
+text validation. Admin activation now enables toggle skills such as Sanctuary,
+Industrious Presence and Containment Field without changing unrelated selections.
 
 ## Added in beta.17
 
@@ -52,7 +66,7 @@ for exact syntax, permissions and audience limits.
 
 ## Updating from earlier betas
 
-Updating from beta.15 or beta.16 within the same Minecraft version requires no world,
+Updating from beta.15, beta.16 or beta.17 within the same Minecraft version requires no world,
 player-progress or configuration reset, and no balance rebuild. Update both the
 server and clients. Existing settings and generated balance remain in place.
 

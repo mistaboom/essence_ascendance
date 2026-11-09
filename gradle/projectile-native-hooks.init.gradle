@@ -28,7 +28,7 @@ allprojects { p ->
                 destinationDirectory = p.layout.buildDirectory.dir('native-fixtures')
                 from(compile.flatMap { it.destinationDirectory })
                 from(common.sourceSets.test.output) {
-                    include 'com/mistaboom/essence_ascendance/projectile/ProjectileNativeServerFixture2612.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/ProjectileNativeServerFixture2612*.class'
                 }
                 from(metadata)
                 doFirst {

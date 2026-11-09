@@ -22,6 +22,7 @@ final class FullscreenRenderContract2612Test {
 
     static int run() throws Exception {
         checks = 0;
+        checks += NexusScreenSessionContractTest.run();
         var nativeScreen = load("net/minecraft/client/gui/screens/Screen");
         var frame = calls(method(nativeScreen, "extractRenderStateWithTooltipAndSubtitles"));
         int backgroundIndex = index(frame, nativeScreen.name, "extractBackground");
